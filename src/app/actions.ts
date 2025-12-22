@@ -5,31 +5,40 @@ import { createSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
 
 export async function sendOtp(mobile: string) {
-    // Check User
-    const user = await prisma.user.findUnique({
-        where: { mobileNumber: mobile }
-    })
+    try {
+        // Check User
+        const user = await prisma.user.findUnique({
+            where: { mobileNumber: mobile }
+        })
 
-    // Check Admin
-    const admin = await prisma.admin.findUnique({
-        where: { adminMobile: mobile }
-    })
+        // Check Admin
+        const admin = await prisma.admin.findUnique({
+            where: { adminMobile: mobile }
+        })
 
-    const exists = !!user || !!admin
+        const exists = !!user || !!admin
 
-    // Check if registration is allowed for new users
-    if (!exists) {
-        const settings = await prisma.systemSettings.findFirst()
-        if (!settings?.allowNewRegistrations) {
-            return {
-                success: false,
-                exists: false,
-                error: 'New registrations are currently disabled. Please contact the administrator.'
+        // Check if registration is allowed for new users
+        if (!exists) {
+            const settings = await prisma.systemSettings.findFirst()
+            if (!settings?.allowNewRegistrations) {
+                return {
+                    success: false,
+                    exists: false,
+                    error: 'New registrations are currently disabled. Please contact the administrator.'
+                }
             }
         }
-    }
 
-    return { success: true, exists }
+        return { success: true, exists }
+    } catch (error: any) {
+        console.error('sendOtp error:', error)
+        return {
+            success: false,
+            exists: false,
+            error: `Database error: ${error.message || 'Connection failed'}`
+        }
+    }
 }
 
 export async function verifyOtpOnly(otp: string) {
