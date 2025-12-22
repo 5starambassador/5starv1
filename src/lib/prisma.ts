@@ -1,10 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 
 const prismaClientSingleton = () => {
-    return new PrismaClient({
-        log: ['error', 'warn'],
-        datasourceUrl: process.env.DATABASE_URL,
-    })
+    return new PrismaClient()
 }
 
 type PrismaClientSingleton = ReturnType<typeof prismaClientSingleton>
