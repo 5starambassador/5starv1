@@ -42,9 +42,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
         // Management of specific dashboard types
         if (isSuperAdmin) {
+            navItems.push({ label: 'Marketing Mgmt', href: '/superadmin?view=marketing', icon: Database })
             navItems.push({ label: 'Permissions', href: '/superadmin?view=permissions', icon: Shield })
-            navItems.push({ label: 'Staff Dashboard Ctrl', href: '/superadmin?view=staff-dash', icon: ShieldCheck })
-            navItems.push({ label: 'Parent Dashboard Ctrl', href: '/superadmin?view=parent-dash', icon: Star })
+            // navItems.push({ label: 'Staff Dashboard Ctrl', href: '/superadmin?view=staff-dash', icon: ShieldCheck })
+            // navItems.push({ label: 'Parent Dashboard Ctrl', href: '/superadmin?view=parent-dash', icon: Star })
         }
 
         // Ambassador Portal Links (Only for Staff & Parents)
@@ -56,12 +57,13 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             if (permissions.rulesAccess.access) navItems.push({ label: 'Rules', href: '/rules', icon: BookOpen })
         }
 
-        // Shared Tooling (Available to all who have permission)
-        if (permissions.marketingKit.access) navItems.push({ label: 'Marketing Kit', href: '/marketing', icon: Database })
-        if (permissions.supportDesk.access) navItems.push({ label: 'Support Desk', href: '/support', icon: MessageSquare })
+        // Shared Tooling (Available to all who have permission, but hidden for Super Admin who has dedicated management views)
+        if (permissions.marketingKit.access && !isSuperAdmin) navItems.push({ label: 'Marketing Kit', href: '/marketing', icon: Database })
+        if (permissions.supportDesk.access && !isSuperAdmin) navItems.push({ label: 'Support Desk', href: '/support', icon: MessageSquare })
 
         // Admin-specific shared modules (Hide from Ambassadors)
         if (!isAmbassadorRole) {
+            navItems.push({ label: 'Support Tickets', href: '/tickets', icon: MessageSquare })
             if (permissions.settlements.access) navItems.push({ label: 'Settlements', href: '/superadmin?view=settlements', icon: DollarSign })
             if (permissions.auditLog.access) navItems.push({ label: 'Audit Trail', href: '/superadmin?view=audit', icon: GanttChartSquare })
             if (permissions.settings.access) navItems.push({ label: 'Settings', href: '/superadmin?view=settings', icon: Settings })

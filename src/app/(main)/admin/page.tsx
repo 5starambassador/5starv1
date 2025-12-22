@@ -1,4 +1,5 @@
 import { getAllReferrals, getAdminAnalytics, confirmReferral } from '@/app/admin-actions'
+import { getCampuses } from '@/app/campus-actions'
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth-service'
 import { AdminClient } from './admin-client'
@@ -18,14 +19,29 @@ function serializeData<T>(data: T): T {
     return data
 }
 
-export default async function AdminPage() {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Admin')) redirect('/dashboard')
 
-    const referrals = await getAllReferrals()
-    const analytics = await getAdminAnalytics()
+    const params = await searchParams
+    const view = params?.view || 'analytics'
+
+    // Parallel data fetching
+    const [referrals, analytics, campusesResult] = await Promise.all([
+        getAllReferrals(),
+        getAdminAnalytics(),
+        getCampuses()
+    ])
 
     if (!analytics) return <div>Error loading analytics</div>
 
-    return <AdminClient referrals={serializeData(referrals)} analytics={analytics} confirmReferral={confirmReferral} />
+    return (
+        <AdminClient
+            referrals={serializeData(referrals)}
+            analytics={analytics}
+            confirmReferral={confirmReferral}
+            initialView={view}
+            campuses={campusesResult.success ? campusesResult.campuses : []}
+        />
+    )
 }

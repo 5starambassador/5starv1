@@ -247,12 +247,15 @@ model SupportTicket {
   userId          Int
   user            User     @relation(fields: [userId], references: [userId])
   subject         String
+  message         String   // Initial message
   category        String   // Referral, Benefit, Technical, Other
   priority        String   @default("Medium") // Low, Medium, High, Urgent
   status          String   @default("Open") // Open, In-Progress, Resolved, Closed
+  campus          String?  // For routing to Campus Head
   assignedAdminId Int?     // Admin ID
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  resolvedAt      DateTime?
   messages        TicketMessage[]
 }
 
@@ -309,4 +312,19 @@ model NotificationSettings {
   notifyCampusHeadOnNewLeads  Boolean @default(true)
   updatedAt             DateTime @updatedAt
   updatedBy             String?
+}
+
+model MarketingAsset {
+  id            Int      @id @default(autoincrement())
+  name          String   // e.g. "Official Logo Pack"
+  category      String   // Branding, WhatsApp Templates, Social Media, Videos, Flyers
+  description   String?
+  fileUrl       String   // URL to the file
+  fileType      String?  // pdf, png, mp4, etc.
+  fileSize      Int?     // in bytes
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  uploadedById  Int?     // Admin who uploaded
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

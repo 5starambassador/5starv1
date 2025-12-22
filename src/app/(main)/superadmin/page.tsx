@@ -1,6 +1,8 @@
 import { getCurrentUser } from '@/lib/auth-service'
 import { redirect } from 'next/navigation'
 import { getSystemAnalytics, getCampusComparison, getAllUsers, getAllAdmins, getAllStudents } from '@/app/superadmin-actions'
+import { getAdminMarketingAssets } from '@/app/marketing-actions'
+import { getSystemSettings } from '@/app/settings-actions'
 import SuperadminClient from './superadmin-client'
 
 interface PageProps {
@@ -44,6 +46,8 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
     const users = await getAllUsers()
     const admins = await getAllAdmins()
     const students = await getAllStudents()
+    const marketingAssets = await getAdminMarketingAssets()
+    const systemSettings = await getSystemSettings()
 
     return (
         <SuperadminClient
@@ -54,7 +58,10 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
             students={serializeData(students) as any}
             currentUser={serializeData(user) as any}
             initialView={initialView}
+            marketingAssets={serializeData(marketingAssets.assets) as any}
+            systemSettings={serializeData(systemSettings) as any}
         />
     )
 }
+
 

@@ -12,6 +12,8 @@ import { getBenefitSlabs, updateBenefitSlab, addBenefitSlab, deleteBenefitSlab }
 import { addUser, addAdmin, removeUser, deleteAdmin, bulkAddUsers, updateUserStatus, updateAdminStatus } from '@/app/superadmin-actions'
 import { addStudent, updateStudent, bulkAddStudents } from '@/app/student-actions'
 import { getRolePermissions, updateRolePermissions } from '@/app/permission-actions'
+import { MarketingManager } from '@/components/MarketingManager'
+import DashboardSettings from '@/components/DashboardSettings'
 import {
     generateReferralPerformanceReport,
     generatePendingLeadsReport,
@@ -95,9 +97,11 @@ interface Props {
     students: StudentRecord[]
     currentUser: any
     initialView?: string
+    marketingAssets?: any[]
+    systemSettings?: any
 }
 
-export default function SuperadminClient({ analytics, campusComparison, users, admins, students, initialView = 'analytics' }: Props) {
+export default function SuperadminClient({ analytics, campusComparison, users, admins, students, initialView = 'analytics', marketingAssets = [], systemSettings = {} }: Props) {
     const searchParams = useSearchParams()
     const router = useRouter()
     const [searchQuery, setSearchQuery] = useState('')
@@ -163,7 +167,7 @@ export default function SuperadminClient({ analytics, campusComparison, users, a
     const [selectedView, setSelectedView] = useState<'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash'>(mapViewParam(initialView))
 
     // Unified Status & Settings States
-    const [systemSettings, setSystemSettings] = useState<any>(null)
+    const [settingsState, setSettingsState] = useState<any>(systemSettings || null)
     const [campuses, setCampuses] = useState<any[]>([])
     const [leadSettings, setLeadSettings] = useState<any>(null)
     const [securitySettings, setSecuritySettings] = useState<any>(null)
@@ -224,7 +228,7 @@ export default function SuperadminClient({ analytics, campusComparison, users, a
                     getBenefitSlabs()
                 ])
 
-                setSystemSettings(sys)
+                setSettingsState(sys)
                 setRegistrationEnabled(sys.allowNewRegistrations)
                 if (cmp.success && cmp.campuses) setCampuses(cmp.campuses)
                 if (slb.success && slb.slabs) setSlabs(slb.slabs)
@@ -705,74 +709,76 @@ export default function SuperadminClient({ analytics, campusComparison, users, a
     return (
         <>
             <div className="space-y-4">
-                {/* Dynamic Header - Compact */}
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    background: 'white',
-                    padding: '16px 24px',
-                    borderRadius: '16px',
-                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)',
-                    border: '1px solid rgba(229, 231, 235, 0.5)'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        {selectedView === 'analytics' && (
-                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}>
-                                <div style={{ width: '8px', height: '8px', background: '#10B981', borderRadius: '50%', zIndex: 2 }}></div>
-                                <div style={{ position: 'absolute', width: '100%', height: '100%', background: '#10B981', borderRadius: '50%', animation: 'ripple 2s infinite', opacity: 0.4 }}></div>
+                {/* Dynamic Header - Compact (Hidden for Dashboard Ctrls which have their own headers) */}
+                {!['staff-dash', 'parent-dash'].includes(selectedView) && (
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        background: 'white',
+                        padding: '16px 24px',
+                        borderRadius: '16px',
+                        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)',
+                        border: '1px solid rgba(229, 231, 235, 0.5)'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            {selectedView === 'analytics' && (
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}>
+                                    <div style={{ width: '8px', height: '8px', background: '#10B981', borderRadius: '50%', zIndex: 2 }}></div>
+                                    <div style={{ position: 'absolute', width: '100%', height: '100%', background: '#10B981', borderRadius: '50%', animation: 'ripple 2s infinite', opacity: 0.4 }}></div>
+                                </div>
+                            )}
+                            <div>
+                                <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>
+                                    {pageConfig[selectedView].title}
+                                </h1>
+                                <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '1px', fontWeight: '500' }}>
+                                    {pageConfig[selectedView].subtitle}
+                                </p>
                             </div>
-                        )}
-                        <div>
-                            <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>
-                                {pageConfig[selectedView].title}
-                            </h1>
-                            <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '1px', fontWeight: '500' }}>
-                                {pageConfig[selectedView].subtitle}
-                            </p>
                         </div>
-                    </div>
 
-                    <style>{`
+                        <style>{`
                         @keyframes ripple {
                             0% { transform: scale(0.8); opacity: 0.5; }
                             100% { transform: scale(2.5); opacity: 0; }
                         }
                     `}</style>
 
-                    {selectedView === 'analytics' && (
-                        <button
-                            onClick={() => router.refresh()}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                padding: '8px 16px',
-                                background: '#F9FAFB',
-                                border: '1px solid #E5E7EB',
-                                borderRadius: '10px',
-                                fontSize: '13px',
-                                fontWeight: '700',
-                                color: '#374151',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                            }}
-                            onMouseOver={(e) => {
-                                e.currentTarget.style.background = '#FFFFFF';
-                                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
-                                e.currentTarget.style.transform = 'translateY(-1px)';
-                            }}
-                            onMouseOut={(e) => {
-                                e.currentTarget.style.background = '#F9FAFB';
-                                e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
-                                e.currentTarget.style.transform = 'translateY(0)';
-                            }}
-                        >
-                            <RefreshCw size={14} /> Refresh
-                        </button>
-                    )}
-                </div>
+                        {selectedView === 'analytics' && (
+                            <button
+                                onClick={() => router.refresh()}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '8px 16px',
+                                    background: '#F9FAFB',
+                                    border: '1px solid #E5E7EB',
+                                    borderRadius: '10px',
+                                    fontSize: '13px',
+                                    fontWeight: '700',
+                                    color: '#374151',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                }}
+                                onMouseOver={(e) => {
+                                    e.currentTarget.style.background = '#FFFFFF';
+                                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
+                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                }}
+                                onMouseOut={(e) => {
+                                    e.currentTarget.style.background = '#F9FAFB';
+                                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                }}
+                            >
+                                <RefreshCw size={14} /> Refresh
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 {/* Analytics Overview View */}
                 {selectedView === 'analytics' && (
@@ -2769,24 +2775,7 @@ export default function SuperadminClient({ analytics, campusComparison, users, a
 
                 {/* Marketing Kit View */}
                 {selectedView === 'marketing' && (
-                    <div className="space-y-4">
-                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <button style={{ padding: '8px 16px', background: '#111827', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Upload size={14} /> Upload Resource
-                            </button>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
-                            {['Branding', 'WhatsApp Templates', 'Social Media', 'Instruction PDFs'].map(cat => (
-                                <div key={cat} style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #f0f0f0', textAlign: 'center' }}>
-                                    <div style={{ width: '48px', height: '48px', background: '#F9FAFB', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                                        <Database size={20} style={{ color: '#6B7280' }} />
-                                    </div>
-                                    <h4 style={{ fontWeight: '700', fontSize: '14px', marginBottom: '4px' }}>{cat}</h4>
-                                    <p style={{ fontSize: '11px', color: '#9CA3AF' }}>0 Items</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <MarketingManager assets={marketingAssets} />
                 )}
 
                 {/* Audit Trail View */}
@@ -2813,6 +2802,28 @@ export default function SuperadminClient({ analytics, campusComparison, users, a
                             </table>
                         </div>
                     </div>
+                )}
+
+                {/* Staff Dashboard Control */}
+                {selectedView === 'staff-dash' && (
+                    <DashboardSettings
+                        type="staff"
+                        initialSettings={{
+                            welcomeMessage: (settingsState || {}).staffWelcomeMessage,
+                            referralText: (settingsState || {}).staffReferralText
+                        }}
+                    />
+                )}
+
+                {/* Parent Dashboard Control */}
+                {selectedView === 'parent-dash' && (
+                    <DashboardSettings
+                        type="parent"
+                        initialSettings={{
+                            welcomeMessage: (settingsState || {}).parentWelcomeMessage,
+                            referralText: (settingsState || {}).parentReferralText
+                        }}
+                    />
                 )}
 
                 {/* Support Desk View */}

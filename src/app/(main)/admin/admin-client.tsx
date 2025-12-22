@@ -1,19 +1,31 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { Users, TrendingUp, Award, BarChart3, DollarSign, CheckCircle, RefreshCw, Trophy } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Users, TrendingUp, Award, BarChart3, DollarSign, CheckCircle, RefreshCw, Trophy, Building2 } from 'lucide-react'
 import { ReferralTable } from './referral-table'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface AdminClientProps {
     referrals: any[]
     analytics: any
     confirmReferral: (leadId: number) => Promise<any>
+    initialView?: string
+    campuses?: any[]
 }
 
-export function AdminClient({ referrals, analytics, confirmReferral }: AdminClientProps) {
+export function AdminClient({ referrals, analytics, confirmReferral, initialView = 'analytics', campuses = [] }: AdminClientProps) {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [statusFilter, setStatusFilter] = useState<string>('All')
+
+    // View state
+    const [selectedView, setSelectedView] = useState<string>(initialView)
+
+    // Sync state with URL
+    useEffect(() => {
+        const view = searchParams.get('view') || 'analytics'
+        setSelectedView(view)
+    }, [searchParams])
 
     const handleCardClick = (filter: string) => {
         setStatusFilter(filter)
@@ -46,10 +58,10 @@ export function AdminClient({ referrals, analytics, confirmReferral }: AdminClie
                     </div>
                     <div>
                         <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>
-                            Admin Dashboard
+                            {selectedView === 'campuses' ? 'Campus Management' : 'Admin Dashboard'}
                         </h1>
                         <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '1px', fontWeight: '500' }}>
-                            Operational insights and lead conversion management
+                            {selectedView === 'campuses' ? 'View and manage campus details' : 'Operational insights and lead conversion management'}
                         </p>
                     </div>
                 </div>
@@ -87,292 +99,311 @@ export function AdminClient({ referrals, analytics, confirmReferral }: AdminClie
                 </button>
             </div>
 
-            {/* Premium KPI Cards Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                {/* Total Leads Card */}
-                <div
-                    onClick={() => handleCardClick('All')}
-                    style={{
-                        background: 'linear-gradient(135deg, #EF4444, #B91C1C)',
-                        padding: '20px',
-                        borderRadius: '16px',
-                        cursor: 'pointer',
-                        position: 'relative',
-                        overflow: 'hidden',
-                        boxShadow: '0 10px 20px -5px rgba(239, 68, 68, 0.3)',
-                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                        border: statusFilter === 'All' ? '2px solid white' : '2px solid transparent',
-                        transform: statusFilter === 'All' ? 'scale(1.02)' : 'none'
-                    }}
-                >
-                    <BarChart3 size={48} style={{ position: 'absolute', right: '-10px', bottom: '-10px', color: 'rgba(255,255,255,0.15)' }} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', position: 'relative' }}>
-                        <BarChart3 size={16} style={{ color: 'rgba(255,255,255,0.9)' }} />
-                        <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: '600', letterSpacing: '0.02em' }}>Total Leads</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', position: 'relative' }}>
-                        <p style={{ fontSize: '28px', fontWeight: '800', color: 'white', margin: 0 }}>{analytics.totalLeads}</p>
-                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: '500' }}>Entries</span>
-                    </div>
+            {/* CONTENT VIEWS */}
+
+            {/* CAMPUSES VIEW */}
+            {selectedView === 'campuses' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+                    {campuses && campuses.length > 0 ? (
+                        campuses.map((campus: any) => (
+                            <div key={campus.id} style={{
+                                background: 'white',
+                                borderRadius: '16px',
+                                padding: '24px',
+                                border: '1px solid #E5E7EB',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
+                                    <div style={{
+                                        width: '40px',
+                                        height: '40px',
+                                        borderRadius: '10px',
+                                        background: '#E0E7FF',
+                                        color: '#4F46E5',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}>
+                                        <Building2 size={20} />
+                                    </div>
+                                    <span style={{
+                                        fontSize: '11px',
+                                        fontWeight: '700',
+                                        padding: '4px 8px',
+                                        borderRadius: '20px',
+                                        background: campus.isActive ? '#DCFCE7' : '#F3F4F6',
+                                        color: campus.isActive ? '#15803D' : '#6B7280'
+                                    }}>
+                                        {campus.isActive ? 'ACTIVE' : 'INACTIVE'}
+                                    </span>
+                                </div>
+                                <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#111827', margin: '0 0 4px' }}>{campus.campusName}</h3>
+                                <p style={{ fontSize: '13px', color: '#6B7280', margin: '0 0 16px' }}>{campus.campusCode} • {campus.location}</p>
+
+                                <div style={{ display: 'flex', gap: '12px', borderTop: '1px solid #F3F4F6', paddingTop: '16px' }}>
+                                    <div>
+                                        <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0, fontWeight: '600', textTransform: 'uppercase' }}>Grades</p>
+                                        <p style={{ fontSize: '13px', color: '#374151', margin: '2px 0 0', fontWeight: '500' }}>{campus.grades}</p>
+                                    </div>
+                                    <div style={{ height: '30px', width: '1px', background: '#F3F4F6' }}></div>
+                                    <div>
+                                        <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0, fontWeight: '600', textTransform: 'uppercase' }}>Capacity</p>
+                                        <p style={{ fontSize: '13px', color: '#374151', margin: '2px 0 0', fontWeight: '500' }}>{campus.maxCapacity}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', background: 'white', borderRadius: '16px', color: '#6B7280' }}>
+                            No campuses found.
+                        </div>
+                    )}
                 </div>
+            )}
 
-                {/* Confirmed Card */}
-                <div
-                    onClick={() => handleCardClick('Confirmed')}
-                    style={{
-                        background: 'linear-gradient(135deg, #10B981, #059669)',
-                        padding: '20px',
-                        borderRadius: '16px',
-                        cursor: 'pointer',
-                        position: 'relative',
-                        overflow: 'hidden',
-                        boxShadow: '0 10px 20px -5px rgba(16, 185, 129, 0.3)',
-                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                        border: statusFilter === 'Confirmed' ? '2px solid white' : '2px solid transparent',
-                        transform: statusFilter === 'Confirmed' ? 'scale(1.02)' : 'none'
-                    }}
-                >
-                    <CheckCircle size={48} style={{ position: 'absolute', right: '-10px', bottom: '-10px', color: 'rgba(255,255,255,0.15)' }} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', position: 'relative' }}>
-                        <CheckCircle size={16} style={{ color: 'rgba(255,255,255,0.9)' }} />
-                        <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: '600', letterSpacing: '0.02em' }}>Confirmed</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', position: 'relative' }}>
-                        <p style={{ fontSize: '28px', fontWeight: '800', color: 'white', margin: 0 }}>{analytics.confirmedLeads}</p>
-                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: '500' }}>Admitted</span>
-                    </div>
-                </div>
+            {/* ANALYTICS VIEW (Default) */}
+            {(selectedView === 'analytics' || !selectedView) && (
+                <>
+                    {/* Premium KPI Cards Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                        {/* Total Leads Card */}
+                        <div
+                            onClick={() => handleCardClick('All')}
+                            style={{
+                                background: 'linear-gradient(135deg, #EF4444, #B91C1C)',
+                                padding: '20px',
+                                borderRadius: '16px',
+                                cursor: 'pointer',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                boxShadow: '0 10px 15px -3px rgba(239, 68, 68, 0.3), 0 4px 6px -2px rgba(239, 68, 68, 0.1)',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                transform: 'translateY(0)',
+                                border: '1px solid rgba(255,255,255,0.1)'
+                            }}
+                            onMouseOver={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-5px)';
+                                e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(239, 68, 68, 0.4), 0 10px 10px -5px rgba(239, 68, 68, 0.2)';
+                            }}
+                            onMouseOut={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(239, 68, 68, 0.3), 0 4px 6px -2px rgba(239, 68, 68, 0.1)';
+                            }}
+                        >
+                            <div style={{ position: 'absolute', top: '-10px', right: '-10px', width: '100px', height: '100px', background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)', borderRadius: '50%' }}></div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', position: 'relative', zIndex: 1 }}>
+                                <div>
+                                    <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: '600', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>Total Leads</p>
+                                    <h2 style={{ color: 'white', fontSize: '32px', fontWeight: '800', lineHeight: 1, textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>{analytics?.totalLeads || 0}</h2>
+                                </div>
+                                <div style={{ background: 'rgba(255,255,255,0.2)', padding: '10px', borderRadius: '12px', backdropFilter: 'blur(4px)' }}>
+                                    <Users color="white" size={24} strokeWidth={2.5} />
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '16px', padding: '6px 10px', background: 'rgba(255,255,255,0.15)', borderRadius: '8px', width: 'fit-content' }}>
+                                <TrendingUp size={14} color="white" />
+                                <span style={{ color: 'white', fontSize: '12px', fontWeight: '600' }}>{analytics?.conversionRate || 0}% Conversion</span>
+                            </div>
+                        </div>
 
-                {/* Pending Card */}
-                <div
-                    onClick={() => handleCardClick('Pending')}
-                    style={{
-                        background: 'linear-gradient(135deg, #F59E0B, #D97706)',
-                        padding: '20px',
-                        borderRadius: '16px',
-                        cursor: 'pointer',
-                        position: 'relative',
-                        overflow: 'hidden',
-                        boxShadow: '0 10px 20px -5px rgba(245, 158, 11, 0.3)',
-                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                        border: statusFilter === 'Pending' ? '2px solid white' : '2px solid transparent',
-                        transform: statusFilter === 'Pending' ? 'scale(1.02)' : 'none'
-                    }}
-                >
-                    <TrendingUp size={48} style={{ position: 'absolute', right: '-10px', bottom: '-10px', color: 'rgba(255,255,255,0.15)' }} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', position: 'relative' }}>
-                        <TrendingUp size={16} style={{ color: 'rgba(255,255,255,0.9)' }} />
-                        <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: '600', letterSpacing: '0.02em' }}>Pending</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', position: 'relative' }}>
-                        <p style={{ fontSize: '28px', fontWeight: '800', color: 'white', margin: 0 }}>{analytics.pendingLeads}</p>
-                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: '500' }}>Follow-up</span>
-                    </div>
-                </div>
+                        {/* Confirmed Leads Card */}
+                        <div
+                            onClick={() => handleCardClick('Confirmed')}
+                            style={{
+                                background: 'linear-gradient(135deg, #10B981, #059669)',
+                                padding: '20px',
+                                borderRadius: '16px',
+                                cursor: 'pointer',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.3), 0 4px 6px -2px rgba(16, 185, 129, 0.1)',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                border: '1px solid rgba(255,255,255,0.1)'
+                            }}
+                            onMouseOver={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-5px)';
+                                e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(16, 185, 129, 0.4), 0 10px 10px -5px rgba(16, 185, 129, 0.2)';
+                            }}
+                            onMouseOut={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(16, 185, 129, 0.3), 0 4px 6px -2px rgba(16, 185, 129, 0.1)';
+                            }}
+                        >
+                            <div style={{ position: 'absolute', top: '-10px', right: '-10px', width: '100px', height: '100px', background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)', borderRadius: '50%' }}></div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', position: 'relative', zIndex: 1 }}>
+                                <div>
+                                    <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: '600', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>Confirmed</p>
+                                    <h2 style={{ color: 'white', fontSize: '32px', fontWeight: '800', lineHeight: 1, textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>{analytics?.confirmedLeads || 0}</h2>
+                                </div>
+                                <div style={{ background: 'rgba(255,255,255,0.2)', padding: '10px', borderRadius: '12px', backdropFilter: 'blur(4px)' }}>
+                                    <CheckCircle color="white" size={24} strokeWidth={2.5} />
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '16px', padding: '6px 10px', background: 'rgba(255,255,255,0.15)', borderRadius: '8px', width: 'fit-content' }}>
+                                <Award size={14} color="white" />
+                                <span style={{ color: 'white', fontSize: '12px', fontWeight: '600' }}>Verified Enrollments</span>
+                            </div>
+                        </div>
 
-                {/* Conversion Rate Card */}
-                <div
-                    style={{
-                        background: 'linear-gradient(135deg, #F97316, #EA580C)',
-                        padding: '20px',
-                        borderRadius: '16px',
-                        position: 'relative',
-                        overflow: 'hidden',
-                        boxShadow: '0 10px 20px -5px rgba(249, 115, 22, 0.3)'
-                    }}
-                >
-                    <Award size={48} style={{ position: 'absolute', right: '-10px', bottom: '-10px', color: 'rgba(255,255,255,0.15)' }} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', position: 'relative' }}>
-                        <Award size={16} style={{ color: 'rgba(255,255,255,0.9)' }} />
-                        <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: '600', letterSpacing: '0.02em' }}>Conversion</span>
+                        {/* Est. Value Card */}
+                        <div
+                            style={{
+                                background: 'linear-gradient(135deg, #6366F1, #4F46E5)',
+                                padding: '20px',
+                                borderRadius: '16px',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                boxShadow: '0 10px 15px -3px rgba(99, 102, 241, 0.3), 0 4px 6px -2px rgba(99, 102, 241, 0.1)',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                border: '1px solid rgba(255,255,255,0.1)'
+                            }}
+                            onMouseOver={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-5px)';
+                                e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(99, 102, 241, 0.4), 0 10px 10px -5px rgba(99, 102, 241, 0.2)';
+                            }}
+                            onMouseOut={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(99, 102, 241, 0.3), 0 4px 6px -2px rgba(99, 102, 241, 0.1)';
+                            }}
+                        >
+                            <div style={{ position: 'absolute', top: '-10px', right: '-10px', width: '100px', height: '100px', background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)', borderRadius: '50%' }}></div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', position: 'relative', zIndex: 1 }}>
+                                <div>
+                                    <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: '600', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>Est. Value</p>
+                                    <h2 style={{ color: 'white', fontSize: '32px', fontWeight: '800', lineHeight: 1, textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>₹{(analytics?.totalEstimatedValue || 0).toLocaleString()}</h2>
+                                </div>
+                                <div style={{ background: 'rgba(255,255,255,0.2)', padding: '10px', borderRadius: '12px', backdropFilter: 'blur(4px)' }}>
+                                    <DollarSign color="white" size={24} strokeWidth={2.5} />
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '16px', padding: '6px 10px', background: 'rgba(255,255,255,0.15)', borderRadius: '8px', width: 'fit-content' }}>
+                                <BarChart3 size={14} color="white" />
+                                <span style={{ color: 'white', fontSize: '12px', fontWeight: '600' }}>Incentive Value</span>
+                            </div>
+                        </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', position: 'relative' }}>
-                        <p style={{ fontSize: '28px', fontWeight: '800', color: 'white', margin: 0 }}>{analytics.conversionRate}%</p>
-                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: '500' }}>Rate</span>
-                    </div>
-                </div>
 
-                {/* Ambassadors Card */}
-                <div
-                    style={{
-                        background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)',
-                        padding: '20px',
-                        borderRadius: '16px',
-                        position: 'relative',
-                        overflow: 'hidden',
-                        boxShadow: '0 10px 20px -5px rgba(139, 92, 246, 0.3)'
-                    }}
-                >
-                    <Users size={48} style={{ position: 'absolute', right: '-10px', bottom: '-10px', color: 'rgba(255,255,255,0.15)' }} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', position: 'relative' }}>
-                        <Users size={16} style={{ color: 'rgba(255,255,255,0.9)' }} />
-                        <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: '600', letterSpacing: '0.02em' }}>Ambassadors</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', position: 'relative' }}>
-                        <p style={{ fontSize: '28px', fontWeight: '800', color: 'white', margin: 0 }}>{analytics.totalAmbassadors}</p>
-                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: '500' }}>Members</span>
-                    </div>
-                </div>
+                    {/* Chart & Top Performers Section */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px' }}>
+                        {/* Weekly Activity Chart (Placeholder) */}
+                        <div style={{
+                            background: 'white',
+                            padding: '24px',
+                            borderRadius: '20px',
+                            border: '1px solid rgba(229, 231, 235, 0.5)',
+                            boxShadow: '0 10px 15px -3px rgba(0,0,0,0.04), 0 4px 6px -2px rgba(0,0,0,0.02)'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                                <div style={{ padding: '8px', background: '#F3F4F6', borderRadius: '10px' }}>
+                                    <BarChart3 size={20} color="#4B5563" />
+                                </div>
+                                <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#111827', margin: 0 }}>Role Distribution</h3>
+                            </div>
 
-                {/* Est. Value Card */}
-                <div
-                    style={{
-                        background: 'linear-gradient(135deg, #EC4899, #BE185D)',
-                        padding: '20px',
-                        borderRadius: '16px',
-                        position: 'relative',
-                        overflow: 'hidden',
-                        boxShadow: '0 10px 20px -5px rgba(236, 72, 153, 0.3)'
-                    }}
-                >
-                    <DollarSign size={48} style={{ position: 'absolute', right: '-10px', bottom: '-10px', color: 'rgba(255,255,255,0.15)' }} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', position: 'relative' }}>
-                        <DollarSign size={16} style={{ color: 'rgba(255,255,255,0.9)' }} />
-                        <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: '600', letterSpacing: '0.02em' }}>Benefits</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', position: 'relative' }}>
-                        <p style={{ fontSize: '28px', fontWeight: '800', color: 'white', margin: 0 }}>₹{Math.round(analytics.totalEstimatedValue / 1000)}K</p>
-                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: '500' }}>Value</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Charts & Insights Section */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
-                {/* Campus & Role Distribution */}
-                <div style={{
-                    background: 'white',
-                    padding: '24px',
-                    borderRadius: '20px',
-                    border: '1px solid rgba(229, 231, 235, 0.5)',
-                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.04), 0 4px 6px -2px rgba(0,0,0,0.02)'
-                }}>
-                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#111827', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <BarChart3 size={20} className="text-primary-red" />
-                        Distribution Insights
-                    </h3>
-
-                    <div className="space-y-6">
-                        {/* Status Pipeline */}
-                        <div>
-                            <p style={{ fontSize: '13px', fontWeight: '700', color: '#374151', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status Pipeline</p>
-                            <div className="space-y-4">
-                                {analytics.statusBreakdown.map((item: any, idx: number) => (
-                                    <div key={idx}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                            <span style={{ fontSize: '13px', fontWeight: '600', color: '#4B5563' }}>{item.status}</span>
-                                            <span style={{ fontSize: '13px', fontWeight: '700', color: '#111827' }}>{item.count} <span style={{ fontWeight: '500', color: '#6B7280' }}>({item.percentage}%)</span></span>
+                            <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {/* Simple Visual Representation instead of Chart.js for simplicity */}
+                                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                    <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>
+                                            <span>Parents</span>
+                                            <span>{analytics?.roleBreakdown?.parent?.percentage}%</span>
                                         </div>
-                                        <div style={{ height: '8px', background: '#F3F4F6', borderRadius: '4px', overflow: 'hidden' }}>
+                                        <div style={{ width: '100%', height: '12px', background: '#F3F4F6', borderRadius: '6px', overflow: 'hidden' }}>
+                                            <div style={{ width: `${analytics?.roleBreakdown?.parent?.percentage}%`, height: '100%', background: '#EF4444', borderRadius: '6px' }}></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>
+                                            <span>Staff</span>
+                                            <span>{analytics?.roleBreakdown?.staff?.percentage}%</span>
+                                        </div>
+                                        <div style={{ width: '100%', height: '12px', background: '#F3F4F6', borderRadius: '6px', overflow: 'hidden' }}>
+                                            <div style={{ width: `${analytics?.roleBreakdown?.staff?.percentage}%`, height: '100%', background: '#10B981', borderRadius: '6px' }}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Top Performers */}
+                        <div style={{
+                            background: 'white',
+                            padding: '24px',
+                            borderRadius: '20px',
+                            border: '1px solid rgba(229, 231, 235, 0.5)',
+                            boxShadow: '0 10px 15px -3px rgba(0,0,0,0.04), 0 4px 6px -2px rgba(0,0,0,0.02)'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                                <div style={{ padding: '8px', background: '#FEF3C7', borderRadius: '10px' }}>
+                                    <Trophy size={20} color="#D97706" />
+                                </div>
+                                <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#111827', margin: 0 }}>Top Performers</h3>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                {analytics.topPerformers.map((performer: any, idx: number) => (
+                                    <div
+                                        key={idx}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            padding: '16px',
+                                            background: idx === 0 ? 'linear-gradient(to right, #FFFBEB, #FFFFFF)' : '#F9FAFB',
+                                            borderRadius: '16px',
+                                            border: idx === 0 ? '1px solid #FEF3C7' : '1px solid #F3F4F6',
+                                            transition: 'all 0.2s',
+                                            cursor: 'pointer'
+                                        }}
+                                        onMouseOver={(e) => {
+                                            e.currentTarget.style.transform = 'translateX(4px)';
+                                            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)';
+                                        }}
+                                        onMouseOut={(e) => {
+                                            e.currentTarget.style.transform = 'translateX(0)';
+                                            e.currentTarget.style.boxShadow = 'none';
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                             <div style={{
-                                                height: '100%',
-                                                width: `${item.percentage}%`,
-                                                background: item.status === 'Confirmed' ? '#10B981' : item.status === 'Follow-up' ? '#F59E0B' : '#EF4444',
-                                                borderRadius: '4px',
-                                                transition: 'width 1s ease-out'
-                                            }}></div>
+                                                width: '36px',
+                                                height: '36px',
+                                                borderRadius: '10px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                background: idx === 0 ? '#FDE68A' : idx === 1 ? '#E5E7EB' : idx === 2 ? '#FFEDD5' : 'white',
+                                                fontSize: '14px',
+                                                fontWeight: '800',
+                                                color: idx === 0 ? '#92400E' : idx === 1 ? '#4B5563' : idx === 2 ? '#9A3412' : '#9CA3AF',
+                                                border: '1px solid rgba(0,0,0,0.05)'
+                                            }}>
+                                                {idx + 1}
+                                            </div>
+                                            <div>
+                                                <p style={{ fontSize: '14px', fontWeight: '700', color: '#111827', margin: 0 }}>{performer.name}</p>
+                                                <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>{performer.role} • {performer.referralCode}</p>
+                                            </div>
+                                        </div>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <p style={{ fontSize: '20px', fontWeight: '800', color: '#EF4444', margin: 0 }}>{performer.count}</p>
+                                            <p style={{ fontSize: '11px', fontWeight: '600', color: '#9CA3AF', margin: 0, textTransform: 'uppercase' }}>leads</p>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
-
-                        {/* Role Breakdown */}
-                        <div style={{ paddingTop: '20px', borderTop: '1px solid #F3F4F6' }}>
-                            <p style={{ fontSize: '13px', fontWeight: '700', color: '#374151', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ambassador Type</p>
-                            <div className="flex gap-4">
-                                <div style={{ flex: 1, padding: '12px', background: '#F0FDF4', borderRadius: '12px', border: '1px solid #DCFCE7' }}>
-                                    <p style={{ fontSize: '11px', fontWeight: '700', color: '#166534', textTransform: 'uppercase', marginBottom: '4px' }}>Parents</p>
-                                    <p style={{ fontSize: '20px', fontWeight: '800', color: '#166534' }}>{analytics.roleBreakdown.parent.count}</p>
-                                    <p style={{ fontSize: '12px', color: '#15803d', fontWeight: '600' }}>{analytics.roleBreakdown.parent.percentage}% Share</p>
-                                </div>
-                                <div style={{ flex: 1, padding: '12px', background: '#FFF7ED', borderRadius: '12px', border: '1px solid #FFEDD5' }}>
-                                    <p style={{ fontSize: '11px', fontWeight: '700', color: '#9A3412', textTransform: 'uppercase', marginBottom: '4px' }}>Staff</p>
-                                    <p style={{ fontSize: '20px', fontWeight: '800', color: '#9A3412' }}>{analytics.roleBreakdown.staff.count}</p>
-                                    <p style={{ fontSize: '12px', color: '#c2410c', fontWeight: '600' }}>{analytics.roleBreakdown.staff.percentage}% Share</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Top Performers Leaderboard */}
-                <div style={{
-                    background: 'white',
-                    padding: '24px',
-                    borderRadius: '20px',
-                    border: '1px solid rgba(229, 231, 235, 0.5)',
-                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.04), 0 4px 6px -2px rgba(0,0,0,0.02)'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                        <div style={{ padding: '8px', background: '#FEF3C7', borderRadius: '10px' }}>
-                            <Trophy size={20} color="#D97706" />
-                        </div>
-                        <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#111827', margin: 0 }}>Top Performers</h3>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {analytics.topPerformers.map((performer: any, idx: number) => (
-                            <div
-                                key={idx}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    padding: '16px',
-                                    background: idx === 0 ? 'linear-gradient(to right, #FFFBEB, #FFFFFF)' : '#F9FAFB',
-                                    borderRadius: '16px',
-                                    border: idx === 0 ? '1px solid #FEF3C7' : '1px solid #F3F4F6',
-                                    transition: 'all 0.2s',
-                                    cursor: 'pointer'
-                                }}
-                                onMouseOver={(e) => {
-                                    e.currentTarget.style.transform = 'translateX(4px)';
-                                    e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)';
-                                }}
-                                onMouseOut={(e) => {
-                                    e.currentTarget.style.transform = 'translateX(0)';
-                                    e.currentTarget.style.boxShadow = 'none';
-                                }}
-                            >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                    <div style={{
-                                        width: '36px',
-                                        height: '36px',
-                                        borderRadius: '10px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        background: idx === 0 ? '#FDE68A' : idx === 1 ? '#E5E7EB' : idx === 2 ? '#FFEDD5' : 'white',
-                                        fontSize: '14px',
-                                        fontWeight: '800',
-                                        color: idx === 0 ? '#92400E' : idx === 1 ? '#4B5563' : idx === 2 ? '#9A3412' : '#9CA3AF',
-                                        border: '1px solid rgba(0,0,0,0.05)'
-                                    }}>
-                                        {idx + 1}
-                                    </div>
-                                    <div>
-                                        <p style={{ fontSize: '14px', fontWeight: '700', color: '#111827', margin: 0 }}>{performer.name}</p>
-                                        <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>{performer.role} • {performer.referralCode}</p>
-                                    </div>
-                                </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <p style={{ fontSize: '20px', fontWeight: '800', color: '#EF4444', margin: 0 }}>{performer.count}</p>
-                                    <p style={{ fontSize: '11px', fontWeight: '600', color: '#9CA3AF', margin: 0, textTransform: 'uppercase' }}>leads</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            {/* Referrals Table with Filters */}
-            <ReferralTable
-                referrals={referrals}
-                confirmReferral={confirmReferral}
-                initialStatusFilter={statusFilter === 'Pending' ? 'All' : statusFilter}
-                key={statusFilter}
-            />
+                    {/* Referrals Table with Filters */}
+                    <ReferralTable
+                        referrals={referrals}
+                        confirmReferral={confirmReferral}
+                        initialStatusFilter={statusFilter === 'Pending' ? 'All' : statusFilter}
+                        key={statusFilter}
+                    />
+                </>
+            )}
         </div >
     )
 }
