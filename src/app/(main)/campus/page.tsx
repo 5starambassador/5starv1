@@ -22,7 +22,7 @@ export default async function CampusPage() {
     const user = await getCurrentUser()
 
     // Only Campus Heads and Super Admin can access this page
-    if (!user || (!user.role.includes('CampusHead') && user.role !== 'Super Admin')) {
+    if (!user || (!user.role.includes('Campus Head') && user.role !== 'Super Admin')) {
         redirect('/dashboard')
     }
 
