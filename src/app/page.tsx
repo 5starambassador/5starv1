@@ -28,14 +28,19 @@ export default function LoginPage() {
   const handleSendOtp = async () => {
     if (mobile.length < 10) return alert('Enter valid mobile')
     setLoading(true)
-    const res = await sendOtp(mobile)
-    setLoading(false)
-    if (res.success) {
-      setIsNewUser(!res.exists)
-      setStep(2)
-    } else {
-      // Display error message (e.g., registration disabled)
-      alert(res.error || 'Failed to send OTP. Please try again.')
+    try {
+      const res = await sendOtp(mobile)
+      setLoading(false)
+      if (res && res.success) {
+        setIsNewUser(!res.exists)
+        setStep(2)
+      } else {
+        // Display error message (e.g., registration disabled)
+        alert(res?.error || 'Failed to send OTP. Please try again.')
+      }
+    } catch (error: any) {
+      setLoading(false)
+      alert('Connection error: ' + (error.message || 'Please try again'))
     }
   }
 
