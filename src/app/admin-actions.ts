@@ -173,3 +173,63 @@ export async function confirmReferral(leadId: number) {
         return { success: false, error: 'Failed' }
     }
 }
+
+export async function getAdminUsers() {
+    const user = await getCurrentUser()
+    if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    const where: any = {}
+    if (user.role !== 'Super Admin' && user.assignedCampus) {
+        where.assignedCampus = user.assignedCampus
+    }
+
+    try {
+        const users = await prisma.user.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            select: {
+                userId: true,
+                fullName: true,
+                mobileNumber: true,
+                role: true,
+                assignedCampus: true,
+                status: true,
+                confirmedReferralCount: true,
+                createdAt: true
+            }
+        })
+        return { success: true, users }
+    } catch (error) {
+        console.error('getAdminUsers error:', error)
+        return { success: false, error: 'Failed to fetch users' }
+    }
+}
+
+export async function getAdminStudents() {
+    const user = await getCurrentUser()
+    if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    const where: any = {}
+    if (user.role !== 'Super Admin' && user.assignedCampus) {
+        where.campus = { campusName: user.assignedCampus }
+    }
+
+    try {
+        const students = await prisma.student.findMany({
+            where,
+            include: {
+                parent: { select: { fullName: true, mobileNumber: true } },
+                campus: { select: { campusName: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        })
+        return { success: true, students }
+    } catch (error) {
+        console.error('getAdminStudents error:', error)
+        return { success: false, error: 'Failed to fetch students' }
+    }
+}

@@ -33,12 +33,17 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         navItems.push({ label: 'Home', href: dashboardHref, icon: Home })
 
         // Admin Modules
-        if (permissions.analytics.access) navItems.push({ label: 'Analytics', href: '/superadmin', icon: Shield })
-        if (permissions.campusPerformance.access) navItems.push({ label: 'Campus Performance', href: '/superadmin?view=campuses', icon: Building2 })
-        if (permissions.userManagement.access) navItems.push({ label: 'User Management', href: '/superadmin?view=users', icon: Users })
-        if (permissions.studentManagement.access) navItems.push({ label: 'Student Management', href: '/superadmin?view=students', icon: BookOpen })
-        if (permissions.adminManagement.access) navItems.push({ label: 'Admin Management', href: '/superadmin?view=admins', icon: Target })
-        if (permissions.reports.access) navItems.push({ label: 'Reports', href: '/superadmin?view=reports', icon: FileDown })
+        const baseAdminPath = isSuperAdmin ? '/superadmin' : '/admin'
+
+        if (permissions.analytics.access) navItems.push({ label: 'Analytics', href: baseAdminPath, icon: Shield })
+        if (permissions.campusPerformance.access) navItems.push({ label: 'Campus Performance', href: `${baseAdminPath}?view=campuses`, icon: Building2 })
+
+        // These modules might not be ready in AdminClient yet, but if permissions allow, we link them.
+        // We might need to implement these views in AdminClient or condition these links further.
+        if (permissions.userManagement.access) navItems.push({ label: 'User Management', href: `${baseAdminPath}?view=users`, icon: Users })
+        if (permissions.studentManagement.access) navItems.push({ label: 'Student Management', href: `${baseAdminPath}?view=students`, icon: BookOpen })
+        if (permissions.adminManagement.access) navItems.push({ label: 'Admin Management', href: `${baseAdminPath}?view=admins`, icon: Target })
+        if (permissions.reports.access) navItems.push({ label: 'Reports', href: `${baseAdminPath}?view=reports`, icon: FileDown })
 
         // Management of specific dashboard types
         if (isSuperAdmin) {

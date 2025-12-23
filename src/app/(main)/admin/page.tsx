@@ -1,10 +1,11 @@
-import { getAllReferrals, getAdminAnalytics, confirmReferral } from '@/app/admin-actions'
-import { getCampuses } from '@/app/campus-actions'
-import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth-service'
+import { redirect } from 'next/navigation'
+import { getAllReferrals, getAdminAnalytics, getAdminUsers, getAdminStudents } from '@/app/admin-actions'
+import { getCampuses } from '@/app/campus-actions'
+import { confirmReferral } from '@/app/admin-actions'
 import { AdminClient } from './admin-client'
 
-// Helper function to serialize dates
+// Helper function to serialize dates in objects (Since we are passing to client component)
 function serializeData<T>(data: T): T {
     if (data === null || data === undefined) return data
     if (data instanceof Date) return data.toISOString() as unknown as T
@@ -21,7 +22,7 @@ function serializeData<T>(data: T): T {
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
     const user = await getCurrentUser()
-    if (!user || !user.role.includes('Admin')) redirect('/dashboard')
+    if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) redirect('/dashboard')
 
     const params = await searchParams
     const view = params?.view || 'analytics'
@@ -33,6 +34,20 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         getCampuses()
     ])
 
+    // Conditional fetching for heavier views
+    let users: any[] = []
+    let students: any[] = []
+
+    if (view === 'users') {
+        const res = await getAdminUsers()
+        if (res.success && res.users) users = res.users
+    }
+
+    if (view === 'students') {
+        const res = await getAdminStudents()
+        if (res.success && res.students) students = res.students
+    }
+
     if (!analytics) return <div>Error loading analytics</div>
 
     return (
@@ -42,6 +57,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             confirmReferral={confirmReferral}
             initialView={view}
             campuses={campusesResult.success ? campusesResult.campuses : []}
+            users={serializeData(users)}
+            students={serializeData(students)}
         />
     )
 }

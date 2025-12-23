@@ -11,9 +11,11 @@ interface AdminClientProps {
     confirmReferral: (leadId: number) => Promise<any>
     initialView?: string
     campuses?: any[]
+    users?: any[]
+    students?: any[]
 }
 
-export function AdminClient({ referrals, analytics, confirmReferral, initialView = 'analytics', campuses = [] }: AdminClientProps) {
+export function AdminClient({ referrals, analytics, confirmReferral, initialView = 'analytics', campuses = [], users = [], students = [] }: AdminClientProps) {
     const router = useRouter()
     const searchParams = useSearchParams()
     const [statusFilter, setStatusFilter] = useState<string>('All')
@@ -58,10 +60,10 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                     </div>
                     <div>
                         <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>
-                            {selectedView === 'campuses' ? 'Campus Management' : 'Admin Dashboard'}
+                            {selectedView === 'campuses' ? 'Campus Management' : selectedView === 'users' ? 'User Directory' : selectedView === 'students' ? 'Student Management' : 'Admin Dashboard'}
                         </h1>
                         <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '1px', fontWeight: '500' }}>
-                            {selectedView === 'campuses' ? 'View and manage campus details' : 'Operational insights and lead conversion management'}
+                            {selectedView === 'campuses' ? 'View and manage campus details' : selectedView === 'users' ? 'View all system users' : selectedView === 'students' ? 'View registered students' : 'Operational insights and lead conversion management'}
                         </p>
                     </div>
                 </div>
@@ -399,10 +401,92 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                     <ReferralTable
                         referrals={referrals}
                         confirmReferral={confirmReferral}
-                        initialStatusFilter={statusFilter === 'Pending' ? 'All' : statusFilter}
-                        key={statusFilter}
+                        initialStatusFilter={statusFilter}
                     />
                 </>
+            )}
+
+            {/* USERS VIEW */}
+            {selectedView === 'users' && (
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="p-6 border-b border-gray-100 bg-gray-50/50">
+                        <h2 className="text-lg font-bold text-gray-900">User Directory</h2>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-gray-50/50 border-y border-gray-100">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Campus</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Referrals</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {users.map((user: any) => (
+                                    <tr key={user.userId} className="hover:bg-gray-50/50">
+                                        <td className="px-6 py-4">
+                                            <div className="font-semibold text-gray-900">{user.fullName}</div>
+                                            <div className="text-xs text-gray-500">{user.mobileNumber}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.role === 'Staff' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                                                }`}>
+                                                {user.role}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-600">{user.assignedCampus || '-'}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                                }`}>
+                                                {user.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 font-mono text-sm">{user.confirmedReferralCount}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* STUDENTS VIEW */}
+            {selectedView === 'students' && (
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="p-6 border-b border-gray-100 bg-gray-50/50">
+                        <h2 className="text-lg font-bold text-gray-900">Student Directory</h2>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-gray-50/50 border-y border-gray-100">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Student Name</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Parent</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Campus</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Joined</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {students.map((student: any) => (
+                                    <tr key={student.t_id} className="hover:bg-gray-50/50">
+                                        <td className="px-6 py-4">
+                                            <div className="font-semibold text-gray-900">{student.studentName}</div>
+                                            <div className="text-xs text-gray-500">{student.grade} - {student.curriculum}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm font-medium text-gray-900">{student.parent?.fullName || 'N/A'}</div>
+                                            <div className="text-xs text-gray-500">{student.parent?.mobileNumber}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-600">{student.campus?.campusName || 'Unassigned'}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-500">{new Date(student.createdAt).toLocaleDateString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             )}
         </div >
     )
