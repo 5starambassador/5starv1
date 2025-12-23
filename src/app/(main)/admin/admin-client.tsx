@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Users, TrendingUp, Award, BarChart3, DollarSign, CheckCircle, RefreshCw, Trophy, Building2 } from 'lucide-react'
+import { Users, TrendingUp, Award, BarChart3, DollarSign, CheckCircle, RefreshCw, Trophy, Building2, BookOpen } from 'lucide-react'
 import { ReferralTable } from './referral-table'
 import { useState, useEffect } from 'react'
 
@@ -19,6 +19,17 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
     const router = useRouter()
     const searchParams = useSearchParams()
     const [statusFilter, setStatusFilter] = useState<string>('All')
+
+    // Filters for Users View
+    const [filterRole, setFilterRole] = useState('All')
+    const [filterCampus, setFilterCampus] = useState('All')
+    const [filterStatus, setFilterStatus] = useState('All')
+    const [searchQuery, setSearchQuery] = useState('')
+
+    // Filters for Students View
+    const [studentSearch, setStudentSearch] = useState('')
+    const [studentCampusFilter, setStudentCampusFilter] = useState('All')
+    const [studentGradeFilter, setStudentGradeFilter] = useState('All')
 
     // View state
     const [selectedView, setSelectedView] = useState<string>(initialView)
@@ -408,83 +419,211 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
 
             {/* USERS VIEW */}
             {selectedView === 'users' && (
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-                        <h2 className="text-lg font-bold text-gray-900">User Directory</h2>
+                <div className="space-y-4">
+                    {/* Summary Stats Row */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+                        <div style={{ background: 'white', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Users size={18} style={{ color: '#DC2626' }} />
+                            </div>
+                            <div>
+                                <p style={{ fontSize: '18px', fontWeight: '700', color: '#111827', margin: 0 }}>{users.length}</p>
+                                <p style={{ fontSize: '11px', color: '#6B7280' }}>Total Users</p>
+                            </div>
+                        </div>
+                        <div style={{ background: 'white', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#E0F2FE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <BookOpen size={18} style={{ color: '#0284C7' }} />
+                            </div>
+                            <div>
+                                <p style={{ fontSize: '18px', fontWeight: '700', color: '#111827', margin: 0 }}>{users.filter(u => u.role === 'Staff').length}</p>
+                                <p style={{ fontSize: '11px', color: '#6B7280' }}>Staff Members</p>
+                            </div>
+                        </div>
+                        <div style={{ background: 'white', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Award size={18} style={{ color: '#D97706' }} />
+                            </div>
+                            <div>
+                                <p style={{ fontSize: '18px', fontWeight: '700', color: '#111827', margin: 0 }}>{users.filter(u => u.role === 'Parent').length}</p>
+                                <p style={{ fontSize: '11px', color: '#6B7280' }}>Parents</p>
+                            </div>
+                        </div>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50/50 border-y border-gray-100">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Campus</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Referrals</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {users.map((user: any) => (
-                                    <tr key={user.userId} className="hover:bg-gray-50/50">
-                                        <td className="px-6 py-4">
-                                            <div className="font-semibold text-gray-900">{user.fullName}</div>
-                                            <div className="text-xs text-gray-500">{user.mobileNumber}</div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.role === 'Staff' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                                                }`}>
-                                                {user.role}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-600">{user.assignedCampus || '-'}</td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                                }`}>
-                                                {user.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 font-mono text-sm">{user.confirmedReferralCount}</td>
+
+                    {/* Filters Row */}
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'white', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f0f0f0', flexWrap: 'wrap' }}>
+                        <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+                            <input
+                                type="text"
+                                placeholder="Search users..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 10px 8px 32px',
+                                    border: '1px solid #E5E7EB',
+                                    borderRadius: '6px',
+                                    fontSize: '13px',
+                                    outline: 'none'
+                                }}
+                            />
+                        </div>
+
+                        <select
+                            value={filterRole}
+                            onChange={(e) => setFilterRole(e.target.value)}
+                            style={{ padding: '6px 12px', border: '1px solid #E5E7EB', borderRadius: '6px', fontSize: '12px', color: '#374151' }}
+                        >
+                            <option value="All">All Roles</option>
+                            <option value="Parent">Parent</option>
+                            <option value="Staff">Staff</option>
+                        </select>
+
+                        <select
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value)}
+                            style={{ padding: '6px 12px', border: '1px solid #E5E7EB', borderRadius: '6px', fontSize: '12px', color: '#374151' }}
+                        >
+                            <option value="All">All Status</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+
+                    {/* Users Table */}
+                    <div style={{ background: 'white', borderRadius: '10px', border: '1px solid #f0f0f0', overflow: 'hidden' }}>
+                        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', borderLeft: '4px solid #FEE2E2' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+                                <thead style={{ background: '#F9FAFB' }}>
+                                    <tr>
+                                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' }}>Full Name</th>
+                                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' }}>Mobile</th>
+                                        <th style={{ padding: '14px 16px', textAlign: 'center', fontSize: '11px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' }}>Role</th>
+                                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' }}>Campus</th>
+                                        <th style={{ padding: '14px 16px', textAlign: 'center', fontSize: '11px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' }}>Referrals</th>
+                                        <th style={{ padding: '14px 16px', textAlign: 'center', fontSize: '11px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' }}>Status</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {users
+                                        .filter((user) => {
+                                            const matchesSearch = user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                user.mobileNumber.includes(searchQuery)
+                                            const matchesRole = filterRole === 'All' || user.role === filterRole
+                                            const matchesStatus = filterStatus === 'All' || user.status === filterStatus
+                                            return matchesSearch && matchesRole && matchesStatus
+                                        })
+                                        .map((user) => (
+                                            <tr key={user.userId} className="hover:bg-gray-50">
+                                                <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '600', color: '#111827' }}>{user.fullName}</td>
+                                                <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151' }}>{user.mobileNumber}</td>
+                                                <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                                                    <span style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', borderRadius: '9999px', background: user.role === 'Staff' ? '#F3E8FF' : '#DBEAFE', color: user.role === 'Staff' ? '#7C3AED' : '#2563EB' }}>
+                                                        {user.role}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151' }}>{user.assignedCampus || '-'}</td>
+                                                <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151', textAlign: 'center', fontWeight: '600' }}>{user.confirmedReferralCount}</td>
+                                                <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                                                    <span style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', borderRadius: '9999px', background: user.status === 'Active' ? '#D1FAE5' : '#F3F4F6', color: user.status === 'Active' ? '#065F46' : '#6B7280' }}>
+                                                        {user.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    {users.filter(u => u.role === filterRole || filterRole === 'All').length === 0 && (
+                                        <tr>
+                                            <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#9CA3AF', fontSize: '14px' }}>
+                                                No users found matching filters
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             )}
 
             {/* STUDENTS VIEW */}
             {selectedView === 'students' && (
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-                        <h2 className="text-lg font-bold text-gray-900">Student Directory</h2>
+                <div className="space-y-4">
+                    {/* Filters Row */}
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'white', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f0f0f0', flexWrap: 'wrap' }}>
+                        <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+                            <input
+                                type="text"
+                                placeholder="Search students..."
+                                value={studentSearch}
+                                onChange={(e) => setStudentSearch(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 10px 8px 32px',
+                                    border: '1px solid #E5E7EB',
+                                    borderRadius: '6px',
+                                    fontSize: '13px',
+                                    outline: 'none'
+                                }}
+                            />
+                        </div>
+
+                        <select
+                            value={studentCampusFilter}
+                            onChange={(e) => setStudentCampusFilter(e.target.value)}
+                            style={{ padding: '6px 12px', border: '1px solid #E5E7EB', borderRadius: '6px', fontSize: '12px', color: '#374151' }}
+                        >
+                            <option value="All">All Campuses</option>
+                            {Array.from(new Set(students.map(s => s.campus?.campusName || 'Unassigned'))).map(c => (
+                                <option key={c} value={c}>{c}</option>
+                            ))}
+                        </select>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50/50 border-y border-gray-100">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Student Name</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Parent</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Campus</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Joined</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {students.map((student: any) => (
-                                    <tr key={student.t_id} className="hover:bg-gray-50/50">
-                                        <td className="px-6 py-4">
-                                            <div className="font-semibold text-gray-900">{student.studentName}</div>
-                                            <div className="text-xs text-gray-500">{student.grade} - {student.curriculum}</div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="text-sm font-medium text-gray-900">{student.parent?.fullName || 'N/A'}</div>
-                                            <div className="text-xs text-gray-500">{student.parent?.mobileNumber}</div>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-600">{student.campus?.campusName || 'Unassigned'}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-500">{new Date(student.createdAt).toLocaleDateString()}</td>
+
+                    <div style={{ background: 'white', borderRadius: '10px', border: '1px solid #f0f0f0', overflow: 'hidden' }}>
+                        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', borderLeft: '4px solid #DBEAFE' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+                                <thead style={{ background: '#F9FAFB' }}>
+                                    <tr>
+                                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' }}>Student Name</th>
+                                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' }}>Parent/Guardian</th>
+                                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' }}>Campus</th>
+                                        <th style={{ padding: '14px 16px', textAlign: 'center', fontSize: '11px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' }}>Grade</th>
+                                        <th style={{ padding: '14px 16px', textAlign: 'right', fontSize: '11px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' }}>Joined Date</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {students
+                                        .filter(s => {
+                                            const matchesSearch = s.studentName.toLowerCase().includes(studentSearch.toLowerCase()) ||
+                                                s.parent?.fullName?.toLowerCase().includes(studentSearch.toLowerCase())
+                                            const matchesCampus = studentCampusFilter === 'All' || s.campus?.campusName === studentCampusFilter
+                                            return matchesSearch && matchesCampus
+                                        })
+                                        .map((student: any) => (
+                                            <tr key={student.t_id} className="hover:bg-gray-50">
+                                                <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '600', color: '#111827' }}>
+                                                    {student.studentName}
+                                                    <div className="text-xs font-normal text-gray-500">{student.curriculum}</div>
+                                                </td>
+                                                <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151' }}>
+                                                    <div className="font-medium text-gray-900">{student.parent?.fullName || 'N/A'}</div>
+                                                    <div className="text-xs text-gray-500">{student.parent?.mobileNumber}</div>
+                                                </td>
+                                                <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151' }}>{student.campus?.campusName || 'Unassigned'}</td>
+                                                <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151', textAlign: 'center' }}>
+                                                    <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-300">
+                                                        {student.grade}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151', textAlign: 'right' }}>
+                                                    {new Date(student.createdAt).toLocaleDateString()}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             )}
