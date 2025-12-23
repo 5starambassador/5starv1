@@ -254,107 +254,144 @@ export default function LoginPage() {
                   <div>
                     <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px', display: 'block' }}>Membership Designation</label>
                     <div className="flex gap-4">
-                      <label
-                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/5 border border-white/10 rounded-lg cursor-pointer transition-all hover:bg-white/10 has-[:checked]:border-[#FFD700]/50 has-[:checked]:bg-[#FFD700]/10"
+                      {/* Parent Option */}
+                      <div
+                        onClick={() => setFormData({ ...formData, role: 'Parent' })}
+                        className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-xl cursor-pointer transition-all border ${formData.role === 'Parent' ? 'border-[#FFD700] bg-[#FFD700]/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
                       >
-                        <input className="hidden" type="radio" name="role" checked={formData.role === 'Parent'} onChange={() => setFormData({ ...formData, role: 'Parent' })} />
-                        <User size={16} color={formData.role === 'Parent' ? '#FFD700' : 'rgba(255,255,255,0.4)'} />
+                        <User size={18} color={formData.role === 'Parent' ? '#FFD700' : 'rgba(255,255,255,0.4)'} />
                         <span style={{ fontSize: '12px', fontWeight: '700', color: formData.role === 'Parent' ? '#FFFFFF' : 'rgba(255,255,255,0.4)' }}>Parent</span>
-                      </label>
-                      <label
-                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/5 border border-white/10 rounded-lg cursor-pointer transition-all hover:bg-white/10 has-[:checked]:border-[#FFD700]/50 has-[:checked]:bg-[#FFD700]/10"
+                      </div>
+
+                      {/* Staff Option */}
+                      <div
+                        onClick={() => setFormData({ ...formData, role: 'Staff' })}
+                        className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-xl cursor-pointer transition-all border ${formData.role === 'Staff' ? 'border-[#FFD700] bg-[#FFD700]/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
                       >
-                        <input className="hidden" type="radio" name="role" checked={formData.role === 'Staff'} onChange={() => setFormData({ ...formData, role: 'Staff' })} />
-                        <ShieldCheck size={16} color={formData.role === 'Staff' ? '#FFD700' : 'rgba(255,255,255,0.4)'} />
+                        <ShieldCheck size={18} color={formData.role === 'Staff' ? '#FFD700' : 'rgba(255,255,255,0.4)'} />
                         <span style={{ fontSize: '12px', fontWeight: '700', color: formData.role === 'Staff' ? '#FFFFFF' : 'rgba(255,255,255,0.4)' }}>Staff</span>
-                      </label>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Student Parent?</label>
-                      <div className="relative">
+                  {/* Use specific content based on Role */}
+                  {formData.role === 'Staff' ? (
+                    /* Staff Form Flow */
+                    <div className="flex flex-col gap-4">
+                      <div>
+                        <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Work Campus</label>
                         <select
-                          className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all font-medium text-xs appearance-none"
-                          value={formData.childInAchariya}
-                          onChange={(e) => setFormData({ ...formData, childInAchariya: e.target.value })}
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all text-xs appearance-none"
+                          value={formData.campusId}
+                          onChange={(e) => setFormData({ ...formData, campusId: e.target.value })}
                         >
-                          <option className="bg-[#1a1a1a]">Yes</option>
-                          <option className="bg-[#1a1a1a]">No</option>
+                          <option value="" className="bg-[#1a1a1a]">Select Your Campus</option>
+                          {campuses.map(c => (
+                            <option key={c.id} value={c.id} className="bg-[#1a1a1a]">{c.campusName}</option>
+                          ))}
                         </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/30">
-                          <GraduationCap size={16} />
-                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Benefit Settlement Details (Secure)</label>
+                        <textarea
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all text-xs"
+                          rows={2}
+                          placeholder="Bank Account, IFSC, Branch Details"
+                          value={formData.bankAccountDetails}
+                          onChange={(e) => setFormData({ ...formData, bankAccountDetails: e.target.value })}
+                        ></textarea>
                       </div>
                     </div>
-
-                    {formData.childInAchariya === 'Yes' && (
-                      <div>
-                        <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Current School</label>
-                        <div className="px-3 py-3 bg-white/5 border border-white/10 rounded-lg text-white/40 text-[10px] font-bold">
-                          ACHRIYA OFFICIAL
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {formData.childInAchariya === 'Yes' ? (
+                  ) : (
+                    /* Parent Form Flow (Existing) */
                     <>
-                      <div>
-                        <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Child Identity (Name & Section)</label>
-                        <input
-                          className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all text-sm"
-                          placeholder="e.g. Rahul S, 10-A"
-                          value={formData.childName}
-                          onChange={(e) => setFormData({ ...formData, childName: e.target.value })}
-                        />
-                      </div>
-
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Campus</label>
-                          <select
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all text-xs appearance-none"
-                            value={formData.campusId}
-                            onChange={(e) => setFormData({ ...formData, campusId: e.target.value })}
-                          >
-                            <option value="" className="bg-[#1a1a1a]">Select Campus</option>
-                            {campuses.map(c => (
-                              <option key={c.id} value={c.id} className="bg-[#1a1a1a]">{c.campusName}</option>
-                            ))}
-                          </select>
+                          <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Student Parent?</label>
+                          <div className="relative">
+                            <select
+                              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all font-medium text-xs appearance-none"
+                              value={formData.childInAchariya}
+                              onChange={(e) => setFormData({ ...formData, childInAchariya: e.target.value })}
+                            >
+                              <option className="bg-[#1a1a1a]">Yes</option>
+                              <option className="bg-[#1a1a1a]">No</option>
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/30">
+                              <GraduationCap size={16} />
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Grade</label>
-                          <select
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all text-xs appearance-none"
-                            value={formData.grade}
-                            onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
-                          >
-                            {[
-                              "Pre-KG", "LKG", "UKG",
-                              "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5",
-                              "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10",
-                              "Grade 11", "Grade 12"
-                            ].map(g => (
-                              <option key={g} value={g} className="bg-[#1a1a1a]">{g}</option>
-                            ))}
-                          </select>
-                        </div>
+
+                        {formData.childInAchariya === 'Yes' && (
+                          <div>
+                            <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Current School</label>
+                            <div className="px-3 py-3 bg-white/5 border border-white/10 rounded-lg text-white/40 text-[10px] font-bold">
+                              ACHRIYA OFFICIAL
+                            </div>
+                          </div>
+                        )}
                       </div>
+
+                      {formData.childInAchariya === 'Yes' ? (
+                        <>
+                          <div>
+                            <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Child Identity (Name & Section)</label>
+                            <input
+                              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all text-sm"
+                              placeholder="e.g. Rahul S, 10-A"
+                              value={formData.childName}
+                              onChange={(e) => setFormData({ ...formData, childName: e.target.value })}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Campus</label>
+                              <select
+                                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all text-xs appearance-none"
+                                value={formData.campusId}
+                                onChange={(e) => setFormData({ ...formData, campusId: e.target.value })}
+                              >
+                                <option value="" className="bg-[#1a1a1a]">Select Campus</option>
+                                {campuses.map(c => (
+                                  <option key={c.id} value={c.id} className="bg-[#1a1a1a]">{c.campusName}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Grade</label>
+                              <select
+                                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all text-xs appearance-none"
+                                value={formData.grade}
+                                onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                              >
+                                {[
+                                  "Pre-KG", "LKG", "UKG",
+                                  "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5",
+                                  "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10",
+                                  "Grade 11", "Grade 12"
+                                ].map(g => (
+                                  <option key={g} value={g} className="bg-[#1a1a1a]">{g}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div>
+                          <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Benefit Settlement Details (Secure)</label>
+                          <textarea
+                            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all text-xs"
+                            rows={2}
+                            placeholder="Bank Account, IFSC, Branch Details"
+                            value={formData.bankAccountDetails}
+                            onChange={(e) => setFormData({ ...formData, bankAccountDetails: e.target.value })}
+                          ></textarea>
+                        </div>
+                      )}
                     </>
-                  ) : (
-                    <div>
-                      <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Benefit Settlement Details (Secure)</label>
-                      <textarea
-                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all text-xs"
-                        rows={2}
-                        placeholder="Bank Account, IFSC, Branch Details"
-                        value={formData.bankAccountDetails}
-                        onChange={(e) => setFormData({ ...formData, bankAccountDetails: e.target.value })}
-                      ></textarea>
-                    </div>
                   )}
 
                   <button
