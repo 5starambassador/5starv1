@@ -111,7 +111,7 @@ export async function getRegistrationCampuses() {
 }
 
 export async function registerUser(formData: any) {
-    const { fullName, mobileNumber, role, childInAchariya, childName, bankAccountDetails, campusId, grade } = formData
+    const { fullName, mobileNumber, role, childInAchariya, childName, bankAccountDetails, campusId, grade, transactionId } = formData
 
     // Generate Code
     const randomSuffix = Math.floor(1000 + Math.random() * 9000)
@@ -147,9 +147,13 @@ export async function registerUser(formData: any) {
                 campusId: campusId ? parseInt(campusId) : null,
                 bankAccountDetails: bankAccountDetails || null,
                 referralCode,
-                benefitStatus: 'Inactive',
+                benefitStatus: 'Inactive', // Active only after admin approval or auto-check
                 studentFee,
-                academicYear: settings?.currentAcademicYear || '2025-2026'
+                academicYear: settings?.currentAcademicYear || '2025-2026',
+                // Payment Info
+                paymentStatus: transactionId ? 'Completed' : 'Pending', // Dummy flow assumes completion
+                transactionId: transactionId || null,
+                paymentAmount: transactionId ? 1000 : 0
             }
         })
 

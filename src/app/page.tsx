@@ -21,7 +21,8 @@ export default function LoginPage() {
     childName: '',
     grade: 'Grade 1',
     campusId: '',
-    bankAccountDetails: ''
+    bankAccountDetails: '',
+    transactionId: ''
   })
   const [campuses, setCampuses] = useState<any[]>([])
 
@@ -242,7 +243,7 @@ export default function LoginPage() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                   <div>
-                    <label style={{ color: 'rgba(255,255,255,0.6)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Full Membership Name</label>
+                    <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Full Membership Name</label>
                     <input
                       className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all font-medium"
                       value={formData.fullName}
@@ -251,24 +252,28 @@ export default function LoginPage() {
                   </div>
 
                   <div>
-                    <label className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-2 block">Membership Designation</label>
+                    <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px', display: 'block' }}>Membership Designation</label>
                     <div className="flex gap-4">
-                      <label className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/5 border border-white/10 rounded-lg cursor-pointer transition-all hover:bg-white/10 has-[:checked]:border-[#FFD700]/50 has-[:checked]:bg-[#FFD700]/10">
+                      <label
+                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/5 border border-white/10 rounded-lg cursor-pointer transition-all hover:bg-white/10 has-[:checked]:border-[#FFD700]/50 has-[:checked]:bg-[#FFD700]/10"
+                      >
                         <input className="hidden" type="radio" name="role" checked={formData.role === 'Parent'} onChange={() => setFormData({ ...formData, role: 'Parent' })} />
-                        <User size={16} className={formData.role === 'Parent' ? 'text-[#FFD700]' : 'text-white/40'} />
-                        <span className={`text-xs font-bold ${formData.role === 'Parent' ? 'text-white' : 'text-white/40'}`}>Parent</span>
+                        <User size={16} color={formData.role === 'Parent' ? '#FFD700' : 'rgba(255,255,255,0.4)'} />
+                        <span style={{ fontSize: '12px', fontWeight: '700', color: formData.role === 'Parent' ? '#FFFFFF' : 'rgba(255,255,255,0.4)' }}>Parent</span>
                       </label>
-                      <label className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/5 border border-white/10 rounded-lg cursor-pointer transition-all hover:bg-white/10 has-[:checked]:border-[#FFD700]/50 has-[:checked]:bg-[#FFD700]/10">
+                      <label
+                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/5 border border-white/10 rounded-lg cursor-pointer transition-all hover:bg-white/10 has-[:checked]:border-[#FFD700]/50 has-[:checked]:bg-[#FFD700]/10"
+                      >
                         <input className="hidden" type="radio" name="role" checked={formData.role === 'Staff'} onChange={() => setFormData({ ...formData, role: 'Staff' })} />
-                        <ShieldCheck size={16} className={formData.role === 'Staff' ? 'text-[#FFD700]' : 'text-white/40'} />
-                        <span className={`text-xs font-bold ${formData.role === 'Staff' ? 'text-white' : 'text-white/40'}`}>Staff</span>
+                        <ShieldCheck size={16} color={formData.role === 'Staff' ? '#FFD700' : 'rgba(255,255,255,0.4)'} />
+                        <span style={{ fontSize: '12px', fontWeight: '700', color: formData.role === 'Staff' ? '#FFFFFF' : 'rgba(255,255,255,0.4)' }}>Staff</span>
                       </label>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1 block">Student Parent?</label>
+                      <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Student Parent?</label>
                       <div className="relative">
                         <select
                           className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all font-medium text-xs appearance-none"
@@ -286,7 +291,7 @@ export default function LoginPage() {
 
                     {formData.childInAchariya === 'Yes' && (
                       <div>
-                        <label className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1 block">Current School</label>
+                        <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Current School</label>
                         <div className="px-3 py-3 bg-white/5 border border-white/10 rounded-lg text-white/40 text-[10px] font-bold">
                           ACHRIYA OFFICIAL
                         </div>
@@ -297,7 +302,7 @@ export default function LoginPage() {
                   {formData.childInAchariya === 'Yes' ? (
                     <>
                       <div>
-                        <label className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1 block">Child Identity (Name & Section)</label>
+                        <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Child Identity (Name & Section)</label>
                         <input
                           className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all text-sm"
                           placeholder="e.g. Rahul S, 10-A"
@@ -308,7 +313,7 @@ export default function LoginPage() {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1 block">Campus</label>
+                          <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Campus</label>
                           <select
                             className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all text-xs appearance-none"
                             value={formData.campusId}
@@ -321,7 +326,7 @@ export default function LoginPage() {
                           </select>
                         </div>
                         <div>
-                          <label className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1 block">Grade</label>
+                          <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Grade</label>
                           <select
                             className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all text-xs appearance-none"
                             value={formData.grade}
@@ -341,7 +346,7 @@ export default function LoginPage() {
                     </>
                   ) : (
                     <div>
-                      <label className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1 block">Benefit Settlement Details (Secure)</label>
+                      <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px', display: 'block' }}>Benefit Settlement Details (Secure)</label>
                       <textarea
                         className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all text-xs"
                         rows={2}
@@ -354,12 +359,64 @@ export default function LoginPage() {
 
                   <button
                     className="w-full relative group overflow-hidden py-4 rounded-xl transition-all active:scale-[0.98] mt-4"
-                    onClick={handleRegister}
+                    onClick={() => setStep(4)}
                     disabled={loading}
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-[#FFD700] to-[#DAB200] group-hover:from-[#FFE04D] group-hover:to-[#E6C200] transition-all"></div>
                     <span className="relative z-10 text-black font-extrabold tracking-widest text-xs uppercase">
-                      {loading ? 'Initializing...' : 'Claim Ambassador Status'}
+                      Proceed to Payment &raquo;
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="animate-fade-in">
+                <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px', textAlign: 'center', color: '#FFFFFF' }}>Secure Payment</h2>
+                <p style={{ fontSize: '10px', textAlign: 'center', marginBottom: '24px', color: '#FFD700', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '3px' }}>Final Step</p>
+
+                <div className="bg-white/10 p-6 rounded-2xl mb-6 text-center border border-white/10 backdrop-blur-md">
+                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-4">Scan to Pay Rs. 1000</p>
+
+                  {/* Placeholder QR Code */}
+                  <div className="w-48 h-48 mx-auto bg-white p-2 rounded-xl mb-4 flex items-center justify-center relative overflow-hidden">
+                    <div className="absolute inset-0 border-[4px] border-black opacity-10"></div>
+                    <div className="absolute top-2 left-2 w-10 h-10 border-[4px] border-black"></div>
+                    <div className="absolute top-2 right-2 w-10 h-10 border-[4px] border-black"></div>
+                    <div className="absolute bottom-2 left-2 w-10 h-10 border-[4px] border-black"></div>
+                    <p className="text-black font-bold text-xl tracking-widest">QR CODE</p>
+                  </div>
+
+                  <p className="text-white text-xs font-bold">Achariya Educational Public Trust</p>
+                  <p className="text-[#FFD700] text-xs font-mono mt-1">UPI: achariya@okicici</p>
+                </div>
+
+                <div className="mb-6">
+                  <label className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-2 block">Enter Transaction ID / Ref No.</label>
+                  <input
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#FFD700]/40 transition-all font-mono text-center tracking-widest text-lg placeholder-white/20"
+                    placeholder="e.g. 352627181920"
+                    value={formData.transactionId || ''}
+                    onChange={(e) => setFormData({ ...formData, transactionId: e.target.value })}
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setStep(3)}
+                    className="flex-1 py-4 rounded-xl border border-white/10 text-white/60 font-bold text-xs uppercase hover:bg-white/5 transition-all"
+                  >
+                    Back
+                  </button>
+                  <button
+                    className="flex-[2] relative group overflow-hidden py-4 rounded-xl transition-all active:scale-[0.98]"
+                    onClick={handleRegister}
+                    disabled={loading || !formData.transactionId}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#FFD700] to-[#DAB200] group-hover:from-[#FFE04D] group-hover:to-[#E6C200] transition-all"></div>
+                    <span className="relative z-10 text-black font-extrabold tracking-widest text-xs uppercase">
+                      {loading ? 'Finalizing...' : 'Complete Registration'}
                     </span>
                   </button>
                 </div>

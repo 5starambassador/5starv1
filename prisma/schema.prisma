@@ -31,6 +31,11 @@ model User {
   isFiveStarMember       Boolean        @default(false) // If true, eligible for Long Term benefits
   assignedCampus         String?        // For Campus Head role assignment
   
+  // Payment Details (New)
+  paymentStatus          String         @default("Pending") // Pending, Completed
+  transactionId          String?        // Manual reference or Gateway ID
+  paymentAmount          Int            @default(0)
+  
   // Earnings & Context
   studentFee             Int            @default(60000)
   academicYear           String         @default("2025-2026")
