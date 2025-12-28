@@ -1,9 +1,10 @@
 import { getCurrentUser } from '@/lib/auth-service'
 import { redirect } from 'next/navigation'
-import { getSystemAnalytics, getCampusComparison, getAllUsers, getAllAdmins, getAllStudents } from '@/app/superadmin-actions'
+import { getSystemAnalytics, getCampusComparison, getAllUsers, getAllAdmins, getAllStudents, getUserGrowthTrend } from '@/app/superadmin-actions'
 import { getAdminMarketingAssets } from '@/app/marketing-actions'
 import { getSystemSettings } from '@/app/settings-actions'
-import SuperadminClient from './superadmin-client'
+import SuperadminClient from './superadmin-client' // Client component
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 interface PageProps {
     searchParams: Promise<{ view?: string }>
@@ -48,19 +49,27 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
     const students = await getAllStudents()
     const marketingAssets = await getAdminMarketingAssets()
     const systemSettings = await getSystemSettings()
+    const growthTrend = await getUserGrowthTrend()
+    // Helper to get count
+    const { getUrgentTicketCount } = await import('@/app/ticket-actions')
+    const urgentTicketCount = await getUrgentTicketCount()
 
     return (
-        <SuperadminClient
-            analytics={analytics}
-            campusComparison={campusComparison}
-            users={serializeData(users) as any}
-            admins={serializeData(admins) as any}
-            students={serializeData(students) as any}
-            currentUser={serializeData(user) as any}
-            initialView={initialView}
-            marketingAssets={serializeData(marketingAssets.assets) as any}
-            systemSettings={serializeData(systemSettings) as any}
-        />
+        <ErrorBoundary>
+            <SuperadminClient
+                analytics={analytics}
+                campusComparison={campusComparison}
+                users={serializeData(users) as any}
+                admins={serializeData(admins) as any}
+                students={serializeData(students) as any}
+                currentUser={serializeData(user) as any}
+                initialView={initialView}
+                marketingAssets={serializeData(marketingAssets.assets) as any}
+                systemSettings={serializeData(systemSettings) as any}
+                growthTrend={growthTrend}
+                urgentTicketCount={urgentTicketCount}
+            />
+        </ErrorBoundary>
     )
 }
 

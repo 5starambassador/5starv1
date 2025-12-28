@@ -114,6 +114,14 @@ export async function deleteCampus(id: number) {
 // ===================== CAMPUS DASHBOARD FUNCTIONS =====================
 
 export async function getCampusAnalytics(campusName: string) {
+    const user = await getCurrentUser()
+    if (!user) return null
+
+    // Permission check: Super Admin or assigned Campus Head/Admin
+    if (user.role !== 'Super Admin' && user.assignedCampus !== campusName) {
+        return null
+    }
+
     try {
         const referrals = await prisma.referralLead.findMany({
             where: { campus: campusName },
@@ -197,6 +205,14 @@ export async function getCampusAnalytics(campusName: string) {
 }
 
 export async function getCampusReferrals(campusName: string) {
+    const user = await getCurrentUser()
+    if (!user) return []
+
+    // Permission check
+    if (user.role !== 'Super Admin' && user.assignedCampus !== campusName) {
+        return []
+    }
+
     try {
         return await prisma.referralLead.findMany({
             where: { campus: campusName },
@@ -210,6 +226,14 @@ export async function getCampusReferrals(campusName: string) {
 }
 
 export async function confirmCampusReferral(leadId: number, campusName: string) {
+    const user = await getCurrentUser()
+    if (!user) return { success: false, error: 'Unauthorized' }
+
+    // Permission check
+    if (user.role !== 'Super Admin' && user.assignedCampus !== campusName) {
+        return { success: false, error: 'Forbidden' }
+    }
+
     // Adapter to match existing confirmReferral logic but with revalidation for campus
     try {
         const lead = await prisma.referralLead.findUnique({

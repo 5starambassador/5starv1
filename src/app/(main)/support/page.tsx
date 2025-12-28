@@ -1,34 +1,36 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { MessageSquare, Plus, Clock, CheckCircle2, AlertCircle, Send, X, Loader2, Ticket, Tag, Calendar } from 'lucide-react'
+import { Plus, MessageSquare, Clock, AlertCircle, CheckCircle2, X, Send, Tag, Calendar, Loader2 } from 'lucide-react'
 import { createTicket, getUserTickets } from '@/app/ticket-actions'
+import { TicketChatModal } from '@/components/support/ticket-chat-modal'
+import { toast } from 'sonner'
 
 export default function SupportPage() {
-    const [showNewTicket, setShowNewTicket] = useState(false)
     const [tickets, setTickets] = useState<any[]>([])
-    const [isSubmitting, setIsSubmitting] = useState(false)
-
-    // Form state
+    const [isLoading, setIsLoading] = useState(true)
+    const [showNewTicket, setShowNewTicket] = useState(false)
+    const [selectedTicket, setSelectedTicket] = useState<any>(null)
     const [subject, setSubject] = useState('')
     const [message, setMessage] = useState('')
     const [category, setCategory] = useState('Technical Issue')
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Load tickets on mount
     useEffect(() => {
         loadTickets()
     }, [])
 
     const loadTickets = async () => {
-        const result = await getUserTickets()
-        if (result.success) {
-            setTickets(result.tickets)
+        const res = await getUserTickets()
+        if (res.success) {
+            setTickets(res.tickets)
         }
+        setIsLoading(false)
     }
 
     const handleSubmit = async () => {
         if (!subject.trim() || !message.trim()) {
-            alert('Please fill in all fields')
+            toast.error('Please fill in all fields')
             return
         }
 
@@ -42,9 +44,9 @@ export default function SupportPage() {
             setMessage('')
             setCategory('Technical Issue')
             loadTickets()
-            alert('Ticket submitted successfully!')
+            toast.success('Ticket submitted successfully!')
         } else {
-            alert(result.error || 'Failed to submit ticket')
+            toast.error(result.error || 'Failed to submit ticket')
         }
     }
 
@@ -221,18 +223,41 @@ export default function SupportPage() {
                             return (
                                 <div
                                     key={ticket.id}
+                                    onClick={() => setSelectedTicket(ticket)}
                                     style={{
                                         background: 'linear-gradient(135deg, #FAFAFA, #FFFFFF)',
                                         border: '1px solid #E5E7EB',
                                         borderRadius: '16px',
                                         padding: '20px',
-                                        transition: 'all 0.2s'
+                                        transition: 'all 0.2s',
+                                        cursor: 'pointer'
+                                    }}
+                                    onMouseOver={(e) => {
+                                        e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.08)';
+                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                    }}
+                                    onMouseOut={(e) => {
+                                        e.currentTarget.style.boxShadow = 'none';
+                                        e.currentTarget.style.transform = 'translateY(0)';
                                     }}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                                         <div style={{ flex: 1 }}>
                                             <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#111827', margin: '0 0 6px' }}>{ticket.subject}</h3>
-                                            <p style={{ fontSize: '14px', color: '#6B7280', margin: 0, lineHeight: 1.5 }}>{ticket.message}</p>
+                                            <p style={{
+                                                fontSize: '14px',
+                                                color: '#6B7280',
+                                                margin: 0,
+                                                lineHeight: 1.5,
+                                                display: '-webkit-box',
+                                                WebkitLineClamp: 2,
+                                                WebkitBoxOrient: 'vertical',
+                                                overflow: 'hidden'
+                                            }}>
+                                                {ticket.messages && ticket.messages.length > 0
+                                                    ? ticket.messages[ticket.messages.length - 1].message
+                                                    : ticket.message}
+                                            </p>
                                         </div>
                                         <div style={{ display: 'flex', gap: '8px', marginLeft: '16px' }}>
                                             <span style={{
@@ -271,6 +296,12 @@ export default function SupportPage() {
                                             <Calendar size={14} />
                                             {new Date(ticket.createdAt).toLocaleDateString()}
                                         </span>
+                                        {ticket.messages && ticket.messages.length > 0 && (
+                                            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', color: '#3B82F6', fontWeight: '600' }}>
+                                                <MessageSquare size={14} />
+                                                {ticket.messages.length} replies
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             )
@@ -339,6 +370,11 @@ export default function SupportPage() {
                                     <option>Benefit Discrepancy</option>
                                     <option>Referral Not Showing</option>
                                     <option>Profile Update Request</option>
+                                    <option>Fee / Payment Query</option>
+                                    <option>Ambassador Program Help</option>
+                                    <option>Login / Account Issue</option>
+                                    <option>General Inquiry</option>
+                                    <option>Feedback & Suggestions</option>
                                     <option>Other</option>
                                 </select>
                             </div>
@@ -425,6 +461,19 @@ export default function SupportPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Chat Modal */}
+            {selectedTicket && (
+                <TicketChatModal
+                    ticket={selectedTicket}
+                    currentUserType="User"
+                    currentUserId={0} // Passed as 0, backend uses auth context if needed, or this is just for display logic in modal
+                    onClose={() => {
+                        setSelectedTicket(null)
+                        loadTickets()
+                    }}
+                />
             )}
         </div>
     )

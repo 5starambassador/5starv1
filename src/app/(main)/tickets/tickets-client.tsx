@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MessageSquare, Clock, CheckCircle2, AlertCircle, RefreshCw, Ticket, User, Calendar, Tag } from 'lucide-react'
 import { updateTicketStatus } from '@/app/ticket-actions'
+import { TicketChatModal } from '@/components/support/ticket-chat-modal'
 
 interface TicketsClientProps {
     tickets: any[]
@@ -16,6 +17,8 @@ export function TicketsClient({ tickets, counts, role, adminId }: TicketsClientP
     const router = useRouter()
     const [statusFilter, setStatusFilter] = useState<string>('All')
     const [isUpdating, setIsUpdating] = useState(false)
+    const [selectedTicket, setSelectedTicket] = useState<any>(null)
+
 
     const filteredTickets = statusFilter === 'All'
         ? tickets
@@ -273,6 +276,8 @@ export function TicketsClient({ tickets, counts, role, adminId }: TicketsClientP
                                         transition: 'all 0.2s',
                                         cursor: 'pointer'
                                     }}
+                                    onClick={() => setSelectedTicket(ticket)}
+
                                     onMouseOver={(e) => {
                                         e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.08)';
                                         e.currentTarget.style.transform = 'translateY(-2px)';
@@ -328,7 +333,7 @@ export function TicketsClient({ tickets, counts, role, adminId }: TicketsClientP
                                             </span>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                 <Calendar size={14} />
-                                                {new Date(ticket.createdAt).toLocaleDateString()}
+                                                {new Date(ticket.createdAt).toLocaleDateString('en-GB')}
                                             </span>
                                         </div>
 
@@ -380,6 +385,20 @@ export function TicketsClient({ tickets, counts, role, adminId }: TicketsClientP
                     </div>
                 )}
             </div>
+
+            {/* Chat Modal */}
+            {selectedTicket && (
+                <TicketChatModal
+                    ticket={selectedTicket}
+                    currentUserType="Admin"
+                    currentUserId={adminId || 0}
+                    onClose={() => {
+                        setSelectedTicket(null)
+                        router.refresh()
+                    }}
+                />
+            )}
         </div>
     )
 }
+

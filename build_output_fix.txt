@@ -1,0 +1,411 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.30kB 0.0s done
+#1 DONE 0.0s
+
+#2 [auth] library/node:pull token for registry-1.docker.io
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:20-alpine
+#3 DONE 2.4s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 200B done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 DONE 0.0s
+
+#6 [base 1/1] FROM docker.io/library/node:20-alpine@sha256:658d0f63e501824d6c23e06d4bb95c71e7d704537c9d9272f488ac03a370d448
+#6 resolve docker.io/library/node:20-alpine@sha256:658d0f63e501824d6c23e06d4bb95c71e7d704537c9d9272f488ac03a370d448 0.1s done
+#6 DONE 0.1s
+
+#7 [runner 2/8] RUN addgroup --system --gid 1001 nodejs
+#7 CACHED
+
+#8 [builder 1/5] WORKDIR /app
+#8 CACHED
+
+#9 [runner 3/8] RUN adduser --system --uid 1001 nextjs
+#9 CACHED
+
+#5 [internal] load build context
+#5 transferring context: 12.96kB 0.0s done
+#5 DONE 0.0s
+
+#10 [deps 1/4] RUN apk add --no-cache libc6-compat
+#10 CACHED
+
+#11 [deps 2/4] WORKDIR /app
+#11 CACHED
+
+#12 [deps 3/4] COPY package.json package-lock.json* ./
+#12 CACHED
+
+#13 [deps 4/4] RUN npm install --ignore-scripts
+#13 33.40 
+#13 33.40 added 473 packages, and audited 474 packages in 33s
+#13 33.40 
+#13 33.40 156 packages are looking for funding
+#13 33.40   run `npm fund` for details
+#13 33.41 
+#13 33.41 found 0 vulnerabilities
+#13 33.41 npm notice
+#13 33.41 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+#13 33.41 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+#13 33.41 npm notice To update run: npm install -g npm@11.7.0
+#13 33.41 npm notice
+#13 DONE 34.9s
+
+#8 [builder 1/5] WORKDIR /app
+#8 CACHED
+
+#14 [builder 2/5] COPY --from=deps /app/node_modules ./node_modules
+#14 DONE 13.6s
+
+#15 [builder 3/5] COPY . .
+#15 DONE 0.6s
+
+#16 [builder 4/5] RUN npx prisma generate
+#16 0.537 npm warn config production Use `--omit=dev` instead.
+#16 1.553 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#16 1.553 Please manually install OpenSSL and try installing Prisma again.
+#16 3.880 Prisma schema loaded from prisma/schema.prisma
+#16 4.022 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#16 4.022 Please manually install OpenSSL and try installing Prisma again.
+#16 6.684 
+#16 6.684 Γ£ö Generated Prisma Client (v5.22.0) to ./node_modules/@prisma/client in 588ms
+#16 6.684 
+#16 6.684 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#16 6.684 
+#16 6.684 Tip: Want real-time updates to your database without manual polling? Discover how with Pulse: https://pris.ly/tip-0-pulse
+#16 6.684 
+#16 6.684 ≡ƒ¢æ Hardcoding URLs in your schema poses a security risk: https://pris.ly/d/datasource-env
+#16 6.684 
+#16 6.880 npm notice
+#16 6.880 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+#16 6.880 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+#16 6.880 npm notice To update run: npm install -g npm@11.7.0
+#16 6.880 npm notice
+#16 DONE 7.0s
+
+#17 [builder 5/5] RUN npm run build
+#17 1.160 npm warn config production Use `--omit=dev` instead.
+#17 1.206 
+#17 1.206 > achariya-ambassador@0.1.0 build
+#17 1.206 > prisma generate && next build
+#17 1.206 
+#17 1.777 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 1.777 Please manually install OpenSSL and try installing Prisma again.
+#17 1.987 Prisma schema loaded from prisma/schema.prisma
+#17 2.052 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 2.052 Please manually install OpenSSL and try installing Prisma again.
+#17 3.127 
+#17 3.127 Γ£ö Generated Prisma Client (v5.22.0) to ./node_modules/@prisma/client in 481ms
+#17 3.127 
+#17 3.127 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#17 3.127 
+#17 3.127 Tip: Easily identify and fix slow SQL queries in your app. Optimize helps you enhance your visibility: https://pris.ly/--optimize
+#17 3.127 
+#17 3.127 ≡ƒ¢æ Hardcoding URLs in your schema poses a security risk: https://pris.ly/d/datasource-env
+#17 3.127 
+#17 4.588 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#17 4.589 This information is used to shape Next.js' roadmap and prioritize features.
+#17 4.589 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#17 4.589 https://nextjs.org/telemetry
+#17 4.589 
+#17 4.619    Γû▓ Next.js 16.0.10 (Turbopack)
+#17 4.620    - Experiments (use with caution):
+#17 4.620      ┬╖ serverActions
+#17 4.620 
+#17 4.700  ΓÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+#17 4.750    Creating an optimized production build ...
+#17 48.23  Γ£ô Compiled successfully in 43s
+#17 48.26    Skipping validation of types
+#17 48.52    Collecting page data using 15 workers ...
+#17 51.26 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.26 Please manually install OpenSSL and try installing Prisma again.
+#17 51.27 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.27 Please manually install OpenSSL and try installing Prisma again.
+#17 51.29 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.29 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.29 
+#17 51.29 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.29     at ignore-listed frames {
+#17 51.29   clientVersion: '5.22.0',
+#17 51.29   errorCode: undefined
+#17 51.29 }
+#17 51.30 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.30 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.30 
+#17 51.30 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.30     at ignore-listed frames {
+#17 51.30   clientVersion: '5.22.0',
+#17 51.30   errorCode: undefined
+#17 51.30 }
+#17 51.30 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.30 Please manually install OpenSSL and try installing Prisma again.
+#17 51.31 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.31 Please manually install OpenSSL and try installing Prisma again.
+#17 51.31 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.31 Please manually install OpenSSL and try installing Prisma again.
+#17 51.32 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.32 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.32 
+#17 51.32 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.32     at ignore-listed frames {
+#17 51.32   clientVersion: '5.22.0',
+#17 51.32   errorCode: undefined
+#17 51.32 }
+#17 51.32 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.32 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.32 
+#17 51.32 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.32     at ignore-listed frames {
+#17 51.32   clientVersion: '5.22.0',
+#17 51.32   errorCode: undefined
+#17 51.32 }
+#17 51.33 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.33 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.33 
+#17 51.33 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.33     at ignore-listed frames {
+#17 51.33   clientVersion: '5.22.0',
+#17 51.33   errorCode: undefined
+#17 51.33 }
+#17 51.33 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.33 Please manually install OpenSSL and try installing Prisma again.
+#17 51.35 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.35 Please manually install OpenSSL and try installing Prisma again.
+#17 51.38 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.38 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.38 
+#17 51.38 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.38     at ignore-listed frames {
+#17 51.38   clientVersion: '5.22.0',
+#17 51.38   errorCode: undefined
+#17 51.38 }
+#17 51.38 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.38 Please manually install OpenSSL and try installing Prisma again.
+#17 51.38 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.38 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.38 
+#17 51.38 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.38     at ignore-listed frames {
+#17 51.38   clientVersion: '5.22.0',
+#17 51.38   errorCode: undefined
+#17 51.38 }
+#17 51.38 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.38 Please manually install OpenSSL and try installing Prisma again.
+#17 51.38 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.38 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.38 
+#17 51.38 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.38     at ignore-listed frames {
+#17 51.38   clientVersion: '5.22.0',
+#17 51.38   errorCode: undefined
+#17 51.38 }
+#17 51.38 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.38 Please manually install OpenSSL and try installing Prisma again.
+#17 51.38 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.38 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.38 
+#17 51.38 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.38     at ignore-listed frames {
+#17 51.38   clientVersion: '5.22.0',
+#17 51.38   errorCode: undefined
+#17 51.38 }
+#17 51.38 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.38 Please manually install OpenSSL and try installing Prisma again.
+#17 51.38 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.38 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.38 
+#17 51.38 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.38     at ignore-listed frames {
+#17 51.38   clientVersion: '5.22.0',
+#17 51.38   errorCode: undefined
+#17 51.38 }
+#17 51.38 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.38 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.38 
+#17 51.38 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.38     at ignore-listed frames {
+#17 51.38   clientVersion: '5.22.0',
+#17 51.38   errorCode: undefined
+#17 51.38 }
+#17 51.38 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.38 Please manually install OpenSSL and try installing Prisma again.
+#17 51.38 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.38 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.38 
+#17 51.38 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.38     at ignore-listed frames {
+#17 51.38   clientVersion: '5.22.0',
+#17 51.38   errorCode: undefined
+#17 51.38 }
+#17 51.38 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.38 Please manually install OpenSSL and try installing Prisma again.
+#17 51.38 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.38 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.38 
+#17 51.38 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.38     at ignore-listed frames {
+#17 51.38   clientVersion: '5.22.0',
+#17 51.38   errorCode: undefined
+#17 51.38 }
+#17 51.38 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.38 Please manually install OpenSSL and try installing Prisma again.
+#17 51.38 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.38 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.38 
+#17 51.38 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.38     at ignore-listed frames {
+#17 51.38   clientVersion: '5.22.0',
+#17 51.38   errorCode: undefined
+#17 51.38 }
+#17 51.39 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.39 Please manually install OpenSSL and try installing Prisma again.
+#17 51.40 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.40 Please manually install OpenSSL and try installing Prisma again.
+#17 51.40 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.40 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.40 
+#17 51.40 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.40     at ignore-listed frames {
+#17 51.40   clientVersion: '5.22.0',
+#17 51.40   errorCode: undefined
+#17 51.40 }
+#17 51.41 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.41 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.41 
+#17 51.41 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.41     at ignore-listed frames {
+#17 51.41   clientVersion: '5.22.0',
+#17 51.41   errorCode: undefined
+#17 51.41 }
+#17 51.41 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 51.41 Please manually install OpenSSL and try installing Prisma again.
+#17 51.42 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 51.42 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 51.42 
+#17 51.42 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 51.42     at ignore-listed frames {
+#17 51.42   clientVersion: '5.22.0',
+#17 51.42   errorCode: undefined
+#17 51.42 }
+#17 51.43    Generating static pages using 15 workers (0/13) ...
+#17 52.49  ΓÜá metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+#17 52.53    Generating static pages using 15 workers (3/13) 
+#17 52.67    Generating static pages using 15 workers (6/13) 
+#17 52.67 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 52.67 Please manually install OpenSSL and try installing Prisma again.
+#17 52.68 Error [PrismaClientInitializationError]: Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 52.68 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 52.68 
+#17 52.68 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 52.68     at ignore-listed frames {
+#17 52.68   clientVersion: '5.22.0',
+#17 52.68   errorCode: undefined
+#17 52.68 }
+#17 52.68 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#17 52.68 Please manually install OpenSSL and try installing Prisma again.
+#17 52.68 Error fetching finance stats: Error [PrismaClientInitializationError]: 
+#17 52.68 Invalid `prisma.user.aggregate()` invocation:
+#17 52.68 
+#17 52.68 
+#17 52.68 Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 52.68 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 52.68 
+#17 52.68 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 52.68     at async f (.next/server/chunks/ssr/_710bb0cb._.js:2:390)
+#17 52.68     at async k (.next/server/chunks/ssr/[root-of-the-server]__7ef5344e._.js:1:1835) {
+#17 52.68   clientVersion: '5.22.0',
+#17 52.68   errorCode: undefined
+#17 52.68 }
+#17 52.68 Error fetching transactions: Error [PrismaClientInitializationError]: 
+#17 52.68 Invalid `prisma.user.findMany()` invocation:
+#17 52.68 
+#17 52.68 
+#17 52.68 Unable to require(`/app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node`).
+#17 52.68 The Prisma engines do not seem to be compatible with your system. Please refer to the documentation about Prisma's system requirements: https://pris.ly/d/system-requirements
+#17 52.68 
+#17 52.68 Details: Error loading shared library libssl.so.1.1: No such file or directory (needed by /app/node_modules/.prisma/client/libquery_engine-linux-musl.so.node)
+#17 52.68     at async g (.next/server/chunks/ssr/_710bb0cb._.js:2:948)
+#17 52.68     at async k (.next/server/chunks/ssr/[root-of-the-server]__7ef5344e._.js:1:1867) {
+#17 52.68   clientVersion: '5.22.0',
+#17 52.68   errorCode: undefined
+#17 52.68 }
+#17 52.87    Generating static pages using 15 workers (9/13) 
+#17 52.92  Γ£ô Generating static pages using 15 workers (13/13) in 1490.2ms
+#17 52.96    Finalizing page optimization ...
+#17 53.60 
+#17 53.60 Route (app)
+#17 53.60 Γöî Γùï /
+#17 53.60 Γö£ Γùï /_not-found
+#17 53.60 Γö£ ╞Æ /admin
+#17 53.60 Γö£ ╞Æ /api/profile/update
+#17 53.60 Γö£ ╞Æ /api/profile/upload
+#17 53.60 Γö£ ╞Æ /campus
+#17 53.60 Γö£ ╞Æ /campus/referrals
+#17 53.60 Γö£ ╞Æ /campus/students
+#17 53.60 Γö£ ╞Æ /dashboard
+#17 53.60 Γö£ ╞Æ /finance
+#17 53.60 Γö£ ╞Æ /finance/fees
+#17 53.60 Γö£ ╞Æ /finance/payouts
+#17 53.60 Γö£ ╞Æ /finance/reports
+#17 53.60 Γö£ ╞Æ /finance/transactions
+#17 53.60 Γö£ ╞Æ /marketing
+#17 53.60 Γö£ ╞Æ /profile
+#17 53.60 Γö£ ╞Æ /refer
+#17 53.60 Γö£ ╞Æ /referrals
+#17 53.60 Γö£ Γùï /robots.txt
+#17 53.60 Γö£ ╞Æ /rules
+#17 53.60 Γö£ Γùï /sitemap.xml
+#17 53.60 Γö£ ╞Æ /superadmin
+#17 53.60 Γö£ ╞Æ /support
+#17 53.60 Γöö ╞Æ /tickets
+#17 53.60 
+#17 53.60 
+#17 53.60 ╞Æ Proxy (Middleware)
+#17 53.60 
+#17 53.60 Γùï  (Static)   prerendered as static content
+#17 53.60 ╞Æ  (Dynamic)  server-rendered on demand
+#17 53.60 
+#17 DONE 53.8s
+
+#18 [runner 4/8] COPY --from=builder /app/public ./public
+#18 DONE 0.1s
+
+#19 [runner 5/8] RUN mkdir .next
+#19 DONE 0.4s
+
+#20 [runner 6/8] RUN chown nextjs:nodejs .next
+#20 DONE 0.5s
+
+#21 [runner 7/8] COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+#21 DONE 1.4s
+
+#22 [runner 8/8] COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+#22 DONE 0.2s
+
+#23 exporting to image
+#23 exporting layers
+#23 exporting layers 4.9s done
+#23 exporting manifest sha256:ee01c021427a4089778586a8f407c44c1e48775e118054865448e1aa68a0ab82 0.0s done
+#23 exporting config sha256:cbcf1ba299c024e57444ab825e9c597454bbb055db658be5da00561e9fb5a776 0.0s done
+#23 exporting attestation manifest sha256:f09558d5f8d16b25ff927ff697fc36de040f416ab90a5d54a8d2fd8e703e6d4c
+#23 exporting attestation manifest sha256:f09558d5f8d16b25ff927ff697fc36de040f416ab90a5d54a8d2fd8e703e6d4c 0.1s done
+#23 exporting manifest list sha256:2371dd0c17272188d292cc13aeff992f5922ebde2ecd6d9c10bd87c4343cfcb6 0.1s done
+#23 naming to docker.io/library/achariya-ambassador:latest
+#23 naming to docker.io/library/achariya-ambassador:latest 0.0s done
+#23 unpacking to docker.io/library/achariya-ambassador:latest
+#23 unpacking to docker.io/library/achariya-ambassador:latest 1.5s done
+#23 DONE 6.8s
+
+ 3 warnings found (use docker --debug to expand):
+ - LegacyKeyValueFormat: "ENV key=value" should be used instead of legacy "ENV key value" format (line 28)
+ - LegacyKeyValueFormat: "ENV key=value" should be used instead of legacy "ENV key value" format (line 29)
+ - LegacyKeyValueFormat: "ENV key=value" should be used instead of legacy "ENV key value" format (line 30)
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/43bujc4vxie6mtb1eoqen1xv0

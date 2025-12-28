@@ -33,29 +33,27 @@ export function CampusClient({ campus, analytics, referrals, confirmReferral }: 
                 }
             `}</style>
 
-            {/* Premium Header - Matching Admin Style */}
-            <div style={{
+            {/* Premium Header - Mobile Optimized */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100" style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                background: 'white',
-                padding: '16px 24px',
-                borderRadius: '16px',
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)',
-                border: '1px solid rgba(229, 231, 235, 0.5)'
+                flexWrap: 'wrap',
+                gap: '12px',
+                padding: '20px',
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}>
-                        <div style={{ width: '8px', height: '8px', background: '#10B981', borderRadius: '50%', zIndex: 2 }}></div>
+                        <div style={{ width: '10px', height: '10px', background: '#10B981', borderRadius: '50%', zIndex: 2 }}></div>
                         <div style={{ position: 'absolute', width: '100%', height: '100%', background: '#10B981', borderRadius: '50%', animation: 'ripple 2s infinite', opacity: 0.4 }}></div>
                     </div>
                     <div>
-                        <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>
+                        <h1 style={{ fontSize: 'clamp(18px, 5vw, 24px)', fontWeight: '800', color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>
                             Campus Dashboard
                         </h1>
-                        <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '1px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <p style={{ fontSize: '15px', color: '#6B7280', marginTop: '4px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <Building2 size={14} />
-                            {campus} Campus • Lead management and analytics
+                            {campus} Campus
                         </p>
                     </div>
                 </div>
@@ -93,8 +91,8 @@ export function CampusClient({ campus, analytics, referrals, confirmReferral }: 
                 </button>
             </div>
 
-            {/* Premium KPI Cards Grid - Matching Admin Style */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+            {/* Premium KPI Cards Grid - Mobile Stacked */}
+            <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
                 {/* Total Leads Card */}
                 <div
                     onClick={() => handleCardClick('All')}

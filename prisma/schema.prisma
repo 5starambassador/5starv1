@@ -15,6 +15,7 @@ model User {
   userId                 Int            @id @default(autoincrement())
   fullName               String
   mobileNumber           String         @unique
+  password               String?        // For login
   role                   String         // Staff, Parent
   childInAchariya        Boolean
   childName              String?
@@ -50,16 +51,20 @@ model User {
   address                String?
   
   referrals              ReferralLead[]
-  students               Student[]
+  students               Student[]        @relation("StudentParent")
+  referredStudents       Student[]        @relation("StudentAmbassador")
   settlements            Settlement[]
   supportTickets         SupportTicket[]
+  notifications          Notification[]
 }
 
 model Student {
   studentId              Int            @id @default(autoincrement())
   fullName               String
   parentId               Int
-  parent                 User           @relation(fields: [parentId], references: [userId])
+  parent                 User           @relation("StudentParent", fields: [parentId], references: [userId])
+  ambassadorId           Int?           // The ambassador who referred this student (can be different from parent)
+  ambassador             User?          @relation("StudentAmbassador", fields: [ambassadorId], references: [userId])
   campusId               Int
   campus                 Campus         @relation(fields: [campusId], references: [id])
   grade                  String
@@ -77,6 +82,10 @@ model Student {
   
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
+
+  @@index([parentId])
+  @@index([campusId])
+  @@index([ambassadorId])
 }
 
 model ReferralLead {
@@ -85,6 +94,7 @@ model ReferralLead {
   user           User      @relation(fields: [userId], references: [userId])
   parentName     String
   parentMobile   String
+  studentName    String?   // Added for new flow
   campusId       Int?      // Link to Campus
   campus         String?   // Legacy/Display name
   gradeInterested String?
@@ -94,6 +104,10 @@ model ReferralLead {
   createdAt      DateTime  @default(now())
   
   student        Student?
+
+  @@index([userId])
+  @@index([campus])
+  @@index([leadStatus])
 }
 
 model BenefitSlab {
@@ -110,6 +124,7 @@ model Admin {
   adminId        Int      @id @default(autoincrement())
   adminName      String
   adminMobile    String   @unique
+  password       String?  // For login
   role           String   // Super Admin, Admission Admin, CampusHead
   assignedCampus String?  // For Campus Head role assignment
   status         String   @default("Active") // Active or Inactive
@@ -117,6 +132,10 @@ model Admin {
   profileImage   String?
   email          String?
   address        String?
+  notifications  Notification[]
+
+  @@index([role])
+  @@index([assignedCampus])
 }
 
 model SystemSettings {
@@ -177,6 +196,9 @@ model RolePermissions {
   userMgmtDelete        Boolean  @default(false)
   studentMgmtAccess     Boolean  @default(true)
   studentMgmtScope      String   @default("all")
+  studentMgmtCreate     Boolean  @default(true)
+  studentMgmtEdit       Boolean  @default(true)
+  studentMgmtDelete     Boolean  @default(false)
   adminMgmtAccess       Boolean  @default(false)
   adminMgmtScope        String   @default("none")
   adminMgmtCreate       Boolean  @default(false)
@@ -267,6 +289,10 @@ model SupportTicket {
   updatedAt       DateTime @updatedAt
   resolvedAt      DateTime?
   messages        TicketMessage[]
+  
+  // Escalation System
+  escalationLevel Int      @default(1) // 1=CampusAdmin, 2=CampusHead/Finance, 3=AdmissionAdmin, 4=SuperAdmin
+  lastEscalatedAt DateTime?
 }
 
 model TicketMessage {
@@ -337,4 +363,28 @@ model MarketingAsset {
   uploadedById  Int?     // Admin who uploaded
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model OtpVerification {
+  id        Int      @id @default(autoincrement())
+  mobile    String   @unique
+  otp       String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  userId      Int?     // For Students/Parents/Staff
+  adminId     Int?     // For Admins
+  title       String
+  message     String
+  type        String   // 'info', 'success', 'warning', 'error'
+  link        String?  // Optional action link (e.g. /tickets/123)
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user        User?    @relation(fields: [userId], references: [userId])
+  admin       Admin?   @relation(fields: [adminId], references: [adminId])
 }

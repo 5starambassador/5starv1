@@ -14,7 +14,7 @@ export default async function DashboardPage() {
     if (user.role === 'Super Admin') {
         redirect('/superadmin')
     }
-    if (user.role.includes('CampusHead')) {
+    if (user.role.includes('Campus')) {
         redirect('/campus')
     }
     if (user.role.includes('Admin')) {
@@ -46,28 +46,26 @@ export default async function DashboardPage() {
     if (!permissions) redirect('/')
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Dynamic Header - Compact like Super Admin */}
-            <div style={{
+        <div className="page-container" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+            {/* Dynamic Header - Mobile Optimized */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100" style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                background: 'white',
-                padding: '16px 24px',
-                borderRadius: '16px',
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)',
-                border: '1px solid rgba(229, 231, 235, 0.5)'
+                flexWrap: 'wrap',
+                gap: '16px',
+                padding: '24px',
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}>
-                        <div style={{ width: '8px', height: '8px', background: isBenefitActive ? '#10B981' : '#EF4444', borderRadius: '50%', zIndex: 2 }}></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}>
+                        <div style={{ width: '12px', height: '12px', background: isBenefitActive ? '#10B981' : '#EF4444', borderRadius: '50%', zIndex: 2 }}></div>
                         <div style={{ position: 'absolute', width: '100%', height: '100%', background: isBenefitActive ? '#10B981' : '#EF4444', borderRadius: '50%', animation: 'ripple 2s infinite', opacity: 0.4 }}></div>
                     </div>
                     <div>
-                        <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>
-                            {userData.role === 'Staff' ? 'Staff' : 'Parent'} Ambassador Dashboard
+                        <h1 style={{ fontSize: 'clamp(20px, 6vw, 28px)', fontWeight: '800', color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>
+                            {userData.role === 'Staff' ? 'Staff' : 'Parent'} Dashboard
                         </h1>
-                        <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '1px', fontWeight: '500' }}>
+                        <p style={{ fontSize: '16px', color: '#6B7280', marginTop: '6px', fontWeight: '500' }}>
                             {isBenefitActive ? 'Benefits Active' : 'Benefits Inactive'} • {userData.academicYear || '2025-2026'}
                         </p>
                     </div>
@@ -84,17 +82,17 @@ export default async function DashboardPage() {
             {/* Status Banner - Compact */}
             <div style={{
                 background: 'white',
-                padding: '16px 20px',
-                borderRadius: '16px',
-                borderLeft: `4px solid ${isBenefitActive ? '#10B981' : '#EF4444'}`,
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+                padding: '20px 24px',
+                borderRadius: '20px',
+                borderLeft: `5px solid ${isBenefitActive ? '#10B981' : '#EF4444'}`,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px'
+                gap: '16px'
             }}>
-                {isBenefitActive ? <CheckCircle size={20} style={{ color: '#10B981', flexShrink: 0 }} /> : <AlertCircle size={20} style={{ color: '#EF4444', flexShrink: 0 }} />}
+                {isBenefitActive ? <CheckCircle size={24} style={{ color: '#10B981', flexShrink: 0 }} /> : <AlertCircle size={24} style={{ color: '#EF4444', flexShrink: 0 }} />}
                 <div>
-                    <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#111827', margin: 0 }}>
+                    <h3 style={{ fontSize: '17px', fontWeight: '700', color: '#111827', margin: 0 }}>
                         {isBenefitActive ? 'Benefits Active' : 'Benefits Inactive'}
                     </h3>
                     <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>
@@ -142,57 +140,57 @@ export default async function DashboardPage() {
                 </div>
             )}
 
-            {/* Stats Grid - Premium Gradient Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginTop: '8px' }}>
+            {/* Stats Grid - Mobile Stacked */}
+            <div className="mobile-stack" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginTop: '8px' }}>
                 {/* Confirmed Referrals - Red */}
-                <div style={{
+                <div className="stat-card" style={{
                     background: 'linear-gradient(135deg, #EF4444, #B91C1C)',
-                    padding: '20px',
-                    borderRadius: '16px',
+                    padding: '24px',
+                    borderRadius: '20px',
                     position: 'relative',
                     overflow: 'hidden',
                     boxShadow: '0 10px 20px -5px rgba(239, 68, 68, 0.3)'
                 }}>
-                    <TrendingUp size={48} style={{ position: 'absolute', right: '-10px', bottom: '-10px', color: 'rgba(255,255,255,0.15)' }} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', position: 'relative' }}>
-                        <TrendingUp size={16} style={{ color: 'rgba(255,255,255,0.9)' }} />
-                        <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: '600', letterSpacing: '0.02em' }}>Total Confirmed Referrals</span>
+                    <TrendingUp size={56} style={{ position: 'absolute', right: '-10px', bottom: '-10px', color: 'rgba(255,255,255,0.15)' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', position: 'relative' }}>
+                        <TrendingUp size={20} style={{ color: 'rgba(255,255,255,0.9)' }} />
+                        <span className="stat-label" style={{ color: 'rgba(255,255,255,0.9)', fontSize: '15px', fontWeight: '600', letterSpacing: '0.02em' }}>Total Confirmed Referrals</span>
                     </div>
-                    <p style={{ fontSize: '32px', fontWeight: '800', color: 'white', margin: 0, position: 'relative' }}>{userData.confirmedReferralCount}</p>
+                    <p className="stat-value" style={{ fontSize: '40px', fontWeight: '800', color: 'white', margin: 0, position: 'relative' }}>{userData.confirmedReferralCount}</p>
                 </div>
 
                 {/* This Year Fee Benefit - Amber/Gold */}
-                <div style={{
+                <div className="stat-card" style={{
                     background: 'linear-gradient(135deg, #F59E0B, #D97706)',
-                    padding: '20px',
-                    borderRadius: '16px',
+                    padding: '24px',
+                    borderRadius: '20px',
                     position: 'relative',
                     overflow: 'hidden',
                     boxShadow: '0 10px 20px -5px rgba(245, 158, 11, 0.3)'
                 }}>
-                    <Wallet size={48} style={{ position: 'absolute', right: '-10px', bottom: '-10px', color: 'rgba(255,255,255,0.15)' }} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', position: 'relative' }}>
-                        <Wallet size={16} style={{ color: 'rgba(255,255,255,0.9)' }} />
-                        <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: '600', letterSpacing: '0.02em' }}>This Year Fee Benefit</span>
+                    <Wallet size={56} style={{ position: 'absolute', right: '-10px', bottom: '-10px', color: 'rgba(255,255,255,0.15)' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', position: 'relative' }}>
+                        <Wallet size={20} style={{ color: 'rgba(255,255,255,0.9)' }} />
+                        <span className="stat-label" style={{ color: 'rgba(255,255,255,0.9)', fontSize: '15px', fontWeight: '600', letterSpacing: '0.02em' }}>This Year Fee Benefit</span>
                     </div>
-                    <p style={{ fontSize: '32px', fontWeight: '800', color: 'white', margin: 0, position: 'relative' }}>{userData.yearFeeBenefitPercent}%</p>
+                    <p className="stat-value" style={{ fontSize: '40px', fontWeight: '800', color: 'white', margin: 0, position: 'relative' }}>{userData.yearFeeBenefitPercent}%</p>
                 </div>
 
                 {/* Long-Term Benefit - Orange */}
-                <div style={{
+                <div className="stat-card" style={{
                     background: 'linear-gradient(135deg, #F97316, #EA580C)',
-                    padding: '20px',
-                    borderRadius: '16px',
+                    padding: '24px',
+                    borderRadius: '20px',
                     position: 'relative',
                     overflow: 'hidden',
                     boxShadow: '0 10px 20px -5px rgba(249, 115, 22, 0.3)'
                 }}>
-                    <StarIcon size={48} style={{ position: 'absolute', right: '-10px', bottom: '-10px', color: 'rgba(255,255,255,0.15)' }} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', position: 'relative' }}>
-                        <StarIcon size={16} />
-                        <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: '600', letterSpacing: '0.02em' }}>Long-Term Benefit</span>
+                    <StarIcon size={56} style={{ position: 'absolute', right: '-10px', bottom: '-10px', color: 'rgba(255,255,255,0.15)' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', position: 'relative' }}>
+                        <StarIcon size={20} />
+                        <span className="stat-label" style={{ color: 'rgba(255,255,255,0.9)', fontSize: '15px', fontWeight: '600', letterSpacing: '0.02em' }}>Long-Term Benefit</span>
                     </div>
-                    <p style={{ fontSize: '32px', fontWeight: '800', color: 'white', margin: 0, position: 'relative' }}>{userData.longTermBenefitPercent}%</p>
+                    <p className="stat-value" style={{ fontSize: '40px', fontWeight: '800', color: 'white', margin: 0, position: 'relative' }}>{userData.longTermBenefitPercent}%</p>
                 </div>
             </div>
 

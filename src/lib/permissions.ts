@@ -3,7 +3,7 @@
  * Defines permissions for each admin role across dashboard modules
  */
 
-export type AdminRole = 'Super Admin' | 'CampusHead' | 'Admission Admin' | 'Campus Admin' | 'Staff' | 'Parent'
+export type AdminRole = 'Super Admin' | 'CampusHead' | 'Campus Head' | 'Finance Admin' | 'FinanceAdmin' | 'Admission Admin' | 'Campus Admin' | 'Staff' | 'Parent'
 export type DataScope = 'all' | 'campus' | 'view-only' | 'none' | 'self'
 
 export interface ModulePermission {
@@ -67,6 +67,57 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         referralTracking: { access: true, scope: 'campus' },
         savingsCalculator: { access: true, scope: 'campus' },
         rulesAccess: { access: true, scope: 'campus' }
+    },
+    'Campus Head': {
+        analytics: { access: true, scope: 'campus' },
+        userManagement: { access: false, scope: 'none' },
+        studentManagement: { access: false, scope: 'none' },
+        adminManagement: { access: false, scope: 'none' },
+        campusPerformance: { access: false, scope: 'none' },
+        reports: { access: true, scope: 'campus', allowedReports: ['users', 'campus', 'performance', 'new-registrations'] },
+        settlements: { access: true, scope: 'campus' },
+        marketingKit: { access: true, scope: 'campus' },
+        auditLog: { access: false, scope: 'none' },
+        supportDesk: { access: true, scope: 'campus' },
+        settings: { access: false, scope: 'none' },
+        referralSubmission: { access: true, scope: 'campus' },
+        referralTracking: { access: true, scope: 'campus' },
+        savingsCalculator: { access: true, scope: 'campus' },
+        rulesAccess: { access: true, scope: 'campus' }
+    },
+    'Finance Admin': {
+        analytics: { access: true, scope: 'all' },
+        userManagement: { access: false, scope: 'none' },
+        studentManagement: { access: false, scope: 'none' },
+        adminManagement: { access: false, scope: 'none' },
+        campusPerformance: { access: false, scope: 'none' },
+        reports: { access: true, scope: 'all', allowedReports: ['settlements', 'payments'] },
+        settlements: { access: true, scope: 'all' },
+        marketingKit: { access: false, scope: 'none' },
+        auditLog: { access: false, scope: 'none' },
+        supportDesk: { access: false, scope: 'none' },
+        settings: { access: false, scope: 'none' },
+        referralSubmission: { access: false, scope: 'none' },
+        referralTracking: { access: false, scope: 'none' },
+        savingsCalculator: { access: false, scope: 'none' },
+        rulesAccess: { access: false, scope: 'none' }
+    },
+    'FinanceAdmin': {
+        analytics: { access: true, scope: 'all' },
+        userManagement: { access: false, scope: 'none' },
+        studentManagement: { access: false, scope: 'none' },
+        adminManagement: { access: false, scope: 'none' },
+        campusPerformance: { access: false, scope: 'none' },
+        reports: { access: true, scope: 'all', allowedReports: ['settlements', 'payments'] },
+        settlements: { access: true, scope: 'all' },
+        marketingKit: { access: false, scope: 'none' },
+        auditLog: { access: false, scope: 'none' },
+        supportDesk: { access: false, scope: 'none' },
+        settings: { access: false, scope: 'none' },
+        referralSubmission: { access: false, scope: 'none' },
+        referralTracking: { access: false, scope: 'none' },
+        savingsCalculator: { access: false, scope: 'none' },
+        rulesAccess: { access: false, scope: 'none' }
     },
     'Admission Admin': {
         analytics: { access: true, scope: 'view-only' },

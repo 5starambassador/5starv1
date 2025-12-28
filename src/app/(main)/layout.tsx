@@ -2,6 +2,9 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, DollarSign, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star } from 'lucide-react'
+import { MobileMenu } from '@/components/MobileMenu'
+import { NotificationDropdown } from '@/components/NotificationDropdown'
+import MobileSidebarWrapper from '@/components/MobileSidebarWrapper'
 import { getMyPermissions } from '@/lib/permission-service'
 import { RolePermissions } from '@/lib/permissions'
 import { deleteSession } from '@/lib/session'
@@ -23,7 +26,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     // IMPORTANT: Check roles in specific order to avoid confusion
     // "Super Admin" contains "Admin", so check it FIRST
     const isSuperAdmin = user.role === 'Super Admin'
-    const isCampusHead = user.role.includes('CampusHead')
+    const isCampusHead = user.role.includes('Campus')
     const isRegularAdmin = user.role.includes('Admin') && !isSuperAdmin
 
     const navItems = []
@@ -32,53 +35,58 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     if (permissions) {
         // Dashboard Link (Role-specific destination)
         const dashboardHref = isSuperAdmin ? '/superadmin' : (isCampusHead ? '/campus' : (isRegularAdmin ? '/admin' : '/dashboard'))
-        navItems.push({ label: 'Home', href: dashboardHref, icon: Home })
+        navItems.push({ label: 'Home', href: dashboardHref, icon: <Home /> })
 
         // Admin Modules
         const baseAdminPath = isSuperAdmin ? '/superadmin' : '/admin'
 
-        if (permissions.analytics.access) navItems.push({ label: 'Analytics', href: baseAdminPath, icon: Shield })
-        if (permissions.campusPerformance.access) navItems.push({ label: 'Campus Performance', href: `${baseAdminPath}?view=campuses`, icon: Building2 })
+        if (permissions.analytics.access) navItems.push({ label: 'Analytics', href: baseAdminPath, icon: <Shield /> })
+        if (permissions.campusPerformance.access) navItems.push({ label: 'Campus Performance', href: `${baseAdminPath}?view=campuses`, icon: <Building2 /> })
 
         // These modules might not be ready in AdminClient yet, but if permissions allow, we link them.
         // We might need to implement these views in AdminClient or condition these links further.
-        if (permissions.userManagement.access) navItems.push({ label: 'User Management', href: `${baseAdminPath}?view=users`, icon: Users })
-        if (permissions.studentManagement.access) navItems.push({ label: 'Student Management', href: `${baseAdminPath}?view=students`, icon: BookOpen })
-        if (permissions.adminManagement.access) navItems.push({ label: 'Admin Management', href: `${baseAdminPath}?view=admins`, icon: Target })
-        if (permissions.reports.access) navItems.push({ label: 'Reports', href: `${baseAdminPath}?view=reports`, icon: FileDown })
+        if (permissions.userManagement.access) navItems.push({ label: 'User Management', href: `${baseAdminPath}?view=users`, icon: <Users /> })
+        if (permissions.studentManagement.access) navItems.push({ label: 'Student Management', href: `${baseAdminPath}?view=students`, icon: <BookOpen /> })
+        if (permissions.adminManagement.access) navItems.push({ label: 'Admin Management', href: `${baseAdminPath}?view=admins`, icon: <Target /> })
+        if (permissions.reports.access) navItems.push({ label: 'Reports', href: `${baseAdminPath}?view=reports`, icon: <FileDown /> })
 
         // Management of specific dashboard types
         if (isSuperAdmin) {
-            navItems.push({ label: 'Marketing Mgmt', href: '/superadmin?view=marketing', icon: Database })
-            navItems.push({ label: 'Permissions', href: '/superadmin?view=permissions', icon: Shield })
-            // navItems.push({ label: 'Staff Dashboard Ctrl', href: '/superadmin?view=staff-dash', icon: ShieldCheck })
-            // navItems.push({ label: 'Parent Dashboard Ctrl', href: '/superadmin?view=parent-dash', icon: Star })
+            navItems.push({ label: 'Promo Management', href: '/superadmin?view=marketing', icon: <Database /> })
+            navItems.push({ label: 'Permissions', href: '/superadmin?view=permissions', icon: <Shield /> })
+            // navItems.push({ label: 'Staff Dashboard Ctrl', href: '/superadmin?view=staff-dash', icon: <ShieldCheck /> })
+            // navItems.push({ label: 'Parent Dashboard Ctrl', href: '/superadmin?view=parent-dash', icon: <Star /> })
+        }
+
+        if (isCampusHead) {
+            permissions.studentManagement.access && navItems.push({ label: 'My Students', href: '/campus/students', icon: <BookOpen /> })
+            permissions.referralTracking.access && navItems.push({ label: 'Campus Leads', href: '/campus/referrals', icon: <List /> })
         }
 
         // Ambassador Portal Links (Only for Staff & Parents)
         const isAmbassadorRole = user.role === 'Staff' || user.role === 'Parent'
 
         if (isAmbassadorRole) {
-            if (permissions.referralSubmission.access) navItems.push({ label: 'Refer Now', href: '/refer', icon: UserPlus })
-            if (permissions.referralTracking.access) navItems.push({ label: 'My Referrals', href: '/referrals', icon: List })
-            if (permissions.rulesAccess.access) navItems.push({ label: 'Rules', href: '/rules', icon: BookOpen })
+            if (permissions.referralSubmission.access) navItems.push({ label: 'Refer Now', href: '/refer', icon: <UserPlus /> })
+            if (permissions.referralTracking.access) navItems.push({ label: 'My Referrals', href: '/referrals', icon: <List /> })
+            if (permissions.rulesAccess.access) navItems.push({ label: 'Rules', href: '/rules', icon: <BookOpen /> })
         }
 
         // Shared Tooling (Available to all who have permission, but hidden for Super Admin who has dedicated management views)
-        if (permissions.marketingKit.access && !isSuperAdmin) navItems.push({ label: 'Marketing Kit', href: '/marketing', icon: Database })
-        if (permissions.supportDesk.access && !isSuperAdmin) navItems.push({ label: 'Support Desk', href: '/support', icon: MessageSquare })
+        if (permissions.marketingKit.access) navItems.push({ label: 'Promo Kit', href: '/marketing', icon: <Database /> })
+        if (permissions.supportDesk.access && !isSuperAdmin) navItems.push({ label: 'Support Desk', href: '/support', icon: <MessageSquare /> })
 
         // Admin-specific shared modules (Hide from Ambassadors)
         if (!isAmbassadorRole) {
-            navItems.push({ label: 'Support Tickets', href: '/tickets', icon: MessageSquare })
-            if (permissions.settlements.access) navItems.push({ label: 'Settlements', href: '/superadmin?view=settlements', icon: DollarSign })
-            if (permissions.auditLog.access) navItems.push({ label: 'Audit Trail', href: '/superadmin?view=audit', icon: GanttChartSquare })
-            if (permissions.settings.access) navItems.push({ label: 'Settings', href: '/superadmin?view=settings', icon: Settings })
+            navItems.push({ label: 'Support Tickets', href: '/tickets', icon: <MessageSquare /> })
+            if (permissions.settlements.access) navItems.push({ label: 'Finance', href: '/finance', icon: <DollarSign /> })
+            if (permissions.auditLog.access) navItems.push({ label: 'Audit Trail', href: '/superadmin?view=audit', icon: <GanttChartSquare /> })
+            if (permissions.settings.access) navItems.push({ label: 'Settings', href: '/superadmin?view=settings', icon: <Settings /> })
         }
     }
 
     // Always accessible
-    navItems.push({ label: 'Profile', href: '/profile', icon: User })
+    navItems.push({ label: 'Profile', href: '/profile', icon: <User /> })
 
 
 
@@ -96,99 +104,81 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                 WebkitBackdropFilter: 'blur(2px)'
             }}></div>
 
-            {/* Desktop Sidebar */}
-            <aside className="md-flex flex-col w-64 border-r border-white/20 p-4 sticky top-0 h-screen relative z-10 hidden md:flex" style={{
-                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.4) 100%)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                boxShadow: '4px 0 24px rgba(0,0,0,0.02)'
+            {/* Desktop Sidebar (Permanent) */}
+            <aside className="desktop-sidebar hidden xl:flex flex-col border-r border-white/5 p-4 sticky top-0 h-screen relative z-10" style={{
+                width: '280px',
+                background: 'linear-gradient(195deg, #1A0000 0%, #3D0000 100%)',
+                boxShadow: '10px 0 50px rgba(0,0,0,0.5)',
+                borderRight: '1px solid rgba(255,255,255,0.05)',
+                flexShrink: 0
             }}>
-                <div className="mb-8 p-2">
-                    <img
-                        src="/achariya-ambassador-logo.png"
-                        alt="Achariya Ambassador"
-                        className="w-full h-auto mb-3"
-                        style={{ maxHeight: '180px', objectFit: 'contain' }}
-                    />
-                </div>
+                {/* Decorative Elements */}
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
 
-                <nav className="flex-1 space-y-2 mt-4 overflow-y-auto pr-2 custom-scrollbar">
-                    <div className="pb-20">
-                        {navItems.map(item => (
-                            <Link key={item.label} href={item.href} className="flex items-center gap-3 p-3 rounded hover-bg-light transition-colors mb-2">
-                                <item.icon size={20} className="text-primary-red" />
-                                <span>{item.label}</span>
-                            </Link>
-                        ))}
+                <div className="flex flex-col items-center border-b border-white/5 pb-8 pt-4 mb-8">
+                    <div className="relative group">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-red-600 to-amber-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                        <img
+                            src="/achariya_25_logo.jpg"
+                            alt="Achariya 25th Year"
+                            className="relative object-contain rounded-2xl shadow-2xl bg-white p-1 border border-white/10"
+                            style={{ height: '100px', width: 'auto', maxWidth: '220px' }}
+                        />
                     </div>
-                </nav>
-
-                <div className="border-t border-border-color pt-4 mt-auto">
-                    <Link href="/profile" className="flex items-center gap-3 px-2 mb-4 hover-bg-light rounded p-2 transition-colors cursor-pointer">
-                        <div className="w-8 h-8 rounded-full bg-primary-red text-white flex items-center justify-center font-bold">
-                            {user.fullName[0]}
-                        </div>
-                        <div className="flex-1" style={{ overflow: 'hidden' }}>
-                            <p className="text-sm font-medium truncate">{user.fullName}</p>
-                            <p className="text-xs text-text-secondary">{user.role}</p>
-                        </div>
-                    </Link>
-                    <form action={logout}>
-                        <button className="flex items-center gap-3 p-3 w-full text-left rounded hover-bg-light text-error transition-colors" suppressHydrationWarning>
-                            <LogOut size={20} />
-                            <span>Logout</span>
-                        </button>
-                    </form>
+                    <div className="mt-4 text-center">
+                        <p className="text-[10px] uppercase tracking-[0.3em] font-black text-red-500/80 mb-1">Achariya Group</p>
+                        <h2 className="text-white text-lg font-black tracking-tight">5-Star Ambassador</h2>
+                    </div>
+                </div>
+                <div className="flex-1 overflow-hidden custom-scrollbar">
+                    <MobileMenu navItems={navItems} user={{ fullName: user.fullName, role: user.role }} logoutAction={logout} />
                 </div>
             </aside>
 
             {/* Mobile Topbar */}
-            <div className="md-hidden fixed top-0 left-0 right-0 h-16 border-b border-white/20 z-50 flex items-center justify-between px-4" style={{
+            <div className="mobile-topbar xl:hidden fixed top-0 left-0 right-0 h-16 border-b border-white/20 z-50 flex items-center justify-between px-4" style={{
                 background: 'rgba(255, 255, 255, 0.85)',
                 backdropFilter: 'blur(16px)',
                 WebkitBackdropFilter: 'blur(16px)',
                 boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
             }}>
-                <img
-                    src="/achariya-ambassador-logo.png"
-                    alt="Achariya Ambassador"
-                    style={{ height: '60px', width: 'auto' }}
-                />
-                <form action={logout}>
-                    <button className="p-2 text-text-secondary">
-                        <LogOut size={20} />
-                    </button>
-                </form>
+                <div className="flex items-center gap-3">
+                    {/* Hamburger Menu Trigger */}
+                    <MobileSidebarWrapper>
+                        <MobileMenu
+                            navItems={navItems}
+                            user={{ fullName: user.fullName, role: user.role }}
+                            logoutAction={logout}
+                            viewMode="mobile-grid"
+                            hideLogo={true}
+                        />
+                    </MobileSidebarWrapper>
+
+                    <img
+                        src="/achariya_25_logo.jpg"
+                        alt="Achariya 25th Year"
+                        className="rounded-lg shadow-sm bg-white p-1"
+                        style={{ height: '40px', width: 'auto' }}
+                    />
+                </div>
+
+                {/* Mobile Notification Bell */}
+                <div className="flex items-center">
+                    <NotificationDropdown />
+                </div>
             </div>
 
-            <main className="flex-1 p-4 md-p-8 pt-20 md-pt-8 w-full max-w-5xl m-auto relative z-10">
+            <main
+                className="flex-1 p-4 pt-20 xl:p-8 xl:pt-8 pb-4 xl:pb-8 w-full max-w-[1600px] m-auto relative z-10"
+            >
+                {/* Desktop Notification Header */}
+                <header className="hidden xl:flex justify-end mb-4 absolute top-4 right-8 z-20">
+                    <div className="bg-white/80 backdrop-blur-md p-1.5 rounded-full shadow-sm border border-white/50">
+                        <NotificationDropdown />
+                    </div>
+                </header>
                 {children}
             </main>
-
-            {/* Mobile Bottom Nav */}
-            <nav className="md-hidden fixed bottom-0 left-0 right-0 border-t border-white/20 z-50 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.03)]" style={{
-                background: 'rgba(255, 255, 255, 0.9)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)'
-            }}>
-                <div
-                    className="flex items-center h-16 overflow-x-auto no-scrollbar relative"
-                    style={{
-                        WebkitOverflowScrolling: 'touch',
-                        maskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent)',
-                        WebkitMaskImage: 'linear-gradient(to right, transparent, black 15%, black 85%, transparent)'
-                    }}
-                >
-                    <div className="flex items-center h-full px-4 min-w-max">
-                        {navItems.map(item => (
-                            <Link key={item.label} href={item.href} className="flex flex-col items-center justify-center flex-shrink-0 w-20 h-full text-text-secondary px-1 text-center">
-                                <item.icon size={20} className="mb-1" />
-                                <span className="whitespace-nowrap uppercase font-bold tracking-tight" style={{ fontSize: '9px' }}>{item.label}</span>
-                            </Link>
-                        ))}
-                    </div>
-                </div>
-            </nav>
         </div>
     )
 }

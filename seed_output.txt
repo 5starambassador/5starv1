@@ -1,0 +1,26 @@
+npm warn config production Use `--omit=dev` instead.
+Environment variables loaded from .env
+Running seed command `tsx prisma/seed.ts` ...
+Starting seed...
+prisma:info Starting a postgresql pool with 17 connections.
+PrismaClientKnownRequestError: 
+Invalid `prisma.campus.upsert()` invocation in
+F:\5 star\prisma\seed.ts:63:29
+
+  60 ]
+  61 
+  62 for (const c of CAMPUS_DATA) {
+ΓåÆ 63     await prisma.campus.upsert(
+Unique constraint failed on the fields: (`campusName`)
+    at $n.handleRequestError (F:\5 star\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (F:\5 star\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (F:\5 star\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (F:\5 star\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async main (F:\5 star\prisma\seed.ts:63:9) {
+  code: 'P2002',
+  clientVersion: '5.22.0',
+  meta: { modelName: 'Campus', target: [ 'campusName' ] }
+}
+
+An error occurred while running the seed command:
+Error: Command failed with exit code 1: tsx prisma/seed.ts

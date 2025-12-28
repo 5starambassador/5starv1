@@ -3,7 +3,14 @@
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
 import { revalidatePath } from 'next/cache'
+import { logAction } from '@/lib/audit-logger'
 
+/**
+ * Fetches all referral leads with ambassador information.
+ * Requires Admin privileges.
+ * 
+ * @returns Object containing success status and array of referrals
+ */
 export async function getAllReferrals() {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Admin')) return { success: false, error: 'Unauthorized' }
@@ -15,6 +22,12 @@ export async function getAllReferrals() {
     return { success: true, referrals }
 }
 
+/**
+ * Generates comprehensive analytics for the admin dashboard.
+ * Includes lead counts, conversion rates, campus distribution, and top performers.
+ * 
+ * @returns Object containing detailed metrics and success status
+ */
 export async function getAdminAnalytics() {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Admin')) return { success: false, error: 'Unauthorized' }
@@ -75,7 +88,7 @@ export async function getAdminAnalytics() {
     }))
 
     // Top performers
-    const userReferralCounts: Record<number, { user: any, count: number }> = {}
+    const userReferralCounts: Record<number, { user: { fullName: string; role: string; referralCode: string }, count: number }> = {}
     referrals.forEach(r => {
         if (!userReferralCounts[r.userId]) {
             userReferralCounts[r.userId] = { user: r.user, count: 0 }
@@ -109,6 +122,12 @@ export async function getAdminAnalytics() {
     }
 }
 
+/**
+ * Confirms a referral lead and calculates benefits for the ambassador.
+ * Triggers revalidation of administrative and user dashboards.
+ * @param leadId - The ID of the referral lead to confirm.
+ * @returns An object indicating success or failure.
+ */
 export async function confirmReferral(leadId: number) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Admin')) return { success: false, error: 'Unauthorized' }
@@ -137,10 +156,14 @@ export async function confirmReferral(leadId: number) {
         // Determine Benefit % based on Flyer Logic
         const lookupCount = Math.min(count, 5) // Cap at 5 for slab lookup
 
-        // Slabs (Current Year)
-        // 1->5, 2->10, 3->25 (Jump), 4->30, 5->50
-        const slabs = { 1: 5, 2: 10, 3: 25, 4: 30, 5: 50 };
-        const yearFeeBenefit = slabs[lookupCount as keyof typeof slabs] || 0;
+        // Slabs (Fetch from DB with fallback)
+        const slab = await prisma.benefitSlab.findFirst({
+            where: { referralCount: lookupCount }
+        })
+
+        // Fallback defaults if DB is empty
+        const defaultSlabs: Record<number, number> = { 1: 5, 2: 10, 3: 25, 4: 30, 5: 50 };
+        const yearFeeBenefit = slab ? slab.yearFeeBenefitPercent : (defaultSlabs[lookupCount] || 0);
 
         // Long Term Benefit Logic
         // Prereq: Must be Five Star Member (5 referrals in previous year)
@@ -149,9 +172,11 @@ export async function confirmReferral(leadId: number) {
         const user = await prisma.user.findUnique({ where: { userId } });
 
         if (user?.isFiveStarMember && count >= 1) {
-            // Base 15% + (5% per referral)
+            // Base 15% + (5% per referral) OR use DB Logic if available
             // 1->20, 2->25...
-            longTermTotal = 15 + (count * 5);
+            const slabExtra = slab ? slab.longTermExtraPercent : 5; // Default 5% extra per referral
+            const baseLongTerm = slab ? slab.baseLongTermPercent : 15; // Default base 15%
+            longTermTotal = baseLongTerm + (count * slabExtra);
         }
 
         // Update User
@@ -169,6 +194,10 @@ export async function confirmReferral(leadId: number) {
         revalidatePath('/admin')
         revalidatePath('/dashboard')
         revalidatePath('/referrals')
+
+        // Log the action (1.5)
+        await logAction('UPDATE', 'referral', `Confirmed referral lead: ${leadId}`, leadId.toString(), { userId })
+
         return { success: true }
     } catch (e) {
         console.error(e)
@@ -176,6 +205,11 @@ export async function confirmReferral(leadId: number) {
     }
 }
 
+/**
+ * Fetches all users (ambassadors/parents/staff) for the admin dashboard.
+ * If the current user is a Campus Head, results are filtered to their campus.
+ * @returns Object containing success status and array of user records.
+ */
 export async function getAdminUsers() {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
@@ -209,6 +243,11 @@ export async function getAdminUsers() {
     }
 }
 
+/**
+ * Fetches all student records for the admin dashboard.
+ * Filters by assigned campus for non-Super Admins.
+ * @returns Object containing success status and array of student records.
+ */
 export async function getAdminStudents() {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
@@ -225,7 +264,8 @@ export async function getAdminStudents() {
             where,
             include: {
                 parent: { select: { fullName: true, mobileNumber: true } },
-                campus: { select: { campusName: true } }
+                campus: { select: { campusName: true } },
+                ambassador: { select: { fullName: true, mobileNumber: true, role: true, referralCode: true } }
             },
             orderBy: { createdAt: 'desc' }
         })
@@ -270,6 +310,10 @@ export async function getAdminAdmins() {
     }
 }
 
+/**
+ * Calculates performance comparison data across campuses for the admin view.
+ * @returns Object containing success status and performance comparison metrics.
+ */
 export async function getAdminCampusPerformance() {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('CampusHead') && !user.role.includes('Admin'))) {

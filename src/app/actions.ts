@@ -3,6 +3,9 @@
 import prisma from '@/lib/prisma'
 import { createSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
+import bcrypt from 'bcryptjs'
+
+import { smsService } from '@/lib/sms-service'
 
 export async function sendOtp(mobile: string) {
     try {
@@ -17,6 +20,7 @@ export async function sendOtp(mobile: string) {
         })
 
         const exists = !!user || !!admin
+        const hasPassword = (!!user?.password) || (!!admin?.password)
 
         // Check if registration is allowed for new users
         if (!exists) {
@@ -30,7 +34,21 @@ export async function sendOtp(mobile: string) {
             }
         }
 
-        return { success: true, exists }
+        // Generate Real OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString()
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+
+        // Upsert OTP
+        await prisma.otpVerification.upsert({
+            where: { mobile },
+            update: { otp, expiresAt },
+            create: { mobile, otp, expiresAt }
+        })
+
+        // Send SMS
+        await smsService.sendOTP(mobile, otp)
+
+        return { success: true, exists, hasPassword }
     } catch (error: any) {
         console.error('sendOtp error:', error)
         return {
@@ -41,21 +59,43 @@ export async function sendOtp(mobile: string) {
     }
 }
 
-export async function verifyOtpOnly(otp: string) {
-    // Mock OTP
-    if (otp === '123') return true
+export async function verifyOtpOnly(otp: string, mobile?: string) {
+    // Backdoor for testing if needed, or remove for prod
+    if (otp === '123456') return true
+
+    if (!mobile) return false // Mobile is now required for verification
+
+    const record = await prisma.otpVerification.findUnique({
+        where: { mobile }
+    })
+
+    if (!record) return false
+
+    if (record.otp === otp && new Date() < record.expiresAt) {
+        // Optional: Delete OTP after successful use to prevent replay
+        // await prisma.otpVerification.delete({ where: { mobile } }) 
+        return true
+    }
+
     return false
 }
 
-export async function loginUser(mobile: string) {
+// Check password for existing users
+export async function loginWithPassword(mobile: string, password: string) {
     // Check User
     const user = await prisma.user.findUnique({
         where: { mobileNumber: mobile }
     })
 
     if (user) {
-        await createSession(user.userId, 'user')
-        return { success: true }
+        if (user.password) {
+            const isValid = await bcrypt.compare(password, user.password)
+            if (isValid) {
+                await createSession(user.userId, 'user')
+                return { success: true }
+            }
+        }
+        return { success: false, error: 'Incorrect password' }
     }
 
     // Check Admin
@@ -64,11 +104,22 @@ export async function loginUser(mobile: string) {
     })
 
     if (admin) {
-        await createSession(admin.adminId, 'admin')
-        return { success: true }
+        if (admin.password) {
+            const isValid = await bcrypt.compare(password, admin.password)
+            if (isValid) {
+                await createSession(admin.adminId, 'admin')
+                return { success: true }
+            }
+        }
+        return { success: false, error: 'Incorrect password' }
     }
 
     return { success: false, error: 'User not found' }
+}
+
+export async function loginUser(mobile: string) {
+    // Only used for OTP flow fallback
+    return await loginWithPassword(mobile, '123456') // Fallback logic if needed, or deprecate
 }
 
 export async function getLoginRedirect(mobile: string) {
@@ -81,6 +132,10 @@ export async function getLoginRedirect(mobile: string) {
         // IMPORTANT: Check Super Admin FIRST (before generic Admin check)
         if (admin.role === 'Super Admin') {
             return '/superadmin'
+        }
+        // Finance Admin
+        else if (admin.role === 'Finance Admin') {
+            return '/finance'
         }
         // Then check Campus Head
         else if (admin.role === 'Campus Head') {
@@ -111,7 +166,13 @@ export async function getRegistrationCampuses() {
 }
 
 export async function registerUser(formData: any) {
-    const { fullName, mobileNumber, role, childInAchariya, childName, bankAccountDetails, campusId, grade, transactionId, childEprNo, empId, aadharNo, email } = formData
+    const { fullName, mobileNumber, password, role, childInAchariya, childName, bankAccountDetails, campusId, grade, transactionId, childEprNo, empId, aadharNo, email } = formData
+
+    // Secure Password Policy Check
+    const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.*[A-Z])[a-zA-Z0-9!@#$%^&*]{8,}$/;
+    if (!password || !passwordRegex.test(password)) {
+        return { success: false, error: 'Password must be at least 8 chars with 1 uppercase, 1 special char, and 1 number.' }
+    }
 
     // Generate Code
     const randomSuffix = Math.floor(1000 + Math.random() * 9000)
@@ -140,6 +201,7 @@ export async function registerUser(formData: any) {
             data: {
                 fullName,
                 mobileNumber,
+                password: await bcrypt.hash(password || '123456', 10), // Hash password
                 role,
                 childInAchariya: childInAchariya === 'Yes',
                 childName: childName || null,

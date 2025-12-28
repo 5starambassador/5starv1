@@ -1,16 +1,20 @@
 import 'server-only'
 import { SignJWT, jwtVerify } from 'jose'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 
 const secretKey = process.env.JWT_SECRET || 'secret-key-achariya'
 const encodedKey = new TextEncoder().encode(secretKey)
 
 export async function createSession(userId: number, userType: 'user' | 'admin' = 'user') {
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    const session = await new SignJWT({ userId, userType })
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h as per 1.4
+
+    // Get client IP for tracking (1.4)
+    const clientIp = (await headers()).get('x-forwarded-for')?.split(',')[0] || 'unknown'
+
+    const session = await new SignJWT({ userId, userType, ip: clientIp })
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
-        .setExpirationTime('7d')
+        .setExpirationTime('24h')
         .sign(encodedKey)
 
     const cookieStore = await cookies()
@@ -34,9 +38,17 @@ export async function getSession() {
         })
         return payload
     } catch (error) {
-        console.log('Failed to verify session')
+        // console.log('Failed to verify session')
         return null
     }
+}
+
+export async function rotateSession() {
+    const session = await getSession()
+    if (!session) return
+
+    // Create a new session with current data to refresh expiry and rotation (1.4)
+    await createSession(session.userId as number, session.userType as 'user' | 'admin')
 }
 
 export async function deleteSession() {

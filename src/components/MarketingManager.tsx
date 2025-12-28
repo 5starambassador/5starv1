@@ -65,8 +65,9 @@ export function MarketingManager({ assets }: MarketingManagerProps) {
     }
 
     const groupedAssets: Record<string, any[]> = {}
+    const safeAssets = assets || []
     for (const cat of MARKETING_CATEGORIES) {
-        groupedAssets[cat] = assets.filter(a => a.category === cat)
+        groupedAssets[cat] = safeAssets.filter(a => a.category === cat)
     }
 
     return (

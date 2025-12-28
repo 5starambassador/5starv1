@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Star, Phone, Award, Calendar, Shield, Edit2, Check, X, Upload, Mail, MapPin } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface ProfileClientProps {
     user: {
@@ -48,10 +49,10 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                 if (response.ok) {
                     setProfileImage(base64String)
                 } else {
-                    alert('Failed to upload photo')
+                    toast.error('Failed to upload photo')
                 }
             } catch (error) {
-                alert('Error uploading photo')
+                toast.error('Error uploading photo')
             } finally {
                 setUploading(false)
             }
@@ -71,10 +72,10 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                 setIsEditing(false)
                 window.location.reload()
             } else {
-                alert('Failed to update profile')
+                toast.error('Failed to update profile')
             }
         } catch {
-            alert('Error updating profile')
+            toast.error('Error updating profile')
         } finally {
             setSaving(false)
         }

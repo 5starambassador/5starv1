@@ -1,10 +1,12 @@
 'use client'
 
 import { Download, Share2, FileText, Database, Megaphone, Image, Video, FileImage, ExternalLink } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface MarketingClientProps {
     grouped: Record<string, any[]>
     categories: readonly string[]
+    referralCode?: string
 }
 
 const getCategoryIcon = (category: string) => {
@@ -29,7 +31,7 @@ const getCategoryGradient = (category: string) => {
     }
 }
 
-export function MarketingClient({ grouped, categories }: MarketingClientProps) {
+export function MarketingClient({ grouped, categories, referralCode }: MarketingClientProps) {
     const handleDownload = (url: string, name: string) => {
         const link = document.createElement('a')
         link.href = url
@@ -45,7 +47,7 @@ export function MarketingClient({ grouped, categories }: MarketingClientProps) {
             try {
                 await navigator.share({
                     title: name,
-                    text: `Check out ${name} from Achariya Ambassador Program`,
+                    text: `Check out ${name} from Achariya Ambassador Program${referralCode ? ` (Ref: ${referralCode})` : ''}`,
                     url
                 })
             } catch (err) {
@@ -53,7 +55,7 @@ export function MarketingClient({ grouped, categories }: MarketingClientProps) {
             }
         } else {
             navigator.clipboard.writeText(url)
-            alert('Link copied to clipboard!')
+            toast.success('Link copied to clipboard!')
         }
     }
 
@@ -83,7 +85,7 @@ export function MarketingClient({ grouped, categories }: MarketingClientProps) {
                     </div>
                     <div>
                         <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>
-                            Marketing Kit
+                            Promo Kit
                         </h1>
                         <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px', fontWeight: '500' }}>
                             Resources to help you share Achariya with your network

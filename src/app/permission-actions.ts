@@ -6,8 +6,17 @@ import { revalidatePath } from 'next/cache'
 import { ROLE_PERMISSIONS } from '@/lib/permissions'
 
 import { getCurrentUser } from '@/lib/auth-service'
+import { logAction } from '@/lib/audit-logger'
+import { RolePermissions } from '@/types'
 
 // Get permissions for a role (from DB or fallback to defaults)
+/**
+ * Retrieves the security permissions for a given role.
+ * Queries the database first, falling back to static code-based defaults if not found.
+ * 
+ * @param role - The administrative or ambassador role name
+ * @returns Object containing success status and the permission matrix
+ */
 export async function getRolePermissions(role: string) {
     try {
         const dbPerms = await prisma.rolePermissions.findUnique({
@@ -18,39 +27,39 @@ export async function getRolePermissions(role: string) {
             return {
                 success: true,
                 permissions: {
-                    analytics: { access: dbPerms.analyticsAccess, scope: dbPerms.analyticsScope },
+                    analytics: { access: (dbPerms as any).analyticsAccess, scope: (dbPerms as any).analyticsScope },
                     userManagement: {
-                        access: dbPerms.userMgmtAccess,
-                        scope: dbPerms.userMgmtScope,
-                        canCreate: dbPerms.userMgmtCreate,
-                        canEdit: dbPerms.userMgmtEdit,
-                        canDelete: dbPerms.userMgmtDelete
+                        access: (dbPerms as any).userMgmtAccess,
+                        scope: (dbPerms as any).userMgmtScope,
+                        canCreate: (dbPerms as any).userMgmtCreate,
+                        canEdit: (dbPerms as any).userMgmtEdit,
+                        canDelete: (dbPerms as any).userMgmtDelete
                     },
                     studentManagement: {
-                        access: dbPerms.studentMgmtAccess,
-                        scope: dbPerms.studentMgmtScope,
-                        canCreate: true, // Defaulting to true for now
-                        canEdit: true,
-                        canDelete: true
+                        access: (dbPerms as any).studentMgmtAccess,
+                        scope: (dbPerms as any).studentMgmtScope,
+                        canCreate: (dbPerms as any).studentMgmtCreate,
+                        canEdit: (dbPerms as any).studentMgmtEdit,
+                        canDelete: (dbPerms as any).studentMgmtDelete
                     },
                     adminManagement: {
-                        access: dbPerms.adminMgmtAccess,
-                        scope: dbPerms.adminMgmtScope,
-                        canCreate: dbPerms.adminMgmtCreate,
-                        canEdit: dbPerms.adminMgmtEdit,
-                        canDelete: dbPerms.adminMgmtDelete
+                        access: (dbPerms as any).adminMgmtAccess,
+                        scope: (dbPerms as any).adminMgmtScope,
+                        canCreate: (dbPerms as any).adminMgmtCreate,
+                        canEdit: (dbPerms as any).adminMgmtEdit,
+                        canDelete: (dbPerms as any).adminMgmtDelete
                     },
-                    campusPerformance: { access: dbPerms.campusPerfAccess, scope: dbPerms.campusPerfScope },
-                    reports: { access: dbPerms.reportsAccess, scope: dbPerms.reportsScope },
-                    settlements: { access: dbPerms.settlementsAccess, scope: dbPerms.settlementsScope || 'none' },
-                    marketingKit: { access: dbPerms.marketingKitAccess, scope: dbPerms.marketingKitScope || 'none' },
-                    auditLog: { access: dbPerms.auditLogAccess, scope: dbPerms.auditLogScope || 'all' },
-                    supportDesk: { access: dbPerms.supportDeskAccess, scope: dbPerms.supportDeskScope || 'all' },
-                    settings: { access: dbPerms.settingsAccess, scope: dbPerms.settingsScope },
-                    referralSubmission: { access: dbPerms.referralSubmissionAccess, scope: dbPerms.referralSubmissionScope || 'none' },
-                    referralTracking: { access: dbPerms.referralTrackingAccess, scope: dbPerms.referralTrackingScope || 'none' },
-                    savingsCalculator: { access: dbPerms.savingsCalculatorAccess, scope: dbPerms.savingsCalculatorScope || 'none' },
-                    rulesAccess: { access: dbPerms.rulesAccessAccess, scope: dbPerms.rulesAccessScope || 'none' }
+                    campusPerformance: { access: (dbPerms as any).campusPerfAccess, scope: (dbPerms as any).campusPerfScope },
+                    reports: { access: (dbPerms as any).reportsAccess, scope: (dbPerms as any).reportsScope },
+                    settlements: { access: (dbPerms as any).settlementsAccess, scope: (dbPerms as any).settlementsScope || 'none' },
+                    marketingKit: { access: (dbPerms as any).marketingKitAccess, scope: (dbPerms as any).marketingKitScope || 'none' },
+                    auditLog: { access: (dbPerms as any).auditLogAccess, scope: (dbPerms as any).auditLogScope || 'all' },
+                    supportDesk: { access: (dbPerms as any).supportDeskAccess, scope: (dbPerms as any).supportDeskScope || 'all' },
+                    settings: { access: (dbPerms as any).settingsAccess, scope: (dbPerms as any).settingsScope },
+                    referralSubmission: { access: (dbPerms as any).referralSubmissionAccess, scope: (dbPerms as any).referralSubmissionScope || 'none' },
+                    referralTracking: { access: (dbPerms as any).referralTrackingAccess, scope: (dbPerms as any).referralTrackingScope || 'none' },
+                    savingsCalculator: { access: (dbPerms as any).savingsCalculatorAccess, scope: (dbPerms as any).savingsCalculatorScope || 'none' },
+                    rulesAccess: { access: (dbPerms as any).rulesAccessAccess, scope: (dbPerms as any).rulesAccessScope || 'none' }
                 }
             }
         }
@@ -64,8 +73,14 @@ export async function getRolePermissions(role: string) {
     }
 }
 
-// Update role permissions (Super Admin only)
-export async function updateRolePermissions(role: string, permissions: any) {
+/**
+ * Persists updated permission matrix for a role.
+ * Requires Super Admin authorization.
+ * 
+ * @param role - Target role to update
+ * @param permissions - Complete permission matrix object
+ */
+export async function updateRolePermissions(role: string, permissions: RolePermissions) {
     const admin = await getCurrentUser()
     if (!admin || admin.role !== 'Super Admin') {
         return { success: false, error: 'Only Super Admin can update permissions' }
@@ -85,6 +100,9 @@ export async function updateRolePermissions(role: string, permissions: any) {
                 userMgmtDelete: permissions.userManagement.canDelete || false,
                 studentMgmtAccess: permissions.studentManagement.access,
                 studentMgmtScope: permissions.studentManagement.scope,
+                studentMgmtCreate: permissions.studentManagement.canCreate || false,
+                studentMgmtEdit: permissions.studentManagement.canEdit || false,
+                studentMgmtDelete: permissions.studentManagement.canDelete || false,
                 adminMgmtAccess: permissions.adminManagement.access,
                 adminMgmtScope: permissions.adminManagement.scope,
                 adminMgmtCreate: permissions.adminManagement.canCreate || false,
@@ -113,7 +131,7 @@ export async function updateRolePermissions(role: string, permissions: any) {
                 rulesAccessAccess: permissions.rulesAccess?.access ?? false,
                 rulesAccessScope: permissions.rulesAccess?.scope ?? 'none',
                 updatedBy: admin.fullName
-            },
+            } as any,
             update: {
                 analyticsAccess: permissions.analytics.access,
                 analyticsScope: permissions.analytics.scope,
@@ -124,6 +142,9 @@ export async function updateRolePermissions(role: string, permissions: any) {
                 userMgmtDelete: permissions.userManagement.canDelete || false,
                 studentMgmtAccess: permissions.studentManagement.access,
                 studentMgmtScope: permissions.studentManagement.scope,
+                studentMgmtCreate: permissions.studentManagement.canCreate || false,
+                studentMgmtEdit: permissions.studentManagement.canEdit || false,
+                studentMgmtDelete: permissions.studentManagement.canDelete || false,
                 adminMgmtAccess: permissions.adminManagement.access,
                 adminMgmtScope: permissions.adminManagement.scope,
                 adminMgmtCreate: permissions.adminManagement.canCreate || false,
@@ -152,10 +173,14 @@ export async function updateRolePermissions(role: string, permissions: any) {
                 rulesAccessAccess: permissions.rulesAccess?.access ?? false,
                 rulesAccessScope: permissions.rulesAccess?.scope ?? 'none',
                 updatedBy: admin.fullName
-            }
+            } as any
         })
 
         revalidatePath('/')
+
+        // Log the action (1.5)
+        await logAction('PERMISSION_CHANGE', 'permissions', `Updated permissions for role: ${role}`, role, { permissions })
+
         return { success: true }
     } catch (error) {
         console.error('Update permissions error:', error)
@@ -163,7 +188,12 @@ export async function updateRolePermissions(role: string, permissions: any) {
     }
 }
 
-// Reset role permissions to defaults
+/**
+ * Resets a role's permissions to the system's hardcoded defaults.
+ * Deletes the database override for the role.
+ * @param role - The role name to reset.
+ * @returns Object indicating success.
+ */
 export async function resetRolePermissions(role: string) {
     const admin = await getCurrentUser()
     if (!admin || admin.role !== 'Super Admin') {
@@ -176,6 +206,10 @@ export async function resetRolePermissions(role: string) {
         })
 
         revalidatePath('/')
+
+        // Log the action (1.5)
+        await logAction('PERMISSION_CHANGE', 'permissions', `Reset permissions for role: ${role} to defaults`, role)
+
         return { success: true }
     } catch (error) {
         console.error('Reset permissions error:', error)

@@ -2,6 +2,11 @@
 
 import prisma from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth-service"
+import { EmailService } from "@/lib/email-service"
+import { logAction } from "@/lib/audit-logger"
+import { registerSchema, mobileSchema } from "@/lib/validators"
+import { z } from "zod"
+
 
 // Type definitions
 type Campus = string
@@ -18,6 +23,7 @@ interface SystemAnalytics {
     totalStudents: number
     staffCount: number
     parentCount: number
+    userRoleDistribution: { name: string; value: number }[]
 }
 
 interface CampusComparison {
@@ -43,18 +49,35 @@ interface UserRecord {
     createdAt: Date
 }
 
-export async function getSystemAnalytics(): Promise<SystemAnalytics> {
+/**
+ * Fetches global system analytics with optional time range filtering.
+ * Requires Super Admin privileges.
+ * 
+ * @param timeRange - Filter window: '7d', '30d', or 'all'
+ * @returns SystemAnalytics object containing KPI metrics
+ */
+export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'): Promise<SystemAnalytics> {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Super Admin')) {
         throw new Error('Unauthorized')
     }
 
-    const totalAmbassadors = await prisma.user.count()
+    // Date Filter
+    let dateFilter: { createdAt?: { gte: Date } } = {};
+    if (timeRange === '7d') {
+        const d = new Date(); d.setDate(d.getDate() - 7);
+        dateFilter = { createdAt: { gte: d } };
+    } else if (timeRange === '30d') {
+        const d = new Date(); d.setDate(d.getDate() - 30);
+        dateFilter = { createdAt: { gte: d } };
+    }
 
-    const totalLeads = await prisma.referralLead.count()
+    const totalAmbassadors = await prisma.user.count({ where: dateFilter })
+
+    const totalLeads = await prisma.referralLead.count({ where: dateFilter })
 
     const totalConfirmed = await prisma.referralLead.count({
-        where: { leadStatus: 'Confirmed' }
+        where: { leadStatus: 'Confirmed', ...dateFilter }
     })
 
     const globalConversionRate = totalLeads > 0
@@ -83,15 +106,23 @@ export async function getSystemAnalytics(): Promise<SystemAnalytics> {
         return acc + (user.studentFee * (user.yearFeeBenefitPercent / 100) * user.confirmedReferralCount)
     }, 0)
 
+    // User Role Distribution
+    const userRoles = await prisma.user.groupBy({
+        by: ['role'],
+        _count: { role: true },
+        where: dateFilter // Apply date filter if needed, or remove if roles should be all-time
+    })
+
+    const userRoleDistribution = userRoles.map(u => ({
+        name: u.role,
+        value: u._count.role
+    }))
+
     const totalStudents = await prisma.student.count()
 
-    const staffCount = await prisma.user.count({
-        where: { role: 'Staff' }
-    })
-
-    const parentCount = await prisma.user.count({
-        where: { role: 'Parent' }
-    })
+    // Keep existing counts for backward compatibility if needed, or derive them
+    const staffCount = userRoles.find(u => u.role === 'Staff')?._count.role || 0
+    const parentCount = userRoles.find(u => u.role === 'Parent')?._count.role || 0
 
     return {
         totalAmbassadors,
@@ -102,65 +133,216 @@ export async function getSystemAnalytics(): Promise<SystemAnalytics> {
         systemWideBenefits: Math.round(systemWideBenefits),
         totalStudents,
         staffCount,
-        parentCount
+        parentCount,
+        userRoleDistribution
     }
 }
 
-export async function getCampusComparison(): Promise<CampusComparison[]> {
+/**
+ * Fetches growth trends for users matched within the requested time range.
+ * 
+ * @param timeRange - Window to analyze
+ * @returns Array of date/count pairs for charting
+ */
+export async function getUserGrowthTrend(timeRange: '7d' | '30d' | 'all' = '30d') {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Super Admin')) {
         throw new Error('Unauthorized')
     }
 
-    // Get all campuses
-    const campuses = await prisma.referralLead.findMany({
-        where: { campus: { not: null } },
-        select: { campus: true },
-        distinct: ['campus']
+    // Determine days
+    const days = timeRange === '7d' ? 7 : timeRange === 'all' ? 90 : 30; // 'all' defaults to 90 days for trends
+
+    // Get users created in range
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - days)
+
+    const users = await prisma.user.findMany({
+        where: {
+            createdAt: {
+                gte: startDate
+            }
+        },
+        select: {
+            createdAt: true
+        }
     })
 
-    const comparison: CampusComparison[] = []
+    // Group by date
+    const trendMap = new Map<string, number>()
 
-    for (const { campus } of campuses) {
-        if (!campus) continue
-
-        const totalLeads = await prisma.referralLead.count({
-            where: { campus }
-        })
-
-        const confirmed = await prisma.referralLead.count({
-            where: { campus, leadStatus: 'Confirmed' }
-        })
-
-        const pending = await prisma.referralLead.count({
-            where: { campus, leadStatus: { in: ['New', 'Follow-up'] } }
-        })
-
-        const conversionRate = totalLeads > 0
-            ? (confirmed / totalLeads) * 100
-            : 0
-
-        // Count unique ambassadors for this campus
-        const ambassadorIds = await prisma.referralLead.findMany({
-            where: { campus },
-            select: { userId: true },
-            distinct: ['userId']
-        })
-
-        comparison.push({
-            campus,
-            totalLeads,
-            confirmed,
-            pending,
-            conversionRate: Number(conversionRate.toFixed(2)),
-            ambassadors: ambassadorIds.length
-        })
+    // Initialize days with 0
+    for (let i = 0; i < days; i++) {
+        const d = new Date()
+        d.setDate(d.getDate() - i)
+        const dateStr = d.toISOString().split('T')[0]
+        trendMap.set(dateStr, 0)
     }
+
+    users.forEach(u => {
+        const dateStr = u.createdAt.toISOString().split('T')[0]
+        if (trendMap.has(dateStr)) {
+            trendMap.set(dateStr, (trendMap.get(dateStr) || 0) + 1)
+        }
+    })
+
+    // Convert to array and sort by date
+    const trend = Array.from(trendMap.entries())
+        .map(([date, count]) => ({ date, users: count }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+
+    // Format date for display (e.g., "Dec 25")
+    return trend.map(t => {
+        const [y, m, d] = t.date.split('-')
+        const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d))
+        return {
+            date: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            users: t.users
+        }
+    })
+}
+
+/**
+ * Compares performance across all campuses.
+ * 
+ * @param timeRange - Analysis window
+ * @returns Array of campus-specific performance metrics
+ */
+export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all'): Promise<CampusComparison[]> {
+    const user = await getCurrentUser()
+    if (!user || !user.role.includes('Super Admin')) {
+        throw new Error('Unauthorized')
+    }
+
+    // Date filtering
+    let dateFilter: { createdAt?: { gte: Date } } = {};
+    if (timeRange === '7d') {
+        const d = new Date(); d.setDate(d.getDate() - 7);
+        dateFilter = { createdAt: { gte: d } };
+    } else if (timeRange === '30d') {
+        const d = new Date(); d.setDate(d.getDate() - 30);
+        dateFilter = { createdAt: { gte: d } };
+    }
+
+    // Optimized Aggregation: Fetch all stats in parallel grouping queries
+    const [totalLeadsData, confirmedData, pendingData, ambassadorData] = await Promise.all([
+        // 1. Total Leads per Campus
+        prisma.referralLead.groupBy({
+            by: ['campus'],
+            where: { campus: { not: null }, ...dateFilter },
+            _count: { _all: true }
+        }),
+        // 2. Confirmed Leads per Campus
+        prisma.referralLead.groupBy({
+            by: ['campus'],
+            where: { campus: { not: null }, leadStatus: 'Confirmed', ...dateFilter },
+            _count: { _all: true }
+        }),
+        // 3. Pending Leads per Campus
+        prisma.referralLead.groupBy({
+            by: ['campus'],
+            where: { campus: { not: null }, leadStatus: { in: ['New', 'Follow-up'] }, ...dateFilter },
+            _count: { _all: true }
+        }),
+        // 4. Unique Ambassadors per Campus
+        // Prisma doesn't support 'distinct count' well in groupBy, so we use findMany distinct
+        prisma.referralLead.findMany({
+            where: { campus: { not: null } },
+            select: { campus: true, userId: true },
+            distinct: ['campus', 'userId']
+        })
+    ]);
+
+    // Map aggregations to CampusComparison objects
+    const campusMap = new Map<string, CampusComparison>();
+
+    // Helper to get or create entry
+    const getEntry = (campus: string) => {
+        if (!campusMap.has(campus)) {
+            campusMap.set(campus, {
+                campus,
+                totalLeads: 0,
+                confirmed: 0,
+                pending: 0,
+                conversionRate: 0,
+                ambassadors: 0
+            });
+        }
+        return campusMap.get(campus)!;
+    };
+
+    // Populate Data
+    totalLeadsData.forEach(item => {
+        if (item.campus) getEntry(item.campus).totalLeads = item._count._all;
+    });
+
+    confirmedData.forEach(item => {
+        if (item.campus) getEntry(item.campus).confirmed = item._count._all;
+    });
+
+    pendingData.forEach(item => {
+        if (item.campus) getEntry(item.campus).pending = item._count._all;
+    });
+
+    // Count unique ambassadors manually from the distinct list
+    ambassadorData.forEach(item => {
+        if (item.campus) {
+            const entry = getEntry(item.campus);
+            entry.ambassadors += 1; // Increment count
+        }
+    });
+
+    // Calculate Conversion Rates
+    const comparison = Array.from(campusMap.values()).map(c => {
+        c.conversionRate = c.totalLeads > 0
+            ? Number(((c.confirmed / c.totalLeads) * 100).toFixed(2))
+            : 0;
+        return c;
+    });
 
     // Sort by total leads descending
     return comparison.sort((a, b) => b.totalLeads - a.totalLeads)
 }
 
+// ===================== CAMPUS DRILL DOWN =====================
+export async function getCampusDetails(campusName: string) {
+    const admin = await getCurrentUser()
+    if (!admin || !admin.role.includes('Admin')) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        // 1. Top Ambassadors in this campus
+        const topAmbassadors = await prisma.user.findMany({
+            where: { assignedCampus: campusName, role: { not: 'Staff' } },
+            orderBy: { confirmedReferralCount: 'desc' },
+            take: 5,
+            select: {
+                fullName: true,
+                mobileNumber: true,
+                confirmedReferralCount: true,
+                referralCode: true
+            }
+        })
+
+        // 2. Recent Leads for this campus
+        const recentLeads = await prisma.referralLead.findMany({
+            where: { campus: campusName },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            include: {
+                student: {
+                    select: { fullName: true } // Referrer details
+                }
+            }
+        })
+
+        return { success: true, topAmbassadors, recentLeads }
+    } catch (error) {
+        console.error('Get campus details error:', error)
+        return { success: false, error: 'Failed to fetch details' }
+    }
+}
 export async function getAllUsers(): Promise<UserRecord[]> {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Super Admin')) {
@@ -179,6 +361,7 @@ export async function getAllUsers(): Promise<UserRecord[]> {
             studentFee: true,
             status: true,
             confirmedReferralCount: true,
+            referralCode: true,
             createdAt: true
         },
         orderBy: { createdAt: 'desc' }
@@ -190,6 +373,10 @@ export async function getAllUsers(): Promise<UserRecord[]> {
     }))
 }
 
+/**
+ * Retrieves all administrator records.
+ * @returns Array of Admin records
+ */
 export async function getAllAdmins() {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Super Admin')) {
@@ -201,6 +388,10 @@ export async function getAllAdmins() {
     })
 }
 
+/**
+ * Retrieves all registered students with parent, ambassador, and campus details.
+ * @returns Array of Student records with inclusions
+ */
 export async function getAllStudents() {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Super Admin')) {
@@ -210,39 +401,68 @@ export async function getAllStudents() {
     return await prisma.student.findMany({
         include: {
             parent: { select: { fullName: true, mobileNumber: true } },
+            ambassador: { select: { fullName: true, mobileNumber: true, referralCode: true, role: true } },
             campus: { select: { campusName: true } }
         },
         orderBy: { createdAt: 'desc' }
     })
 }
 
+/**
+ * Assigns a user to a specific campus location.
+ * Logs action to audit trail.
+ * 
+ * @param userId - Target user ID
+ * @param campus - Campus name or null
+ * @returns Updated user record
+ */
 export async function assignUserToCampus(userId: number, campus: string | null) {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Super Admin')) {
         throw new Error('Unauthorized')
     }
 
-    return await prisma.user.update({
+    const updatedUser = await prisma.user.update({
         where: { userId },
         data: { assignedCampus: campus }
     })
+
+    await logAction('UPDATE', 'user', `Assigned user ${userId} to campus: ${campus}`, userId.toString())
+
+    return updatedUser
 }
 
+/**
+ * Updates an administrator's role and campus assignment.
+ * 
+ * @param adminId - Admin ID to update
+ * @param role - New role name
+ * @param campus - Campus name or null
+ */
 export async function updateAdminRole(adminId: number, role: string, campus: string | null) {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Super Admin')) {
         throw new Error('Unauthorized')
     }
 
-    return await prisma.admin.update({
+    const updatedAdmin = await prisma.admin.update({
         where: { adminId },
         data: {
             role,
             assignedCampus: campus
         }
     })
+
+    await logAction('UPDATE', 'admin', `Updated admin ${adminId} role to ${role}`, adminId.toString())
+
+    return updatedAdmin
 }
 
+/**
+ * Permanently deletes a user and their associated referral leads.
+ * @param userId - ID of the user to delete.
+ * @returns Object indicating success or failure.
+ */
 export async function deleteUser(userId: number) {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Super Admin')) {
@@ -270,6 +490,13 @@ function generateReferralCode(): string {
 }
 
 // ===================== ADD USER =====================
+/**
+ * Creates a new user (Staff or Parent) in the system.
+ * Handles duplicate checks, referral code generation, and welcome emails.
+ * 
+ * @param data - New user details
+ * @returns Success status and user object or error message
+ */
 export async function addUser(data: {
     fullName: string
     mobileNumber: string
@@ -279,8 +506,10 @@ export async function addUser(data: {
     assignedCampus?: string
 }) {
     const admin = await getCurrentUser()
-    if (!admin || !admin.role.includes('Admin')) {
-        return { success: false, error: 'Unauthorized' }
+    const allowedRoles = ['Super Admin', 'Admission Admin', 'Campus Head']
+
+    if (!admin || !allowedRoles.includes(admin.role)) {
+        return { success: false, error: 'Unauthorized: Insufficient permissions' }
     }
 
     try {
@@ -301,6 +530,10 @@ export async function addUser(data: {
             attempts++
         }
 
+        if (attempts >= 10) {
+            return { success: false, error: 'Failed to generate unique referral code. Please try again.' }
+        }
+
         const newUser = await prisma.user.create({
             data: {
                 fullName: data.fullName,
@@ -317,6 +550,11 @@ export async function addUser(data: {
                 isFiveStarMember: false
             }
         })
+
+        await logAction('CREATE', 'user', `Created new user: ${data.mobileNumber}`, newUser.userId.toString(), { role: data.role })
+
+        // Send Welcome Email
+        await EmailService.sendWelcomeEmail(data.mobileNumber, data.fullName, data.role)
 
         return { success: true, user: newUser }
     } catch (error) {
@@ -335,6 +573,9 @@ export async function removeUser(userId: number) {
     try {
         await prisma.referralLead.deleteMany({ where: { userId } })
         await prisma.user.delete({ where: { userId } })
+
+        await logAction('DELETE', 'user', `Deleted user: ${userId}`, userId.toString())
+
         return { success: true }
     } catch (error) {
         console.error('Delete user error:', error)
@@ -371,8 +612,16 @@ export async function bulkAddUsers(users: Array<{
             }
 
             let referralCode = generateReferralCode()
-            while (await prisma.user.findFirst({ where: { referralCode } })) {
+            let attempts = 0
+            while (await prisma.user.findFirst({ where: { referralCode } }) && attempts < 10) {
                 referralCode = generateReferralCode()
+                attempts++
+            }
+
+            if (attempts >= 10) {
+                failed++
+                errors.push(`${userData.mobileNumber}: Failed to generate unique code`)
+                continue
             }
 
             await prisma.user.create({
@@ -431,6 +680,8 @@ export async function addAdmin(data: {
             }
         })
 
+        await logAction('CREATE', 'admin', `Created new admin: ${data.adminMobile}`, newAdmin.adminId.toString(), { role: data.role })
+
         return { success: true, admin: newAdmin }
     } catch (error) {
         console.error('Add admin error:', error)
@@ -439,6 +690,11 @@ export async function addAdmin(data: {
 }
 
 // ===================== DELETE ADMIN =====================
+/**
+ * Deletes an administrator account. Prevents self-deletion.
+ * @param adminId - ID of the admin to delete.
+ * @returns Object indicating success or failure.
+ */
 export async function deleteAdmin(adminId: number) {
     const admin = await getCurrentUser()
     if (!admin || admin.role !== 'Super Admin') {
@@ -451,6 +707,9 @@ export async function deleteAdmin(adminId: number) {
 
     try {
         await prisma.admin.delete({ where: { adminId } })
+
+        await logAction('DELETE', 'admin', `Deleted admin: ${adminId}`, adminId.toString())
+
         return { success: true }
     } catch (error) {
         console.error('Delete admin error:', error)
@@ -505,6 +764,12 @@ export async function bulkAddAdmins(admins: Array<{
 }
 
 // ===================== UPDATE USER STATUS =====================
+/**
+ * Toggles a user's account status (Active/Inactive).
+ * @param userId - Target user ID.
+ * @param status - New status.
+ * @returns Object indicating success.
+ */
 export async function updateUserStatus(userId: number, status: 'Active' | 'Inactive') {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Admin')) {
@@ -524,6 +789,12 @@ export async function updateUserStatus(userId: number, status: 'Active' | 'Inact
 }
 
 // ===================== UPDATE ADMIN STATUS =====================
+/**
+ * Toggles an administrator's account status (Active/Inactive).
+ * @param adminId - Target admin ID.
+ * @param status - New status.
+ * @returns Object indicating success.
+ */
 export async function updateAdminStatus(adminId: number, status: 'Active' | 'Inactive') {
     const admin = await getCurrentUser()
     if (!admin || admin.role !== 'Super Admin') {

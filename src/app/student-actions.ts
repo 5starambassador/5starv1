@@ -2,8 +2,14 @@
 
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { getCurrentUser } from '@/lib/auth-service'
 
 export async function getStudents(filters?: { campusId?: number, parentId?: number, status?: string }) {
+    const user = await getCurrentUser()
+    if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
+        return []
+    }
+
     try {
         return await prisma.student.findMany({
             where: {
@@ -51,6 +57,11 @@ export async function addStudent(data: {
         mobileNumber: string
     }
 }) {
+    const user = await getCurrentUser()
+    if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
     try {
         let parentId = data.parentId
 
@@ -136,7 +147,22 @@ export async function addStudent(data: {
     }
 }
 
-export async function updateStudent(studentId: number, data: any) {
+export async function updateStudent(studentId: number, data: Partial<{
+    fullName: string
+    parentId: number
+    grade: string
+    campusId: number
+    section: string
+    rollNumber: string
+    status: string
+    baseFee: number
+    discountPercent: number
+}>) {
+    const user = await getCurrentUser()
+    if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
     try {
         // Recalculate fees if critical fields change
         let updateData = { ...data }
@@ -145,7 +171,7 @@ export async function updateStudent(studentId: number, data: any) {
             const gradeFee = await prisma.gradeFee.findUnique({
                 where: {
                     campusId_grade: {
-                        campusId: parseInt(data.campusId),
+                        campusId: data.campusId,
                         grade: data.grade
                     }
                 }
@@ -171,6 +197,11 @@ export async function convertLeadToStudent(leadId: number, studentDetails: {
     section?: string
     rollNumber?: string
 }) {
+    const user = await getCurrentUser()
+    if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
     try {
         const lead = await prisma.referralLead.findUnique({
             where: { leadId },
@@ -219,6 +250,10 @@ export async function convertLeadToStudent(leadId: number, studentDetails: {
 }
 
 export async function bulkAddStudents(students: Array<{ fullName: string, parentMobile: string, grade: string, campusName: string, section?: string, rollNumber?: string }>) {
+    const user = await getCurrentUser()
+    if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
+        return { success: false, added: 0, failed: students.length, errors: ['Unauthorized'] }
+    }
     let added = 0
     let failed = 0
     let errors: string[] = []

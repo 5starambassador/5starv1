@@ -4,6 +4,7 @@ import { getAllReferrals, getAdminAnalytics, getAdminUsers, getAdminStudents, ge
 import { getCampuses } from '@/app/campus-actions'
 import { confirmReferral } from '@/app/admin-actions'
 import { AdminClient } from './admin-client'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 // Helper function to serialize dates in objects (Since we are passing to client component)
 function serializeData<T>(data: T): T {
@@ -22,7 +23,7 @@ function serializeData<T>(data: T): T {
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
     const user = await getCurrentUser()
-    if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) redirect('/dashboard')
+    if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus'))) redirect('/dashboard')
 
     const params = await searchParams
     const view = params?.view || 'analytics'
@@ -62,19 +63,24 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         if (res.success && res.campusPerformance) campusPerformance = res.campusPerformance || []
     }
 
+    const permissions = await import('@/lib/permission-service').then(m => m.getMyPermissions())
+
     if (!analytics.success) return <div>Error loading analytics</div>
 
     return (
-        <AdminClient
-            referrals={serializeData(referrals.success ? referrals.referrals : [])}
-            analytics={analytics.success ? analytics : null}
-            confirmReferral={confirmReferral}
-            initialView={view}
-            campuses={campusesResult.success ? campusesResult.campuses : []}
-            users={serializeData(users) || []}
-            students={serializeData(students) || []}
-            admins={serializeData(admins) || []}
-            campusPerformance={serializeData(campusPerformance) || []}
-        />
+        <ErrorBoundary>
+            <AdminClient
+                referrals={serializeData(referrals.success ? referrals.referrals : [])}
+                analytics={analytics.success ? analytics : null}
+                confirmReferral={confirmReferral}
+                initialView={view}
+                campuses={campusesResult.success ? campusesResult.campuses : []}
+                users={serializeData(users) || []}
+                students={serializeData(students) || []}
+                admins={serializeData(admins) || []}
+                campusPerformance={serializeData(campusPerformance) || []}
+                permissions={permissions}
+            />
+        </ErrorBoundary>
     )
 }
