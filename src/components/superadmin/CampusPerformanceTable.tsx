@@ -1,12 +1,14 @@
-import { Building2, TrendingUp, Users, CheckCircle } from 'lucide-react'
+import { Building2, TrendingUp, Users, CheckCircle, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
 
-interface CampusComparison {
+export interface CampusComparison {
     campus: string
     totalLeads: number
     confirmed: number
     pending: number
     conversionRate: number
     ambassadors: number
+    prevLeads?: number
+    prevConfirmed?: number
 }
 
 interface CampusPerformanceTableProps {
@@ -17,6 +19,24 @@ interface CampusPerformanceTableProps {
 }
 
 export function CampusPerformanceTable({ comparison, onCampusClick, isExpanded = false, onToggleExpand }: CampusPerformanceTableProps) {
+    const calculateTrend = (current: number, previous?: number) => {
+        if (previous === undefined || previous === 0) return null
+        return ((current - previous) / previous) * 100
+    }
+
+    const renderTrend = (percentage: number | null) => {
+        if (percentage === null) return null
+        const isPositive = percentage > 0
+        const isNegative = percentage < 0
+
+        return (
+            <div className={`flex items-center text-[10px] font-black px-1.5 py-0.5 rounded-full mt-1 ${isPositive ? 'bg-emerald-50 text-emerald-600' : isNegative ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-500'}`}>
+                {isPositive ? <ArrowUpRight size={10} strokeWidth={3} /> : isNegative ? <ArrowDownRight size={10} strokeWidth={3} /> : <Minus size={10} strokeWidth={3} />}
+                {Math.abs(percentage).toFixed(0)}%
+            </div>
+        )
+    }
+
     return (
         <div className={`bg-white rounded-3xl border border-gray-100 shadow-xl shadow-gray-200/50 overflow-hidden premium-border transition-all duration-300 ${isExpanded ? 'fixed inset-4 z-50 h-auto' : 'h-full'}`}>
             <div style={{ padding: '24px 32px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to right, #ffffff, #f9fafb)' }}>
@@ -71,13 +91,19 @@ export function CampusPerformanceTable({ comparison, onCampusClick, isExpanded =
                                 </td>
                                 <td className="p-2 md:p-5 flex justify-between md:table-cell items-center md:text-center">
                                     <span className="md:hidden font-bold text-gray-400 text-xs uppercase tracking-wider">Total Leads</span>
-                                    <span className="font-bold text-gray-700 text-sm">{c.totalLeads.toLocaleString()}</span>
+                                    <div className="flex flex-col items-center justify-end md:justify-center">
+                                        <span className="font-bold text-gray-700 text-sm">{c.totalLeads.toLocaleString()}</span>
+                                        {renderTrend(calculateTrend(c.totalLeads, c.prevLeads))}
+                                    </div>
                                 </td>
                                 <td className="p-2 md:p-5 flex justify-between md:table-cell items-center md:text-center">
                                     <span className="md:hidden font-bold text-gray-400 text-xs uppercase tracking-wider">Confirmed</span>
-                                    <div className="flex items-center justify-end md:justify-center gap-2">
-                                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                                        <span className="font-extrabold text-emerald-600 text-sm">{c.confirmed.toLocaleString()}</span>
+                                    <div className="flex flex-col items-center justify-end md:justify-center">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                            <span className="font-extrabold text-emerald-600 text-sm">{c.confirmed.toLocaleString()}</span>
+                                        </div>
+                                        {renderTrend(calculateTrend(c.confirmed, c.prevConfirmed))}
                                     </div>
                                 </td>
                                 <td className="p-2 md:p-5 flex justify-between md:table-cell items-center md:text-center">

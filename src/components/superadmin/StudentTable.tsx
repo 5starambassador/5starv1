@@ -1,21 +1,7 @@
-import { Search, UserPlus, Filter, Download, MoreHorizontal, Edit, Trash, ChevronRight } from 'lucide-react'
+import { Search, UserPlus, Filter, Download, MoreHorizontal, Edit, Trash, ChevronRight, Phone, CreditCard, Calendar, User, Building, GraduationCap, Percent, Hash, Trash2 } from 'lucide-react'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
-
-interface Student {
-    studentId: number
-    fullName: string
-    parent?: { fullName: string; mobileNumber: string }
-    campus?: { campusName: string }
-    grade: string
-    status: string
-    ambassador?: {
-        fullName: string
-        mobileNumber: string
-        role?: string
-        referralCode?: string
-    }
-}
+import { Student } from '@/types'
 
 interface StudentTableProps {
     students: Student[]
@@ -23,7 +9,7 @@ interface StudentTableProps {
     onSearchChange: (value: string) => void
     onAddStudent: () => void
     onBulkAdd: () => void
-    onEdit: (student: any) => void
+    onEdit: (student: Student) => void
 }
 
 export function StudentTable({
@@ -41,44 +27,50 @@ export function StudentTable({
             sortable: true,
             filterable: true,
             cell: (student: Student) => (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: 'linear-gradient(135deg, #CC0000, #EF4444)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '16px' }}>
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-600 to-red-500 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-red-200">
                         {(student.fullName || 'S').charAt(0)}
                     </div>
                     <div>
-                        <p style={{ fontWeight: '800', color: '#111827', margin: 0, fontSize: '15px' }}>{student.fullName}</p>
-                        <p style={{ fontSize: '11px', color: '#9CA3AF', margin: 0, fontWeight: '700' }}>ACH-ST-{student.studentId}</p>
+                        <p className="font-extrabold text-gray-900 text-[15px] uppercase tracking-tight">{student.fullName}</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-0.5">ID: {student.studentId.toString().padStart(6, '0')}</p>
                     </div>
                 </div>
             )
         },
         {
-            header: 'Campus',
+            header: 'Enrolled Academic',
             accessorKey: (s: Student) => s.campus?.campusName || 'N/A',
             sortable: true,
             filterable: true,
             cell: (student: Student) => (
-                <p style={{ fontSize: '14px', fontWeight: '700', color: '#374151', margin: 0 }}>{student.campus?.campusName || 'N/A'}</p>
+                <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-gray-700 font-bold text-sm">
+                        <Building size={14} className="text-gray-400" />
+                        {student.campus?.campusName || 'N/A'}
+                    </div>
+                    <div className="flex items-center gap-1.5 text-gray-500 font-medium text-xs">
+                        <GraduationCap size={14} className="text-gray-400" />
+                        Grade {student.grade}
+                    </div>
+                </div>
             )
         },
         {
-            header: 'Grade',
-            accessorKey: 'grade' as keyof Student,
-            sortable: true,
-            filterable: true,
-            cell: (student: Student) => (
-                <p style={{ fontSize: '12px', color: '#6B7280', margin: 0, fontWeight: '500' }}>{student.grade}</p>
-            )
-        },
-        {
-            header: 'Parent Contact',
+            header: 'Parent/Guardian',
             accessorKey: (s: Student) => s.parent?.fullName || '',
             sortable: true,
             filterable: true,
             cell: (student: Student) => (
-                <div>
-                    <p style={{ fontSize: '14px', fontWeight: '700', color: '#374151', margin: 0 }}>{student.parent?.fullName || 'N/A'}</p>
-                    <p style={{ fontSize: '12px', color: '#6B7280', margin: 0, fontWeight: '500' }}>{student.parent?.mobileNumber || 'No Contact'}</p>
+                <div className="space-y-1">
+                    <p className="font-bold text-gray-700 text-sm flex items-center gap-1.5">
+                        <User size={14} className="text-gray-400" />
+                        {student.parent?.fullName || 'N/A'}
+                    </p>
+                    <p className="text-xs text-blue-600 font-black flex items-center gap-1.5">
+                        <Phone size={12} className="text-blue-400" />
+                        {student.parent?.mobileNumber || 'No Contact'}
+                    </p>
                 </div>
             )
         },
@@ -88,16 +80,19 @@ export function StudentTable({
             sortable: true,
             filterable: true,
             cell: (student: Student) => student.ambassador ? (
-                <div className="flex flex-col gap-0.5">
-                    <p style={{ fontSize: '14px', fontWeight: '800', color: '#CC0000', margin: 0 }}>{student.ambassador.fullName}</p>
-                    <div className="flex items-center gap-1.5">
-                        <span style={{ fontSize: '11px', fontWeight: '800', color: '#9CA3AF' }}>{student.ambassador.referralCode}</span>
-                        <span style={{ height: '3px', width: '3px', background: '#D1D5DB', borderRadius: '50%' }} />
-                        <span style={{ fontSize: '10px', fontWeight: '800', color: '#D1D5DB', textTransform: 'uppercase' }}>{student.ambassador.role}</span>
+                <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></div>
+                        <p className="text-sm font-black text-red-600 uppercase tracking-tight">{student.ambassador.fullName}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                            {student.ambassador.referralCode}
+                        </span>
                     </div>
                 </div>
             ) : (
-                <span style={{ fontSize: '12px', color: '#D1D5DB', fontStyle: 'italic', fontWeight: '500' }}>Direct Admission</span>
+                <span className="text-xs font-bold text-gray-400 italic">Direct Admission</span>
             )
         },
         {
@@ -106,87 +101,153 @@ export function StudentTable({
             sortable: true,
             filterable: true,
             cell: (student: Student) => (
-                <span style={{ padding: '6px 14px', borderRadius: '10px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', background: student.status === 'Active' ? '#ECFDF5' : '#FEF2F2', color: student.status === 'Active' ? '#059669' : '#DC2626' }}>
+                <Badge variant={student.status === 'Active' ? 'success' : 'error'} className="font-black text-[10px] tracking-wider uppercase">
                     {student.status}
-                </span>
+                </Badge>
             )
         },
         {
             header: 'Actions',
-            accessorKey: (s: Student) => s.studentId,
+            accessorKey: (student: Student) => student.studentId,
             cell: (student: Student) => (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                     <button
                         onClick={() => onEdit(student)}
-                        className="p-2.5 rounded-xl border border-gray-100 bg-white text-gray-500 hover:text-red-600 hover:border-red-100 hover:shadow-lg transition-all"
+                        className="p-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all shadow-sm bg-white hover:scale-110"
                     >
-                        <Edit size={16} />
+                        <Edit size={16} strokeWidth={2.5} />
                     </button>
-                    <button className="p-2.5 rounded-xl border border-gray-100 bg-white text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-100 transition-all">
-                        <Trash size={16} />
+                    <button className="p-2 rounded-xl border border-red-100 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm bg-white hover:scale-110">
+                        <Trash2 size={16} strokeWidth={2.5} />
                     </button>
                 </div>
             )
         }
     ]
 
+    const renderExpandedRow = (student: Student) => (
+        <div className="p-8 bg-gradient-to-br from-gray-50 to-white border-x border-b border-gray-100">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div className="space-y-1.5">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <Calendar size={12} className="text-red-500" />
+                        Registration Date
+                    </p>
+                    <p className="text-sm font-bold text-gray-900">
+                        {new Date(student.createdAt).toLocaleDateString('en-US', {
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric'
+                        })}
+                    </p>
+                </div>
+                <div className="space-y-1.5">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <CreditCard size={12} className="text-emerald-500" />
+                        Fee Structure
+                    </p>
+                    <p className="text-sm font-bold text-gray-700">
+                        ₹{student.baseFee.toLocaleString()} <span className="text-[10px] text-gray-400">/ YEAR</span>
+                    </p>
+                </div>
+                <div className="space-y-1.5">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <Percent size={12} className="text-blue-500" />
+                        Benefit Applied
+                    </p>
+                    <p className="text-sm font-black text-emerald-600">
+                        {student.discountPercent}% Discount
+                    </p>
+                </div>
+                <div className="space-y-1.5">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <Hash size={12} className="text-purple-500" />
+                        Roll Number / Section
+                    </p>
+                    <p className="text-sm font-bold text-gray-900">
+                        {student.section || 'N/A'} - {student.rollNumber || 'N/A'}
+                    </p>
+                </div>
+            </div>
+
+            {student.ambassador && (
+                <div className="mt-8 p-6 bg-red-50/50 rounded-[24px] border border-red-100 border-dashed">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-red-600 rounded-2xl shadow-lg shadow-red-200">
+                                <GraduationCap size={20} className="text-white" />
+                            </div>
+                            <div>
+                                <h4 className="text-[10px] font-black text-red-600 uppercase tracking-widest">Referral Source Details</h4>
+                                <p className="text-sm font-black text-gray-900">{student.ambassador.fullName} ({student.ambassador.role})</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm">
+                                <Phone size={14} /> {student.ambassador.mobileNumber}
+                            </button>
+                            <button className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg shadow-red-200 hover:bg-red-700 transition-all uppercase tracking-widest">
+                                View Profile
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+
+    const filteredStudents = students.filter(s =>
+        (s.fullName || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+        (s.parent?.fullName || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+        (s.parent?.mobileNumber || '').includes(searchTerm || '')
+    )
+
     return (
         <div className="space-y-6 animate-fade-in">
-            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl shadow-gray-200/50 flex items-center justify-between flex-wrap gap-6 premium-border">
-                <div style={{ position: 'relative', flex: 1, minWidth: '350px' }}>
-                    {/* Search is handled by DataTable if we pass searchKey, but here we have external search prop. 
-                       However, unified logic suggests letting DataTable handle it or syncing.
-                       For now, since DataTable *has* its own search, we can use that if we want, OR we can hide DataTable's search and use this one.
-                       Actually, the parent passes `searchTerm`. To avoid double search bars, let's keep this header and pass data to DataTable.
-                       BUT DataTable filters `data` based on its own `searchTerm` state. 
-                       If we want to use *this* external search, we should filter `students` before passing to DataTable, 
-                       OR update DataTable to accept controlled `searchTerm`.
-                       Given the previous `StudentTable` implementation, `searchTerm` comes from props.
-                       Let's filter the data *before* passing to DataTable, and pass `searchKey={undefined}` to DataTable so it doesn't show its own search bar.
-                   */}
-                    {/* Wait, the implementation of filteredStudents was removed in previous step.
-                       If DataTable handles filtering, it needs the term. 
-                       DataTable currently has internal state for searchTerm. 
-                       To keep "Excel-like filtering" + "External Global Search", I should pass the *filtered* data to DataTable. 
-                       So I will restore `filteredStudents` logic and pass THAT to DataTable. 
-                       Column filters will work on the *result* of the global search.
-                   */}
-                    <Search style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} size={18} />
-                    <input
-                        type="text"
-                        placeholder="Search system-wide students or parents..."
-                        value={searchTerm}
-                        onChange={(e) => onSearchChange(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3.5 bg-gray-50/50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-red-600/5 focus:border-red-600 transition-all text-sm font-medium"
-                        suppressHydrationWarning
-                    />
+            <div className="bg-white p-10 rounded-[32px] border border-gray-100 shadow-2xl shadow-gray-200/50 flex items-center justify-between flex-wrap gap-8 premium-border relative overflow-hidden">
+                <div className="absolute right-0 top-0 w-48 h-48 bg-emerald-50/50 rounded-bl-full -z-10 blur-3xl"></div>
+                <div className="flex items-center gap-6">
+                    <div className="p-4 bg-emerald-600 rounded-3xl shadow-lg shadow-emerald-200">
+                        <GraduationCap size={24} className="text-white" />
+                    </div>
+                    <div>
+                        <h3 className="text-2xl font-black text-gray-900 tracking-tight">Student Enrollment</h3>
+                        <p className="text-sm font-medium text-gray-400 mt-1">Directory of all admitted students and referral mapping.</p>
+                    </div>
                 </div>
-                <div style={{ display: 'flex', gap: '12px' }}>
+                <div className="flex gap-4">
                     <button
                         onClick={onBulkAdd}
-                        className="px-5 py-3 rounded-2xl border border-gray-200 bg-white text-gray-700 font-bold text-sm hover:bg-gray-50 hover:shadow-lg transition-all flex items-center gap-2"
-                        suppressHydrationWarning
+                        className="px-8 py-4 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-xs hover:bg-gray-50 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-3 uppercase tracking-widest"
                     >
-                        <Download size={18} /> Bulk Import
+                        <Download size={18} /> Import Roster
                     </button>
                     <button
                         onClick={onAddStudent}
-                        className="px-6 py-3 rounded-2xl bg-gradient-to-r from-[#CC0000] to-[#EF4444] text-white border-none font-bold text-sm shadow-xl shadow-red-600/20 hover:shadow-red-600/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
-                        suppressHydrationWarning
+                        className="px-10 py-4 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-2xl font-black text-xs shadow-2xl shadow-emerald-600/20 hover:shadow-emerald-600/40 hover:-translate-y-1 active:translate-y-0 transition-all flex items-center gap-3 uppercase tracking-widest border border-emerald-500"
                     >
-                        <UserPlus size={20} /> Add Student
+                        <UserPlus size={18} /> New Student
                     </button>
                 </div>
             </div>
 
+            <div className="relative group">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
+                <input
+                    type="text"
+                    placeholder="Global search by student name, parent name or mobile..."
+                    value={searchTerm}
+                    onChange={(e) => onSearchChange(e.target.value)}
+                    className="w-full pl-14 pr-6 py-5 bg-white border border-gray-100 rounded-[24px] outline-none focus:ring-8 focus:ring-emerald-600/5 focus:border-emerald-600 transition-all text-sm font-bold shadow-sm"
+                    suppressHydrationWarning
+                />
+            </div>
+
             <DataTable
-                data={students.filter(s =>
-                    (s.fullName || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
-                    (s.parent?.fullName || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
-                    (s.parent?.mobileNumber || '').includes(searchTerm || '')
-                )}
-                columns={columns}
+                data={filteredStudents}
+                columns={columns as any}
                 pageSize={10}
+                renderExpandedRow={renderExpandedRow}
             />
         </div>
     )

@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
+import { getScopeFilter } from '@/lib/permission-service'
 import { format, startOfDay, endOfDay } from 'date-fns'
 
 export type ReportType = 'daily-collection' | 'pending-fees' | 'payouts'
@@ -11,23 +12,40 @@ export async function getFinanceReportData(type: ReportType, startDate: string, 
     if (!user) return { error: 'Unauthorized' }
 
     // Strict Role Check
-    const allowedRoles = ['Super Admin', 'Admin', 'Finance Admin']
+    const allowedRoles = ['Super Admin', 'Admin', 'Finance Admin', 'Campus Head']
     if (!allowedRoles.some(r => user.role.includes(r))) {
-        return { error: 'Access Denied: Finance Reports restrict to Admins only' }
+        return { error: 'Access Denied: Finance Reports restricted to Admins only' }
     }
+
+    // Get scope filter for settlements module (finance data)
+    const { filter: scopeFilter, isReadOnly } = await getScopeFilter('settlements', {
+        campusField: 'campusId',
+        useCampusName: false
+    })
+
+    // If no access, return error
+    if (scopeFilter === null) {
+        return { error: 'Access Denied: No permission to view finance data' }
+    }
+
+    // For campus-level scope, we need the user's campus ID for filtering
+    const userCampusId = (user as any).campusId
+    const isCampusScoped = user.role.includes('Campus') && userCampusId
+    const campusFilter = isCampusScoped ? { campusId: userCampusId } : {}
 
     const start = startOfDay(new Date(startDate))
     const end = endOfDay(new Date(endDate))
 
     try {
-        let data = []
-        let columns = []
-        let summary = {}
+        let data: Record<string, any>[] = []
+        let columns: string[] = []
+        let summary: Record<string, any> = {}
 
         if (type === 'daily-collection') {
             // Fetch Completed Registration Payments
             const payments = await prisma.user.findMany({
                 where: {
+                    ...scopeFilter,
                     paymentStatus: 'Completed',
                     createdAt: {
                         gte: start,
@@ -62,6 +80,7 @@ export async function getFinanceReportData(type: ReportType, startDate: string, 
             // Fetch Pending Registration Users
             const pending = await prisma.user.findMany({
                 where: {
+                    ...scopeFilter,
                     paymentStatus: 'Pending',
                     createdAt: {
                         gte: start,
@@ -94,6 +113,7 @@ export async function getFinanceReportData(type: ReportType, startDate: string, 
             // Fetch Settlements
             const settlements = await prisma.settlement.findMany({
                 where: {
+                    ...scopeFilter,
                     createdAt: {
                         gte: start,
                         lte: end

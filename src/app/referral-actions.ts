@@ -167,3 +167,34 @@ export async function getMyReferrals() {
         orderBy: { createdAt: 'desc' }
     })
 }
+
+export async function getMyComparisonStats() {
+    const user = await getCurrentUser()
+    if (!user) return null
+
+    const now = new Date()
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+
+    const [currentLeads, prevLeads, currentConfirmed, prevConfirmed] = await Promise.all([
+        prisma.referralLead.count({
+            where: { userId: user.userId, createdAt: { gte: currentMonthStart } }
+        }),
+        prisma.referralLead.count({
+            where: { userId: user.userId, createdAt: { gte: lastMonthStart, lt: currentMonthStart } }
+        }),
+        prisma.referralLead.count({
+            where: { userId: user.userId, leadStatus: 'Confirmed', confirmedDate: { gte: currentMonthStart } }
+        }),
+        prisma.referralLead.count({
+            where: { userId: user.userId, leadStatus: 'Confirmed', confirmedDate: { gte: lastMonthStart, lt: currentMonthStart } }
+        })
+    ])
+
+    return {
+        currentLeads,
+        prevLeads,
+        currentConfirmed,
+        prevConfirmed
+    }
+}

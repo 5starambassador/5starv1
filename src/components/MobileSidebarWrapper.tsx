@@ -55,7 +55,7 @@ export default function MobileSidebarWrapper({ children }: { children: React.Rea
             {/* Hamburger Button (Mobile Only) */}
             <button
                 onClick={() => setIsOpen(true)}
-                className="xl:hidden p-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                className="xl:hidden p-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
                 aria-label="Open Menu"
             >
                 <Menu size={24} />
@@ -72,14 +72,14 @@ export default function MobileSidebarWrapper({ children }: { children: React.Rea
 
                     {/* Top Dropdown Drawer - Full Height */}
                     <div
-                        className="fixed top-2 left-2 right-2 bg-white shadow-2xl max-h-[90vh] overflow-hidden flex flex-col rounded-2xl border border-gray-200"
+                        className="fixed top-2 left-2 right-2 bg-white dark:bg-gray-900 shadow-2xl max-h-[90vh] overflow-hidden flex flex-col rounded-2xl border border-gray-200 dark:border-gray-700"
                         style={{ zIndex: 100000 }}
                     >
                         {/* Header with Close Button */}
-                        <div className="flex justify-end p-2 border-b border-gray-100">
+                        <div className="flex justify-end p-2 border-b border-gray-100 dark:border-gray-700">
                             <button
                                 onClick={() => setIsOpen(false)}
-                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
                             >
                                 <X size={20} />
                             </button>

@@ -2,12 +2,13 @@
 
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
+import { getScopeFilter } from '@/lib/permission-service'
 import { revalidatePath } from 'next/cache'
 import { logAction } from '@/lib/audit-logger'
 
 /**
  * Fetches all referral leads with ambassador information.
- * Requires Admin privileges.
+ * Requires Admin privileges. Respects permission scope settings.
  * 
  * @returns Object containing success status and array of referrals
  */
@@ -15,11 +16,20 @@ export async function getAllReferrals() {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Admin')) return { success: false, error: 'Unauthorized' }
 
+    // Get scope filter based on permission settings
+    const { filter, isReadOnly } = await getScopeFilter('referralTracking', {
+        campusField: 'campus',
+        useCampusName: true
+    })
+
+    if (filter === null) return { success: false, error: 'No access to referral data' }
+
     const referrals = await prisma.referralLead.findMany({
+        where: filter,
         include: { user: true },
         orderBy: { createdAt: 'desc' }
     })
-    return { success: true, referrals }
+    return { success: true, referrals, isReadOnly }
 }
 
 /**
@@ -32,11 +42,27 @@ export async function getAdminAnalytics() {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Admin')) return { success: false, error: 'Unauthorized' }
 
+    // Get scope filter based on permission settings
+    const { filter: referralFilter } = await getScopeFilter('referralTracking', {
+        campusField: 'campus',
+        useCampusName: true
+    })
+
+    const { filter: userFilter } = await getScopeFilter('userManagement', {
+        campusField: 'assignedCampus',
+        useCampusName: true
+    })
+
+    if (referralFilter === null || userFilter === null) return { success: false, error: 'Access Denied' }
+
     const referrals = await prisma.referralLead.findMany({
+        where: referralFilter,
         include: { user: true }
     })
 
-    const users = await prisma.user.findMany()
+    const users = await prisma.user.findMany({
+        where: userFilter
+    })
 
     // Basic counts
     const totalLeads = referrals.length
@@ -207,7 +233,7 @@ export async function confirmReferral(leadId: number) {
 
 /**
  * Fetches all users (ambassadors/parents/staff) for the admin dashboard.
- * If the current user is a Campus Head, results are filtered to their campus.
+ * Respects permission scope settings from the matrix.
  * @returns Object containing success status and array of user records.
  */
 export async function getAdminUsers() {
@@ -216,14 +242,17 @@ export async function getAdminUsers() {
         return { success: false, error: 'Unauthorized' }
     }
 
-    const where: any = {}
-    if (user.role !== 'Super Admin' && user.assignedCampus) {
-        where.assignedCampus = user.assignedCampus
-    }
+    // Get scope filter based on permission settings
+    const { filter, isReadOnly } = await getScopeFilter('userManagement', {
+        campusField: 'assignedCampus',
+        useCampusName: true
+    })
+
+    if (filter === null) return { success: false, error: 'No access to user data' }
 
     try {
         const users = await prisma.user.findMany({
-            where,
+            where: filter,
             orderBy: { createdAt: 'desc' },
             select: {
                 userId: true,
@@ -245,7 +274,7 @@ export async function getAdminUsers() {
 
 /**
  * Fetches all student records for the admin dashboard.
- * Filters by assigned campus for non-Super Admins.
+ * Respects permission scope settings from the matrix.
  * @returns Object containing success status and array of student records.
  */
 export async function getAdminStudents() {
@@ -254,14 +283,17 @@ export async function getAdminStudents() {
         return { success: false, error: 'Unauthorized' }
     }
 
-    const where: any = {}
-    if (user.role !== 'Super Admin' && user.assignedCampus) {
-        where.campus = { campusName: user.assignedCampus }
-    }
+    // Get scope filter based on permission settings
+    const { filter, isReadOnly } = await getScopeFilter('studentManagement', {
+        campusField: 'campusId',
+        useCampusName: false
+    })
+
+    if (filter === null) return { success: false, error: 'No access to student data' }
 
     try {
         const students = await prisma.student.findMany({
-            where,
+            where: filter,
             include: {
                 parent: { select: { fullName: true, mobileNumber: true } },
                 campus: { select: { campusName: true } },
@@ -282,16 +314,17 @@ export async function getAdminAdmins() {
         return { success: false, error: 'Unauthorized' }
     }
 
-    const where: any = {}
+    // Get scope filter based on permission settings
+    const { filter, isReadOnly } = await getScopeFilter('adminManagement', {
+        campusField: 'assignedCampus',
+        useCampusName: true
+    })
 
-    // Campus Head can only see admins in their campus (except themselves usually, but let's list all for now)
-    if (user.role !== 'Super Admin' && user.assignedCampus) {
-        where.assignedCampus = user.assignedCampus
-    }
+    if (filter === null) return { success: false, error: 'Access Denied' }
 
     try {
         const admins = await prisma.admin.findMany({
-            where,
+            where: filter,
             orderBy: { createdAt: 'desc' },
             select: {
                 adminId: true,

@@ -325,6 +325,21 @@ model Campus {
   // Grade-specific fees
   gradeFees             GradeFee[]
   students              Student[]
+  targets               CampusTarget[]
+}
+
+model CampusTarget {
+  id              Int      @id @default(autoincrement())
+  campusId        Int
+  campus          Campus   @relation(fields: [campusId], references: [id])
+  month           Int      // 1-12
+  year            Int
+  leadTarget      Int      @default(0)
+  admissionTarget Int      @default(0)
+  updatedAt       DateTime @updatedAt
+
+  @@unique([campusId, month, year])
+  @@index([campusId])
 }
 
 model GradeFee {

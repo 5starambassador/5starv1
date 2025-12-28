@@ -54,8 +54,8 @@ export function MobileMenu({ navItems, user, logoutAction, onNavigate: propOnNav
                         href={item.href}
                         onClick={handleNavigate}
                         className={isMobile
-                            // Mobile: Premium horizontal pill style
-                            ? "flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-gray-50 to-white border border-gray-100 shadow-sm hover:shadow-md hover:border-red-200 hover:from-red-50 hover:to-white text-gray-700 hover:text-[#CC0000] transition-all duration-200 group no-underline"
+                            // Mobile: Premium horizontal pill style - DARK MODE COMPATIBLE
+                            ? "flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-700 border border-gray-100 dark:border-gray-600 shadow-sm hover:shadow-md hover:border-red-200 dark:hover:border-red-700 hover:from-red-50 hover:to-white dark:hover:from-red-900/30 dark:hover:to-gray-700 text-gray-700 dark:text-gray-200 hover:text-[#CC0000] dark:hover:text-red-400 transition-all duration-200 group no-underline"
                             // Desktop List Item Styles (Premium Sidebar)
                             : "flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-gray-300 hover:text-white transition-all group relative overflow-hidden no-underline"
                         }
@@ -80,7 +80,7 @@ export function MobileMenu({ navItems, user, logoutAction, onNavigate: propOnNav
             </nav>
 
             {/* Compact Footer (Profile + Logout) */}
-            <div className={`mt-auto px-4 py-6 border-t border-white/5 ${isMobile ? 'bg-white' : 'bg-black/20'}`}>
+            <div className={`mt-auto px-4 py-6 border-t border-white/5 ${isMobile ? 'bg-white dark:bg-gray-900' : 'bg-black/20'}`}>
                 <div className={`flex items-center justify-between gap-4 ${isMobile ? '' : 'flex-col items-stretch'}`}>
                     <Link href="/profile" onClick={handleNavigate} className={`flex items-center gap-3 hover:bg-white/5 rounded-2xl p-2 transition-all no-underline text-inherit ${isMobile ? 'flex-1' : ''}`}>
                         <div
@@ -103,12 +103,12 @@ export function MobileMenu({ navItems, user, logoutAction, onNavigate: propOnNav
                         </div>
                         <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
                             <span
-                                className={`font-black truncate ${isMobile ? 'text-xs text-gray-700' : 'text-sm text-white'}`}
+                                className={`font-black truncate ${isMobile ? 'text-xs text-gray-700 dark:text-gray-200' : 'text-sm text-white'}`}
                                 style={{ maxWidth: '160px' }}
                             >
                                 {user.fullName}
                             </span>
-                            <span className={`text-[10px] font-bold uppercase tracking-wider ${isMobile ? 'text-gray-400' : 'text-gray-500'}`}>{user.role}</span>
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${isMobile ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500'}`}>{user.role}</span>
                         </div>
                     </Link>
                     <form action={logoutAction} className={isMobile ? '' : 'mt-4'}>

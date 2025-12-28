@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Search, Filter, TrendingUp, Users, Target, Building2, DollarSign, BarChart3, Settings, X, Upload, Trash2, Star, Calendar, Bell, Shield, Database, GanttChartSquare, AlertTriangle, BookOpen, Check, Pencil, MessageSquare, Download, ShieldCheck, RefreshCw, Trophy, UserPlus, List, Wallet, Edit, Trash } from 'lucide-react'
+import { Search, Filter, TrendingUp, Users, Target, Building2, DollarSign, BarChart3, Settings, X, Upload, Trash2, Star, Calendar, Bell, Shield, Database, GanttChartSquare, AlertTriangle, BookOpen, Check, Pencil, MessageSquare, Download, ShieldCheck, RefreshCw, Trophy, UserPlus, List, Wallet, Edit, Trash, Phone, ArrowRight, Clock } from 'lucide-react'
 import { getSystemSettings, updateSystemSettings } from '@/app/settings-actions'
 import { getLeadSettings, updateLeadSettings } from '@/app/lead-actions'
 import { getSecuritySettings, updateSecuritySettings, getRetentionSettings, updateRetentionSettings } from '@/app/security-actions'
@@ -156,7 +156,8 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     const [bulkUploadType, setBulkUploadType] = useState<'students' | 'users' | null>(null)
 
     // Map URL view param to internal view state
-    const mapViewParam = (view: string): 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' => {
+    const mapViewParam = (view: string): 'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' => {
+        if (view === 'home') return 'home'
         if (view === 'users') return 'users'
         if (view === 'admins') return 'admins'
         if (view === 'campuses') return 'campuses'
@@ -170,10 +171,11 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         if (view === 'permissions') return 'permissions'
         if (view === 'staff-dash') return 'staff-dash'
         if (view === 'parent-dash') return 'parent-dash'
-        return 'analytics'
+        if (view === 'analytics') return 'analytics'
+        return 'home'
     }
 
-    const [selectedView, setSelectedView] = useState<'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash'>(mapViewParam(initialView))
+    const [selectedView, setSelectedView] = useState<'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash'>(mapViewParam(initialView))
 
     // Unified Status & Settings States
     const [settingsState, setSettingsState] = useState<any>(systemSettings || null)
@@ -222,7 +224,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
 
     // Sync view with URL params when they change
     useEffect(() => {
-        const viewParam = searchParams.get('view') || 'analytics'
+        const viewParam = searchParams.get('view') || 'home'
         setSelectedView(mapViewParam(viewParam))
     }, [searchParams])
 
@@ -661,7 +663,8 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     }
 
     // Dynamic page titles based on selected view
-    const pageConfig: Record<'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash', { title: string, subtitle: string }> = {
+    const pageConfig: Record<'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash', { title: string, subtitle: string }> = {
+        home: { title: 'Dashboard', subtitle: 'Quick overview and actions' },
         analytics: { title: 'Analytics Overview', subtitle: 'System-wide performance metrics and insights' },
         campuses: { title: 'Campus Performance', subtitle: 'Detailed metrics and comparison across all campuses' },
         users: { title: 'User Management', subtitle: 'Manage registered users and their permissions' },
@@ -733,6 +736,109 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                 </button>
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* Home View - Action Focused */}
+                {selectedView === 'home' && (
+                    <div className="space-y-6">
+                        {/* Quick Stats Row */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-5 text-white">
+                                <p className="text-red-100 text-xs font-medium">Total Ambassadors</p>
+                                <p className="text-3xl font-extrabold mt-1">{analyticsData.totalAmbassadors}</p>
+                            </div>
+                            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-5 text-white">
+                                <p className="text-blue-100 text-xs font-medium">Total Leads</p>
+                                <p className="text-3xl font-extrabold mt-1">{analyticsData.totalLeads}</p>
+                            </div>
+                            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-5 text-white">
+                                <p className="text-green-100 text-xs font-medium">Confirmed</p>
+                                <p className="text-3xl font-extrabold mt-1">{analyticsData.totalConfirmed}</p>
+                            </div>
+                            <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-5 text-white">
+                                <p className="text-amber-100 text-xs font-medium">Conversion Rate</p>
+                                <p className="text-3xl font-extrabold mt-1">{(analyticsData.globalConversionRate || 0).toFixed(1)}%</p>
+                            </div>
+                        </div>
+
+                        {/* Quick Actions */}
+                        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                            <h3 className="font-bold text-gray-900 mb-4">Quick Actions</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <button
+                                    onClick={() => router.push('/superadmin?view=users')}
+                                    className="flex flex-col items-center gap-2 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
+                                >
+                                    <Users size={24} className="text-red-600" />
+                                    <span className="text-xs font-bold text-gray-700">Manage Users</span>
+                                </button>
+                                <button
+                                    onClick={() => router.push('/superadmin?view=students')}
+                                    className="flex flex-col items-center gap-2 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
+                                >
+                                    <BookOpen size={24} className="text-blue-600" />
+                                    <span className="text-xs font-bold text-gray-700">Students</span>
+                                </button>
+                                <button
+                                    onClick={() => router.push('/superadmin?view=reports')}
+                                    className="flex flex-col items-center gap-2 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
+                                >
+                                    <Download size={24} className="text-green-600" />
+                                    <span className="text-xs font-bold text-gray-700">Reports</span>
+                                </button>
+                                <button
+                                    onClick={() => router.push('/superadmin?view=analytics')}
+                                    className="flex flex-col items-center gap-2 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
+                                >
+                                    <BarChart3 size={24} className="text-purple-600" />
+                                    <span className="text-xs font-bold text-gray-700">Full Analytics</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Recent Activity / Campus Summary */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                                <h3 className="font-bold text-gray-900 mb-4">Top Campuses</h3>
+                                <div className="space-y-3">
+                                    {campusCompData.slice(0, 5).map((campus, idx) => (
+                                        <div key={campus.campus} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                                            <div className="flex items-center gap-3">
+                                                <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full text-xs font-bold flex items-center justify-center">{idx + 1}</span>
+                                                <span className="text-sm font-medium text-gray-800">{campus.campus}</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-sm font-bold text-green-600">{campus.confirmed} confirmed</p>
+                                                <p className="text-xs text-gray-500">{campus.totalLeads} leads</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                                <h3 className="font-bold text-gray-900 mb-4">System Overview</h3>
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
+                                        <span className="text-sm font-medium text-gray-700">Active Students</span>
+                                        <span className="text-lg font-bold text-blue-600">{analyticsData.totalStudents || students.length}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl">
+                                        <span className="text-sm font-medium text-gray-700">Staff Ambassadors</span>
+                                        <span className="text-lg font-bold text-green-600">{users.filter(u => u.role === 'Staff').length}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between p-3 bg-purple-50 rounded-xl">
+                                        <span className="text-sm font-medium text-gray-700">Parent Ambassadors</span>
+                                        <span className="text-lg font-bold text-purple-600">{users.filter(u => u.role === 'Parent').length}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between p-3 bg-amber-50 rounded-xl">
+                                        <span className="text-sm font-medium text-gray-700">Total Campuses</span>
+                                        <span className="text-lg font-bold text-amber-600">{campuses.length}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
 
@@ -1197,6 +1303,113 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                     )
                 }
             </div >
+            {/* Campus Drill-down Modal */}
+            {selectedCampus && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[32px] w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-gray-50 to-white">
+                            <div>
+                                <h3 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+                                    <Building2 size={24} className="text-red-600" />
+                                    {selectedCampus} Details
+                                </h3>
+                                <p className="text-sm font-medium text-gray-400 mt-1">Institutional performance at a glance.</p>
+                            </div>
+                            <button
+                                onClick={() => setSelectedCampus(null)}
+                                className="p-2 hover:bg-gray-100 rounded-2xl text-gray-400 hover:text-gray-600 transition-all shadow-sm bg-white"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="overflow-y-auto p-8 max-h-[calc(90vh-100px)] custom-scrollbar">
+                            {detailsLoading ? (
+                                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                                    <div className="w-12 h-12 border-4 border-red-100 border-t-red-600 rounded-full animate-spin"></div>
+                                    <p className="text-gray-400 font-bold text-sm">Loading campus intelligence...</p>
+                                </div>
+                            ) : campusDetails ? (
+                                <div className="space-y-8">
+                                    {/* Top Ambassadors */}
+                                    <div className="space-y-4">
+                                        <h4 className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                            <Trophy size={14} className="text-yellow-500" />
+                                            Top Ambassadors
+                                        </h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {campusDetails.topAmbassadors.length > 0 ? (
+                                                campusDetails.topAmbassadors.map((amb, i) => (
+                                                    <div key={amb.userId} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-red-100 transition-all">
+                                                        <div className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center font-black text-red-600 shadow-sm">
+                                                            #{i + 1}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="font-bold text-gray-900 truncate">{amb.fullName}</p>
+                                                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-tight">{amb.confirmedCount} ADMISSIONS</p>
+                                                        </div>
+                                                        <ArrowRight size={16} className="text-gray-300" />
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="col-span-2 py-8 text-center bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                                                    <p className="text-xs text-gray-400 font-bold">No ambassadors ranked yet.</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Recent Leads */}
+                                    <div className="space-y-4">
+                                        <h4 className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                            <Clock size={14} className="text-blue-500" />
+                                            Recent Activity
+                                        </h4>
+                                        <div className="space-y-3">
+                                            {campusDetails.recentLeads.length > 0 ? (
+                                                campusDetails.recentLeads.map((lead) => (
+                                                    <div key={lead.leadId} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl hover:shadow-md hover:-translate-y-0.5 transition-all">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className={`p-2 rounded-xl ${lead.leadStatus === 'Confirmed' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                                                                {lead.leadStatus === 'Confirmed' ? <Check size={18} /> : <BarChart3 size={18} />}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-bold text-sm text-gray-900">{lead.parentName}</p>
+                                                                <p className="text-[10px] text-gray-500 font-medium">Referral for {lead.studentName || 'Unknown Student'}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${lead.leadStatus === 'Confirmed' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                                                            {lead.leadStatus}
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="py-12 text-center bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                                                    <p className="text-xs text-gray-400 font-bold">No recent referral activity.</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center py-20">
+                                    <p className="text-gray-400 font-bold">Failed to load campus intelligence.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end">
+                            <button
+                                onClick={() => setSelectedCampus(null)}
+                                className="px-6 py-2 bg-white border border-gray-200 text-gray-600 font-bold text-sm rounded-xl hover:bg-gray-100 transition-all"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Add User Modal */}
             {
                 showAddUserModal && (

@@ -7,7 +7,7 @@ const rateLimit = new Map<string, { count: number; resetTime: number }>()
 const LIMITS = {
     login: { max: 5, window: 15 * 60 * 1000 }, // 5 per 15 min
     otp: { max: 3, window: 5 * 60 * 1000 },    // 3 per 5 min
-    api: { max: 100, window: 60 * 1000 },      // 100 per min
+    api: { max: 1000, window: 60 * 1000 },      // 1000 per min (Increased for dev)
 }
 
 function checkRateLimit(key: string, type: keyof typeof LIMITS): boolean {
@@ -83,7 +83,7 @@ export function middleware(request: NextRequest) {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com",
         "img-src 'self' data: https:",
-        "connect-src 'self'",
+        "connect-src 'self' http://localhost:3001 http://10.0.2.2:3001 http://192.168.0.250:3001 ws://localhost:3001 ws://10.0.2.2:3001 ws://192.168.0.250:3001",
     ].join('; ')
     response.headers.set('Content-Security-Policy', csp)
 

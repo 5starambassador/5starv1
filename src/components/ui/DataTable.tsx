@@ -18,6 +18,7 @@ interface DataTableProps<T> {
     searchKey?: keyof T
     pageSize?: number
     className?: string
+    renderExpandedRow?: (row: T) => React.ReactNode
 }
 
 export function DataTable<T>({
@@ -26,11 +27,13 @@ export function DataTable<T>({
     searchPlaceholder = 'Search...',
     searchKey,
     pageSize = 10,
-    className = ''
+    className = '',
+    renderExpandedRow
 }: DataTableProps<T>) {
     const [searchTerm, setSearchTerm] = useState('')
     const [currentPage, setCurrentPage] = useState(1)
     const [sortConfig, setSortConfig] = useState<{ key: keyof T | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' })
+    const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
 
     // Extended Filter State
     const [activeFilters, setActiveFilters] = useState<Record<string, string[]>>({})
@@ -265,25 +268,50 @@ export function DataTable<T>({
                     </thead>
                     <tbody className="block md:table-row-group p-4 md:p-0">
                         {paginatedData.length > 0 ? (
-                            paginatedData.map((row, i) => (
-                                <tr key={i} className="group block md:table-row bg-white rounded-2xl md:rounded-none border border-gray-100 md:border-b md:border-x-0 md:border-t-0 mb-4 md:mb-0 shadow-sm md:shadow-none hover:bg-gray-50/80 transition-all">
-                                    {columns.map((column, j) => (
-                                        <td
-                                            key={j}
-                                            className="block md:table-cell p-4 md:p-5 text-sm text-gray-600 border-b last:border-0 md:border-none flex justify-between items-center md:block"
+                            paginatedData.map((row, i) => {
+                                const isExpanded = expandedRows.has(i)
+                                return (
+                                    <>
+                                        <tr
+                                            key={i}
+                                            onClick={() => {
+                                                if (renderExpandedRow) {
+                                                    const next = new Set(expandedRows)
+                                                    if (isExpanded) next.delete(i)
+                                                    else next.add(i)
+                                                    setExpandedRows(next)
+                                                }
+                                            }}
+                                            className={`group block md:table-row bg-white rounded-2xl md:rounded-none border border-gray-100 md:border-b md:border-x-0 md:border-t-0 mb-4 md:mb-0 shadow-sm md:shadow-none hover:bg-gray-50/80 transition-all ${renderExpandedRow ? 'cursor-pointer' : ''}`}
                                         >
-                                            <span className="md:hidden font-bold text-gray-400 text-xs uppercase tracking-wider">{column.header}</span>
-                                            <div className="text-right md:text-left w-full md:w-auto pl-4 md:pl-0">
-                                                {column.cell
-                                                    ? column.cell(row)
-                                                    : typeof column.accessorKey === 'function'
-                                                        ? column.accessorKey(row)
-                                                        : (row[column.accessorKey] != null ? (row[column.accessorKey] as any) : 'N/A')}
-                                            </div>
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))
+                                            {columns.map((column, j) => (
+                                                <td
+                                                    key={j}
+                                                    className="block md:table-cell p-4 md:p-5 text-sm text-gray-600 border-b last:border-0 md:border-none flex justify-between items-center md:block"
+                                                >
+                                                    <span className="md:hidden font-bold text-gray-400 text-xs uppercase tracking-wider">{column.header}</span>
+                                                    <div className="text-right md:text-left w-full md:w-auto pl-4 md:pl-0">
+                                                        {column.cell
+                                                            ? column.cell(row)
+                                                            : typeof column.accessorKey === 'function'
+                                                                ? column.accessorKey(row)
+                                                                : (row[column.accessorKey] != null ? (row[column.accessorKey] as any) : 'N/A')}
+                                                    </div>
+                                                </td>
+                                            ))}
+                                        </tr>
+                                        {isExpanded && renderExpandedRow && (
+                                            <tr className="block md:table-row bg-gray-50/50">
+                                                <td colSpan={columns.length} className="block md:table-cell p-0">
+                                                    <div className="animate-in slide-in-from-top-2 duration-200">
+                                                        {renderExpandedRow(row)}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </>
+                                )
+                            })
                         ) : (
                             <tr>
                                 <td colSpan={columns.length} className="p-16 text-center block md:table-cell">

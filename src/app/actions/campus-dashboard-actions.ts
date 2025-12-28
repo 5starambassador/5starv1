@@ -37,36 +37,158 @@ async function verifyCampusAccess() {
 }
 
 // --- Stats ---
-export async function getCampusStats() {
+export async function getCampusStats(days: number = 30) {
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
     const whereClause = access.isSuperAdmin ? {} : { campusId: access.campusId }
     const referralWhere = access.isSuperAdmin ? {} : { campusId: access.campusId }
 
+    // Calculate date filter
+    const dateFilter = days === 0
+        ? undefined
+        : { gte: new Date(Date.now() - (days * 24 * 60 * 60 * 1000)) }
+
+    const prevDateFilter = days === 0
+        ? undefined
+        : {
+            gte: new Date(Date.now() - (days * 2 * 24 * 60 * 60 * 1000)),
+            lt: new Date(Date.now() - (days * 24 * 60 * 60 * 1000))
+        }
+
     try {
-        const [totalStudents, newReferrals, pendingAdmissions] = await Promise.all([
+        const [
+            totalStudents,
+            periodLeads,
+            leadsNew,
+            leadsFollowup,
+            leadsConfirmed,
+            prevPeriodLeads,
+            prevLeadsConfirmed
+        ] = await Promise.all([
             prisma.student.count({ where: whereClause }),
             prisma.referralLead.count({
                 where: {
                     ...referralWhere,
-                    createdAt: {
-                        gte: new Date(new Date().setDate(1)) // This month
-                    }
+                    ...(dateFilter ? { createdAt: dateFilter } : {})
                 }
             }),
             prisma.referralLead.count({
                 where: {
                     ...referralWhere,
-                    leadStatus: 'Confirmed' // Ready for admission
+                    leadStatus: 'New',
+                    ...(dateFilter ? { createdAt: dateFilter } : {})
+                }
+            }),
+            prisma.referralLead.count({
+                where: {
+                    ...referralWhere,
+                    leadStatus: 'Follow-up',
+                    ...(dateFilter ? { createdAt: dateFilter } : {})
+                }
+            }),
+            prisma.referralLead.count({
+                where: {
+                    ...referralWhere,
+                    leadStatus: 'Confirmed',
+                    ...(dateFilter ? { confirmedDate: dateFilter } : { confirmedDate: { not: null } })
+                }
+            }),
+            // Comparison data
+            prisma.referralLead.count({
+                where: {
+                    ...referralWhere,
+                    ...(prevDateFilter ? { createdAt: prevDateFilter } : {})
+                }
+            }),
+            prisma.referralLead.count({
+                where: {
+                    ...referralWhere,
+                    leadStatus: 'Confirmed',
+                    ...(prevDateFilter ? { confirmedDate: prevDateFilter } : { confirmedDate: { not: null } })
                 }
             })
         ])
 
-        return { success: true, stats: { totalStudents, newReferrals, pendingAdmissions } }
+        return {
+            success: true,
+            stats: {
+                totalStudents,
+                newReferrals: periodLeads,
+                pendingAdmissions: leadsNew + leadsFollowup,
+                confirmedAdmissions: leadsConfirmed,
+                leadsNew,
+                leadsFollowup,
+                leadsConfirmed,
+                // Comparison metrics
+                prevNewReferrals: prevPeriodLeads,
+                prevConfirmedAdmissions: prevLeadsConfirmed
+            }
+        }
     } catch (error) {
         console.error('getCampusStats Error:', error)
         return { error: 'Failed to fetch stats' }
+    }
+}
+
+export async function getCampusTargets() {
+    const access = await verifyCampusAccess()
+    if (access.error) return { error: access.error }
+
+    const now = new Date()
+    const month = now.getMonth() + 1
+    const year = now.getFullYear()
+
+    try {
+        const target = await prisma.campusTarget.findUnique({
+            where: {
+                campusId_month_year: {
+                    campusId: access.campusId || 0,
+                    month,
+                    year
+                }
+            }
+        })
+        return { success: true, target }
+    } catch (error) {
+        console.warn('Targets not found or error:', error)
+        return { success: false }
+    }
+}
+
+export async function updateCampusTargets(leadTarget: number, admissionTarget: number) {
+    const user = await getCurrentUser()
+    if (!user || user.role !== 'Super Admin') return { success: false, error: 'Unauthorized' }
+
+    const access = await verifyCampusAccess()
+    if (access.error) return { error: access.error }
+
+    const now = new Date()
+    const month = now.getMonth() + 1
+    const year = now.getFullYear()
+
+    try {
+        await prisma.campusTarget.upsert({
+            where: {
+                campusId_month_year: {
+                    campusId: access.campusId || 0,
+                    month,
+                    year
+                }
+            },
+            update: { leadTarget, admissionTarget },
+            create: {
+                campusId: access.campusId || 0,
+                month,
+                year,
+                leadTarget,
+                admissionTarget
+            }
+        })
+        return { success: true }
+    } catch (error) {
+        console.error('updateCampusTargets error:', error)
+        return { success: false, error: 'Failed' }
     }
 }
 
@@ -117,5 +239,205 @@ export async function getCampusReferrals() {
     } catch (error) {
         console.error('getCampusReferrals Error:', error)
         return { error: 'Failed to fetch referrals' }
+    }
+}
+
+// --- Recent Activity Feed ---
+export async function getCampusRecentActivity() {
+    const access = await verifyCampusAccess()
+    if (access.error) return { error: access.error }
+
+    const whereClause = access.isSuperAdmin
+        ? {}
+        : {
+            OR: [
+                { campusId: access.campusId },
+                { campus: { contains: access.campusName || '', mode: 'insensitive' as const } }
+            ]
+        }
+
+    try {
+        // Get recent referrals (last 10)
+        const recentLeads = await prisma.referralLead.findMany({
+            where: whereClause,
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+            include: { user: { select: { fullName: true } } }
+        })
+
+        // Get recent confirmations
+        const recentConfirmations = await prisma.referralLead.findMany({
+            where: { ...whereClause, leadStatus: 'Confirmed', confirmedDate: { not: null } },
+            orderBy: { confirmedDate: 'desc' },
+            take: 5,
+            include: { user: { select: { fullName: true } } }
+        })
+
+        // Build activity feed
+        const activities = [
+            ...recentLeads.map(lead => ({
+                type: 'new_lead',
+                message: `New lead: ${lead.studentName || lead.parentName}`,
+                by: lead.user?.fullName,
+                time: lead.createdAt
+            })),
+            ...recentConfirmations.map(lead => ({
+                type: 'confirmed',
+                message: `Admission confirmed: ${lead.studentName || lead.parentName}`,
+                by: lead.user?.fullName,
+                time: lead.confirmedDate
+            }))
+        ]
+
+        // Sort by time and take top 10
+        activities.sort((a, b) => new Date(b.time!).getTime() - new Date(a.time!).getTime())
+
+        return { success: true, data: activities.slice(0, 10) }
+    } catch (error) {
+        console.error('getCampusRecentActivity Error:', error)
+        return { error: 'Failed to fetch recent activity' }
+    }
+}
+
+// --- Campus Finance Report Data ---
+export async function getCampusFinance(days: number = 30) {
+    const access = await verifyCampusAccess()
+    if (access.error) return { error: access.error }
+
+    // Calculate date filter
+    const dateFilter = days === 0
+        ? undefined
+        : { gte: new Date(Date.now() - (days * 24 * 60 * 60 * 1000)) }
+
+    // For campus-specific filtering, check both campusId and campus name string
+    const whereClause = access.isSuperAdmin
+        ? {
+            leadStatus: 'Confirmed',
+            ...(dateFilter ? { confirmedDate: dateFilter } : { confirmedDate: { not: null } })
+        }
+        : {
+            leadStatus: 'Confirmed',
+            ...(dateFilter ? { confirmedDate: dateFilter } : { confirmedDate: { not: null } }),
+            OR: [
+                { campusId: access.campusId },
+                { campus: { contains: access.campusName || '', mode: 'insensitive' as const } }
+            ]
+        }
+
+    try {
+        // Get all referrals with ambassador info for finance calculation
+        const referrals = await prisma.referralLead.findMany({
+            where: whereClause,
+            include: {
+                user: { select: { fullName: true, role: true, yearFeeBenefitPercent: true } },
+                student: { select: { baseFee: true } }
+            }
+        })
+
+        // Calculate estimated benefits per referral
+        const financeData = referrals.map(r => {
+            const baseFee = r.student?.baseFee || 150000 // Default base fee
+            const benefitPercent = r.user?.yearFeeBenefitPercent || 5
+            const estimatedBenefit = (baseFee * benefitPercent) / 100
+
+            return {
+                ambassadorName: r.user?.fullName || 'Unknown',
+                role: r.user?.role || 'Unknown',
+                studentName: r.studentName || 'N/A',
+                parentName: r.parentName,
+                baseFee: baseFee,
+                benefitPercent: benefitPercent,
+                estimatedBenefit: estimatedBenefit,
+                status: r.leadStatus,
+                confirmedDate: r.confirmedDate
+            }
+        })
+
+        const totalBenefits = financeData.reduce((sum, r) => sum + r.estimatedBenefit, 0)
+
+        return {
+            success: true,
+            data: financeData,
+            summary: {
+                totalConfirmed: referrals.length,
+                totalBenefits,
+                campusName: access.campusName || 'All Campuses'
+            }
+        }
+    } catch (error) {
+        console.error('getCampusFinance Error:', error)
+        return { error: 'Failed to fetch finance data' }
+    }
+}
+
+// --- Update Lead Status ---
+export async function updateLeadStatus(leadId: number, newStatus: 'New' | 'Follow-up' | 'Confirmed') {
+    const access = await verifyCampusAccess()
+    if (access.error) return { error: access.error }
+
+    try {
+        // Verify the lead belongs to this campus
+        const lead = await prisma.referralLead.findUnique({
+            where: { leadId },
+            include: { user: true }
+        })
+
+        if (!lead) {
+            return { error: 'Lead not found' }
+        }
+
+        // Campus check (unless Super Admin)
+        if (!access.isSuperAdmin && lead.campusId !== access.campusId) {
+            // Also check by campus name string
+            if (lead.campus && !lead.campus.toLowerCase().includes((access.campusName || '').toLowerCase())) {
+                return { error: 'This lead does not belong to your campus' }
+            }
+        }
+
+        // Update the lead status
+        const updateData: any = { leadStatus: newStatus }
+        if (newStatus === 'Confirmed') {
+            updateData.confirmedDate = new Date()
+        }
+
+        await prisma.referralLead.update({
+            where: { leadId },
+            data: updateData
+        })
+
+        // If confirming, also update the ambassador's count and benefits
+        if (newStatus === 'Confirmed') {
+            const userId = lead.userId
+            const count = await prisma.referralLead.count({
+                where: { userId, leadStatus: 'Confirmed' }
+            })
+
+            // Get benefit slab
+            const lookupCount = Math.min(count, 5)
+            const slab = await prisma.benefitSlab.findFirst({
+                where: { referralCount: lookupCount }
+            })
+
+            const defaultSlabs: Record<number, number> = { 1: 5, 2: 10, 3: 25, 4: 30, 5: 50 }
+            const yearFeeBenefit = slab ? slab.yearFeeBenefitPercent : (defaultSlabs[lookupCount] || 0)
+
+            await prisma.user.update({
+                where: { userId },
+                data: {
+                    confirmedReferralCount: count,
+                    yearFeeBenefitPercent: yearFeeBenefit,
+                    benefitStatus: count >= 1 ? 'Active' : 'Inactive',
+                    lastActiveYear: 2025
+                }
+            })
+        }
+
+        revalidatePath('/campus/referrals')
+        revalidatePath('/campus')
+
+        return { success: true, message: `Lead status updated to ${newStatus}` }
+    } catch (error) {
+        console.error('updateLeadStatus Error:', error)
+        return { error: 'Failed to update lead status' }
     }
 }

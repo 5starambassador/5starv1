@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./fonts.css";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 // const geistSans = Geist({
 //   variable: "--font-geist-sans",
@@ -13,6 +14,17 @@ import { Toaster } from "sonner";
 //   variable: "--font-geist-mono",
 //   subsets: ["latin"],
 // });
+
+import type { Viewport } from 'next'
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#DC2626',
+  viewportFit: 'cover',
+}
 
 export const metadata: Metadata = {
   title: {
@@ -59,8 +71,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased font-sans" suppressHydrationWarning>
-        <Toaster position="top-center" richColors />
-        {children}
+        <ThemeProvider>
+          <Toaster position="top-center" richColors />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

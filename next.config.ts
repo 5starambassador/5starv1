@@ -4,9 +4,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  images: {
+    unoptimized: true, // Keep this if we ever do partial export, but fine for standalone too
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',
+      allowedOrigins: ['localhost:3001', '10.0.2.2:3001', '192.168.0.250:3001'],
     },
   },
   typescript: {
@@ -23,10 +27,6 @@ const nextConfig: NextConfig = {
           {
             key: 'X-DNS-Prefetch-Control',
             value: 'on'
-          },
-          {
-            key: 'Strict-Transport-Security',
-            value: 'max-age=63072000; includeSubDomains; preload'
           },
           {
             key: 'X-Frame-Options',

@@ -24,6 +24,11 @@ interface SystemAnalytics {
     staffCount: number
     parentCount: number
     userRoleDistribution: { name: string; value: number }[]
+    // Comparison metrics
+    prevAmbassadors?: number
+    prevLeads?: number
+    prevConfirmed?: number
+    prevBenefits?: number
 }
 
 interface CampusComparison {
@@ -33,6 +38,8 @@ interface CampusComparison {
     pending: number
     conversionRate: number
     ambassadors: number
+    prevLeads?: number
+    prevConfirmed?: number
 }
 
 interface UserRecord {
@@ -64,37 +71,53 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
 
     // Date Filter
     let dateFilter: { createdAt?: { gte: Date } } = {};
+    let prevDateFilter: { createdAt?: { gte: Date; lt: Date } } | undefined;
+
     if (timeRange === '7d') {
-        const d = new Date(); d.setDate(d.getDate() - 7);
-        dateFilter = { createdAt: { gte: d } };
+        const now = new Date();
+        const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const prevStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+        dateFilter = { createdAt: { gte: start } };
+        prevDateFilter = { createdAt: { gte: prevStart, lt: start } };
     } else if (timeRange === '30d') {
-        const d = new Date(); d.setDate(d.getDate() - 30);
-        dateFilter = { createdAt: { gte: d } };
+        const now = new Date();
+        const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const prevStart = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+        dateFilter = { createdAt: { gte: start } };
+        prevDateFilter = { createdAt: { gte: prevStart, lt: start } };
     }
 
-    const totalAmbassadors = await prisma.user.count({ where: dateFilter })
-
-    const totalLeads = await prisma.referralLead.count({ where: dateFilter })
-
-    const totalConfirmed = await prisma.referralLead.count({
-        where: { leadStatus: 'Confirmed', ...dateFilter }
-    })
+    const [
+        totalAmbassadors,
+        totalLeads,
+        totalConfirmed,
+        prevAmbassadors,
+        prevLeads,
+        prevConfirmed
+    ] = await Promise.all([
+        prisma.user.count({ where: dateFilter }),
+        prisma.referralLead.count({ where: dateFilter }),
+        prisma.referralLead.count({ where: { leadStatus: 'Confirmed', ...dateFilter } }),
+        prevDateFilter ? prisma.user.count({ where: prevDateFilter }) : Promise.resolve(undefined),
+        prevDateFilter ? prisma.referralLead.count({ where: prevDateFilter }) : Promise.resolve(undefined),
+        prevDateFilter ? prisma.referralLead.count({ where: { leadStatus: 'Confirmed', ...prevDateFilter } }) : Promise.resolve(undefined),
+    ])
 
     const globalConversionRate = totalLeads > 0
         ? (totalConfirmed / totalLeads) * 100
         : 0
 
     // Get unique campuses
-    const campuses = await prisma.referralLead.findMany({
+    const campusesWithLeads = await prisma.referralLead.findMany({
         where: { campus: { not: null } },
         select: { campus: true },
         distinct: ['campus']
     })
+    const totalCampuses = campusesWithLeads.length
 
-    const totalCampuses = campuses.length
-
-    // Calculate system-wide benefits (simplified)
-    const users = await prisma.user.findMany({
+    // Calculate system-wide benefits
+    const activeUsers = await prisma.user.findMany({
+        where: dateFilter,
         select: {
             studentFee: true,
             yearFeeBenefitPercent: true,
@@ -102,15 +125,31 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
         }
     })
 
-    const systemWideBenefits = users.reduce((acc, user) => {
-        return acc + (user.studentFee * (user.yearFeeBenefitPercent / 100) * user.confirmedReferralCount)
+    const systemWideBenefits = activeUsers.reduce((acc, u) => {
+        return acc + (u.studentFee * (u.yearFeeBenefitPercent / 100) * u.confirmedReferralCount)
     }, 0)
+
+    // Previous benefits
+    let prevBenefits;
+    if (prevDateFilter) {
+        const prevUsers = await prisma.user.findMany({
+            where: prevDateFilter,
+            select: {
+                studentFee: true,
+                yearFeeBenefitPercent: true,
+                confirmedReferralCount: true
+            }
+        })
+        prevBenefits = prevUsers.reduce((acc, u) => {
+            return acc + (u.studentFee * (u.yearFeeBenefitPercent / 100) * u.confirmedReferralCount)
+        }, 0)
+    }
 
     // User Role Distribution
     const userRoles = await prisma.user.groupBy({
         by: ['role'],
         _count: { role: true },
-        where: dateFilter // Apply date filter if needed, or remove if roles should be all-time
+        where: dateFilter
     })
 
     const userRoleDistribution = userRoles.map(u => ({
@@ -119,8 +158,6 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
     }))
 
     const totalStudents = await prisma.student.count()
-
-    // Keep existing counts for backward compatibility if needed, or derive them
     const staffCount = userRoles.find(u => u.role === 'Staff')?._count.role || 0
     const parentCount = userRoles.find(u => u.role === 'Parent')?._count.role || 0
 
@@ -134,7 +171,11 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
         totalStudents,
         staffCount,
         parentCount,
-        userRoleDistribution
+        userRoleDistribution,
+        prevAmbassadors,
+        prevLeads,
+        prevConfirmed,
+        prevBenefits
     }
 }
 
@@ -216,16 +257,24 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
 
     // Date filtering
     let dateFilter: { createdAt?: { gte: Date } } = {};
+    let prevDateFilter: { createdAt?: { gte: Date; lt: Date } } | undefined;
+
     if (timeRange === '7d') {
-        const d = new Date(); d.setDate(d.getDate() - 7);
-        dateFilter = { createdAt: { gte: d } };
+        const now = new Date();
+        const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const prevStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+        dateFilter = { createdAt: { gte: start } };
+        prevDateFilter = { createdAt: { gte: prevStart, lt: start } };
     } else if (timeRange === '30d') {
-        const d = new Date(); d.setDate(d.getDate() - 30);
-        dateFilter = { createdAt: { gte: d } };
+        const now = new Date();
+        const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const prevStart = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+        dateFilter = { createdAt: { gte: start } };
+        prevDateFilter = { createdAt: { gte: prevStart, lt: start } };
     }
 
     // Optimized Aggregation: Fetch all stats in parallel grouping queries
-    const [totalLeadsData, confirmedData, pendingData, ambassadorData] = await Promise.all([
+    const [totalLeadsData, confirmedData, pendingData, ambassadorData, prevLeadsData, prevConfirmedData] = await Promise.all([
         // 1. Total Leads per Campus
         prisma.referralLead.groupBy({
             by: ['campus'],
@@ -245,12 +294,23 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
             _count: { _all: true }
         }),
         // 4. Unique Ambassadors per Campus
-        // Prisma doesn't support 'distinct count' well in groupBy, so we use findMany distinct
         prisma.referralLead.findMany({
             where: { campus: { not: null } },
             select: { campus: true, userId: true },
             distinct: ['campus', 'userId']
-        })
+        }),
+        // 5. Previous Leads
+        prevDateFilter ? prisma.referralLead.groupBy({
+            by: ['campus'],
+            where: { campus: { not: null }, ...prevDateFilter },
+            _count: { _all: true }
+        }) : Promise.resolve([]),
+        // 6. Previous Confirmed
+        prevDateFilter ? prisma.referralLead.groupBy({
+            by: ['campus'],
+            where: { campus: { not: null }, leadStatus: 'Confirmed', ...prevDateFilter },
+            _count: { _all: true }
+        }) : Promise.resolve([]),
     ]);
 
     // Map aggregations to CampusComparison objects
@@ -265,7 +325,9 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
                 confirmed: 0,
                 pending: 0,
                 conversionRate: 0,
-                ambassadors: 0
+                ambassadors: 0,
+                prevLeads: 0,
+                prevConfirmed: 0
             });
         }
         return campusMap.get(campus)!;
@@ -282,6 +344,14 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
 
     pendingData.forEach(item => {
         if (item.campus) getEntry(item.campus).pending = item._count._all;
+    });
+
+    prevLeadsData.forEach(item => {
+        if (item.campus) getEntry(item.campus).prevLeads = item._count._all;
+    });
+
+    prevConfirmedData.forEach(item => {
+        if (item.campus) getEntry(item.campus).prevConfirmed = item._count._all;
     });
 
     // Count unique ambassadors manually from the distinct list

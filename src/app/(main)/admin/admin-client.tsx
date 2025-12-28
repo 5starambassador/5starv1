@@ -47,7 +47,7 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
 
     // Sync state with URL
     useEffect(() => {
-        const view = searchParams.get('view') || 'analytics'
+        const view = searchParams.get('view') || 'home'
         setSelectedView(view)
     }, [searchParams])
 
@@ -80,10 +80,10 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                     </div>
                     <div>
                         <h1 style={{ fontSize: 'clamp(20px, 6vw, 28px)', fontWeight: '800', color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>
-                            {selectedView === 'campuses' ? 'Campus Management' : selectedView === 'users' ? 'User Directory' : selectedView === 'students' ? 'Student Management' : 'Admin Dashboard'}
+                            {selectedView === 'home' ? 'Dashboard' : selectedView === 'campuses' ? 'Campus Management' : selectedView === 'users' ? 'User Directory' : selectedView === 'students' ? 'Student Management' : 'Analytics Overview'}
                         </h1>
                         <p style={{ fontSize: '16px', color: '#6B7280', marginTop: '6px', fontWeight: '500' }}>
-                            {selectedView === 'campuses' ? 'View and manage campus details' : selectedView === 'users' ? 'View all system users' : selectedView === 'students' ? 'View registered students' : 'Operational insights and lead conversion'}
+                            {selectedView === 'home' ? 'Quick overview and actions' : selectedView === 'campuses' ? 'View and manage campus details' : selectedView === 'users' ? 'View all system users' : selectedView === 'students' ? 'View registered students' : 'Operational insights and lead conversion'}
                         </p>
                     </div>
                 </div>
@@ -122,6 +122,114 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
             </div>
 
             {/* CONTENT VIEWS */}
+
+            {/* HOME VIEW - Action Focused */}
+            {selectedView === 'home' && (
+                <div className="space-y-6">
+                    {/* Quick Stats Row */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-5 text-white">
+                            <p className="text-red-100 text-xs font-medium">Total Leads</p>
+                            <p className="text-3xl font-extrabold mt-1">{analytics?.totalLeads || 0}</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-5 text-white">
+                            <p className="text-green-100 text-xs font-medium">Confirmed</p>
+                            <p className="text-3xl font-extrabold mt-1">{analytics?.confirmedLeads || 0}</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-5 text-white">
+                            <p className="text-amber-100 text-xs font-medium">Pending</p>
+                            <p className="text-3xl font-extrabold mt-1">{analytics?.pendingLeads || 0}</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-5 text-white">
+                            <p className="text-purple-100 text-xs font-medium">Conversion</p>
+                            <p className="text-3xl font-extrabold mt-1">{analytics?.conversionRate || 0}%</p>
+                        </div>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                        <h3 className="font-bold text-gray-900 mb-4">Quick Actions</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <button 
+                                onClick={() => router.push('/admin?view=campuses')}
+                                className="flex flex-col items-center gap-2 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
+                            >
+                                <Building2 size={24} className="text-red-600" />
+                                <span className="text-xs font-bold text-gray-700">Campuses</span>
+                            </button>
+                            <button 
+                                onClick={() => router.push('/admin?view=users')}
+                                className="flex flex-col items-center gap-2 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
+                            >
+                                <Users size={24} className="text-blue-600" />
+                                <span className="text-xs font-bold text-gray-700">Users</span>
+                            </button>
+                            <button 
+                                onClick={() => router.push('/admin?view=students')}
+                                className="flex flex-col items-center gap-2 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
+                            >
+                                <BookOpen size={24} className="text-green-600" />
+                                <span className="text-xs font-bold text-gray-700">Students</span>
+                            </button>
+                            <button 
+                                onClick={() => router.push('/admin?view=analytics')}
+                                className="flex flex-col items-center gap-2 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
+                            >
+                                <BarChart3 size={24} className="text-purple-600" />
+                                <span className="text-xs font-bold text-gray-700">Full Analytics</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Top Performers & Role Distribution */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                            <h3 className="font-bold text-gray-900 mb-4">Top Performers</h3>
+                            <div className="space-y-3">
+                                {(analytics?.topPerformers || []).slice(0, 5).map((performer: any, idx: number) => (
+                                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                                        <div className="flex items-center gap-3">
+                                            <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full text-xs font-bold flex items-center justify-center">{idx + 1}</span>
+                                            <div>
+                                                <span className="text-sm font-medium text-gray-800">{performer.name}</span>
+                                                <p className="text-xs text-gray-500">{performer.role}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-sm font-bold text-green-600">{performer.count} leads</p>
+                                        </div>
+                                    </div>
+                                ))}
+                                {(!analytics?.topPerformers || analytics.topPerformers.length === 0) && (
+                                    <p className="text-center text-gray-400 text-sm py-4">No data available</p>
+                                )}
+                            </div>
+                        </div>
+                        
+                        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                            <h3 className="font-bold text-gray-900 mb-4">Role Distribution</h3>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between p-3 bg-red-50 rounded-xl">
+                                    <span className="text-sm font-medium text-gray-700">Parents</span>
+                                    <span className="text-lg font-bold text-red-600">{analytics?.roleBreakdown?.parent?.count || 0}</span>
+                                </div>
+                                <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl">
+                                    <span className="text-sm font-medium text-gray-700">Staff</span>
+                                    <span className="text-lg font-bold text-green-600">{analytics?.roleBreakdown?.staff?.count || 0}</span>
+                                </div>
+                                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
+                                    <span className="text-sm font-medium text-gray-700">Total Ambassadors</span>
+                                    <span className="text-lg font-bold text-blue-600">{analytics?.totalAmbassadors || 0}</span>
+                                </div>
+                                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-xl">
+                                    <span className="text-sm font-medium text-gray-700">Est. Value</span>
+                                    <span className="text-lg font-bold text-purple-600">₹{(analytics?.totalEstimatedValue || 0).toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* CAMPUSES VIEW - Rich Performance Analytics */}
             {

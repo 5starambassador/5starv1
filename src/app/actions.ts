@@ -6,6 +6,16 @@ import { redirect } from 'next/navigation'
 import bcrypt from 'bcryptjs'
 
 import { smsService } from '@/lib/sms-service'
+import { getCurrentUser } from '@/lib/auth-service'
+
+export async function checkSession() {
+    const user = await getCurrentUser()
+    if (user) {
+        const redirectPath = await getLoginRedirect(user.mobileNumber)
+        return { authenticated: true, redirect: redirectPath }
+    }
+    return { authenticated: false }
+}
 
 export async function sendOtp(mobile: string) {
     try {

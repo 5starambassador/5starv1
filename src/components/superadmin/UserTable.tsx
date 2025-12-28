@@ -1,4 +1,4 @@
-import { UserPlus, Download, MoreHorizontal, CheckCircle, XCircle } from 'lucide-react'
+import { UserPlus, Download, MoreHorizontal, CheckCircle, XCircle, Calendar, CreditCard, Smartphone, Hash, Building, Trash2 } from 'lucide-react'
 import { User } from '@/types'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
@@ -27,9 +27,14 @@ export function UserTable({
             sortable: true,
             filterable: true,
             cell: (user: User) => (
-                <div>
-                    <p className="font-bold text-gray-900">{user.fullName ?? 'N/A'}</p>
-                    <p className="text-xs text-gray-500">{user.mobileNumber ?? 'No Mobile'}</p>
+                <div className="flex flex-col">
+                    <p className="font-bold text-gray-900 group-hover:text-red-700 transition-colors uppercase tracking-tight text-sm">
+                        {user.fullName ?? 'N/A'}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                        <Smartphone size={10} className="text-gray-400" />
+                        <p className="text-[11px] font-medium text-gray-500">{user.mobileNumber ?? 'No Mobile'}</p>
+                    </div>
                 </div>
             )
         },
@@ -39,7 +44,7 @@ export function UserTable({
             sortable: true,
             filterable: true,
             cell: (user: User) => (
-                <span className="font-mono text-xs font-bold bg-red-50 text-red-700 px-2 py-1 rounded-md border border-red-100">
+                <span className="font-black text-[10px] bg-red-50 text-red-700 px-2.5 py-1 rounded-lg border border-red-100 uppercase tracking-widest shadow-sm">
                     {user.referralCode || 'N/A'}
                 </span>
             )
@@ -50,7 +55,7 @@ export function UserTable({
             sortable: true,
             filterable: true,
             cell: (user: User) => (
-                <Badge variant={user.role === 'Staff' ? 'info' : 'outline'}>
+                <Badge variant={user.role === 'Staff' ? 'info' : 'outline'} className="font-black text-[10px] tracking-wider uppercase">
                     {user.role}
                 </Badge>
             )
@@ -60,7 +65,12 @@ export function UserTable({
             accessorKey: 'assignedCampus',
             sortable: true,
             filterable: true,
-            cell: (user: User) => user.assignedCampus || 'Global'
+            cell: (user: User) => (
+                <div className="flex items-center gap-2">
+                    <Building size={14} className="text-gray-400" />
+                    <span className="text-xs font-bold text-gray-600">{user.assignedCampus || 'Global'}</span>
+                </div>
+            )
         },
         {
             header: 'Referrals',
@@ -68,7 +78,10 @@ export function UserTable({
             sortable: true,
             filterable: true,
             cell: (user: User) => (
-                <span className="font-bold text-gray-900">{user.confirmedReferralCount}</span>
+                <div className="flex flex-col items-center">
+                    <span className="font-black text-gray-900 text-sm">{user.confirmedReferralCount}</span>
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Confirmed</span>
+                </div>
             )
         },
         {
@@ -77,7 +90,7 @@ export function UserTable({
             sortable: true,
             filterable: true,
             cell: (user: User) => (
-                <Badge variant={user.status === 'Active' ? 'success' : 'error'}>
+                <Badge variant={user.status === 'Active' ? 'success' : 'error'} className="font-black text-[10px] tracking-wider uppercase">
                     {user.status}
                 </Badge>
             )
@@ -86,54 +99,107 @@ export function UserTable({
             header: 'Actions',
             accessorKey: (user: User) => user.userId,
             cell: (user: User) => (
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                     <button
                         onClick={() => onToggleStatus(user.userId, user.status)}
-                        className={`p-1.5 rounded-lg transition-colors ${user.status === 'Active' ? 'text-gray-400 hover:text-gray-600' : 'text-green-500 hover:text-green-600'}`}
+                        className={`p-2 rounded-xl transition-all shadow-sm bg-white border border-gray-100 flex items-center justify-center hover:scale-110 active:scale-95 ${user.status === 'Active' ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-50' : 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50'}`}
                     >
-                        {user.status === 'Active' ? <XCircle size={18} /> : <CheckCircle size={18} />}
+                        {user.status === 'Active' ? <XCircle size={16} strokeWidth={2.5} /> : <CheckCircle size={16} strokeWidth={2.5} />}
                     </button>
                     <button
                         onClick={() => onDelete(user.userId, user.fullName)}
-                        className="p-1.5 rounded-lg text-red-500 hover:text-red-600 transition-colors"
+                        className="p-2 rounded-xl text-red-500 hover:text-white hover:bg-red-500 transition-all border border-red-50 shadow-sm bg-white hover:scale-110 active:scale-95 group"
                     >
-                        <MoreHorizontal size={18} />
+                        <Trash2 size={16} strokeWidth={2.5} className="group-hover:animate-pulse" />
                     </button>
                 </div>
             )
         }
     ]
 
+    const renderExpandedRow = (user: User) => (
+        <div className="p-8 bg-gradient-to-br from-gray-50/50 to-white border-x border-b border-gray-100">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div className="space-y-1.5">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <Calendar size={12} className="text-red-500" />
+                        Joined Date
+                    </p>
+                    <p className="text-sm font-bold text-gray-900">
+                        {new Date(user.createdAt).toLocaleDateString('en-US', {
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric'
+                        })}
+                    </p>
+                </div>
+                <div className="space-y-1.5">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <CreditCard size={12} className="text-emerald-500" />
+                        Current Benefit
+                    </p>
+                    <p className="text-sm font-black text-emerald-600">
+                        {user.yearFeeBenefitPercent}% Discount
+                    </p>
+                </div>
+                <div className="space-y-1.5">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <Building size={12} className="text-blue-500" />
+                        Loyalty Benefit
+                    </p>
+                    <p className="text-sm font-black text-blue-600">
+                        {user.longTermBenefitPercent}% Extra
+                    </p>
+                </div>
+                <div className="space-y-1.5">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <Hash size={12} className="text-purple-500" />
+                        Ambassador ID
+                    </p>
+                    <p className="text-sm font-bold text-gray-900">
+                        #{user.userId.toString().padStart(6, '0')}
+                    </p>
+                </div>
+            </div>
+            {/* Quick Actions or more details could go here */}
+            <div className="mt-8 pt-6 border-t border-gray-100 flex gap-4">
+                <button className="text-[10px] font-black text-red-600 hover:bg-red-50 px-4 py-2 rounded-xl border border-red-100 transition-all uppercase tracking-widest">
+                    View Referral History
+                </button>
+                <button className="text-[10px] font-black text-gray-500 hover:bg-gray-100 px-4 py-2 rounded-xl border border-gray-200 transition-all uppercase tracking-widest">
+                    Edit Details
+                </button>
+            </div>
+        </div>
+    )
+
     return (
         <div className="space-y-6 animate-fade-in">
-            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl shadow-gray-200/50 flex items-center justify-between flex-wrap gap-6 premium-border">
-                <div>
-                    <h3 className="text-xl font-black text-gray-900 tracking-tight">Ambassador Directory</h3>
-                    <p className="text-sm font-medium text-gray-400 mt-1">Manage all registered staff and parent ambassadors system-wide.</p>
+            <div className="bg-white p-10 rounded-[32px] border border-gray-100 shadow-2xl shadow-gray-200/50 flex items-center justify-between flex-wrap gap-8 premium-border relative overflow-hidden">
+                <div className="absolute right-0 top-0 w-32 h-32 bg-red-50/50 rounded-bl-full -z-10 blur-2xl"></div>
+                <div className="flex items-center gap-6">
+                    <div className="p-4 bg-red-600 rounded-3xl shadow-lg shadow-red-200">
+                        <UserPlus size={24} className="text-white" />
+                    </div>
+                    <div>
+                        <h3 className="text-2xl font-black text-gray-900 tracking-tight">Ambassador Network</h3>
+                        <p className="text-sm font-medium text-gray-400 mt-1">Manage parent and staff ambassadors globally.</p>
+                    </div>
                 </div>
                 <div className="flex gap-4">
                     <button
                         onClick={onBulkAdd}
-                        style={{
-                            background: '#FFFFFF',
-                            border: '1px solid #E5E7EB',
-                            color: '#374151',
-                            cursor: 'pointer'
-                        }}
-                        className="px-6 py-3 rounded-2xl font-bold text-sm hover:bg-gray-50 hover:shadow-lg transition-all flex items-center gap-2"
+                        className="px-8 py-4 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-xs hover:bg-gray-50 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-3 uppercase tracking-widest"
+                        suppressHydrationWarning
                     >
                         <Download size={18} /> Bulk Upload
                     </button>
                     <button
                         onClick={onAddUser}
-                        style={{
-                            background: 'linear-gradient(to right, #CC0000, #EF4444)',
-                            border: 'none',
-                            cursor: 'pointer'
-                        }}
-                        className="px-8 py-3 rounded-2xl text-white font-bold text-sm shadow-xl shadow-red-600/20 hover:shadow-red-600/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
+                        className="px-10 py-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-2xl font-black text-xs shadow-2xl shadow-gray-900/20 hover:shadow-gray-900/40 hover:-translate-y-1 active:translate-y-0 transition-all flex items-center gap-3 uppercase tracking-widest border border-gray-700"
+                        suppressHydrationWarning
                     >
-                        <UserPlus size={20} /> Add Ambassador
+                        <UserPlus size={18} /> New Ambassador
                     </button>
                 </div>
             </div>
@@ -142,8 +208,9 @@ export function UserTable({
                 data={users}
                 columns={columns as any}
                 searchKey="fullName"
-                searchPlaceholder="Search ambassadors by name..."
+                searchPlaceholder="Search ambassadors by name, code or mobile..."
                 pageSize={10}
+                renderExpandedRow={renderExpandedRow}
             />
         </div>
     )

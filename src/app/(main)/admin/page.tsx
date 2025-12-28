@@ -26,7 +26,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus'))) redirect('/dashboard')
 
     const params = await searchParams
-    const view = params?.view || 'analytics'
+    const view = params?.view || 'home'
 
     // Parallel data fetching
     const [referrals, analytics, campusesResult] = await Promise.all([
@@ -70,8 +70,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     return (
         <ErrorBoundary>
             <AdminClient
-                referrals={serializeData(referrals.success ? referrals.referrals : [])}
-                analytics={analytics.success ? analytics : null}
+                referrals={serializeData(referrals.success ? referrals.referrals : []) || []}
+                analytics={analytics.success ? analytics : {} as any}
                 confirmReferral={confirmReferral}
                 initialView={view}
                 campuses={campusesResult.success ? campusesResult.campuses : []}
@@ -79,7 +79,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                 students={serializeData(students) || []}
                 admins={serializeData(admins) || []}
                 campusPerformance={serializeData(campusPerformance) || []}
-                permissions={permissions}
+                permissions={permissions || undefined}
             />
         </ErrorBoundary>
     )

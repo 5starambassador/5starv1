@@ -323,56 +323,57 @@ export default function ProfileClient({ user }: ProfileClientProps) {
             </div>
 
             {/* Benefits Landscape */}
-            {!user.role.includes('Admin') && user.yearFeeBenefitPercent !== undefined && (
-                <div style={{ marginTop: '48px' }}>
-                    <div className="flex items-center gap-3 mb-6">
-                        <div style={{ width: '4px', height: '24px', background: 'var(--primary-red)', borderRadius: '2px' }} />
-                        <h2 style={{ fontSize: '22px', fontWeight: '800' }}>Exclusive Membership Benefits</h2>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="card" style={{
-                            padding: '30px',
-                            borderRadius: '24px',
-                            background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF9F9 100%)',
-                            border: '1px solid rgba(204,0,0,0.1)'
-                        }}>
-                            <div className="flex justify-between items-start mb-4">
-                                <div style={{ padding: '12px', background: 'rgba(204,0,0,0.05)', borderRadius: '16px' }}>
-                                    <Star className="text-primary-red" size={24} />
-                                </div>
-                                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '800', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid var(--border-color)', textTransform: 'uppercase' }}>Active Reward</span>
-                            </div>
-                            <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Annual Fee Benefit</h3>
-                            <div className="flex items-baseline gap-2 mb-2">
-                                <span className="text-4xl font-extrabold text-primary-red">{user.yearFeeBenefitPercent}%</span>
-                                <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>Credit</span>
-                            </div>
+            {
+                !user.role.includes('Admin') && user.yearFeeBenefitPercent !== undefined && (
+                    <div style={{ marginTop: '48px' }}>
+                        <div className="flex items-center gap-3 mb-6">
+                            <div style={{ width: '4px', height: '24px', background: 'var(--primary-red)', borderRadius: '2px' }} />
+                            <h2 style={{ fontSize: '22px', fontWeight: '800' }}>Exclusive Membership Benefits</h2>
                         </div>
 
-                        {user.longTermBenefitPercent !== undefined && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="card" style={{
                                 padding: '30px',
                                 borderRadius: '24px',
-                                background: 'linear-gradient(135deg, #FFFFFF 0%, #F9FFF9 100%)',
-                                border: '1px solid rgba(0,184,148,0.1)'
+                                background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF9F9 100%)',
+                                border: '1px solid rgba(204,0,0,0.1)'
                             }}>
                                 <div className="flex justify-between items-start mb-4">
-                                    <div style={{ padding: '12px', background: 'rgba(0,184,148,0.05)', borderRadius: '16px' }}>
-                                        <Award style={{ color: '#00B894' }} size={24} />
+                                    <div style={{ padding: '12px', background: 'rgba(204,0,0,0.05)', borderRadius: '16px' }}>
+                                        <Star className="text-primary-red" size={24} />
                                     </div>
-                                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '800', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid var(--border-color)', textTransform: 'uppercase' }}>Lifetime Status</span>
+                                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '800', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid var(--border-color)', textTransform: 'uppercase' }}>Active Reward</span>
                                 </div>
-                                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Legacy Multiplier</h3>
+                                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Annual Fee Benefit</h3>
                                 <div className="flex items-baseline gap-2 mb-2">
-                                    <span className="text-4xl font-extrabold" style={{ color: '#00B894' }}>{user.longTermBenefitPercent}%</span>
-                                    <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>Permanent</span>
+                                    <span className="text-4xl font-extrabold text-primary-red">{user.yearFeeBenefitPercent}%</span>
+                                    <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>Credit</span>
                                 </div>
                             </div>
-                        )}
+
+                            {user.longTermBenefitPercent !== undefined && (
+                                <div className="card" style={{
+                                    padding: '30px',
+                                    borderRadius: '24px',
+                                    background: 'linear-gradient(135deg, #FFFFFF 0%, #F9FFF9 100%)',
+                                    border: '1px solid rgba(0,184,148,0.1)'
+                                }}>
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div style={{ padding: '12px', background: 'rgba(0,184,148,0.05)', borderRadius: '16px' }}>
+                                            <Award style={{ color: '#00B894' }} size={24} />
+                                        </div>
+                                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '800', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid var(--border-color)', textTransform: 'uppercase' }}>Lifetime Status</span>
+                                    </div>
+                                    <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Legacy Multiplier</h3>
+                                    <div className="flex items-baseline gap-2 mb-2">
+                                        <span className="text-4xl font-extrabold" style={{ color: '#00B894' }}>{user.longTermBenefitPercent}%</span>
+                                        <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>Permanent</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
 
             {/* Integrity / System Data */}
             <div style={{ marginTop: '48px' }}>
@@ -413,3 +414,4 @@ export default function ProfileClient({ user }: ProfileClientProps) {
         </div>
     )
 }
+

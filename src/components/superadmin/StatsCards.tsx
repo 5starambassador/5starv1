@@ -1,4 +1,4 @@
-import { Users, UserPlus, CheckCircle, TrendingUp, Wallet, BookOpen, Building2 } from 'lucide-react'
+import { Users, UserPlus, CheckCircle, TrendingUp, Wallet, BookOpen, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 
 interface StatsCardsProps {
     analytics: {
@@ -10,17 +10,67 @@ interface StatsCardsProps {
         totalStudents: number
         staffCount: number
         parentCount: number
+        prevAmbassadors?: number
+        prevLeads?: number
+        prevConfirmed?: number
+        prevBenefits?: number
     }
 }
 
 export function StatsCards({ analytics }: StatsCardsProps) {
+    const calculateChange = (current: number, previous?: number) => {
+        if (previous === undefined || previous === 0) return null
+        const change = ((current - previous) / previous) * 100
+        return change
+    }
+
     const stats = [
-        { label: 'Total Ambassadors', value: analytics.totalAmbassadors, sub: `${analytics.staffCount} Staff | ${analytics.parentCount} Parent`, icon: Users, grad: 'bg-grad-crimson' },
-        { label: 'Total Leads', value: analytics.totalLeads, sub: 'Generated so far', icon: UserPlus, grad: 'bg-grad-sapphire' },
-        { label: 'Confirmed Admissions', value: analytics.totalConfirmed, sub: `${analytics.globalConversionRate}% Conversion`, icon: CheckCircle, grad: 'bg-grad-emerald' },
-        { label: 'System Wide Benefits', value: `₹${(analytics.systemWideBenefits / 100000).toFixed(1)}L`, sub: 'Estimated Savings', icon: Wallet, grad: 'bg-grad-amber' },
-        { label: 'Active Students', value: analytics.totalStudents, sub: 'In Achievement Portals', icon: BookOpen, grad: 'bg-grad-violet' },
-        { label: 'Conversion Rate', value: `${analytics.globalConversionRate}%`, sub: 'Leads to Confirmed', icon: TrendingUp, grad: 'bg-grad-rose' },
+        {
+            label: 'Total Ambassadors',
+            value: analytics.totalAmbassadors,
+            sub: `${analytics.staffCount} Staff | ${analytics.parentCount} Parent`,
+            icon: Users,
+            grad: 'bg-grad-crimson',
+            change: calculateChange(analytics.totalAmbassadors, analytics.prevAmbassadors)
+        },
+        {
+            label: 'Total Leads',
+            value: analytics.totalLeads,
+            sub: 'Generated so far',
+            icon: UserPlus,
+            grad: 'bg-grad-sapphire',
+            change: calculateChange(analytics.totalLeads, analytics.prevLeads)
+        },
+        {
+            label: 'Confirmed Admissions',
+            value: analytics.totalConfirmed,
+            sub: `${analytics.globalConversionRate}% Conversion`,
+            icon: CheckCircle,
+            grad: 'bg-grad-emerald',
+            change: calculateChange(analytics.totalConfirmed, analytics.prevConfirmed)
+        },
+        {
+            label: 'System Wide Benefits',
+            value: `₹${(analytics.systemWideBenefits / 100000).toFixed(1)}L`,
+            sub: 'Estimated Savings',
+            icon: Wallet,
+            grad: 'bg-grad-amber',
+            change: calculateChange(analytics.systemWideBenefits, analytics.prevBenefits)
+        },
+        {
+            label: 'Active Students',
+            value: analytics.totalStudents,
+            sub: 'In Achievement Portals',
+            icon: BookOpen,
+            grad: 'bg-grad-violet'
+        },
+        {
+            label: 'Conversion Rate',
+            value: `${analytics.globalConversionRate}%`,
+            sub: 'Leads to Confirmed',
+            icon: TrendingUp,
+            grad: 'bg-grad-rose'
+        },
     ]
 
     return (
@@ -60,6 +110,12 @@ export function StatsCards({ analytics }: StatsCardsProps) {
                             <div style={{ padding: '12px', background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)', borderRadius: '14px' }}>
                                 <stat.icon size={22} color="white" />
                             </div>
+                            {stat.change !== undefined && stat.change !== null && (
+                                <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black backdrop-blur-md shadow-sm border border-white/20 ${stat.change >= 0 ? 'bg-emerald-500/30 text-emerald-100' : 'bg-rose-500/30 text-rose-100'}`}>
+                                    {stat.change >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                                    {Math.abs(stat.change).toFixed(1)}%
+                                </div>
+                            )}
                         </div>
                         <div>
                             <p style={{ fontSize: '11px', fontWeight: '800', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{stat.label}</p>

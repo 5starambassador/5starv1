@@ -1,10 +1,14 @@
 import { getCurrentUser } from '@/lib/auth-service'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, DollarSign, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star } from 'lucide-react'
+import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, DollarSign, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3 } from 'lucide-react'
 import { MobileMenu } from '@/components/MobileMenu'
 import { NotificationDropdown } from '@/components/NotificationDropdown'
 import MobileSidebarWrapper from '@/components/MobileSidebarWrapper'
+import { BottomNav } from '@/components/BottomNav'
+import { InstallPrompt } from '@/components/InstallPrompt'
+import { MobileConfig } from '@/components/MobileConfig'
+import { OfflineAlert } from '@/components/OfflineAlert'
 import { getMyPermissions } from '@/lib/permission-service'
 import { RolePermissions } from '@/lib/permissions'
 import { deleteSession } from '@/lib/session'
@@ -28,6 +32,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     const isSuperAdmin = user.role === 'Super Admin'
     const isCampusHead = user.role.includes('Campus')
     const isRegularAdmin = user.role.includes('Admin') && !isSuperAdmin
+    const isAmbassadorRole = user.role === 'Staff' || user.role === 'Parent'
 
     const navItems = []
     const permissions = await getMyPermissions()
@@ -38,9 +43,9 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         navItems.push({ label: 'Home', href: dashboardHref, icon: <Home /> })
 
         // Admin Modules
-        const baseAdminPath = isSuperAdmin ? '/superadmin' : '/admin'
+        const baseAdminPath = isSuperAdmin ? '/superadmin' : (isCampusHead ? '/campus' : '/admin')
 
-        if (permissions.analytics.access) navItems.push({ label: 'Analytics', href: baseAdminPath, icon: <Shield /> })
+        if (permissions.analytics.access && !isAmbassadorRole) navItems.push({ label: 'Analytics', href: `${baseAdminPath}?view=analytics`, icon: <Shield /> })
         if (permissions.campusPerformance.access) navItems.push({ label: 'Campus Performance', href: `${baseAdminPath}?view=campuses`, icon: <Building2 /> })
 
         // These modules might not be ready in AdminClient yet, but if permissions allow, we link them.
@@ -64,11 +69,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         }
 
         // Ambassador Portal Links (Only for Staff & Parents)
-        const isAmbassadorRole = user.role === 'Staff' || user.role === 'Parent'
-
         if (isAmbassadorRole) {
             if (permissions.referralSubmission.access) navItems.push({ label: 'Refer Now', href: '/refer', icon: <UserPlus /> })
             if (permissions.referralTracking.access) navItems.push({ label: 'My Referrals', href: '/referrals', icon: <List /> })
+            if (permissions.analytics.access) navItems.push({ label: 'Analytics', href: '/analytics', icon: <BarChart3 /> })
             if (permissions.rulesAccess.access) navItems.push({ label: 'Rules', href: '/rules', icon: <BookOpen /> })
         }
 
@@ -79,7 +83,11 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         // Admin-specific shared modules (Hide from Ambassadors)
         if (!isAmbassadorRole) {
             navItems.push({ label: 'Support Tickets', href: '/tickets', icon: <MessageSquare /> })
-            if (permissions.settlements.access) navItems.push({ label: 'Finance', href: '/finance', icon: <DollarSign /> })
+            if (permissions.settlements.access) {
+                // Campus Head goes to campus-specific finance view
+                const financeHref = isCampusHead ? '/campus?view=finance' : '/finance'
+                navItems.push({ label: 'Finance', href: financeHref, icon: <DollarSign /> })
+            }
             if (permissions.auditLog.access) navItems.push({ label: 'Audit Trail', href: '/superadmin?view=audit', icon: <GanttChartSquare /> })
             if (permissions.settings.access) navItems.push({ label: 'Settings', href: '/superadmin?view=settings', icon: <Settings /> })
         }
@@ -169,7 +177,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             </div>
 
             <main
-                className="flex-1 p-4 pt-20 xl:p-8 xl:pt-8 pb-4 xl:pb-8 w-full max-w-[1600px] m-auto relative z-10"
+                className="flex-1 p-4 pt-20 xl:p-8 xl:pt-8 pb-20 xl:pb-8 w-full max-w-[1600px] m-auto relative z-10"
             >
                 {/* Desktop Notification Header */}
                 <header className="hidden xl:flex justify-end mb-4 absolute top-4 right-8 z-20">
@@ -179,6 +187,13 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                 </header>
                 {children}
             </main>
+
+            {/* Mobile Bottom Navigation */}
+            <BottomNav />
+            <InstallPrompt />
+            <MobileConfig />
+            <OfflineAlert />
         </div>
     )
 }
+

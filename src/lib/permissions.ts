@@ -154,7 +154,7 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         rulesAccess: { access: false, scope: 'none' }
     },
     'Staff': {
-        analytics: { access: false, scope: 'none' },
+        analytics: { access: true, scope: 'self' },
         userManagement: { access: false, scope: 'none' },
         studentManagement: { access: false, scope: 'none' },
         adminManagement: { access: false, scope: 'none' },
@@ -171,7 +171,7 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         rulesAccess: { access: true, scope: 'all' }
     },
     'Parent': {
-        analytics: { access: false, scope: 'none' },
+        analytics: { access: true, scope: 'self' },
         userManagement: { access: false, scope: 'none' },
         studentManagement: { access: false, scope: 'none' },
         adminManagement: { access: false, scope: 'none' },

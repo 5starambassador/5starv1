@@ -38,8 +38,8 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
         redirect('/dashboard')
     }
 
-    // Get view from URL params (default to 'analytics')
-    const initialView = params.view || 'analytics'
+    // Get view from URL params (default to 'home')
+    const initialView = params.view || 'home'
 
     // Fetch all data
     const analytics = await getSystemAnalytics()

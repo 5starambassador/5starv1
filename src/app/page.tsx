@@ -1,13 +1,24 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { sendOtp, verifyOtpOnly, loginWithPassword, registerUser, getLoginRedirect, getRegistrationCampuses } from './actions'
+import { sendOtp, verifyOtpOnly, loginWithPassword, registerUser, getLoginRedirect, getRegistrationCampuses, checkSession } from './actions'
 import { Star, ShieldCheck, User, CreditCard, GraduationCap, Lock, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
+import { NativeLogin } from '@/components/NativeLogin'
 
 export default function LoginPage() {
   const router = useRouter()
+
+  useEffect(() => {
+    async function verify() {
+      const res = await checkSession()
+      if (res.authenticated) {
+        router.push(res.redirect)
+      }
+    }
+    verify()
+  }, [router])
   // Steps: 1: Mobile, 1.5: Password (Existing), 2: OTP (New), 3: Register Details, 4: Payment
   const [step, setStep] = useState(1)
   const [mobile, setMobile] = useState('')
@@ -236,6 +247,7 @@ export default function LoginPage() {
 
                 <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div style={{ height: '1px', width: '100%', background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent)', marginBottom: '24px' }}></div>
+                  <NativeLogin onMobileFill={setMobile} />
                 </div>
               </div>
             )}

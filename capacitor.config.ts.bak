@@ -1,0 +1,23 @@
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'in.achariya.ambassador',
+  appName: '5-Star Ambassador',
+  webDir: 'public',
+  server: {
+    url: 'http://10.0.2.2:3001', // for Android Emulator loopback
+    cleartext: true
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 2000,
+      backgroundColor: "#DC2626", // Achariya Red
+      showSpinner: false,
+      androidScaleType: "CENTER_CROP",
+      splashFullScreen: true,
+      splashImmersive: true,
+    },
+  },
+};
+
+export default config;

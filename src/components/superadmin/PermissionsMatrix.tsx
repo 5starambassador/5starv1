@@ -139,10 +139,12 @@ export function PermissionsMatrix({
                                                             value={perm.scope}
                                                             onChange={(e) => handleScopeChange(role, module.key, e.target.value)}
                                                             style={{ padding: '2px 6px', fontSize: '10px', fontWeight: '800', borderRadius: '6px', border: '1px solid #D1D5DB', background: 'white', textTransform: 'uppercase' }}
+                                                            title="Global = All Campuses | Campus = Only Assigned Campus | Self = Own Data | View = Read-Only"
                                                         >
-                                                            <option value="all">Global</option>
-                                                            <option value="campus">Campus</option>
-                                                            <option value="view-only">View</option>
+                                                            <option value="all">🌐 All Campuses</option>
+                                                            <option value="campus">🏫 Own Campus</option>
+                                                            {(role === 'Staff' || role === 'Parent') && <option value="self">👤 Self Only</option>}
+                                                            <option value="view-only">👁️ View Only</option>
                                                         </select>
                                                     )}
                                                 </div>
@@ -190,11 +192,12 @@ export function PermissionsMatrix({
                                                             value={perm.scope}
                                                             onChange={(e) => handleScopeChange(role, module.key, e.target.value)}
                                                             style={{ padding: '2px 6px', fontSize: '10px', fontWeight: '800', borderRadius: '6px', border: '1px solid #D1D5DB', background: 'white', textTransform: 'uppercase' }}
+                                                            title="All Campuses = System-wide | Own Campus = Assigned Campus | Self Only = Own Data | View Only = Read-Only"
                                                         >
-                                                            <option value="all">Global</option>
-                                                            <option value="campus">Campus</option>
-                                                            <option value="self">Self Only</option>
-                                                            <option value="view-only">View</option>
+                                                            <option value="all">🌐 All Campuses</option>
+                                                            <option value="campus">🏫 Own Campus</option>
+                                                            <option value="self">👤 Self Only</option>
+                                                            <option value="view-only">👁️ View Only</option>
                                                         </select>
                                                     )}
                                                 </div>
