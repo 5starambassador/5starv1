@@ -44,9 +44,13 @@ export async function sendOtp(mobile: string) {
             }
         }
 
-        // OPTIMIZATION: If user exists and has password, skip OTP generation entirely
+        // OPTIMIZATION: If user exists and has password, return ERROR to prevent re-registration
         if (exists && hasPassword) {
-            return { success: true, exists, hasPassword }
+            return {
+                success: false,
+                exists: true,
+                error: 'This mobile number is already registered. Please login.'
+            }
         }
 
         // Generate Real OTP
