@@ -150,6 +150,8 @@ model SystemSettings {
   parentReferralText    String?  @default("Hello 👋 I’m part of Achariya’s 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: ${referralLink} – Achariya Ambassador")
   staffWelcomeMessage   String?  @default("Welcome to the Staff Ambassador Dashboard")
   parentWelcomeMessage  String?  @default("Welcome to the Parent Ambassador Dashboard")
+  alumniReferralText    String?  @default("Hello 👋 I'm a proud Alumni of Achariya. I recommend you to explore admission for your child and experience the 5-Star Education. Click here: ${referralLink}")
+  alumniWelcomeMessage  String?  @default("Welcome to the Alumni Ambassador Dashboard")
   
   updatedAt             DateTime @updatedAt
   updatedBy             String?  // Admin who last changed it

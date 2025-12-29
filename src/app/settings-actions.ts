@@ -49,6 +49,8 @@ export async function updateSystemSettings(data: {
     parentReferralText?: string
     staffWelcomeMessage?: string
     parentWelcomeMessage?: string
+    alumniReferralText?: string
+    alumniWelcomeMessage?: string
 }): Promise<{ success: boolean; error?: string }> {
     try {
         const user = await getCurrentUser()
@@ -78,6 +80,8 @@ export async function updateSystemSettings(data: {
                     parentReferralText: data.parentReferralText,
                     staffWelcomeMessage: data.staffWelcomeMessage,
                     parentWelcomeMessage: data.parentWelcomeMessage,
+                    alumniReferralText: data.alumniReferralText,
+                    alumniWelcomeMessage: data.alumniWelcomeMessage,
                     updatedBy: user.fullName || 'Unknown'
                 }
             })
