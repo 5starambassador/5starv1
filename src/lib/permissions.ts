@@ -3,7 +3,7 @@
  * Defines permissions for each admin role across dashboard modules
  */
 
-export type AdminRole = 'Super Admin' | 'CampusHead' | 'Campus Head' | 'Finance Admin' | 'FinanceAdmin' | 'Admission Admin' | 'Campus Admin' | 'Staff' | 'Parent'
+export type AdminRole = 'Super Admin' | 'CampusHead' | 'Campus Head' | 'Finance Admin' | 'FinanceAdmin' | 'Admission Admin' | 'Campus Admin' | 'Staff' | 'Parent' | 'Alumni'
 export type DataScope = 'all' | 'campus' | 'view-only' | 'none' | 'self'
 
 export interface ModulePermission {
@@ -171,6 +171,23 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         rulesAccess: { access: true, scope: 'all' }
     },
     'Parent': {
+        analytics: { access: true, scope: 'self' },
+        userManagement: { access: false, scope: 'none' },
+        studentManagement: { access: false, scope: 'none' },
+        adminManagement: { access: false, scope: 'none' },
+        campusPerformance: { access: false, scope: 'none' },
+        reports: { access: false, scope: 'none' },
+        settlements: { access: false, scope: 'none' },
+        marketingKit: { access: true, scope: 'all' },
+        auditLog: { access: false, scope: 'none' },
+        supportDesk: { access: true, scope: 'self' },
+        settings: { access: false, scope: 'none' },
+        referralSubmission: { access: true, scope: 'self' },
+        referralTracking: { access: true, scope: 'self' },
+        savingsCalculator: { access: true, scope: 'self' },
+        rulesAccess: { access: true, scope: 'all' }
+    },
+    'Alumni': {
         analytics: { access: true, scope: 'self' },
         userManagement: { access: false, scope: 'none' },
         studentManagement: { access: false, scope: 'none' },

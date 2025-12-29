@@ -8,7 +8,7 @@ interface PermissionsMatrixProps {
     onSave: () => void
 }
 
-const ROLES = ['Super Admin', 'Campus Head', 'Finance Admin', 'Admission Admin', 'Campus Admin', 'Staff', 'Parent']
+const ROLES = ['Super Admin', 'Campus Head', 'Finance Admin', 'Admission Admin', 'Campus Admin', 'Staff', 'Parent', 'Alumni']
 
 const MODULES = [
     { key: 'analytics', label: 'Analytics Overview', icon: BarChart3 },
@@ -143,7 +143,7 @@ export function PermissionsMatrix({
                                                         >
                                                             <option value="all">🌐 All Campuses</option>
                                                             <option value="campus">🏫 Own Campus</option>
-                                                            {(role === 'Staff' || role === 'Parent') && <option value="self">👤 Self Only</option>}
+                                                            {(role === 'Staff' || role === 'Parent' || role === 'Alumni') && <option value="self">👤 Self Only</option>}
                                                             <option value="view-only">👁️ View Only</option>
                                                         </select>
                                                     )}
