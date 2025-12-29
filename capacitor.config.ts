@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: '5-Star Ambassador',
   webDir: 'public',
   server: {
-    url: 'http://192.168.0.250:3001', // LAN IP for Physical Device
+    url: 'https://5starv1.vercel.app', // Production Vercel URL
     cleartext: true
   },
   plugins: {

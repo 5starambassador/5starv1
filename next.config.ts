@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',
-      allowedOrigins: ['localhost:3001', '10.0.2.2:3001', '192.168.0.250:3001'],
+      allowedOrigins: ['localhost:3001', '5starv1.vercel.app'],
     },
   },
   typescript: {
