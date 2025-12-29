@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: '5-Star Ambassador',
   webDir: 'public',
   server: {
-    url: 'http://10.0.2.2:3001', // Standard Emulator Loopback
+    url: 'http://192.168.0.250:3001', // LAN IP for Physical Device
     cleartext: true
   },
   plugins: {
