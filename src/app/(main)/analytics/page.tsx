@@ -35,14 +35,14 @@ export default async function AnalyticsPage() {
     const welcomeMessage = userData.role === 'Staff'
         ? (systemSettings?.staffWelcomeMessage || 'Staff Ambassador Dashboard')
         : userData.role === 'Alumni'
-            ? 'Alumni Ambassador Dashboard'
+            ? (systemSettings?.alumniWelcomeMessage || 'Alumni Ambassador Dashboard')
             : (systemSettings?.parentWelcomeMessage || 'Parent Ambassador Dashboard')
 
     let rawShareText = ''
     if (userData.role === 'Staff') {
         rawShareText = systemSettings?.staffReferralText || `Hello 👋 I’m part of Achariya’s 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: {referralLink} – Achariya Ambassador`
     } else if (userData.role === 'Alumni') {
-        rawShareText = `Hello 👋 I'm a proud Alumni of Achariya. I recommend you to explore admission for your child and experience the 5-Star Education. Click here: {referralLink}`
+        rawShareText = systemSettings?.alumniReferralText || `Hello 👋 I'm a proud Alumni of Achariya. I recommend you to explore admission for your child and experience the 5-Star Education. Click here: {referralLink}`
     } else {
         rawShareText = systemSettings?.parentReferralText || `Hello 👋 I’m part of Achariya’s 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: {referralLink} – Achariya Ambassador`
     }

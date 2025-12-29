@@ -28,7 +28,7 @@ export default async function DashboardPage() {
     if (userData.role === 'Staff') {
         rawShareText = settings?.staffReferralText || `Hello 👋 I'm part of Achariya's 5-Star Ambassador Program. I recommend you to explore admission for your child. Click here: {referralLink}`
     } else if (userData.role === 'Alumni') {
-        rawShareText = `Hello 👋 I'm a proud Alumni of Achariya. I recommend you to explore admission for your child and experience the 5-Star Education. Click here: {referralLink}`
+        rawShareText = settings?.alumniReferralText || `Hello 👋 I'm a proud Alumni of Achariya. I recommend you to explore admission for your child and experience the 5-Star Education. Click here: {referralLink}`
     } else {
         // Parent and others
         rawShareText = settings?.parentReferralText || `Hello 👋 I'm part of Achariya's 5-Star Ambassador Program. I recommend you to explore admission for your child. Click here: {referralLink}`
