@@ -95,7 +95,7 @@ export default function LoginPage() {
   }
 
   const handleVerifyOtp = async () => {
-    if (!otp || otp.length < 4) return toast.error('Enter valid OTP')
+    if (!otp || otp.length < 6) return toast.error('Enter valid 6-digit OTP')
     setLoading(true)
     const valid = await verifyOtpOnly(otp, mobile)
     if (valid) {
@@ -333,8 +333,8 @@ export default function LoginPage() {
                     type="password"
                     className="bg-white/90 border border-white/50 rounded-full px-4 text-black placeholder-gray-500 focus:outline-none focus:border-[#FFD700] transition-all text-[20px] font-bold tracking-[1rem] text-center backdrop-blur-md"
                     style={{ width: '220px', maxWidth: '100%', borderRadius: '9999px', height: '56px', padding: '0', display: 'block', margin: '0 auto' }}
-                    placeholder="••••"
-                    maxLength={4}
+                    placeholder="••••••"
+                    maxLength={6}
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)}
                   />
