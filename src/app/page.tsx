@@ -56,19 +56,18 @@ export default function LoginPage() {
       const res = await sendOtp(mobile)
       setLoading(false)
       if (res && res.success) {
-        // SIMULATION: Show the mock OTP to the user
-        if (res.otp) {
-          toast.success(`Your Verification Code is: ${res.otp}`, { duration: 6000 })
-          console.log('MOCK OTP:', res.otp)
-        } else {
-          toast.success(`OTP Sent to ${mobile}`)
-        }
-
         if (res.exists && res.hasPassword) {
           // Go to Password Login
           setStep(1.5)
         } else {
           // Go to OTP Flow
+          if (res.otp) {
+            toast.success(`Your Verification Code is: ${res.otp}`, { duration: 6000 })
+            console.log('MOCK OTP:', res.otp)
+          } else {
+            toast.success(`OTP Sent to ${mobile}`)
+          }
+
           setIsNewUser(true)
           setStep(2)
         }
