@@ -17,6 +17,24 @@ import { referralSchema } from '@/lib/validators'
  * @returns An object indicating success.
  */
 export async function sendReferralOtp(mobile: string) {
+    // Check 1: Is this mobile number already a registered user?
+    const existingUser = await prisma.user.findUnique({
+        where: { mobileNumber: mobile }
+    })
+
+    if (existingUser) {
+        return { success: false, error: 'This mobile number is already registered as an existing User.' }
+    }
+
+    // Check 2: Has this mobile number already been referred?
+    const existingLead = await prisma.referralLead.findFirst({
+        where: { parentMobile: mobile }
+    })
+
+    if (existingLead) {
+        return { success: false, error: 'A referral with this mobile number already exists.' }
+    }
+
     // SECURITY: In production, integrate with MSG91 or Twilio
     // Current implementation stores OTP in DB but logs it for demo purposes
     const otp = Math.floor(100000 + Math.random() * 900000).toString()
@@ -95,16 +113,22 @@ export async function submitReferral(formData: {
     const { parentName, parentMobile, studentName, campus, gradeInterested } = result.data
 
     try {
-        // Check for duplicates (Same Mobile + Student Name)
+        // Check 1: Is this mobile number already a registered user?
+        const existingUser = await prisma.user.findUnique({
+            where: { mobileNumber: parentMobile }
+        })
+
+        if (existingUser) {
+            return { success: false, error: 'This mobile number is already registered as an existing User.' }
+        }
+
+        // Check 2: Has this mobile number already been referred? (Strict Lead Check)
         const existingLead = await prisma.referralLead.findFirst({
-            where: {
-                parentMobile,
-                studentName: { equals: studentName, mode: 'insensitive' }
-            }
+            where: { parentMobile }
         })
 
         if (existingLead) {
-            return { success: false, error: 'This student has already been referred.' }
+            return { success: false, error: 'A referral with this mobile number already exists.' }
         }
 
         const newLead = await prisma.referralLead.create({
