@@ -34,11 +34,18 @@ export default async function AnalyticsPage() {
 
     const welcomeMessage = userData.role === 'Staff'
         ? (systemSettings?.staffWelcomeMessage || 'Staff Ambassador Dashboard')
-        : (systemSettings?.parentWelcomeMessage || 'Parent Ambassador Dashboard')
+        : userData.role === 'Alumni'
+            ? 'Alumni Ambassador Dashboard'
+            : (systemSettings?.parentWelcomeMessage || 'Parent Ambassador Dashboard')
 
-    const rawShareText = userData.role === 'Staff'
-        ? (systemSettings?.staffReferralText || `Hello 👋 I’m part of Achariya’s 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: {referralLink} – Achariya Ambassador`)
-        : (systemSettings?.parentReferralText || `Hello 👋 I’m part of Achariya’s 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: {referralLink} – Achariya Ambassador`)
+    let rawShareText = ''
+    if (userData.role === 'Staff') {
+        rawShareText = systemSettings?.staffReferralText || `Hello 👋 I’m part of Achariya’s 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: {referralLink} – Achariya Ambassador`
+    } else if (userData.role === 'Alumni') {
+        rawShareText = `Hello 👋 I'm a proud Alumni of Achariya. I recommend you to explore admission for your child and experience the 5-Star Education. Click here: {referralLink}`
+    } else {
+        rawShareText = systemSettings?.parentReferralText || `Hello 👋 I’m part of Achariya’s 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: {referralLink} – Achariya Ambassador`
+    }
 
     const shareText = rawShareText.replace('{referralLink}', referralLink)
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`
@@ -69,7 +76,7 @@ export default async function AnalyticsPage() {
                     </div>
                     <div>
                         <h1 style={{ fontSize: 'clamp(20px, 6vw, 28px)', fontWeight: '800', color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>
-                            Detailed Analytics
+                            {welcomeMessage}
                         </h1>
                         <p suppressHydrationWarning style={{ fontSize: '16px', color: '#6B7280', marginTop: '6px', fontWeight: '500' }}>
                             {isBenefitActive ? 'Benefits Active' : 'Benefits Inactive'} • {userData.academicYear || '2025-2026'}
@@ -125,7 +132,7 @@ export default async function AnalyticsPage() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
                         <div>
                             <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', marginBottom: '4px', fontWeight: '500' }}>
-                                Estimated Savings ({userData.academicYear || '2025-2026'})
+                                Estimated {userData.role === 'Alumni' ? 'Benefit Value' : 'Savings'} ({userData.academicYear || '2025-2026'})
                             </p>
                             <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
                                 <h2 style={{ fontSize: '36px', fontWeight: '800', color: 'white', margin: 0 }}>
@@ -177,7 +184,9 @@ export default async function AnalyticsPage() {
                     <Wallet size={56} style={{ position: 'absolute', right: '-10px', bottom: '-10px', color: 'rgba(255,255,255,0.15)' }} />
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', position: 'relative' }}>
                         <Wallet size={20} style={{ color: 'rgba(255,255,255,0.9)' }} />
-                        <span className="stat-label" style={{ color: 'rgba(255,255,255,0.9)', fontSize: '15px', fontWeight: '600', letterSpacing: '0.02em' }}>This Year Fee Benefit</span>
+                        <span className="stat-label" style={{ color: 'rgba(255,255,255,0.9)', fontSize: '15px', fontWeight: '600', letterSpacing: '0.02em' }}>
+                            {userData.role === 'Alumni' ? 'This Year Referral Benefit' : 'This Year Fee Benefit'}
+                        </span>
                     </div>
                     <p className="stat-value" style={{ fontSize: '40px', fontWeight: '800', color: 'white', margin: 0, position: 'relative' }}>{userData.yearFeeBenefitPercent}%</p>
                 </div>
