@@ -13,49 +13,16 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-    const [theme, setTheme] = useState<Theme>('system')
+    const [theme, setTheme] = useState<Theme>('light')
     const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light')
 
     useEffect(() => {
-        // Load saved preference
-        const saved = localStorage.getItem('theme') as Theme | null
-        if (saved) {
-            setTheme(saved)
-        }
-    }, [])
-
-    useEffect(() => {
-        // Save preference
-        localStorage.setItem('theme', theme)
-
-        // Determine resolved theme
-        let resolved: 'light' | 'dark' = 'light'
-
-        if (theme === 'system') {
-            resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-        } else {
-            resolved = theme
-        }
-
+        // FORCE LIGHT MODE (User Request)
+        // We override all system preferences to ensure the app is always Light.
+        const resolved = 'light';
         setResolvedTheme(resolved)
-
-        // Apply to document
-        document.documentElement.classList.remove('light', 'dark')
-        document.documentElement.classList.add(resolved)
-
-        // Listen for system changes if using system theme
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-        const handleChange = (e: MediaQueryListEvent) => {
-            if (theme === 'system') {
-                const newResolved = e.matches ? 'dark' : 'light'
-                setResolvedTheme(newResolved)
-                document.documentElement.classList.remove('light', 'dark')
-                document.documentElement.classList.add(newResolved)
-            }
-        }
-
-        mediaQuery.addEventListener('change', handleChange)
-        return () => mediaQuery.removeEventListener('change', handleChange)
+        document.documentElement.classList.remove('dark')
+        document.documentElement.classList.add('light')
     }, [theme])
 
     return (
