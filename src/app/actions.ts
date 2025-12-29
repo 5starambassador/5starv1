@@ -114,7 +114,7 @@ export async function loginWithPassword(mobile: string, password: string) {
         if (user.password) {
             const isValid = await bcrypt.compare(password, user.password)
             if (isValid) {
-                await createSession(user.userId, 'user')
+                await createSession(user.userId, 'user', user.role)
                 return { success: true }
             }
         }
@@ -130,7 +130,7 @@ export async function loginWithPassword(mobile: string, password: string) {
         if (admin.password) {
             const isValid = await bcrypt.compare(password, admin.password)
             if (isValid) {
-                await createSession(admin.adminId, 'admin')
+                await createSession(admin.adminId, 'admin', admin.role)
                 return { success: true }
             }
         }
@@ -247,7 +247,7 @@ export async function registerUser(formData: any) {
             }
         })
 
-        await createSession(user.userId, 'user')
+        await createSession(user.userId, 'user', user.role)
         return { success: true }
     } catch (e: any) {
         console.error('Registration error:', e)

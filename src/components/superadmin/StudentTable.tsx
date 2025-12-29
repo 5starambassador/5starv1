@@ -10,6 +10,7 @@ interface StudentTableProps {
     onAddStudent: () => void
     onBulkAdd: () => void
     onEdit: (student: Student) => void
+    onViewAmbassador: (referralCode: string) => void
 }
 
 export function StudentTable({
@@ -18,7 +19,8 @@ export function StudentTable({
     onSearchChange,
     onAddStudent,
     onBulkAdd,
-    onEdit
+    onEdit,
+    onViewAmbassador
 }: StudentTableProps) {
     const columns = [
         {
@@ -152,15 +154,6 @@ export function StudentTable({
                 </div>
                 <div className="space-y-1.5">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <Percent size={12} className="text-blue-500" />
-                        Benefit Applied
-                    </p>
-                    <p className="text-sm font-black text-emerald-600">
-                        {student.discountPercent}% Discount
-                    </p>
-                </div>
-                <div className="space-y-1.5">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                         <Hash size={12} className="text-purple-500" />
                         Roll Number / Section
                     </p>
@@ -186,7 +179,10 @@ export function StudentTable({
                             <button className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm">
                                 <Phone size={14} /> {student.ambassador.mobileNumber}
                             </button>
-                            <button className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg shadow-red-200 hover:bg-red-700 transition-all uppercase tracking-widest">
+                            <button
+                                onClick={() => student.ambassador?.referralCode && onViewAmbassador(student.ambassador.referralCode)}
+                                className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg shadow-red-200 hover:bg-red-700 transition-all uppercase tracking-widest"
+                            >
                                 View Profile
                             </button>
                         </div>
@@ -204,51 +200,58 @@ export function StudentTable({
 
     return (
         <div className="space-y-6 animate-fade-in">
-            <div className="bg-white p-10 rounded-[32px] border border-gray-100 shadow-2xl shadow-gray-200/50 flex items-center justify-between flex-wrap gap-8 premium-border relative overflow-hidden">
-                <div className="absolute right-0 top-0 w-48 h-48 bg-emerald-50/50 rounded-bl-full -z-10 blur-3xl"></div>
-                <div className="flex items-center gap-6">
-                    <div className="p-4 bg-emerald-600 rounded-3xl shadow-lg shadow-emerald-200">
-                        <GraduationCap size={24} className="text-white" />
-                    </div>
+            {/* Header */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-r from-white to-gray-50/50">
                     <div>
-                        <h3 className="text-2xl font-black text-gray-900 tracking-tight">Student Enrollment</h3>
+                        <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
+                            Student Enrollment
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-emerald-100">
+                                Directory
+                            </span>
+                        </h3>
                         <p className="text-sm font-medium text-gray-400 mt-1">Directory of all admitted students and referral mapping.</p>
                     </div>
-                </div>
-                <div className="flex gap-4">
-                    <button
-                        onClick={onBulkAdd}
-                        className="px-8 py-4 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-xs hover:bg-gray-50 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-3 uppercase tracking-widest"
-                    >
-                        <Download size={18} /> Import Roster
-                    </button>
-                    <button
-                        onClick={onAddStudent}
-                        className="px-10 py-4 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-2xl font-black text-xs shadow-2xl shadow-emerald-600/20 hover:shadow-emerald-600/40 hover:-translate-y-1 active:translate-y-0 transition-all flex items-center gap-3 uppercase tracking-widest border border-emerald-500"
-                    >
-                        <UserPlus size={18} /> New Student
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="relative group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-600 transition-colors" size={16} />
+                            <input
+                                type="text"
+                                placeholder="Search students..."
+                                value={searchTerm}
+                                onChange={(e) => onSearchChange(e.target.value)}
+                                className="w-full sm:w-64 pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-emerald-600/5 focus:border-emerald-600 transition-all text-sm font-bold shadow-sm"
+                                suppressHydrationWarning
+                            />
+                        </div>
+                        <button
+                            onClick={onBulkAdd}
+                            className="px-4 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold text-xs hover:bg-gray-50 hover:shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
+                        >
+                            <Download size={16} /> Import
+                        </button>
+                        <button
+                            onClick={onAddStudent}
+                            className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-emerald-200 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2 whitespace-nowrap"
+                        >
+                            <UserPlus size={16} strokeWidth={2.5} />
+                            New Student
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div className="relative group">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
-                <input
-                    type="text"
-                    placeholder="Global search by student name, parent name or mobile..."
-                    value={searchTerm}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                    className="w-full pl-14 pr-6 py-5 bg-white border border-gray-100 rounded-[24px] outline-none focus:ring-8 focus:ring-emerald-600/5 focus:border-emerald-600 transition-all text-sm font-bold shadow-sm"
-                    suppressHydrationWarning
-                />
+            {/* Table */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto max-w-full">
+                    <DataTable
+                        data={filteredStudents}
+                        columns={columns as any}
+                        pageSize={10}
+                        renderExpandedRow={renderExpandedRow}
+                    />
+                </div>
             </div>
-
-            <DataTable
-                data={filteredStudents}
-                columns={columns as any}
-                pageSize={10}
-                renderExpandedRow={renderExpandedRow}
-            />
         </div>
     )
 }

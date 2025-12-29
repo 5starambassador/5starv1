@@ -160,7 +160,7 @@ export function ReportsPanel({
                         >
                             <Download size={16} /> CSV
                         </button>
-                        {'pdfType' in group && (
+                        {'pdfType' in group && group.pdfType && (
                             <button
                                 onClick={() => handlePDFExport(group.pdfType)}
                                 className="flex-1 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all bg-red-50 hover:bg-red-100 text-red-700 border border-red-200"

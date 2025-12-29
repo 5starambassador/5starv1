@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, Fragment } from 'react'
 import { Search, ChevronLeft, ChevronRight, ArrowUpDown, Filter, X, Check } from 'lucide-react'
 
 interface Column<T> {
@@ -15,10 +15,12 @@ interface DataTableProps<T> {
     data: T[]
     columns: Column<T>[]
     searchPlaceholder?: string
-    searchKey?: keyof T
+    searchKey?: keyof T | (keyof T)[]
     pageSize?: number
     className?: string
     renderExpandedRow?: (row: T) => React.ReactNode
+    searchValue?: string
+    onSearchChange?: (value: string) => void
 }
 
 export function DataTable<T>({
@@ -28,9 +30,14 @@ export function DataTable<T>({
     searchKey,
     pageSize = 10,
     className = '',
-    renderExpandedRow
+    renderExpandedRow,
+    searchValue,
+    onSearchChange
 }: DataTableProps<T>) {
-    const [searchTerm, setSearchTerm] = useState('')
+    const [internalSearchTerm, setInternalSearchTerm] = useState('')
+
+    // Determine effective search term (controlled vs uncontrolled)
+    const searchTerm = searchValue !== undefined ? searchValue : internalSearchTerm
     const [currentPage, setCurrentPage] = useState(1)
     const [sortConfig, setSortConfig] = useState<{ key: keyof T | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' })
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
@@ -97,9 +104,18 @@ export function DataTable<T>({
         return data.filter(item => {
             // 1. Global Search
             if (searchKey && searchTerm) {
-                const value = item[searchKey]
-                if (!(value ? String(value) : '').toLowerCase().includes(searchTerm.toLowerCase())) {
-                    return false
+                const lowerTerm = searchTerm.toLowerCase()
+                if (Array.isArray(searchKey)) {
+                    const hasMatch = searchKey.some(key => {
+                        const value = item[key]
+                        return (value ? String(value) : '').toLowerCase().includes(lowerTerm)
+                    })
+                    if (!hasMatch) return false
+                } else {
+                    const value = item[searchKey]
+                    if (!(value ? String(value) : '').toLowerCase().includes(lowerTerm)) {
+                        return false
+                    }
                 }
             }
 
@@ -149,7 +165,9 @@ export function DataTable<T>({
                         placeholder={searchPlaceholder}
                         value={searchTerm}
                         onChange={(e) => {
-                            setSearchTerm(e.target.value)
+                            const val = e.target.value
+                            if (searchValue === undefined) setInternalSearchTerm(val)
+                            onSearchChange?.(val)
                             setCurrentPage(1)
                         }}
                         className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-2xl outline-none focus:ring-4 focus:ring-red-600/5 focus:border-red-600 transition-all text-sm shadow-sm font-medium"
@@ -271,9 +289,8 @@ export function DataTable<T>({
                             paginatedData.map((row, i) => {
                                 const isExpanded = expandedRows.has(i)
                                 return (
-                                    <>
+                                    <Fragment key={i}>
                                         <tr
-                                            key={i}
                                             onClick={() => {
                                                 if (renderExpandedRow) {
                                                     const next = new Set(expandedRows)
@@ -309,7 +326,7 @@ export function DataTable<T>({
                                                 </td>
                                             </tr>
                                         )}
-                                    </>
+                                    </Fragment>
                                 )
                             })
                         ) : (

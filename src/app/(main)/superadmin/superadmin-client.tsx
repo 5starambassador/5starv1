@@ -266,7 +266,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
             const loadPermissions = async () => {
                 setLoading(true)
                 try {
-                    const roles = ['Super Admin', 'Campus Head', 'Finance Admin', 'Admission Admin', 'Campus Admin', 'Staff', 'Parent']
+                    const roles = ['Super Admin', 'Campus Head', 'Finance Admin', 'Admission Admin', 'Campus Admin', 'Staff', 'Parent', 'Alumni']
                     const results = await Promise.all(roles.map(role => getRolePermissions(role)))
                     const matrix: Record<string, any> = {}
                     roles.forEach((role, i) => {
@@ -983,7 +983,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                     Lead Distribution
                                 </h3>
                                 <div style={{ height: '350px' }}>
-                                    <GenericPieChart data={campusCompData} dataKey="totalLeads" />
+                                    <GenericPieChart data={campusCompData} dataKey="totalLeads" nameKey="campus" />
                                 </div>
                             </div>
                             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
@@ -992,7 +992,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                     Lead Structure
                                 </h3>
                                 <div style={{ height: '350px' }}>
-                                    <GenericPieChart data={analyticsData.userRoleDistribution || []} dataKey="value" />
+                                    <GenericPieChart data={analyticsData.userRoleDistribution || []} dataKey="value" nameKey="name" />
                                 </div>
                             </div>
                             <div className="lg:col-span-2">
@@ -1083,6 +1083,11 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                 setShowStudentModal(true)
                             }}
                             onBulkAdd={() => { setBulkUploadType('students'); setShowBulkUploadModal(true) }}
+                            onViewAmbassador={(code) => {
+                                setSelectedView('users')
+                                setSearchQuery(code)
+                                router.push('/superadmin?view=users')
+                            }}
                         />
                     </div>
                 )}

@@ -18,7 +18,9 @@ export function UserTable({
     onAddUser,
     onBulkAdd,
     onDelete,
-    onToggleStatus
+    onToggleStatus,
+    searchTerm,
+    onSearchChange
 }: UserTableProps) {
     const columns = [
         {
@@ -207,7 +209,9 @@ export function UserTable({
             <DataTable
                 data={users}
                 columns={columns as any}
-                searchKey="fullName"
+                searchKey={['fullName', 'referralCode', 'mobileNumber']}
+                searchValue={searchTerm}
+                onSearchChange={onSearchChange}
                 searchPlaceholder="Search ambassadors by name, code or mobile..."
                 pageSize={10}
                 renderExpandedRow={renderExpandedRow}
