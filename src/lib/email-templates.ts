@@ -52,7 +52,7 @@ function getEmailTemplate(content: {
             ${content.ctaText && content.ctaUrl ? `<a href="${content.ctaUrl}" class="cta">${content.ctaText}</a>` : ''}
         </div>
         <div class="footer">
-            <p>Achariya Group of Institutions</p>
+            <p>ACHARIYA WORLD CLASS EDUCATION</p>
             <p>Pondicherry, India</p>
             <p>${content.footer || 'This is an automated message from the Ambassador Portal.'}</p>
             <p><a href="https://achariya.in">achariya.in</a></p>

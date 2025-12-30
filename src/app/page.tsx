@@ -551,7 +551,7 @@ export default function LoginPage() {
 
         {/* Footer info */}
         <p className="mt-12 text-center text-white/40 text-[10px] font-bold uppercase tracking-[0.4em]">
-          © 2025 Achariya Group
+          © 2025 ACHARIYA WORLD CLASS EDUCATION
         </p>
       </div>
     </main>

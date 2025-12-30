@@ -118,7 +118,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                         />
                     </div>
                     <div className="mt-6 text-center">
-                        <p className="text-[10px] uppercase tracking-[0.3em] font-black text-red-500/80 mb-1">Achariya Group</p>
+                        <p className="text-[10px] uppercase tracking-[0.3em] font-black text-red-500/80 mb-1">ACHARIYA WORLD CLASS EDUCATION</p>
                         <h2 className="text-white text-lg font-black tracking-tight drop-shadow-lg">5-Star Ambassador</h2>
                     </div>
                 </div>

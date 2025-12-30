@@ -33,9 +33,9 @@ export const metadata: Metadata = {
   },
   description: "Join the Achariya 5-Star Ambassador Program. Refer students, earn rewards, and be part of our 25th Year Celebration journey.",
   keywords: ["Achariya", "Ambassador", "School Admission", "Referral Program", "Education", "Pondicherry", "5 Star"],
-  authors: [{ name: "Achariya Group of Institutions" }],
-  creator: "Achariya Group",
-  publisher: "Achariya Group",
+  authors: [{ name: "ACHARIYA WORLD CLASS EDUCATION" }],
+  creator: "ACHARIYA WORLD CLASS EDUCATION",
+  publisher: "ACHARIYA WORLD CLASS EDUCATION",
   openGraph: {
     type: "website",
     locale: "en_IN",
