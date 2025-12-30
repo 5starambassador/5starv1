@@ -1,3 +1,5 @@
+'use client'
+
 import { Home, UserPlus, BarChart3, List, User, DollarSign } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
