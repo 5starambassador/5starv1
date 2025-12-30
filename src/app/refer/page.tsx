@@ -1,19 +1,40 @@
 'use client'
 
-import { useState } from 'react'
-import { submitReferral, sendReferralOtp, verifyReferralOtp } from '@/app/referral-actions'
-import { useRouter } from 'next/navigation'
-import { ChevronRight, Lock, User, School, GraduationCap, Users, Smartphone, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { useState, useEffect, Suspense } from 'react'
+import { submitReferral, sendReferralOtp, verifyReferralOtp, getAmbassadorName } from '@/app/referral-actions'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { ChevronRight, Lock, User, School, GraduationCap, Users, Smartphone, AlertCircle, CheckCircle2, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export default function ReferPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading Referral Form...</div>}>
+            <ReferralFormContent />
+        </Suspense>
+    )
+}
+
+function ReferralFormContent() {
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const refCode = searchParams.get('ref')
+
     const [step, setStep] = useState(1)
     const [loading, setLoading] = useState(false)
     const [otpSent, setOtpSent] = useState(false)
     const [otp, setOtp] = useState('')
     const [error, setError] = useState<string | null>(null)
+    const [ambassadorName, setAmbassadorName] = useState<string | null>(null)
+    const [otpDestination, setOtpDestination] = useState<{ isAmbassador: boolean, name: string } | null>(null)
+
+    useEffect(() => {
+        if (refCode) {
+            getAmbassadorName(refCode).then(name => {
+                if (name) setAmbassadorName(name)
+            })
+        }
+    }, [refCode])
 
     const [formData, setFormData] = useState({
         parentName: '',
@@ -40,11 +61,20 @@ export default function ReferPage() {
             setError('Please enter a valid 10-digit mobile number')
             return
         }
+
+        console.log('Sending OTP with refCode:', refCode); // Debug log
+
         setLoading(true)
-        const res = await sendReferralOtp(formData.parentMobile)
+        const res = await sendReferralOtp(formData.parentMobile, refCode || undefined)
         setLoading(false)
+
         if (res.success) {
-            toast.success('OTP sent successfully!')
+            const data = res as any
+            toast.success('Verification code sent!')
+            setOtpDestination({
+                isAmbassador: data.isAmbassadorVerified || false,
+                name: data.ambassadorName || ''
+            })
             setOtpSent(true)
             setStep(2)
         } else {
@@ -78,7 +108,7 @@ export default function ReferPage() {
         }
 
         setLoading(true)
-        const res = await submitReferral(formData)
+        const res = await submitReferral(formData, refCode || undefined)
         setLoading(false)
 
         if (res.success) {
@@ -109,6 +139,18 @@ export default function ReferPage() {
             >
                 {/* Subtle top decoration */}
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary-maroon via-primary-gold to-primary-maroon opacity-90"></div>
+
+                {ambassadorName && (
+                    <div className="mb-6 -mt-2 p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-500">
+                        <div className="p-2 bg-amber-200 rounded-full text-amber-600">
+                            <Star size={18} fill="currentColor" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">You are referred by</p>
+                            <h4 className="text-sm font-bold text-gray-900">{ambassadorName}</h4>
+                        </div>
+                    </div>
+                )}
 
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-900 tracking-tight mb-4">Referral</h1>
@@ -197,11 +239,34 @@ export default function ReferPage() {
 
                         {step === 2 && (
                             <div className="space-y-6">
-                                <div className="text-center bg-blue-50/50 border border-blue-100 rounded-2xl p-6">
-                                    <p className="text-sm text-gray-500 font-medium mb-1">OTP sent to</p>
-                                    <div className="flex items-center justify-center gap-2">
-                                        <span className="text-2xl font-black text-gray-900 tracking-tight">{formData.parentMobile}</span>
-                                        <CheckCircle2 size={20} className="text-green-500" />
+                                <div className="text-center bg-blue-50/50 border border-blue-100 rounded-[24px] p-6">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="p-3 bg-blue-100 rounded-full text-blue-600 mb-2">
+                                            <Smartphone size={24} />
+                                        </div>
+                                        {otpDestination?.isAmbassador ? (
+                                            <>
+                                                <p className="text-sm text-gray-700 font-bold mb-1 uppercase tracking-wider">Verification Required</p>
+                                                <p className="text-xs text-gray-500 font-medium px-4">
+                                                    For security, we've sent the code to your Ambassador:
+                                                </p>
+                                                <div className="flex items-center justify-center gap-2 px-6 py-2 bg-white rounded-full border border-blue-100 shadow-sm mt-1">
+                                                    <Star size={14} className="text-amber-500 fill-amber-500" />
+                                                    <span className="text-lg font-black text-gray-900 tracking-tight">{otpDestination.name}</span>
+                                                </div>
+                                                <p className="text-[11px] text-blue-600 font-bold mt-2 leading-relaxed">
+                                                    Please contact them to get the 6 digit code.
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <p className="text-sm text-gray-500 font-medium mb-1">OTP sent to your mobile</p>
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <span className="text-2xl font-black text-gray-900 tracking-tight">{formData.parentMobile}</span>
+                                                    <CheckCircle2 size={20} className="text-green-500" />
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 

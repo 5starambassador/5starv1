@@ -140,3 +140,24 @@ export const GenericPieChart = ({ data, dataKey = 'value', nameKey = 'name' }: {
         </ResponsiveContainer>
     )
 }
+// 5. Campus Efficiency (Conversion Rate)
+export const CampusEfficiencyChart = ({ data }: { data: any[] }) => {
+    return (
+        <ResponsiveContainer width="100%" height={300}>
+            <BarChart
+                data={data}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                layout="vertical"
+            >
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
+                <XAxis type="number" unit="%" domain={[0, 100]} />
+                <YAxis dataKey="campus" type="category" width={150} tick={{ fontSize: 12 }} />
+                <Tooltip
+                    formatter={(value: any) => [`${value}%`, 'Conversion Rate']}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                />
+                <Bar dataKey="conversionRate" name="Conv. Rate" fill={COLORS.tertiary} radius={[0, 4, 4, 0]} barSize={20} />
+            </BarChart>
+        </ResponsiveContainer>
+    )
+}

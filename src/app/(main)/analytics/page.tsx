@@ -28,7 +28,16 @@ export default async function AnalyticsPage() {
     const userData = user as any;
 
     const isBenefitActive = userData.benefitStatus === 'Active'
-    const referralLink = `https://achariya.in/apply?ref=${userData.referralCode}` // Mock URL
+
+    // Build WhatsApp share URL
+    let baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://achariya-5star.vercel.app'
+
+    // Check if we are in development to help the user test locally
+    if (process.env.NODE_ENV === 'development' && !process.env.NEXT_PUBLIC_APP_URL) {
+        baseUrl = 'http://localhost:3000'
+    }
+
+    const referralLink = `${baseUrl}/refer?ref=${userData.referralCode}`
 
     const systemSettings = await getSystemSettings() as any
 
@@ -40,14 +49,15 @@ export default async function AnalyticsPage() {
 
     let rawShareText = ''
     if (userData.role === 'Staff') {
-        rawShareText = systemSettings?.staffReferralText || `Hello 👋 I’m part of Achariya’s 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: {referralLink} – Achariya Ambassador`
+        rawShareText = systemSettings?.staffReferralText || `Hello 👋 I'm part of Achariya's 5-Star Ambassador Program. I recommend you to explore admission for your child. Click here: {referralLink}`
     } else if (userData.role === 'Alumni') {
         rawShareText = systemSettings?.alumniReferralText || `Hello 👋 I'm a proud Alumni of Achariya. I recommend you to explore admission for your child and experience the 5-Star Education. Click here: {referralLink}`
     } else {
-        rawShareText = systemSettings?.parentReferralText || `Hello 👋 I’m part of Achariya’s 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: {referralLink} – Achariya Ambassador`
+        // Parent and others
+        rawShareText = systemSettings?.parentReferralText || `Hello 👋 I'm part of Achariya's 5-Star Ambassador Program. I recommend you to explore admission for your child. Click here: {referralLink}`
     }
 
-    const shareText = rawShareText.replace('{referralLink}', referralLink)
+    const shareText = rawShareText.replace(/\{referralLink\}|\$\{referralLink\}/g, referralLink)
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`
 
     const permissions = await getMyPermissions()

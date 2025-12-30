@@ -14,6 +14,7 @@ interface ReportsPanelProps {
     campusComparison?: any[]
     onDownloadReport: (reportFunction: () => Promise<{ success: boolean; csv?: string; filename?: string; error?: string }>) => Promise<void>
     generateLeadPipelineReport: () => Promise<{ success: boolean; csv?: string; filename?: string; error?: string }>
+    onWeeklyReport?: () => Promise<void>
 }
 
 export function ReportsPanel({
@@ -22,7 +23,8 @@ export function ReportsPanel({
     admins = [],
     campusComparison = [],
     onDownloadReport,
-    generateLeadPipelineReport
+    generateLeadPipelineReport,
+    onWeeklyReport
 }: ReportsPanelProps) {
     const [emailingId, setEmailingId] = useState<string | null>(null)
 
@@ -167,6 +169,19 @@ export function ReportsPanel({
             text: 'text-amber-700',
             border: 'border-amber-200',
             action: generateLeadPipelineReport
+        },
+        {
+            id: 'weekly-kpi',
+            title: 'Weekly KPI Summary',
+            count: 'Last 7 Days',
+            desc: 'Consolidated performance report emailed to your address.',
+            icon: BarChart,
+            color: 'from-purple-500 to-purple-600',
+            bg: 'bg-purple-50',
+            text: 'text-purple-700',
+            border: 'border-purple-200',
+            isSpecial: true,
+            action: onWeeklyReport
         }
     ]
 
@@ -196,8 +211,13 @@ export function ReportsPanel({
 
                         <div className="grid grid-cols-2 gap-3 mt-auto">
                             <button
-                                onClick={() => onDownloadReport(group.action)}
-                                className="col-span-1 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 hover:border-gray-300 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md"
+                                onClick={() => {
+                                    if (group.id !== 'weekly-kpi') {
+                                        onDownloadReport(group.action as any)
+                                    }
+                                }}
+                                disabled={group.id === 'weekly-kpi'}
+                                className="col-span-1 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 hover:border-gray-300 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
                             >
                                 <Download size={14} />
                                 <span>CSV</span>
@@ -225,6 +245,14 @@ export function ReportsPanel({
                                         <span>{emailingId === group.id ? 'Sending...' : 'Email Me Report'}</span>
                                     </button>
                                 </>
+                            ) : 'isSpecial' in group && group.isSpecial ? (
+                                <button
+                                    onClick={group.action as any}
+                                    className="col-span-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md"
+                                >
+                                    <Mail size={14} />
+                                    <span>Generate & Email Report</span>
+                                </button>
                             ) : (
                                 <div className="col-span-1" /> // Spacer if no PDF
                             )}

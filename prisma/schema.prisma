@@ -40,6 +40,7 @@ model User {
   childEprNo             String?
   empId                  String?
   password               String?
+  deletionRequestedAt    DateTime?
   notifications          Notification[]
   referrals              ReferralLead[]
   settlements            Settlement[]
@@ -212,6 +213,10 @@ model RolePermissions {
   studentMgmtCreate        Boolean  @default(true)
   studentMgmtDelete        Boolean  @default(false)
   studentMgmtEdit          Boolean  @default(true)
+  deletionHubAccess        Boolean  @default(false)
+  deletionHubScope         String   @default("none")
+  passwordResetAccess      Boolean  @default(false)
+  passwordResetScope       String   @default("none")
 }
 
 model Settlement {

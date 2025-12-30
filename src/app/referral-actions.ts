@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
+import { logger } from '@/lib/logger'
 import { revalidatePath } from 'next/cache'
 import { EmailService } from '@/lib/email-service'
 import { getNotificationSettings } from './notification-actions'
@@ -16,7 +17,7 @@ import { referralSchema } from '@/lib/validators'
  * @param mobile - The mobile number to send the OTP to.
  * @returns An object indicating success.
  */
-export async function sendReferralOtp(mobile: string) {
+export async function sendReferralOtp(mobile: string, referralCode?: string) {
     // Check 1: Is this mobile number already a registered user?
     const existingUser = await prisma.user.findUnique({
         where: { mobileNumber: mobile }
@@ -35,6 +36,22 @@ export async function sendReferralOtp(mobile: string) {
         return { success: false, error: 'A referral with this mobile number already exists.' }
     }
 
+    // Check 3: Determine OTP destination
+    let destinationMobile = mobile
+    let isAmbassadorVerified = false
+    let ambassadorName = ''
+
+    if (referralCode) {
+        const ambassador = await prisma.user.findUnique({
+            where: { referralCode }
+        })
+        if (ambassador) {
+            destinationMobile = ambassador.mobileNumber
+            isAmbassadorVerified = true
+            ambassadorName = ambassador.fullName
+        }
+    }
+
     // SECURITY: In production, integrate with MSG91 or Twilio
     // Current implementation stores OTP in DB but logs it for demo purposes
     const otp = Math.floor(100000 + Math.random() * 900000).toString()
@@ -42,14 +59,26 @@ export async function sendReferralOtp(mobile: string) {
 
     try {
         await prisma.otpVerification.upsert({
-            where: { mobile },
+            where: { mobile }, // We still use parent's mobile as the unique key for verification
             update: { otp, expiresAt },
             create: { mobile, otp, expiresAt }
         })
-        console.log(`[OTP] Sending OTP ${otp} to ${mobile}`)
-        return { success: true }
+
+        if (process.env.NODE_ENV === 'development') {
+            if (isAmbassadorVerified) {
+                logger.info(`[OTP] Sending OTP ${otp} to Ambassador ${ambassadorName} (${destinationMobile}) for parent ${mobile}`)
+            } else {
+                logger.info(`[OTP] Sending OTP ${otp} to parent ${mobile}`)
+            }
+        }
+
+        return {
+            success: true,
+            isAmbassadorVerified,
+            ambassadorName
+        }
     } catch (error) {
-        console.error('Failed to generate OTP:', error)
+        logger.error('Failed to generate OTP:', error)
         return { success: false, error: 'Failed to generate OTP' }
     }
 }
@@ -82,7 +111,7 @@ export async function verifyReferralOtp(mobile: string, otp: string) {
         await prisma.otpVerification.delete({ where: { mobile } })
         return { success: true }
     } catch (error) {
-        console.error('OTP Verification Error:', error)
+        logger.error('OTP Verification Error:', error)
         return { success: false, error: 'Verification failed' }
     }
 }
@@ -100,9 +129,10 @@ export async function submitReferral(formData: {
     studentName: string
     campus?: string
     gradeInterested?: string
-}) {
+}, referralCode?: string) {
     const user = await getCurrentUser()
-    if (!user) return { success: false, error: 'Unauthorized' }
+    // If no logged in user, we must have a referral code
+    if (!user && !referralCode) return { success: false, error: 'Unauthorized or missing referral code' }
 
     // Validate Input (Strict)
     const result = referralSchema.safeParse(formData)
@@ -131,9 +161,22 @@ export async function submitReferral(formData: {
             return { success: false, error: 'A referral with this mobile number already exists.' }
         }
 
+        let referringUserId = user?.userId
+
+        // If submitted via public link, find the ambassador by code
+        if (!referringUserId && referralCode) {
+            const ambassador = await prisma.user.findUnique({
+                where: { referralCode }
+            })
+            if (!ambassador) return { success: false, error: 'Invalid referral code' }
+            referringUserId = ambassador.userId
+        }
+
+        if (!referringUserId) return { success: false, error: 'Ambassador attribution failed' }
+
         const newLead = await prisma.referralLead.create({
             data: {
-                userId: user.userId,
+                userId: referringUserId,
                 parentName,
                 parentMobile,
                 studentName,
@@ -158,7 +201,7 @@ export async function submitReferral(formData: {
 
                     if (campusHead && campusHead.email) {
                         EmailService.sendLeadAssignedEmail(campusHead.email, studentName, campus)
-                            .catch(e => console.error('Failed to send lead email:', e))
+                            .catch(e => logger.error('Failed to send lead email:', e))
                     }
                 }
             }
@@ -220,5 +263,22 @@ export async function getMyComparisonStats() {
         prevLeads,
         currentConfirmed,
         prevConfirmed
+    }
+}
+
+/**
+ * Gets the ambassador's full name from their referral code.
+ * Used for public referral forms to show "You are being referred by..."
+ */
+export async function getAmbassadorName(referralCode: string) {
+    if (!referralCode) return null
+    try {
+        const user = await prisma.user.findUnique({
+            where: { referralCode },
+            select: { fullName: true }
+        })
+        return user?.fullName || null
+    } catch (error) {
+        return null
     }
 }

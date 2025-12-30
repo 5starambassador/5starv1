@@ -3,15 +3,25 @@
 import { CheckCircle, Filter, ChevronDown, Clock, AlertCircle, Phone, MapPin, User, Search } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { PremiumCard } from '@/components/premium/PremiumCard'
+import { toast } from 'sonner'
 
 interface ReferralTableProps {
     referrals: any[]
     confirmReferral: (leadId: number) => Promise<any>
+    convertLeadToStudent?: (leadId: number, details: any) => Promise<any>
     initialRoleFilter?: string
     initialStatusFilter?: string
+    isReadOnly?: boolean
 }
 
-export function ReferralTable({ referrals, confirmReferral, initialRoleFilter, initialStatusFilter }: ReferralTableProps) {
+export function ReferralTable({
+    referrals,
+    confirmReferral,
+    convertLeadToStudent,
+    initialRoleFilter,
+    initialStatusFilter,
+    isReadOnly = false
+}: ReferralTableProps) {
     const [roleFilter, setRoleFilter] = useState<string>(initialRoleFilter || 'All')
     const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter || 'All')
     const [campusFilter, setCampusFilter] = useState<string>('All')
@@ -39,7 +49,18 @@ export function ReferralTable({ referrals, confirmReferral, initialRoleFilter, i
     }, [referrals, roleFilter, statusFilter, campusFilter, searchQuery])
 
     return (
-        <PremiumCard title="Active Referrals" subTitle={`${filteredReferrals.length} Leads Found`} icon={User}>
+        <PremiumCard>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-red-50 text-red-600 rounded-xl">
+                        <User size={20} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-black text-gray-900 tracking-tight">Active Referrals</h2>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-0.5">{filteredReferrals.length} Leads Found</p>
+                    </div>
+                </div>
+            </div>
             <div className="space-y-6">
                 {/* Filters */}
                 <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100 flex flex-wrap gap-4">
@@ -172,15 +193,32 @@ export function ReferralTable({ referrals, confirmReferral, initialRoleFilter, i
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             {r.leadStatus !== 'Confirmed' ? (
-                                                <form action={async () => await confirmReferral(r.leadId)}>
-                                                    <button className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-red-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0">
-                                                        Confirm
-                                                    </button>
-                                                </form>
+                                                !isReadOnly && (
+                                                    <form action={async () => await confirmReferral(r.leadId)}>
+                                                        <button className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-red-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0">
+                                                            Confirm
+                                                        </button>
+                                                    </form>
+                                                )
                                             ) : (
-                                                <div className="flex items-center justify-end gap-1.5 text-green-600">
-                                                    <span className="text-xs font-bold">Verified</span>
-                                                    <CheckCircle size={16} />
+                                                <div className="flex flex-col items-end gap-2">
+                                                    <div className="flex items-center gap-1.5 text-green-600">
+                                                        <span className="text-xs font-bold">Verified</span>
+                                                        <CheckCircle size={16} />
+                                                    </div>
+                                                    {r.student ? (
+                                                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 uppercase">
+                                                            In Student Mgmt
+                                                        </span>
+                                                    ) : (
+                                                        convertLeadToStudent && !isReadOnly && (
+                                                            <ConversionButton
+                                                                leadId={r.leadId}
+                                                                studentName={r.studentName || r.parentName + "'s Child"}
+                                                                convertLeadToStudent={convertLeadToStudent}
+                                                            />
+                                                        )
+                                                    )}
                                                 </div>
                                             )}
                                         </td>
@@ -201,5 +239,43 @@ export function ReferralTable({ referrals, confirmReferral, initialRoleFilter, i
                 </div>
             </div>
         </PremiumCard>
+    )
+}
+
+function ConversionButton({ leadId, studentName, convertLeadToStudent }: { leadId: number, studentName: string, convertLeadToStudent: (id: number, details: any) => Promise<any> }) {
+    const [isConverting, setIsConverting] = useState(false)
+
+    return (
+        <button
+            onClick={async () => {
+                if (isConverting) return
+
+                const tid = toast.loading(`Converting ${studentName} to student...`)
+                setIsConverting(true)
+                try {
+                    const res = await convertLeadToStudent(leadId, { studentName })
+                    if (res.success) {
+                        toast.success('Successfully added to students!', { id: tid })
+                    } else {
+                        toast.error(res.error || 'Conversion failed', { id: tid })
+                        setIsConverting(false)
+                    }
+                } catch (error) {
+                    toast.error('An unexpected error occurred', { id: tid })
+                    setIsConverting(false)
+                }
+            }}
+            disabled={isConverting}
+            className={`px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-bold shadow-md transition-all uppercase tracking-tight flex items-center gap-2 ${isConverting ? 'opacity-70 cursor-not-allowed' : ''}`}
+        >
+            {isConverting ? (
+                <>
+                    <Clock size={12} className="animate-spin" />
+                    Processing...
+                </>
+            ) : (
+                'Add to Students'
+            )}
+        </button>
     )
 }

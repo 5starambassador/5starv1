@@ -1,4 +1,4 @@
-import { UserPlus, Download, MoreHorizontal, CheckCircle, XCircle, Calendar, CreditCard, Smartphone, Hash, Building, Trash2 } from 'lucide-react'
+import { UserPlus, Download, MoreHorizontal, CheckCircle, XCircle, Calendar, CreditCard, Smartphone, Hash, Building, Trash2, Key } from 'lucide-react'
 import { PremiumHeader } from '@/components/premium/PremiumHeader'
 import { User } from '@/types'
 import { DataTable } from '@/components/ui/DataTable'
@@ -12,6 +12,8 @@ interface UserTableProps {
     onBulkAdd: () => void
     onDelete: (userId: number, name: string) => void
     onToggleStatus: (userId: number, currentStatus: string) => void
+    onViewReferrals?: (referralCode: string) => void
+    onResetPassword?: (id: number, name: string, type: 'user' | 'admin') => void
 }
 
 export function UserTable({
@@ -21,7 +23,9 @@ export function UserTable({
     onDelete,
     onToggleStatus,
     searchTerm,
-    onSearchChange
+    onSearchChange,
+    onViewReferrals,
+    onResetPassword
 }: UserTableProps) {
     const columns = [
         {
@@ -166,11 +170,20 @@ export function UserTable({
             </div>
             {/* Quick Actions or more details could go here */}
             <div className="mt-8 pt-6 border-t border-gray-100 flex gap-4">
-                <button className="text-[10px] font-black text-red-600 hover:bg-red-50 px-4 py-2 rounded-xl border border-red-100 transition-all uppercase tracking-widest">
+                <button
+                    onClick={() => onViewReferrals?.(user.referralCode)}
+                    className="text-[10px] font-black text-red-600 hover:bg-red-50 px-4 py-2 rounded-xl border border-red-100 transition-all uppercase tracking-widest"
+                >
                     View Referral History
                 </button>
                 <button className="text-[10px] font-black text-gray-500 hover:bg-gray-100 px-4 py-2 rounded-xl border border-gray-200 transition-all uppercase tracking-widest">
                     Edit Details
+                </button>
+                <button
+                    onClick={() => onResetPassword?.(user.userId, user.fullName, 'user')}
+                    className="text-[10px] font-black text-amber-600 hover:bg-amber-50 px-4 py-2 rounded-xl border border-amber-100 transition-all uppercase tracking-widest flex items-center gap-2"
+                >
+                    <Key size={14} /> Reset Password
                 </button>
             </div>
         </div>

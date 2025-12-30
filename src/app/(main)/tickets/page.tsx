@@ -7,7 +7,7 @@ export default async function TicketsPage() {
     const user = await getCurrentUser()
 
     // Only admins can access this page
-    if (!user || !['Super Admin', 'Admission Admin', 'Campus Head'].includes(user.role)) {
+    if (!user || !['Super Admin', 'Admission Admin', 'Campus Head', 'Finance Admin', 'Campus Admin'].includes(user.role)) {
         redirect('/dashboard')
     }
 

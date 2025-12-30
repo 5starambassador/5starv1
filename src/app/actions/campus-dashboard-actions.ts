@@ -3,6 +3,7 @@
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
 import { revalidatePath } from 'next/cache'
+import { canEdit, hasPermission } from '@/lib/permission-service'
 
 // --- Helper: Verify Campus Admin Access ---
 async function verifyCampusAccess() {
@@ -158,7 +159,12 @@ export async function getCampusTargets() {
 
 export async function updateCampusTargets(leadTarget: number, admissionTarget: number) {
     const user = await getCurrentUser()
-    if (!user || user.role !== 'Super Admin') return { success: false, error: 'Unauthorized' }
+    if (!user) return { success: false, error: 'Unauthorized' }
+
+    // Logic: Only Super Admin or someone with settings access can change targets
+    if (user.role !== 'Super Admin' && !await hasPermission('settings')) {
+        return { success: false, error: 'Permission Denied: Cannot update targets' }
+    }
 
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
@@ -374,6 +380,11 @@ export async function getCampusFinance(days: number = 30) {
 export async function updateLeadStatus(leadId: number, newStatus: 'New' | 'Follow-up' | 'Confirmed') {
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
+
+    // Strict Permission Check
+    if (!await canEdit('referralTracking')) {
+        return { error: 'Permission Denied: You do not have edit rights for leads' }
+    }
 
     try {
         // Verify the lead belongs to this campus

@@ -3,6 +3,8 @@
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { getCurrentUser } from '@/lib/auth-service'
+import { canEdit } from '@/lib/permission-service'
+import { generateSmartReferralCode } from '@/lib/referral-service'
 
 export async function getStudents(filters?: { campusId?: number, parentId?: number, status?: string }) {
     const user = await getCurrentUser()
@@ -34,14 +36,7 @@ export async function getStudents(filters?: { campusId?: number, parentId?: numb
 }
 
 // Generate unique referral code
-function generateReferralCode(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    let code = 'ACH'
-    for (let i = 0; i < 5; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
-    return code
-}
+
 
 export async function addStudent(data: {
     fullName: string
@@ -75,11 +70,8 @@ export async function addStudent(data: {
                 // If parent exists, just use their ID (or could throw error depending on preference)
                 parentId = existingParent.userId
             } else {
-                // Generate unused referral code
-                let referralCode = generateReferralCode()
-                while (await prisma.user.findFirst({ where: { referralCode } })) {
-                    referralCode = generateReferralCode()
-                }
+                // Generate smart referral code
+                const referralCode = await generateSmartReferralCode('Parent')
 
                 const newParent = await prisma.user.create({
                     data: {
@@ -205,19 +197,62 @@ export async function convertLeadToStudent(leadId: number, studentDetails: {
     try {
         const lead = await prisma.referralLead.findUnique({
             where: { leadId },
-            include: { user: true }
+            include: { user: true, student: true }
         })
 
         if (!lead) return { success: false, error: 'Lead not found' }
         if (lead.leadStatus !== 'Confirmed') return { success: false, error: 'Only confirmed leads can be converted' }
+        if (lead.student) return { success: false, error: 'Lead already converted to student' }
 
-        // Find or default base fee from campus/grade
+        // 1. Resolve Campus ID
+        let campusId = lead.campusId
+        if (!campusId && lead.campus) {
+            const campus = await prisma.campus.findUnique({
+                where: { campusName: lead.campus }
+            })
+            if (campus) campusId = campus.id
+        }
+
+        if (!campusId) {
+            return { success: false, error: `Could not resolve Campus ID for "${lead.campus}"` }
+        }
+
+        // 2. Resolve or Create Parent User
+        let parentId: number
+        const existingParent = await prisma.user.findUnique({
+            where: { mobileNumber: lead.parentMobile }
+        })
+
+        if (existingParent) {
+            parentId = existingParent.userId
+        } else {
+            // Create new parent user
+            const referralCode = await generateSmartReferralCode('Parent')
+
+            const newParent = await prisma.user.create({
+                data: {
+                    fullName: lead.parentName,
+                    mobileNumber: lead.parentMobile,
+                    role: 'Parent',
+                    referralCode,
+                    childInAchariya: true,
+                    status: 'Active',
+                    yearFeeBenefitPercent: 0,
+                    confirmedReferralCount: 0,
+                    isFiveStarMember: false,
+                    academicYear: lead.admittedYear || '2025-2026'
+                }
+            })
+            parentId = newParent.userId
+        }
+
+        // 3. Find or default base fee from campus/grade
         let baseFee = 60000
-        if (lead.campusId && lead.gradeInterested) {
+        if (campusId && lead.gradeInterested) {
             const gradeFee = await prisma.gradeFee.findUnique({
                 where: {
                     campusId_grade: {
-                        campusId: lead.campusId,
+                        campusId: campusId,
                         grade: lead.gradeInterested
                     }
                 }
@@ -225,11 +260,13 @@ export async function convertLeadToStudent(leadId: number, studentDetails: {
             if (gradeFee) baseFee = gradeFee.annualFee
         }
 
+        // 4. Create Student
         const student = await prisma.student.create({
             data: {
                 fullName: studentDetails.studentName,
-                parentId: lead.userId,
-                campusId: lead.campusId || 0, // Should be present for confirmed leads
+                parentId: parentId,
+                ambassadorId: lead.userId,
+                campusId: campusId,
                 grade: lead.gradeInterested || 'Unknown',
                 section: studentDetails.section,
                 rollNumber: studentDetails.rollNumber,
@@ -242,8 +279,13 @@ export async function convertLeadToStudent(leadId: number, studentDetails: {
 
         revalidatePath('/superadmin')
         revalidatePath('/campus')
+        revalidatePath('/students')
+
         return { success: true, student }
-    } catch (error) {
+    } catch (error: any) {
+        if (error.code === 'P2002') {
+            return { success: false, error: 'Lead is already linked to a student' }
+        }
         console.error('Error converting lead to student:', error)
         return { success: false, error: 'Conversion failed' }
     }

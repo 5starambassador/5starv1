@@ -96,16 +96,15 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd }: Cam
                 title="Campus Locations"
                 subtitle="Manage physical school locations and their capacities"
                 icon={School}
-                action={
-                    <button
-                        onClick={onAdd}
-                        className="px-5 py-2.5 bg-gray-900 text-white rounded-xl font-bold text-xs shadow-lg shadow-gray-200 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2"
-                    >
-                        <Plus size={16} strokeWidth={2.5} />
-                        Add Campus
-                    </button>
-                }
-            />
+            >
+                <button
+                    onClick={onAdd}
+                    className="px-5 py-2.5 bg-gray-900 text-white rounded-xl font-bold text-xs shadow-lg shadow-gray-200 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                >
+                    <Plus size={16} strokeWidth={2.5} />
+                    Add Campus
+                </button>
+            </PremiumHeader>
 
             {/* Table */}
             <PremiumCard noPadding>

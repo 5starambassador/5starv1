@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { sendOtp, verifyOtpOnly, loginWithPassword, registerUser, getLoginRedirect, getRegistrationCampuses, checkSession } from './actions'
-import { Star, ShieldCheck, User, CreditCard, GraduationCap, Lock, Eye, EyeOff } from 'lucide-react'
+import { sendOtp, verifyOtpAndResetPassword, loginWithPassword, registerUser, getLoginRedirect, getRegistrationCampuses, checkSession, verifyOtpOnly } from './actions'
+import { Star, ShieldCheck, User, CreditCard, GraduationCap, Lock, Eye, EyeOff, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 import { NativeLogin } from '@/components/NativeLogin'
+import { PrivacyModal } from '@/components/PrivacyModal'
+import { logger } from '@/lib/logger'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -20,7 +22,7 @@ export default function LoginPage() {
     verify()
   }, [router])
 
-  // Steps: 1: Mobile, 1.5: Password (Existing), 2: OTP (New), 3: Register Details, 4: Payment
+  // Steps: 1: Mobile, 1.5: Password (Existing), 2: OTP (New), 3: Register Details, 4: Payment, 5: Reset Password
   const [step, setStep] = useState(1)
   const [mobile, setMobile] = useState('')
   const [otp, setOtp] = useState('')
@@ -30,6 +32,11 @@ export default function LoginPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isNewUser, setIsNewUser] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [showPrivacy, setShowPrivacy] = useState(false)
+  const [agreedToPrivacy, setAgreedToPrivacy] = useState(false)
+  const [isForgotMode, setIsForgotMode] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
 
   // Registration Form State
   const [formData, setFormData] = useState({
@@ -62,7 +69,9 @@ export default function LoginPage() {
         } else {
           if (res.otp) {
             toast.success(`Your Verification Code is: ${res.otp}`, { duration: 6000 })
-            console.log('MOCK OTP:', res.otp)
+            if (process.env.NODE_ENV === 'development') {
+              logger.info('MOCK OTP:', res.otp)
+            }
           } else {
             toast.success(`OTP Sent to ${mobile}`)
           }
@@ -96,7 +105,10 @@ export default function LoginPage() {
     setLoading(true)
     const valid = await verifyOtpOnly(otp, mobile)
     if (valid) {
-      if (isNewUser) {
+      if (isForgotMode) {
+        setStep(5)
+        setLoading(false)
+      } else if (isNewUser) {
         setStep(3)
         setLoading(false)
         const res = await getRegistrationCampuses()
@@ -108,7 +120,50 @@ export default function LoginPage() {
       }
     } else {
       setLoading(false)
+      toast.error('Invalid OTP')
     }
+  }
+
+  const handleForgotPassword = async () => {
+    setLoading(true)
+    try {
+      const res = await sendOtp(mobile, true)
+      setLoading(false)
+      if (res.success) {
+        setIsForgotMode(true)
+        setStep(2)
+        toast.success('Recovery OTP sent to ' + mobile)
+      } else {
+        toast.error(res.error || 'Failed to send recovery OTP')
+      }
+    } catch (e) {
+      setLoading(false)
+      toast.error('Recovery failed. Try again.')
+    }
+  }
+
+  const handleResetPassword = async () => {
+    if (newPassword.length < 8) return toast.error('Password too short')
+    if (newPassword !== confirmNewPassword) return toast.error('Passwords do not match')
+
+    const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.*[A-Z])[a-zA-Z0-9!@#$%^&*]{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      return toast.error('Password must have 1 Uppercase, 1 Special Char, 1 Number, and be 8+ chars.')
+    }
+
+    setLoading(true)
+    const res = await verifyOtpAndResetPassword(mobile, otp, newPassword)
+    if (res.success) {
+      toast.success('Password updated successfully! Please login.')
+      setStep(1.5)
+      setIsForgotMode(false)
+      setNewPassword('')
+      setConfirmNewPassword('')
+      setPassword('')
+    } else {
+      toast.error(res.error || 'Reset failed')
+    }
+    setLoading(false)
   }
 
   const handleRegister = async () => {
@@ -262,11 +317,19 @@ export default function LoginPage() {
                   >
                     {loading ? 'Verifying...' : 'Login'}
                   </button>
+
+                  <button
+                    className="mt-4 text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400/60 hover:text-amber-400 transition-colors"
+                    onClick={handleForgotPassword}
+                    disabled={loading}
+                  >
+                    Forgot Password?
+                  </button>
                 </div>
 
                 <button
                   className="w-full mt-6 text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 hover:text-white/60 transition-colors"
-                  onClick={() => { setStep(1); setPassword(''); }}
+                  onClick={() => { setStep(1); setPassword(''); setIsForgotMode(false); }}
                 >
                   Back to Mobile
                 </button>
@@ -348,9 +411,9 @@ export default function LoginPage() {
                       <input
                         type={showConfirmPassword ? "text" : "password"}
                         className="w-full bg-white/5 border border-white/10 rounded-xl pl-4 pr-12 h-14 text-white placeholder-white/20 focus:outline-none focus:border-amber-400/50 focus:bg-white/10 transition-all text-lg font-medium tracking-wide backdrop-blur-md"
-                        value={(formData as any).confirmPassword}
+                        value={formData.confirmPassword}
                         placeholder='Retype your password'
-                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value } as any)}
+                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                       />
                     </div>
                   </div>
@@ -473,15 +536,28 @@ export default function LoginPage() {
                     </div>
                   )}
 
+                  {/* Privacy Consent */}
+                  <div className="flex items-start gap-3 p-4 bg-white/5 rounded-xl border border-white/10 mt-4">
+                    <input
+                      type="checkbox"
+                      id="privacy-consent"
+                      checked={agreedToPrivacy}
+                      onChange={(e) => setAgreedToPrivacy(e.target.checked)}
+                      className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-amber-500 focus:ring-amber-500 cursor-pointer"
+                    />
+                    <label htmlFor="privacy-consent" className="text-[11px] text-white/60 leading-tight cursor-pointer">
+                      I have read and agree to the <button type="button" onClick={() => setShowPrivacy(true)} className="text-amber-400 font-bold hover:underline">Privacy Policy</button>. I consent to the collection and use of my data for referral tracking and identity verification.
+                    </label>
+                  </div>
+
                   <button
-                    className={`w-full relative group overflow-hidden rounded-xl h-14 transition-all active:scale-[0.98] mt-4 ${(!formData.fullName || !formData.email || !formData.password ||
+                    className={`w-full relative group overflow-hidden rounded-xl h-14 transition-all active:scale-[0.98] mt-4 ${(!formData.fullName || !formData.email || !formData.password || !agreedToPrivacy ||
                       (formData.role === 'Parent' && !formData.childEprNo) ||
                       (formData.role === 'Staff' && (!formData.empId || !formData.campusId)) ||
                       (formData.role === 'Alumni' && !formData.aadharNo)
                     ) ? 'opacity-50 cursor-not-allowed grayscale' : ''
                       }`}
                     onClick={() => {
-                      // Minimal validation handled by button state, precise handled in handleRegister
                       setStep(4)
                     }}
                     disabled={loading}
@@ -546,14 +622,82 @@ export default function LoginPage() {
                 </div>
               </div>
             )}
+
+            {step === 5 && (
+              <div className="animate-in slide-in-from-right-8 fade-in duration-500">
+                <h2 className="text-2xl font-bold mb-2 text-center text-white tracking-wide">Reset Password</h2>
+                <p className="text-[10px] text-center mb-8 text-amber-400 font-bold uppercase tracking-[0.3em]">Set your new credentials</p>
+
+                <div className="flex flex-col gap-6">
+                  <div>
+                    <label className="text-white/60 text-[10px] font-bold uppercase tracking-[0.1em] mb-2 block">New Password</label>
+                    <div className="relative w-full">
+                      <input
+                        type={showRegisterPassword ? "text" : "password"}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl pl-4 pr-12 h-14 text-white placeholder-white/20 focus:outline-none focus:border-amber-400/50 focus:bg-white/10 transition-all text-lg font-medium tracking-wide backdrop-blur-md"
+                        value={newPassword}
+                        placeholder='Min 8 chars, 1 Upper, 1 Special'
+                        onChange={(e) => setNewPassword(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-amber-400 transition-colors"
+                        onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                      >
+                        {showRegisterPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-white/60 text-[10px] font-bold uppercase tracking-[0.1em] mb-2 block">Confirm New Password</label>
+                    <input
+                      type="password"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 h-14 text-white placeholder-white/20 focus:outline-none focus:border-amber-400/50 focus:bg-white/10 transition-all text-lg font-medium tracking-wide backdrop-blur-md"
+                      value={confirmNewPassword}
+                      placeholder='Retype new password'
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    />
+                  </div>
+
+                  <button
+                    className="w-full relative group overflow-hidden rounded-xl h-14 transition-all active:scale-[0.98] mt-4"
+                    onClick={handleResetPassword}
+                    disabled={loading}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-600 group-hover:scale-110 transition-transform duration-500"></div>
+                    <span className="relative z-10 text-black font-black tracking-widest text-sm uppercase flex items-center justify-center gap-2 drop-shadow-sm">
+                      {loading ? 'Updating...' : 'Save New Password'}
+                    </span>
+                  </button>
+
+                  <button
+                    className="w-full mt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 hover:text-white/60 transition-colors"
+                    onClick={() => { setStep(1.5); setIsForgotMode(false); }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Footer info */}
-        <p className="mt-12 text-center text-white/40 text-[10px] font-bold uppercase tracking-[0.4em]">
-          © 2025 ACHARIYA WORLD CLASS EDUCATION
-        </p>
+        <div className="mt-8 text-center pb-8 flex flex-col items-center gap-4">
+          <button
+            onClick={() => setShowPrivacy(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-white/30 hover:text-white/60 hover:bg-white/10 transition-all font-heading"
+          >
+            <Shield size={12} />
+            Privacy & Data Policy
+          </button>
+          <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.4em]">
+            © 2025 ACHARIYA WORLD CLASS EDUCATION
+          </p>
+        </div>
       </div>
+      <PrivacyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
     </main>
   )
 }

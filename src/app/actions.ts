@@ -1,6 +1,8 @@
 'use server'
 
+
 import prisma from '@/lib/prisma'
+import { generateSmartReferralCode } from '@/lib/referral-service'
 import { createSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
 import bcrypt from 'bcryptjs'
@@ -17,7 +19,7 @@ export async function checkSession() {
     return { authenticated: false }
 }
 
-export async function sendOtp(mobile: string) {
+export async function sendOtp(mobile: string, forceOtp: boolean = false) {
     try {
         // Check User
         const user = await prisma.user.findUnique({
@@ -45,8 +47,8 @@ export async function sendOtp(mobile: string) {
         }
 
         // OPTIMIZATION: If user exists and has password, skip OTP generation entirely
-        // This allows them to proceed to step 1.5 (Password Login)
-        if (exists && hasPassword) {
+        // Unless forceOtp is true (for password recovery)
+        if (exists && hasPassword && !forceOtp) {
             return {
                 success: true,
                 exists: true,
@@ -81,6 +83,50 @@ export async function sendOtp(mobile: string) {
     }
 }
 
+export async function verifyOtpAndResetPassword(mobile: string, otp: string, newPassword: string) {
+    if (!mobile || !otp || !newPassword) return { success: false, error: 'Missing information' }
+
+    // 1. Verify OTP
+    const record = await prisma.otpVerification.findUnique({
+        where: { mobile }
+    })
+
+    if (!record) return { success: false, error: 'Request expired. Please try again.' }
+
+    if (record.otp !== otp || new Date() > record.expiresAt) {
+        // Backdoor check for demo
+        if (otp !== '123456') {
+            return { success: false, error: 'Invalid or expired OTP' }
+        }
+    }
+
+    // 2. Hash Password
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+
+    // 3. Update User or Admin
+    const user = await prisma.user.findUnique({ where: { mobileNumber: mobile } })
+    if (user) {
+        await prisma.user.update({
+            where: { userId: user.userId },
+            data: { password: hashedPassword }
+        })
+        await prisma.otpVerification.delete({ where: { mobile } })
+        return { success: true }
+    }
+
+    const admin = await prisma.admin.findUnique({ where: { adminMobile: mobile } })
+    if (admin) {
+        await prisma.admin.update({
+            where: { adminId: admin.adminId },
+            data: { password: hashedPassword }
+        })
+        await prisma.otpVerification.delete({ where: { mobile } })
+        return { success: true }
+    }
+
+    return { success: false, error: 'User record not found' }
+}
+
 export async function verifyOtpOnly(otp: string, mobile?: string) {
     if (!mobile) return false
 
@@ -99,8 +145,6 @@ export async function verifyOtpOnly(otp: string, mobile?: string) {
     if (otp === '123456') return true
 
     return false
-
-
 }
 
 // Check password for existing users
@@ -198,23 +242,8 @@ export async function registerUser(formData: any) {
     }
 
     // Generate Smart Referral Code based on Role
-    // Format: ACH25-[ROLE-PREFIX][RANDOM4] -> ACH25-PAR1234
-    const normalizedRole = role.toUpperCase()
-    let rolePrefix = 'M' // Default
-
-    if (normalizedRole.includes('PARENT')) rolePrefix = 'P'
-    else if (normalizedRole.includes('STAFF')) rolePrefix = 'S'
-    else if (normalizedRole.includes('ALUMNI')) rolePrefix = 'A'
-
-    // Continuous Numbering Strategy
-    // Count existing users with this role to determine the next number
-    const roleCount = await prisma.user.count({
-        where: { role: role }
-    })
-
-    // Format: ACH25-P00001 (Start from 1, pad with 5 zeros)
-    const sequenceNumber = (roleCount + 1).toString().padStart(5, '0')
-    const referralCode = `ACH25-${rolePrefix}${sequenceNumber}`
+    // Format: ACH25-[ROLE-PREFIX][SEQUENCE] using shared service
+    const referralCode = await generateSmartReferralCode(role)
 
     // Fetch fee based on campus and grade
     let studentFee = 60000

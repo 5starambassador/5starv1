@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
+import { canEdit, hasPermission, getPermissionScope } from '@/lib/permission-service'
 
 // Create a new support ticket
 export async function createTicket(data: {
@@ -130,6 +131,13 @@ export async function getAdminTickets(role: string, campus?: string) {
 
 // Update ticket status
 export async function updateTicketStatus(ticketId: number, status: string, adminId?: number) {
+    const admin = await getCurrentUser()
+    if (!admin) return { success: false, error: 'Unauthorized' }
+
+    // Check permission
+    if (!await canEdit('supportDesk')) {
+        return { success: false, error: 'Permission Denied: Cannot update ticket status' }
+    }
     try {
         const updateData: any = { status }
 
@@ -155,6 +163,13 @@ export async function updateTicketStatus(ticketId: number, status: string, admin
 
 // Add message/response to ticket
 export async function addTicketMessage(ticketId: number, message: string, senderType: 'User' | 'Admin', senderId: number, isInternal: boolean = false) {
+    if (senderType === 'Admin') {
+        const admin = await getCurrentUser()
+        if (!admin) return { success: false, error: 'Unauthorized' }
+        if (!await hasPermission('supportDesk')) {
+            return { success: false, error: 'Permission Denied: Cannot message on support tickets' }
+        }
+    }
     try {
         const ticketMessage = await prisma.ticketMessage.create({
             data: {

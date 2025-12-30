@@ -1,0 +1,3 @@
+PARENT TEXT: 
+STAFF TEXT: Hello ≡ƒæï IΓÇÖm part of AchariyaΓÇÖs 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: ${referralLink} ΓÇô Achariya Ambassador
+ALUMNI TEXT: Hello ≡ƒæï I'm part of Achariya's 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: ${referralLink} ΓÇô Achariya Ambassador

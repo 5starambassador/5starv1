@@ -1,12 +1,19 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Users, TrendingUp, Award, BarChart3, DollarSign, CheckCircle, RefreshCw, Trophy, Building2, BookOpen, Shield, GraduationCap, Phone, Mail } from 'lucide-react'
+import { Users, TrendingUp, Award, BarChart3, DollarSign, CheckCircle, RefreshCw, Trophy, Building2, BookOpen, Shield, GraduationCap, Phone, Mail, Clock } from 'lucide-react'
 import { ReferralTable } from './referral-table'
 import { useState, useEffect } from 'react'
 import { PremiumHeader } from '@/components/premium/PremiumHeader'
 import { PremiumStatCard } from '@/components/premium/PremiumStatCard'
 import { PremiumCard } from '@/components/premium/PremiumCard'
+import { ReportsPanel } from '@/components/superadmin/ReportsPanel'
+import {
+    generateLeadPipelineReport,
+    generateReferralPerformanceReport,
+    generateMonthlyTrendsReport,
+    generateCampusDistributionReport
+} from '@/app/report-actions'
 import { User, Student, ReferralLead, RolePermissions, AdminAnalytics, CampusPerformance, Admin, Campus } from '@/types'
 
 interface AdminClientProps {
@@ -62,6 +69,7 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
             case 'admins': return 'Admin Management';
             case 'students': return 'Student Management';
             case 'home': return 'Dashboard';
+            case 'reports': return 'Detailed Reports';
             default: return 'Analytics Overview';
         }
     }
@@ -73,6 +81,7 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
             case 'admins': return 'Manage system administrators';
             case 'students': return 'View registered students';
             case 'home': return 'Quick overview and actions';
+            case 'reports': return 'Generate and download data exports';
             default: return 'Operational insights and lead conversion';
         }
     }
@@ -84,15 +93,14 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                 title={getTitle()}
                 subtitle={getSubtitle()}
                 icon={BarChart3}
-                action={
-                    <button
-                        onClick={() => router.refresh()}
-                        className="flex items-center gap-2 px-4 py-2 bg-white/50 hover:bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 transition-all shadow-sm hover:shadow-md backdrop-blur-sm"
-                    >
-                        <RefreshCw size={16} /> Refresh
-                    </button>
-                }
-            />
+            >
+                <button
+                    onClick={() => router.refresh()}
+                    className="flex items-center gap-2 px-4 py-2 bg-white/50 hover:bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 transition-all shadow-sm hover:shadow-md backdrop-blur-sm"
+                >
+                    <RefreshCw size={16} /> Refresh
+                </button>
+            </PremiumHeader>
 
             {/* CONTENT VIEWS */}
 
@@ -104,74 +112,94 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                         <PremiumStatCard
                             title="Total Leads"
                             value={analytics?.totalLeads || 0}
-                            icon={Users}
-                            color="red"
+                            icon={<Users size={24} />}
+                            gradient="linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)"
                         />
                         <PremiumStatCard
                             title="Confirmed"
                             value={analytics?.confirmedLeads || 0}
-                            icon={CheckCircle}
-                            color="green"
+                            icon={<CheckCircle size={24} />}
+                            gradient="linear-gradient(135deg, #10B981 0%, #047857 100%)"
                         />
                         <PremiumStatCard
                             title="Pending"
                             value={analytics?.pendingLeads || 0}
-                            icon={BarChart3}
-                            color="amber"
+                            icon={<Clock size={24} />}
+                            gradient="linear-gradient(135deg, #F59E0B 0%, #B45309 100%)"
                         />
                         <PremiumStatCard
                             title="Conversion"
                             value={`${analytics?.conversionRate || 0}%`}
-                            icon={TrendingUp}
-                            color="purple"
+                            icon={<TrendingUp size={24} />}
+                            gradient="linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)"
                         />
                     </div>
 
                     {/* Quick Actions */}
-                    <PremiumCard title="Quick Actions" icon={TrendingUp}>
+                    <PremiumCard>
+                        <div className="p-8 border-b border-gray-100 mb-8">
+                            <div className="flex items-center gap-3">
+                                <span className="w-1.5 h-6 bg-red-600 rounded-full"></span>
+                                <h2 className="text-xl font-black text-gray-900 tracking-tight">Quick Actions</h2>
+                            </div>
+                        </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <button
-                                onClick={() => router.push('/admin?view=campuses')}
-                                className="flex flex-col items-center gap-3 p-6 bg-gray-50 hover:bg-white hover:shadow-xl hover:shadow-red-500/10 border border-gray-100 hover:border-red-100 rounded-2xl transition-all group"
-                            >
-                                <div className="p-3 bg-red-50 rounded-xl group-hover:scale-110 transition-transform">
-                                    <Building2 size={24} className="text-red-600" />
-                                </div>
-                                <span className="text-sm font-bold text-gray-700">Campuses</span>
-                            </button>
-                            <button
-                                onClick={() => router.push('/admin?view=users')}
-                                className="flex flex-col items-center gap-3 p-6 bg-gray-50 hover:bg-white hover:shadow-xl hover:shadow-blue-500/10 border border-gray-100 hover:border-blue-100 rounded-2xl transition-all group"
-                            >
-                                <div className="p-3 bg-blue-50 rounded-xl group-hover:scale-110 transition-transform">
-                                    <Users size={24} className="text-blue-600" />
-                                </div>
-                                <span className="text-sm font-bold text-gray-700">Users</span>
-                            </button>
-                            <button
-                                onClick={() => router.push('/admin?view=students')}
-                                className="flex flex-col items-center gap-3 p-6 bg-gray-50 hover:bg-white hover:shadow-xl hover:shadow-green-500/10 border border-gray-100 hover:border-green-100 rounded-2xl transition-all group"
-                            >
-                                <div className="p-3 bg-green-50 rounded-xl group-hover:scale-110 transition-transform">
-                                    <BookOpen size={24} className="text-green-600" />
-                                </div>
-                                <span className="text-sm font-bold text-gray-700">Students</span>
-                            </button>
-                            <button
-                                onClick={() => router.push('/admin?view=analytics')}
-                                className="flex flex-col items-center gap-3 p-6 bg-gray-50 hover:bg-white hover:shadow-xl hover:shadow-purple-500/10 border border-gray-100 hover:border-purple-100 rounded-2xl transition-all group"
-                            >
-                                <div className="p-3 bg-purple-50 rounded-xl group-hover:scale-110 transition-transform">
-                                    <BarChart3 size={24} className="text-purple-600" />
-                                </div>
-                                <span className="text-sm font-bold text-gray-700">Full Analytics</span>
-                            </button>
+                            {(permissions?.campusPerformance?.access) && (
+                                <button
+                                    onClick={() => router.push('/admin?view=campuses')}
+                                    className="flex flex-col items-center gap-3 p-6 bg-gray-50 hover:bg-white hover:shadow-xl hover:shadow-red-500/10 border border-gray-100 hover:border-red-100 rounded-2xl transition-all group"
+                                >
+                                    <div className="p-3 bg-red-50 rounded-xl group-hover:scale-110 transition-transform">
+                                        <Building2 size={24} className="text-red-600" />
+                                    </div>
+                                    <span className="text-sm font-bold text-gray-700">Campuses</span>
+                                </button>
+                            )}
+                            {(permissions?.userManagement?.access) && (
+                                <button
+                                    onClick={() => router.push('/admin?view=users')}
+                                    className="flex flex-col items-center gap-3 p-6 bg-gray-50 hover:bg-white hover:shadow-xl hover:shadow-blue-500/10 border border-gray-100 hover:border-blue-100 rounded-2xl transition-all group"
+                                >
+                                    <div className="p-3 bg-blue-50 rounded-xl group-hover:scale-110 transition-transform">
+                                        <Users size={24} className="text-blue-600" />
+                                    </div>
+                                    <span className="text-sm font-bold text-gray-700">Users</span>
+                                </button>
+                            )}
+                            {(permissions?.studentManagement?.access) && (
+                                <button
+                                    onClick={() => router.push('/admin?view=students')}
+                                    className="flex flex-col items-center gap-3 p-6 bg-gray-50 hover:bg-white hover:shadow-xl hover:shadow-green-500/10 border border-gray-100 hover:border-green-100 rounded-2xl transition-all group"
+                                >
+                                    <div className="p-3 bg-green-50 rounded-xl group-hover:scale-110 transition-transform">
+                                        <BookOpen size={24} className="text-green-600" />
+                                    </div>
+                                    <span className="text-sm font-bold text-gray-700">Students</span>
+                                </button>
+                            )}
+                            {(permissions?.analytics?.access) && (
+                                <button
+                                    onClick={() => router.push('/admin?view=analytics')}
+                                    className="flex flex-col items-center gap-3 p-6 bg-gray-50 hover:bg-white hover:shadow-xl hover:shadow-purple-500/10 border border-gray-100 hover:border-purple-100 rounded-2xl transition-all group"
+                                >
+                                    <div className="p-3 bg-purple-50 rounded-xl group-hover:scale-110 transition-transform">
+                                        <BarChart3 size={24} className="text-purple-600" />
+                                    </div>
+                                    <span className="text-sm font-bold text-gray-700">Full Analytics</span>
+                                </button>
+                            )}
                         </div>
                     </PremiumCard>
 
                     {/* Top Performers & Role Distribution */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <PremiumCard title="Top Performers" icon={Trophy}>
+                        <PremiumCard>
+                            <div className="p-6 border-b border-gray-100 mb-6">
+                                <div className="flex items-center gap-3">
+                                    <Trophy className="text-amber-500" size={24} />
+                                    <h2 className="text-xl font-black text-gray-900 tracking-tight">Top Performers</h2>
+                                </div>
+                            </div>
                             <div className="space-y-4">
                                 {(analytics?.topPerformers || []).slice(0, 5).map((performer: any, idx: number) => (
                                     <div key={idx} className="flex items-center justify-between p-4 bg-gray-50/50 hover:bg-white hover:shadow-md border border-transparent hover:border-gray-100 rounded-2xl transition-all">
@@ -194,7 +222,11 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                             </div>
                         </PremiumCard>
 
-                        <PremiumCard title="Role Distribution" icon={Users}>
+                        <PremiumCard>
+                            <h2 className="text-xl font-black mb-6 text-gray-900 tracking-tight flex items-center gap-3">
+                                <Users className="text-blue-500" size={24} />
+                                Role Distribution
+                            </h2>
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between p-4 bg-red-50/50 border border-red-100 rounded-2xl">
                                     <span className="text-sm font-bold text-gray-700">Parents</span>
@@ -219,7 +251,7 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
             )}
 
             {/* CAMPUSES VIEW */}
-            {selectedView === 'campuses' && (
+            {selectedView === 'campuses' && permissions?.campusPerformance?.access && (
                 <div className="space-y-6">
                     {/* Summary Stats Row */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -246,7 +278,8 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                     </div>
 
                     {/* Lead Distribution Chart */}
-                    <PremiumCard title="Lead Distribution by Campus">
+                    <PremiumCard>
+                        <h2 className="text-xl font-black mb-6 text-gray-900 tracking-tight">Lead Distribution by Campus</h2>
                         <div className="space-y-4">
                             {campusPerformance.map((campus) => {
                                 const maxLeads = Math.max(...campusPerformance.map(c => c.totalLeads))
@@ -271,7 +304,10 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                     </PremiumCard>
 
                     {/* Desktop Table */}
-                    <PremiumCard title="Campus Performance Details" noPadding>
+                    <PremiumCard noPadding>
+                        <div className="p-8 border-b border-gray-100">
+                            <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1.5">Campus Performance Details</h2>
+                        </div>
                         <div className="overflow-x-auto">
                             <table className="w-full">
                                 <thead className="bg-gray-50/50 border-b border-gray-100">
@@ -307,37 +343,39 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
             )}
 
             {/* ANALYTICS VIEW (Default) */}
-            {(selectedView === 'analytics' || !selectedView) && (
+            {(selectedView === 'analytics' || !selectedView) && permissions?.analytics?.access && (
                 <div className="space-y-8">
                     {/* KPI Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <PremiumStatCard
                             title="Total Leads"
                             value={analytics?.totalLeads || 0}
-                            icon={Users}
-                            color="red"
-                            subValue={`${analytics?.conversionRate || 0}% Conversion`}
-                            onClick={() => handleCardClick('All')}
+                            icon={<Users size={24} />}
+                            gradient="linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)"
+                            subtext={`${analytics?.conversionRate || 0}% Conversion`}
                         />
                         <PremiumStatCard
                             title="Confirmed"
                             value={analytics?.confirmedLeads || 0}
-                            icon={CheckCircle}
-                            color="green"
-                            subValue="Verified Enrollments"
-                            onClick={() => handleCardClick('Confirmed')}
+                            icon={<CheckCircle size={24} />}
+                            gradient="linear-gradient(135deg, #10B981 0%, #047857 100%)"
+                            subtext="Verified Enrollments"
                         />
                         <PremiumStatCard
                             title="Est. Value"
                             value={`₹${(analytics?.totalEstimatedValue || 0).toLocaleString()}`}
-                            icon={DollarSign}
-                            color="indigo"
-                            subValue="Incentive Value"
+                            icon={<DollarSign size={24} />}
+                            gradient="linear-gradient(135deg, #4F46E5 0%, #3730A3 100%)"
+                            subtext="Incentive Value"
                         />
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <PremiumCard title="Role Distribution" icon={BarChart3}>
+                        <PremiumCard>
+                            <h2 className="text-xl font-black mb-6 text-gray-900 tracking-tight flex items-center gap-3">
+                                <BarChart3 className="text-red-600" size={24} />
+                                Role Distribution
+                            </h2>
                             <div className="space-y-6 py-4">
                                 <div>
                                     <div className="flex justify-between mb-2 text-sm font-bold">
@@ -360,7 +398,11 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                             </div>
                         </PremiumCard>
 
-                        <PremiumCard title="Top Performers" icon={Trophy}>
+                        <PremiumCard>
+                            <h2 className="text-xl font-black mb-6 text-gray-900 tracking-tight flex items-center gap-3">
+                                <Trophy className="text-amber-500" size={24} />
+                                Top Performers
+                            </h2>
                             <div className="space-y-3">
                                 {analytics.topPerformers.map((performer, idx) => (
                                     <div key={idx} className={`flex items-center justify-between p-4 rounded-2xl transition-all ${idx === 0 ? 'bg-amber-50 border border-amber-100' : 'bg-gray-50 border-transparent border'}`}>
@@ -387,12 +429,13 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                         referrals={referrals}
                         confirmReferral={confirmReferral}
                         initialStatusFilter={statusFilter}
+                        isReadOnly={permissions?.referralTracking?.scope === 'view-only'}
                     />
                 </div>
             )}
 
             {/* USERS VIEW */}
-            {selectedView === 'users' && (
+            {selectedView === 'users' && permissions?.userManagement?.access && (
                 <div className="space-y-6">
                     {/* Summary Stats */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -457,7 +500,10 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                     </div>
 
                     {/* Table */}
-                    <PremiumCard title="User Directory" noPadding>
+                    <PremiumCard noPadding>
+                        <div className="p-8 border-b border-gray-100">
+                            <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1.5">User Directory</h2>
+                        </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
                                 <thead className="bg-gray-50/50 border-b border-gray-100">
@@ -505,7 +551,7 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
             )}
 
             {/* ADMINS VIEW (Newly Added) */}
-            {selectedView === 'admins' && (
+            {selectedView === 'admins' && permissions?.adminManagement?.access && (
                 <div className="space-y-6">
                     {/* Filters */}
                     <div className="flex flex-wrap gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
@@ -520,7 +566,15 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                         </div>
                     </div>
 
-                    <PremiumCard title="System Administrators" icon={Shield} noPadding>
+                    <PremiumCard noPadding>
+                        <div className="p-8 border-b border-gray-100">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-red-50 text-red-600 rounded-xl">
+                                    <Shield size={20} strokeWidth={2.5} />
+                                </div>
+                                <h2 className="text-xl font-black text-gray-900 tracking-tight">System Administrators</h2>
+                            </div>
+                        </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
                                 <thead className="bg-gray-50/50 border-b border-gray-100">
@@ -534,17 +588,17 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
                                     {admins
-                                        .filter(admin => admin.name.toLowerCase().includes(adminSearch.toLowerCase()))
+                                        .filter(admin => admin.adminName.toLowerCase().includes(adminSearch.toLowerCase()))
                                         .map((admin, idx) => (
                                             <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                                                <td className="px-6 py-4 font-bold text-gray-800">{admin.name}</td>
-                                                <td className="px-6 py-4 font-medium text-gray-600">{admin.email}</td>
+                                                <td className="px-6 py-4 font-bold text-gray-800">{admin.adminName}</td>
+                                                <td className="px-6 py-4 font-medium text-gray-600">{admin.adminMobile}</td>
                                                 <td className="px-6 py-4 text-center">
                                                     <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
                                                         {admin.role}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 font-medium text-gray-600">{admin.campus || 'All Campuses'}</td>
+                                                <td className="px-6 py-4 font-medium text-gray-600">{admin.assignedCampus || 'All Campuses'}</td>
                                                 <td className="px-6 py-4 text-center text-gray-500 text-sm">
                                                     {new Date().toLocaleDateString()}
                                                 </td>
@@ -558,7 +612,7 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
             )}
 
             {/* STUDENTS VIEW (Newly Added) */}
-            {selectedView === 'students' && (
+            {selectedView === 'students' && permissions?.studentManagement?.access && (
                 <div className="space-y-6">
                     {/* Filters */}
                     <div className="flex flex-wrap gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
@@ -573,7 +627,15 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                         </div>
                     </div>
 
-                    <PremiumCard title="Registered Students" icon={GraduationCap} noPadding>
+                    <PremiumCard noPadding>
+                        <div className="p-8 border-b border-gray-100">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-red-50 text-red-600 rounded-xl">
+                                    <GraduationCap size={20} strokeWidth={2.5} />
+                                </div>
+                                <h2 className="text-xl font-black text-gray-900 tracking-tight">Registered Students</h2>
+                            </div>
+                        </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
                                 <thead className="bg-gray-50/50 border-b border-gray-100">
@@ -587,16 +649,16 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
                                     {students
-                                        .filter(student => student.name.toLowerCase().includes(studentSearch.toLowerCase()))
+                                        .filter(student => student.fullName.toLowerCase().includes(studentSearch.toLowerCase()))
                                         .map((student) => (
-                                            <tr key={student.id} className="hover:bg-gray-50/50 transition-colors">
-                                                <td className="px-6 py-4 font-bold text-gray-800">{student.name}</td>
+                                            <tr key={student.studentId} className="hover:bg-gray-50/50 transition-colors">
+                                                <td className="px-6 py-4 font-bold text-gray-800">{student.fullName}</td>
                                                 <td className="px-6 py-4 text-gray-600 font-medium">{student.grade}</td>
-                                                <td className="px-6 py-4 text-gray-600 font-medium">{student.campus}</td>
+                                                <td className="px-6 py-4 text-gray-600 font-medium">{student.campus?.campusName || 'N/A'}</td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex flex-col text-sm">
-                                                        <span className="font-bold text-gray-700">{student.parentName}</span>
-                                                        <span className="text-gray-500 text-xs">{student.parentPhone}</span>
+                                                        <span className="font-bold text-gray-700">{student.parent?.fullName || 'N/A'}</span>
+                                                        <span className="text-gray-500 text-xs">{student.parent?.mobileNumber || 'N/A'}</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
@@ -611,6 +673,30 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                         </div>
                     </PremiumCard>
                 </div>
+            )}
+
+            {/* REPORTS VIEW */}
+            {selectedView === 'reports' && permissions?.reports?.access && (
+                <ReportsPanel
+                    users={users}
+                    campuses={campuses}
+                    admins={admins}
+                    campusComparison={campusPerformance}
+                    generateLeadPipelineReport={generateLeadPipelineReport}
+                    onDownloadReport={async (fn) => {
+                        const res = await fn()
+                        if (res.success && res.csv) {
+                            const blob = new Blob([res.csv], { type: 'text/csv' })
+                            const url = window.URL.createObjectURL(blob)
+                            const a = document.createElement('a')
+                            a.href = url
+                            a.download = res.filename || 'report.csv'
+                            a.click()
+                        } else {
+                            alert(res.error || 'Failed to download report')
+                        }
+                    }}
+                />
             )}
         </div>
     )

@@ -20,6 +20,7 @@ export interface RolePermissions {
     auditLog: ModulePermission
     supportDesk: ModulePermission
     settings: ModulePermission
+    deletionHub: ModulePermission
     referralSubmission: ModulePermission
     referralTracking: ModulePermission
     savingsCalculator: ModulePermission
@@ -108,6 +109,10 @@ export interface SystemAnalytics {
     staffCount: number
     parentCount: number
     userRoleDistribution: { name: string; value: number }[]
+    // New metrics for Phase 2
+    avgLeadsPerAmbassador: number
+    totalEstimatedRevenue: number
+    conversionFunnel: { stage: string; count: number }[]
 }
 
 export interface CampusPerformance {

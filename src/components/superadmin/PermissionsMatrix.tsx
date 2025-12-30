@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BarChart3, Users, BookOpen, ShieldCheck, Building2, Download, DollarSign, Database, GanttChartSquare, MessageSquare, Settings, UserPlus, Edit, Trash, List, Wallet, ChevronDown, ChevronRight, CheckCircle2, Eye } from 'lucide-react'
+import { BarChart3, Users, BookOpen, ShieldCheck, Building2, Download, DollarSign, Database, GanttChartSquare, MessageSquare, Settings, UserPlus, Edit, Trash, List, Wallet, ChevronDown, ChevronRight, CheckCircle2, Eye, Key } from 'lucide-react'
 
 interface PermissionsMatrixProps {
     rolePermissionsMatrix: Record<string, any>
@@ -24,11 +24,14 @@ const SECTIONS = [
             { key: 'adminManagement', label: 'Admin Management', icon: ShieldCheck },
             { key: 'campusPerformance', label: 'Campus Performance', icon: Building2 },
             { key: 'reports', label: 'Reports & Exports', icon: Download },
-            { key: 'settlements', label: 'Revenue & Settlements', icon: DollarSign },
+            { key: 'settlements', label: 'Finance & Settlements', icon: DollarSign },
             { key: 'marketingKit', label: 'Marketing Kit', icon: Database },
             { key: 'auditLog', label: 'Audit Trail', icon: GanttChartSquare },
             { key: 'supportDesk', label: 'Support Desk', icon: MessageSquare },
+            { key: 'passwordReset', label: 'Admin Password Reset', icon: Key },
             { key: 'settings', label: 'System Settings', icon: Settings },
+            { key: 'deletionHub', label: 'Account Deletion Hub', icon: Trash },
+            { key: 'referralTracking', label: 'Global Referral Module', icon: List },
         ]
     },
     {

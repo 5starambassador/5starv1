@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Star, Phone, Award, Calendar, Shield, Edit2, Check, X, Upload, Mail, MapPin } from 'lucide-react'
+import { Star, Phone, Award, Calendar, Shield, Edit2, Check, X, Upload, Mail, MapPin, Trash2, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
+import { PrivacyModal } from '@/components/PrivacyModal'
+import { requestAccountDeletion } from '@/app/deletion-actions'
 
 interface ProfileClientProps {
     user: {
@@ -31,6 +33,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
     const [profileImage, setProfileImage] = useState(user.profileImage)
     const [saving, setSaving] = useState(false)
     const [uploading, setUploading] = useState(false)
+    const [showPrivacyModal, setShowPrivacyModal] = useState(false)
 
     const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -86,6 +89,15 @@ export default function ProfileClient({ user }: ProfileClientProps) {
         setEmail(user.email || '')
         setAddress(user.address || '')
         setIsEditing(false)
+    }
+
+    const handleDeleteRequest = async () => {
+        const res = await requestAccountDeletion();
+        if (res.success) {
+            toast.success('Deletion request submitted to Super Admin.');
+        } else {
+            toast.error(res.error || 'Failed to submit request');
+        }
     }
 
     return (
@@ -176,7 +188,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                             {profileImage ? (
                                 <img src={profileImage} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             ) : (
-                                fullName[0]
+                                fullName ? fullName[0] : 'U'
                             )}
                         </div>
 
@@ -255,7 +267,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                             </div>
                         </div>
 
-                        {/* Interactive Info Grid */}
+                        {/* Info Grid */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
                             <div className="flex items-center gap-4">
                                 <div style={{ padding: '10px', background: 'var(--bg-secondary)', borderRadius: '12px' }}>
@@ -323,57 +335,92 @@ export default function ProfileClient({ user }: ProfileClientProps) {
             </div>
 
             {/* Benefits Landscape */}
-            {
-                !user.role.includes('Admin') && user.yearFeeBenefitPercent !== undefined && (
-                    <div style={{ marginTop: '48px' }}>
-                        <div className="flex items-center gap-3 mb-6">
-                            <div style={{ width: '4px', height: '24px', background: 'var(--primary-red)', borderRadius: '2px' }} />
-                            <h2 style={{ fontSize: '22px', fontWeight: '800' }}>Exclusive Membership Benefits</h2>
+            {!user.role.includes('Admin') && user.yearFeeBenefitPercent !== undefined && (
+                <div style={{ marginTop: '48px' }}>
+                    <div className="flex items-center gap-3 mb-6">
+                        <div style={{ width: '4px', height: '24px', background: 'var(--primary-red)', borderRadius: '2px' }} />
+                        <h2 style={{ fontSize: '22px', fontWeight: '800' }}>Exclusive Membership Benefits</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="card" style={{
+                            padding: '30px',
+                            borderRadius: '24px',
+                            background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF9F9 100%)',
+                            border: '1px solid rgba(204,0,0,0.1)'
+                        }}>
+                            <div className="flex justify-between items-start mb-4">
+                                <div style={{ padding: '12px', background: 'rgba(204,0,0,0.05)', borderRadius: '16px' }}>
+                                    <Star className="text-primary-red" size={24} />
+                                </div>
+                                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '800', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid var(--border-color)', textTransform: 'uppercase' }}>Active Reward</span>
+                            </div>
+                            <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Annual Fee Benefit</h3>
+                            <div className="flex items-baseline gap-2 mb-2">
+                                <span className="text-4xl font-extrabold text-primary-red">{user.yearFeeBenefitPercent}%</span>
+                                <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>Credit</span>
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {user.longTermBenefitPercent !== undefined && (
                             <div className="card" style={{
                                 padding: '30px',
                                 borderRadius: '24px',
-                                background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF9F9 100%)',
-                                border: '1px solid rgba(204,0,0,0.1)'
+                                background: 'linear-gradient(135deg, #FFFFFF 0%, #F9FFF9 100%)',
+                                border: '1px solid rgba(0,184,148,0.1)'
                             }}>
                                 <div className="flex justify-between items-start mb-4">
-                                    <div style={{ padding: '12px', background: 'rgba(204,0,0,0.05)', borderRadius: '16px' }}>
-                                        <Star className="text-primary-red" size={24} />
+                                    <div style={{ padding: '12px', background: 'rgba(0,184,148,0.05)', borderRadius: '16px' }}>
+                                        <Award style={{ color: '#00B894' }} size={24} />
                                     </div>
-                                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '800', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid var(--border-color)', textTransform: 'uppercase' }}>Active Reward</span>
+                                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '800', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid var(--border-color)', textTransform: 'uppercase' }}>Lifetime Status</span>
                                 </div>
-                                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Annual Fee Benefit</h3>
+                                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Legacy Multiplier</h3>
                                 <div className="flex items-baseline gap-2 mb-2">
-                                    <span className="text-4xl font-extrabold text-primary-red">{user.yearFeeBenefitPercent}%</span>
-                                    <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>Credit</span>
+                                    <span className="text-4xl font-extrabold" style={{ color: '#00B894' }}>{user.longTermBenefitPercent}%</span>
+                                    <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>Permanent</span>
                                 </div>
                             </div>
-
-                            {user.longTermBenefitPercent !== undefined && (
-                                <div className="card" style={{
-                                    padding: '30px',
-                                    borderRadius: '24px',
-                                    background: 'linear-gradient(135deg, #FFFFFF 0%, #F9FFF9 100%)',
-                                    border: '1px solid rgba(0,184,148,0.1)'
-                                }}>
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div style={{ padding: '12px', background: 'rgba(0,184,148,0.05)', borderRadius: '16px' }}>
-                                            <Award style={{ color: '#00B894' }} size={24} />
-                                        </div>
-                                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '800', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid var(--border-color)', textTransform: 'uppercase' }}>Lifetime Status</span>
-                                    </div>
-                                    <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Legacy Multiplier</h3>
-                                    <div className="flex items-baseline gap-2 mb-2">
-                                        <span className="text-4xl font-extrabold" style={{ color: '#00B894' }}>{user.longTermBenefitPercent}%</span>
-                                        <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>Permanent</span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                        )}
                     </div>
-                )}
+                </div>
+            )}
+
+            {/* Account Management (Google Compliance) */}
+            <div style={{ marginTop: '64px', paddingTop: '32px', borderTop: '1px solid var(--border-color)' }}>
+                <div className="flex items-center gap-3 mb-6">
+                    <div style={{ width: '4px', height: '24px', background: '#EF4444', borderRadius: '2px' }} />
+                    <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#EF4444' }}>Danger Zone</h2>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                    <button
+                        onClick={() => {
+                            if (confirm('Are you absolutely sure you want to request account deletion?')) {
+                                handleDeleteRequest();
+                            }
+                        }}
+                        className="px-6 py-4 bg-red-50 text-red-600 border border-red-100 rounded-2xl font-bold text-sm shadow-sm hover:bg-red-100 transition-all flex items-center justify-between group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
+                            <span>Request Account Deletion</span>
+                        </div>
+                        <ArrowRight size={16} />
+                    </button>
+
+                    <button
+                        onClick={() => setShowPrivacyModal(true)}
+                        className="px-6 py-4 bg-gray-50 text-gray-600 border border-gray-100 rounded-2xl font-bold text-sm shadow-sm hover:bg-gray-100 transition-all flex items-center justify-between group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <Shield size={20} className="text-emerald-600" />
+                            <span>Privacy & Data Policy</span>
+                        </div>
+                        <ArrowRight size={16} />
+                    </button>
+                </div>
+            </div>
 
             {/* Integrity / System Data */}
             <div style={{ marginTop: '48px' }}>
@@ -395,7 +442,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                         ].map((item, idx) => (
                             <div key={idx} style={{
                                 display: 'flex',
-                                justifyContent: 'space-between',
+                                justifyComtent: 'space-between',
                                 padding: '20px 0',
                                 borderBottom: idx === 3 ? 'none' : '1px solid var(--border-color)'
                             }}>
@@ -411,7 +458,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                     </div>
                 </div>
             </div>
+            <PrivacyModal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
         </div>
     )
 }
-

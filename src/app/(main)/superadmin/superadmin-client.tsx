@@ -4,22 +4,25 @@ import { useState, useEffect, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Search, Filter, TrendingUp, Users, Target, Building2, DollarSign, BarChart3, Settings, X, Upload, Trash2, Star, Calendar, Bell, Shield, Database, GanttChartSquare, AlertTriangle, BookOpen, Check, Pencil, MessageSquare, Download, ShieldCheck, RefreshCw, Trophy, UserPlus, List, Wallet, Edit, Trash, Phone, ArrowRight, Clock } from 'lucide-react'
+import { Search, Filter, TrendingUp, Users, Target, Building2, DollarSign, BarChart3, Settings, X, Upload, Trash2, Star, Calendar, Bell, Shield, Database, GanttChartSquare, AlertTriangle, BookOpen, Check, Pencil, MessageSquare, Download, ShieldCheck, RefreshCw, Trophy, UserPlus, List, Wallet, Edit, Trash, Phone, ArrowRight, Clock, CheckCircle } from 'lucide-react'
 import { getSystemSettings, updateSystemSettings } from '@/app/settings-actions'
 import { getLeadSettings, updateLeadSettings } from '@/app/lead-actions'
 import { getSecuritySettings, updateSecuritySettings, getRetentionSettings, updateRetentionSettings } from '@/app/security-actions'
 import { getNotificationSettings, updateNotificationSettings } from '@/app/notification-actions'
 import { getCampuses, updateCampus, addCampus, deleteCampus } from '@/app/campus-actions'
 import { getBenefitSlabs, updateBenefitSlab, addBenefitSlab, deleteBenefitSlab } from '@/app/benefit-actions'
-import { addUser, addAdmin, removeUser, deleteAdmin, bulkAddUsers, updateUserStatus, updateAdminStatus, getSystemAnalytics, getUserGrowthTrend, getCampusComparison, getCampusDetails } from '@/app/superadmin-actions'
-import { addStudent, updateStudent, bulkAddStudents } from '@/app/student-actions'
+import { addUser, addAdmin, removeUser, deleteAdmin, bulkAddUsers, updateUserStatus, updateAdminStatus, getSystemAnalytics, getUserGrowthTrend, getCampusComparison, getCampusDetails, triggerWeeklyKPIReport, adminResetPassword } from '@/app/superadmin-actions'
+import { getDeletionRequests } from '@/app/deletion-actions'
+import { addStudent, updateStudent, bulkAddStudents, convertLeadToStudent } from '@/app/student-actions'
 import { getRolePermissions, updateRolePermissions } from '@/app/permission-actions'
+import { getAllReferrals, confirmReferral } from '@/app/admin-actions'
+import { ReferralTable } from '../admin/referral-table'
 import { PremiumHeader } from '@/components/premium/PremiumHeader'
 import { PremiumCard } from '@/components/premium/PremiumCard'
 import { MarketingManager } from '@/components/MarketingManager'
 import DashboardSettings from '@/components/DashboardSettings'
 import CSVUploader from '@/components/CSVUploader'
-import { CampusBarChart, ConversionFunnelChart, GrowthTrendChart, GenericPieChart } from '@/components/analytics/analytics-components'
+import { CampusBarChart, ConversionFunnelChart, GrowthTrendChart, GenericPieChart, CampusEfficiencyChart } from '@/components/analytics/analytics-components'
 import {
     generateReferralPerformanceReport,
     generatePendingLeadsReport,
@@ -46,6 +49,7 @@ const CampusManagementTable = dynamic(() => import('../../../components/superadm
 const PermissionsMatrix = dynamic(() => import('@/components/superadmin/PermissionsMatrix').then(m => m.PermissionsMatrix), { ssr: false, loading: () => <div className="h-96 w-full animate-pulse bg-gray-100 rounded-lg" /> })
 const BenefitSlabTable = dynamic(() => import('@/components/superadmin/BenefitSlabTable').then(m => m.BenefitSlabTable), { ssr: false })
 const AuditTrailTable = dynamic(() => import('@/components/superadmin/AuditTrailTable').then(m => m.AuditTrailTable), { ssr: false })
+const DeletionRequestsTable = dynamic(() => import('@/components/superadmin/DeletionRequestsTable').then(m => m.DeletionRequestsTable), { ssr: false })
 
 import { User, Student, ReferralLead, RolePermissions, SystemAnalytics, CampusPerformance, Admin, Campus, SystemSettings, MarketingAsset, BulkStudentData, BulkUserData } from '@/types'
 
@@ -134,6 +138,9 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     const [showAddAdminModal, setShowAddAdminModal] = useState(false)
     const [showStudentModal, setShowStudentModal] = useState(false)
     const [showBulkUploadModal, setShowBulkUploadModal] = useState(false)
+    const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
+    const [resetTarget, setResetTarget] = useState<{ id: number, name: string, type: 'user' | 'admin' } | null>(null)
+    const [newPassword, setNewPassword] = useState('')
     const [modalLoading, setModalLoading] = useState(false)
 
     // Form states
@@ -157,27 +164,38 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     // Bulk upload state
     const [bulkUploadType, setBulkUploadType] = useState<'students' | 'users' | null>(null)
 
-    // Map URL view param to internal view state
-    const mapViewParam = (view: string): 'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' => {
-        if (view === 'home') return 'home'
-        if (view === 'users') return 'users'
-        if (view === 'admins') return 'admins'
-        if (view === 'campuses') return 'campuses'
-        if (view === 'settings') return 'settings'
-        if (view === 'reports') return 'reports'
-        if (view === 'students') return 'students'
-        if (view === 'settlements') return 'settlements'
-        if (view === 'marketing') return 'marketing'
-        if (view === 'audit') return 'audit'
-        if (view === 'support') return 'support'
-        if (view === 'permissions') return 'permissions'
-        if (view === 'staff-dash') return 'staff-dash'
-        if (view === 'parent-dash') return 'parent-dash'
-        if (view === 'analytics') return 'analytics'
-        return 'home'
+    // Referral Management State
+    const [referrals, setReferrals] = useState<any[]>([])
+    const [referralCodeFilter, setReferralCodeFilter] = useState<string | null>(null)
+
+    const loadReferrals = async () => {
+        setLoading(true)
+        try {
+            const res = await getAllReferrals()
+            if (res.success && res.referrals) setReferrals(res.referrals)
+        } finally {
+            setLoading(false)
+        }
     }
 
-    const [selectedView, setSelectedView] = useState<'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash'>(mapViewParam(initialView))
+    const handleConfirmReferral = async (leadId: number) => {
+        const res = await confirmReferral(leadId)
+        if (res.success) {
+            toast.success('Referral confirmed!')
+            loadReferrals()
+            router.refresh()
+        } else {
+            toast.error(res.error || 'Failed to confirm')
+        }
+    }
+
+    // Map URL view param to internal view state
+    const mapViewParam = (view: string): 'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'deletion-requests' | 'referrals' => {
+        const validViews = ['home', 'analytics', 'users', 'admins', 'campuses', 'settings', 'reports', 'students', 'settlements', 'marketing', 'audit', 'support', 'permissions', 'staff-dash', 'parent-dash', 'deletion-requests', 'referrals']
+        return (validViews.includes(view) ? view : 'home') as any
+    }
+
+    const [selectedView, setSelectedView] = useState<'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'deletion-requests' | 'referrals'>(mapViewParam(initialView))
 
     // Unified Status & Settings States
     const [settingsState, setSettingsState] = useState<any>(systemSettings || null)
@@ -196,6 +214,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     const [activityLogs, setActivityLogs] = useState<any[]>([])
     const [supportTickets, setSupportTickets] = useState<any[]>([])
     const [rolePermissionsMatrix, setRolePermissionsMatrix] = useState<Record<string, any>>({})
+    const [deletionRequests, setDeletionRequests] = useState<any[]>([])
 
     // New Campus Modal State
     const [showCampusModal, setShowCampusModal] = useState(false)
@@ -229,6 +248,10 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         const viewParam = searchParams.get('view') || 'home'
         setSelectedView(mapViewParam(viewParam))
     }, [searchParams])
+
+    useEffect(() => {
+        if (selectedView === 'referrals') loadReferrals()
+    }, [selectedView])
 
     // Load all settings on mount
     useEffect(() => {
@@ -297,6 +320,22 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
             })
         }
     }, [urgentTicketCount, router])
+
+    // Effect to load deletion requests
+    useEffect(() => {
+        if (selectedView === 'deletion-requests') {
+            loadDeletionRequests()
+        }
+    }, [selectedView])
+
+    const loadDeletionRequests = async () => {
+        setLoading(true)
+        const res = await getDeletionRequests()
+        setLoading(false)
+        if (res.success && res.data) {
+            setDeletionRequests(res.data)
+        }
+    }
 
     const handleToggleRegistration = async () => {
         setLoading(true)
@@ -497,6 +536,38 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         }
     }
 
+    // Reset Password Handlers (Admin-Side)
+    const openResetModal = (id: number, name: string, type: 'user' | 'admin') => {
+        setResetTarget({ id, name, type })
+        setNewPassword('')
+        setShowResetPasswordModal(true)
+    }
+
+    const handleExecuteReset = async () => {
+        if (!resetTarget || !newPassword) return
+        if (newPassword.length < 6) {
+            toast.error('Password must be at least 6 characters')
+            return
+        }
+
+        setModalLoading(true)
+        try {
+            const res = await adminResetPassword(resetTarget.id, resetTarget.type, newPassword)
+            if (res.success) {
+                toast.success(`Password reset successfully for ${resetTarget.name}`)
+                setShowResetPasswordModal(false)
+                setResetTarget(null)
+                setNewPassword('')
+            } else {
+                toast.error(res.error || 'Failed to reset password')
+            }
+        } catch (e) {
+            toast.error('An error occurred during password reset')
+        } finally {
+            setModalLoading(false)
+        }
+    }
+
     // Campus Management Handlers
     const handleSaveCampus = async () => {
         if (!campusForm.campusName || !campusForm.campusCode || !campusForm.location) {
@@ -587,6 +658,21 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         }
     }
 
+    // Report Handlers
+    const handleWeeklyReport = async () => {
+        const tid = toast.loading('Generating and sending weekly report...')
+        try {
+            const res = await triggerWeeklyKPIReport()
+            if (res.success) {
+                toast.success('Weekly KPI report sent successfully!', { id: tid })
+            } else {
+                toast.error(res.error || 'Failed to send report', { id: tid })
+            }
+        } catch (error) {
+            toast.error('An error occurred during report generation', { id: tid })
+        }
+    }
+
     const handleUpdateLeadSettings = async () => {
         if (!leadSettings) return
         setLoading(true)
@@ -635,7 +721,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
             }
         } else {
             // Users
-            const result = await bulkAddUsers(data as BulkUserData[])
+            const result = await bulkAddUsers(data as any[])
             if (result.success && result.added > 0) {
                 router.refresh()
             }
@@ -665,7 +751,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     }
 
     // Dynamic page titles based on selected view
-    const pageConfig: Record<'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash', { title: string, subtitle: string }> = {
+    const pageConfig: Record<'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'deletion-requests' | 'referrals', { title: string, subtitle: string }> = {
         home: { title: 'Dashboard', subtitle: 'Quick overview and actions' },
         analytics: { title: 'Analytics Overview', subtitle: 'System-wide performance metrics and insights' },
         campuses: { title: 'Campus Performance', subtitle: 'Detailed metrics and comparison across all campuses' },
@@ -680,7 +766,9 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         marketing: { title: 'Promo Kit', subtitle: 'Access marketing resources and digital kits' },
         audit: { title: 'Audit Trail', subtitle: 'System-wide activity logs and transparency' },
         support: { title: 'Support Desk', subtitle: 'Manage queries and ambassador support tickets' },
-        permissions: { title: 'Permissions Matrix', subtitle: 'Dynamic module allotment for administrative roles' }
+        permissions: { title: 'Permissions Matrix', subtitle: 'Dynamic module allotment for administrative roles' },
+        'deletion-requests': { title: 'Account Deletion Hub', subtitle: 'Review and process account removal requests for compliance' },
+        'referrals': { title: 'Global Referral Management', subtitle: 'Track and convert ambassador leads into students across all campuses' }
     }
 
     return (
@@ -974,13 +1062,31 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                     <GenericPieChart data={campusCompData} dataKey="totalLeads" nameKey="campus" />
                                 </div>
                             </div>
+                            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm lg:col-span-2">
+                                <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+                                    <TrendingUp size={18} className="text-emerald-500" />
+                                    Lead Conversion Funnel
+                                </h3>
+                                <div style={{ height: '350px' }}>
+                                    <ConversionFunnelChart data={analytics?.conversionFunnel || []} />
+                                </div>
+                            </div>
+                            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                                <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+                                    <CheckCircle size={18} className="text-emerald-600" />
+                                    Campus Conversion Efficiency (%)
+                                </h3>
+                                <div style={{ height: '350px' }}>
+                                    <CampusEfficiencyChart data={campusComparison || []} />
+                                </div>
+                            </div>
                             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                                 <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
                                     <Users size={18} className="text-purple-500" />
                                     Lead Structure
                                 </h3>
                                 <div style={{ height: '350px' }}>
-                                    <GenericPieChart data={analyticsData.userRoleDistribution || []} dataKey="value" nameKey="name" />
+                                    <GenericPieChart data={analytics?.userRoleDistribution || []} dataKey="value" nameKey="name" />
                                 </div>
                             </div>
                             <div className="lg:col-span-2">
@@ -1004,6 +1110,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                         campusComparison={campusCompData}
                         onDownloadReport={handleDownloadReport}
                         generateLeadPipelineReport={generateLeadPipelineReport}
+                        onWeeklyReport={handleWeeklyReport}
                     />
                 )}
 
@@ -1018,6 +1125,12 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                             onBulkAdd={() => { setBulkUploadType('users'); setShowBulkUploadModal(true) }}
                             onDelete={(id, name) => handleDeleteUser(id, name)}
                             onToggleStatus={handleToggleUserStatus}
+                            onViewReferrals={(code) => {
+                                setReferralCodeFilter(code)
+                                setSelectedView('referrals')
+                                router.push('/superadmin?view=referrals')
+                            }}
+                            onResetPassword={openResetModal}
                         />
                     </div>
                 )}
@@ -1033,6 +1146,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                             onBulkAdd={() => { setBulkUploadType('users'); setShowBulkUploadModal(true) }} // Reuse or separate
                             onDelete={(id, name) => handleDeleteAdmin(id, name)}
                             onToggleStatus={handleToggleAdminStatus}
+                            onResetPassword={openResetModal}
                         />
                     </div>
                 )}
@@ -1076,6 +1190,17 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                 setSearchQuery(code)
                                 router.push('/superadmin?view=users')
                             }}
+                        />
+                    </div>
+                )}
+
+                {/* Referral Management View */}
+                {selectedView === 'referrals' && (
+                    <div className="space-y-6 animate-fade-in">
+                        <ReferralTable
+                            referrals={referralCodeFilter ? referrals.filter(r => r.user?.referralCode === referralCodeFilter) : referrals}
+                            confirmReferral={handleConfirmReferral}
+                            convertLeadToStudent={convertLeadToStudent}
                         />
                     </div>
                 )}
@@ -1142,6 +1267,16 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                 <p>No active support cases. Ambassadors are happy!</p>
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {/* Deletion Requests Hub */}
+                {selectedView === 'deletion-requests' && (
+                    <div className="space-y-6 animate-fade-in">
+                        <DeletionRequestsTable
+                            requests={deletionRequests}
+                            onRefresh={loadDeletionRequests}
+                        />
                     </div>
                 )}
 
@@ -1550,6 +1685,51 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                     </div>
                 )
             }
+
+            {/* Reset Password Modal */}
+            {showResetPasswordModal && resetTarget && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: 'white', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>Reset Password</h3>
+                            <button onClick={() => setShowResetPasswordModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-6">
+                            Set a new password for <strong>{resetTarget.name}</strong> ({resetTarget.type}).
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <div>
+                                <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>New Password *</label>
+                                <input
+                                    type="text"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
+                                    placeholder="Enter new password"
+                                />
+                                <p className="text-[10px] text-gray-400 mt-1">Min 6 characters required.</p>
+                            </div>
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                                <button
+                                    onClick={() => setShowResetPasswordModal(false)}
+                                    style={{ flex: 1, padding: '10px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleExecuteReset}
+                                    disabled={modalLoading}
+                                    style={{ flex: 1, padding: '10px', background: '#DC2626', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}
+                                >
+                                    {modalLoading ? 'Resetting...' : 'Confirm Reset'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Smart CSV Uploader */}
             {

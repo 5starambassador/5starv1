@@ -1,4 +1,4 @@
-import { Users, UserPlus, CheckCircle, TrendingUp, Wallet, BookOpen, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { Users, UserPlus, CheckCircle, TrendingUp, Wallet, BookOpen, ArrowUpRight, ArrowDownRight, Target, DollarSign } from 'lucide-react'
 import { PremiumStatCard } from '../premium/PremiumStatCard'
 
 interface StatsCardsProps {
@@ -15,6 +15,8 @@ interface StatsCardsProps {
         prevLeads?: number
         prevConfirmed?: number
         prevBenefits?: number
+        avgLeadsPerAmbassador: number
+        totalEstimatedRevenue: number
     }
 }
 
@@ -71,6 +73,20 @@ export function StatsCards({ analytics }: StatsCardsProps) {
             sub: 'Leads to Confirmed',
             icon: TrendingUp,
             grad: 'bg-grad-rose'
+        },
+        {
+            label: 'Referral Velocity',
+            value: analytics.avgLeadsPerAmbassador,
+            sub: 'Leads per Ambassador',
+            icon: Target,
+            grad: 'bg-grad-violet'
+        },
+        {
+            label: 'Fee Pipeline',
+            value: `₹${(analytics.totalEstimatedRevenue / 100000).toFixed(1)}L`,
+            sub: 'Estimated Potential',
+            icon: DollarSign,
+            grad: 'bg-grad-amber'
         },
     ]
 

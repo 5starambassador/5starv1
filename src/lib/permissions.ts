@@ -3,7 +3,7 @@
  * Defines permissions for each admin role across dashboard modules
  */
 
-export type AdminRole = 'Super Admin' | 'CampusHead' | 'Campus Head' | 'Finance Admin' | 'FinanceAdmin' | 'Admission Admin' | 'Campus Admin' | 'Staff' | 'Parent' | 'Alumni'
+export type AdminRole = 'Super Admin' | 'Campus Head' | 'Finance Admin' | 'Admission Admin' | 'Campus Admin' | 'Staff' | 'Parent' | 'Alumni'
 export type DataScope = 'all' | 'campus' | 'view-only' | 'none' | 'self'
 
 export interface ModulePermission {
@@ -26,6 +26,8 @@ export interface RolePermissions {
     auditLog: ModulePermission
     supportDesk: ModulePermission
     settings: ModulePermission
+    deletionHub: ModulePermission
+    passwordReset: ModulePermission
     // Ambassador Portal Modules
     referralSubmission: ModulePermission
     referralTracking: ModulePermission
@@ -46,27 +48,12 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         auditLog: { access: true, scope: 'all' },
         supportDesk: { access: true, scope: 'all' },
         settings: { access: true, scope: 'all' },
+        deletionHub: { access: true, scope: 'all' },
+        passwordReset: { access: true, scope: 'all' },
         referralSubmission: { access: true, scope: 'all' },
         referralTracking: { access: true, scope: 'all' },
         savingsCalculator: { access: true, scope: 'all' },
         rulesAccess: { access: true, scope: 'all' }
-    },
-    'CampusHead': {
-        analytics: { access: true, scope: 'campus' },
-        userManagement: { access: false, scope: 'none' },
-        studentManagement: { access: false, scope: 'none' },
-        adminManagement: { access: false, scope: 'none' },
-        campusPerformance: { access: false, scope: 'none' },
-        reports: { access: true, scope: 'campus', allowedReports: ['users', 'campus', 'performance', 'new-registrations'] },
-        settlements: { access: true, scope: 'campus' },
-        marketingKit: { access: true, scope: 'campus' },
-        auditLog: { access: false, scope: 'none' },
-        supportDesk: { access: true, scope: 'campus' },
-        settings: { access: false, scope: 'none' },
-        referralSubmission: { access: true, scope: 'campus' },
-        referralTracking: { access: true, scope: 'campus' },
-        savingsCalculator: { access: true, scope: 'campus' },
-        rulesAccess: { access: true, scope: 'campus' }
     },
     'Campus Head': {
         analytics: { access: true, scope: 'campus' },
@@ -80,6 +67,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         auditLog: { access: false, scope: 'none' },
         supportDesk: { access: true, scope: 'campus' },
         settings: { access: false, scope: 'none' },
+        deletionHub: { access: false, scope: 'none' },
+        passwordReset: { access: false, scope: 'none' },
         referralSubmission: { access: true, scope: 'campus' },
         referralTracking: { access: true, scope: 'campus' },
         savingsCalculator: { access: true, scope: 'campus' },
@@ -97,23 +86,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         auditLog: { access: false, scope: 'none' },
         supportDesk: { access: false, scope: 'none' },
         settings: { access: false, scope: 'none' },
-        referralSubmission: { access: false, scope: 'none' },
-        referralTracking: { access: false, scope: 'none' },
-        savingsCalculator: { access: false, scope: 'none' },
-        rulesAccess: { access: false, scope: 'none' }
-    },
-    'FinanceAdmin': {
-        analytics: { access: true, scope: 'all' },
-        userManagement: { access: false, scope: 'none' },
-        studentManagement: { access: false, scope: 'none' },
-        adminManagement: { access: false, scope: 'none' },
-        campusPerformance: { access: false, scope: 'none' },
-        reports: { access: true, scope: 'all', allowedReports: ['settlements', 'payments'] },
-        settlements: { access: true, scope: 'all' },
-        marketingKit: { access: false, scope: 'none' },
-        auditLog: { access: false, scope: 'none' },
-        supportDesk: { access: false, scope: 'none' },
-        settings: { access: false, scope: 'none' },
+        deletionHub: { access: false, scope: 'none' },
+        passwordReset: { access: false, scope: 'none' },
         referralSubmission: { access: false, scope: 'none' },
         referralTracking: { access: false, scope: 'none' },
         savingsCalculator: { access: false, scope: 'none' },
@@ -127,29 +101,33 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         campusPerformance: { access: false, scope: 'none' },
         reports: { access: true, scope: 'all', allowedReports: ['pending-leads', 'lead-pipeline', 'new-registrations'] },
         settlements: { access: false, scope: 'none' },
-        marketingKit: { access: false, scope: 'none' },
+        marketingKit: { access: true, scope: 'all' },
         auditLog: { access: false, scope: 'none' },
         supportDesk: { access: true, scope: 'all' },
         settings: { access: false, scope: 'none' },
+        deletionHub: { access: false, scope: 'none' },
+        passwordReset: { access: false, scope: 'none' },
         referralSubmission: { access: false, scope: 'none' },
-        referralTracking: { access: false, scope: 'none' },
+        referralTracking: { access: true, scope: 'all' },
         savingsCalculator: { access: false, scope: 'none' },
-        rulesAccess: { access: false, scope: 'none' }
+        rulesAccess: { access: true, scope: 'all' }
     },
     'Campus Admin': {
         analytics: { access: true, scope: 'campus' },
         userManagement: { access: false, scope: 'none' },
-        studentManagement: { access: false, scope: 'none' },
+        studentManagement: { access: true, scope: 'campus', canCreate: true, canEdit: true },
         adminManagement: { access: false, scope: 'none' },
         campusPerformance: { access: false, scope: 'none' },
         reports: { access: true, scope: 'campus', allowedReports: ['users', 'campus', 'performance'] },
         settlements: { access: false, scope: 'none' },
         marketingKit: { access: false, scope: 'none' },
         auditLog: { access: false, scope: 'none' },
-        supportDesk: { access: false, scope: 'none' },
+        supportDesk: { access: true, scope: 'campus' },
         settings: { access: false, scope: 'none' },
+        deletionHub: { access: false, scope: 'none' },
+        passwordReset: { access: false, scope: 'none' },
         referralSubmission: { access: false, scope: 'none' },
-        referralTracking: { access: false, scope: 'none' },
+        referralTracking: { access: true, scope: 'campus' },
         savingsCalculator: { access: false, scope: 'none' },
         rulesAccess: { access: false, scope: 'none' }
     },
@@ -165,6 +143,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         auditLog: { access: false, scope: 'none' },
         supportDesk: { access: true, scope: 'self' },
         settings: { access: false, scope: 'none' },
+        deletionHub: { access: false, scope: 'none' },
+        passwordReset: { access: false, scope: 'none' },
         referralSubmission: { access: true, scope: 'self' },
         referralTracking: { access: true, scope: 'self' },
         savingsCalculator: { access: true, scope: 'self' },
@@ -182,6 +162,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         auditLog: { access: false, scope: 'none' },
         supportDesk: { access: true, scope: 'self' },
         settings: { access: false, scope: 'none' },
+        deletionHub: { access: false, scope: 'none' },
+        passwordReset: { access: false, scope: 'none' },
         referralSubmission: { access: true, scope: 'self' },
         referralTracking: { access: true, scope: 'self' },
         savingsCalculator: { access: true, scope: 'self' },
@@ -199,6 +181,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         auditLog: { access: false, scope: 'none' },
         supportDesk: { access: true, scope: 'self' },
         settings: { access: false, scope: 'none' },
+        deletionHub: { access: false, scope: 'none' },
+        passwordReset: { access: false, scope: 'none' },
         referralSubmission: { access: true, scope: 'self' },
         referralTracking: { access: true, scope: 'self' },
         savingsCalculator: { access: true, scope: 'self' },

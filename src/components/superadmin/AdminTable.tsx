@@ -12,6 +12,7 @@ interface AdminTableProps {
     onBulkAdd: () => void
     onDelete: (adminId: number, name: string) => void
     onToggleStatus: (adminId: number, currentStatus: string) => void
+    onResetPassword?: (id: number, name: string, type: 'user' | 'admin') => void
 }
 
 export function AdminTable({
@@ -19,7 +20,8 @@ export function AdminTable({
     onAddAdmin,
     onBulkAdd,
     onDelete,
-    onToggleStatus
+    onToggleStatus,
+    onResetPassword
 }: AdminTableProps) {
     const columns = [
         {
@@ -131,8 +133,11 @@ export function AdminTable({
                 </div>
             </div>
             <div className="mt-8 pt-6 border-t border-gray-100 flex gap-4">
-                <button className="text-[10px] font-black text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-xl border border-gray-200 transition-all uppercase tracking-widest flex items-center gap-2">
-                    <Key size={14} /> Reset Permissions
+                <button
+                    onClick={() => onResetPassword?.(admin.adminId, admin.adminName, 'admin')}
+                    className="text-[10px] font-black text-amber-600 hover:bg-amber-50 px-4 py-2 rounded-xl border border-amber-100 transition-all uppercase tracking-widest flex items-center gap-2"
+                >
+                    <Key size={14} /> Reset Password
                 </button>
                 <button className="text-[10px] font-black text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-xl border border-gray-200 transition-all uppercase tracking-widest">
                     Audit Activity

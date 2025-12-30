@@ -24,7 +24,13 @@ export default async function DashboardPage() {
     const settings = systemSettings as any
 
     // Build WhatsApp share URL
-    const referralLink = `https://achariya.in/apply?ref=${userData.referralCode}`
+    let baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://achariya-5star.vercel.app'
+
+    // Check if we are in development to help the user test locally
+    if (process.env.NODE_ENV === 'development' && !process.env.NEXT_PUBLIC_APP_URL) {
+        baseUrl = 'http://localhost:3000'
+    }
+    const referralLink = `${baseUrl}/refer?ref=${userData.referralCode}`
     let rawShareText = ''
     if (userData.role === 'Staff') {
         rawShareText = settings?.staffReferralText || `Hello 👋 I'm part of Achariya's 5-Star Ambassador Program. I recommend you to explore admission for your child. Click here: {referralLink}`
@@ -34,7 +40,7 @@ export default async function DashboardPage() {
         // Parent and others
         rawShareText = settings?.parentReferralText || `Hello 👋 I'm part of Achariya's 5-Star Ambassador Program. I recommend you to explore admission for your child. Click here: {referralLink}`
     }
-    const shareText = rawShareText.replace('{referralLink}', referralLink)
+    const shareText = rawShareText.replace(/\{referralLink\}|\$\{referralLink\}/g, referralLink)
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`
 
     // Prepare recent referrals for ActionHome

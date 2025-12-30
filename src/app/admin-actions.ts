@@ -2,7 +2,7 @@
 
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
-import { getScopeFilter } from '@/lib/permission-service'
+import { getScopeFilter, canEdit, hasPermission } from '@/lib/permission-service'
 import { revalidatePath } from 'next/cache'
 import { logAction } from '@/lib/audit-logger'
 
@@ -26,7 +26,7 @@ export async function getAllReferrals() {
 
     const referrals = await prisma.referralLead.findMany({
         where: filter,
-        include: { user: true },
+        include: { user: true, student: true },
         orderBy: { createdAt: 'desc' }
     })
     return { success: true, referrals, isReadOnly }
@@ -41,6 +41,11 @@ export async function getAllReferrals() {
 export async function getAdminAnalytics() {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Admin')) return { success: false, error: 'Unauthorized' }
+
+    // Check if user has access to analytics module
+    if (!await hasPermission('analytics')) {
+        return { success: false, error: 'Access Denied to Analytics' }
+    }
 
     // Get scope filter based on permission settings
     const { filter: referralFilter } = await getScopeFilter('referralTracking', {
@@ -157,6 +162,11 @@ export async function getAdminAnalytics() {
 export async function confirmReferral(leadId: number) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Admin')) return { success: false, error: 'Unauthorized' }
+
+    // Strict Permission Check
+    if (!await canEdit('referralTracking')) {
+        return { success: false, error: 'Permission Denied: You do not have confirm rights' }
+    }
 
     try {
         // 1. Update Lead
@@ -351,6 +361,11 @@ export async function getAdminCampusPerformance() {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('CampusHead') && !user.role.includes('Admin'))) {
         return { success: false, error: 'Unauthorized' }
+    }
+
+    // Check module permission
+    if (!await hasPermission('campusPerformance')) {
+        return { success: false, error: 'Access Denied to Campus Performance' }
     }
 
     try {

@@ -1,7 +1,7 @@
 import { getCurrentUser } from '@/lib/auth-service'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, DollarSign, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3 } from 'lucide-react'
+import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, DollarSign, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2 } from 'lucide-react'
 import { MobileMenu } from '@/components/MobileMenu'
 import { NotificationDropdown } from '@/components/NotificationDropdown'
 import MobileSidebarWrapper from '@/components/MobileSidebarWrapper'
@@ -30,8 +30,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     // IMPORTANT: Check roles in specific order to avoid confusion
     // "Super Admin" contains "Admin", so check it FIRST
     const isSuperAdmin = user.role === 'Super Admin'
-    const isCampusHead = user.role.includes('Campus')
-    const isRegularAdmin = user.role.includes('Admin') && !isSuperAdmin
+    const isCampusHead = user.role === 'Campus Head'
+    const isCampusAdmin = user.role === 'Campus Admin'
+    const isCampusLevel = isCampusHead || isCampusAdmin
+    const isRegularAdmin = (user.role.includes('Admin') || user.role === 'Admission Admin') && !isSuperAdmin && !isCampusAdmin
     const isAmbassadorRole = user.role === 'Staff' || user.role === 'Parent' || user.role === 'Alumni'
 
     const navItems = []
@@ -40,11 +42,11 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     if (permissions) {
         const isFinanceAdmin = user.role === 'Finance Admin'
         // Dashboard Link (Role-specific destination)
-        const dashboardHref = isSuperAdmin ? '/superadmin' : (isCampusHead ? '/campus' : (isFinanceAdmin ? '/finance' : (isRegularAdmin ? '/admin' : '/dashboard')))
+        const dashboardHref = isSuperAdmin ? '/superadmin' : (isCampusLevel ? '/campus' : (isFinanceAdmin ? '/finance' : (isRegularAdmin ? '/admin' : '/dashboard')))
         navItems.push({ label: 'Home', href: dashboardHref, icon: <Home /> })
 
         // Admin Modules
-        const baseAdminPath = isSuperAdmin ? '/superadmin' : (isCampusHead ? '/campus' : '/admin')
+        const baseAdminPath = isSuperAdmin ? '/superadmin' : (isCampusLevel ? '/campus' : '/admin')
 
         if (permissions.analytics.access && !isAmbassadorRole) navItems.push({ label: 'Analytics', href: `${baseAdminPath}?view=analytics`, icon: <Shield /> })
         if (permissions.campusPerformance.access) navItems.push({ label: 'Campus Performance', href: `${baseAdminPath}?view=campuses`, icon: <Building2 /> })
@@ -55,16 +57,20 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         if (permissions.studentManagement.access) navItems.push({ label: 'Student Management', href: `${baseAdminPath}?view=students`, icon: <BookOpen /> })
         if (permissions.adminManagement.access) navItems.push({ label: 'Admin Management', href: `${baseAdminPath}?view=admins`, icon: <Target /> })
         if (permissions.reports.access) navItems.push({ label: 'Reports', href: `${baseAdminPath}?view=reports`, icon: <FileDown /> })
+        if (permissions.referralTracking.access && isSuperAdmin) navItems.push({ label: 'Global Referral Module', href: `/superadmin?view=referrals`, icon: <Target /> })
 
         // Management of specific dashboard types
         if (isSuperAdmin) {
             navItems.push({ label: 'Promo Management', href: '/superadmin?view=marketing', icon: <Database /> })
             navItems.push({ label: 'Permissions', href: '/superadmin?view=permissions', icon: <Shield /> })
-            // navItems.push({ label: 'Staff Dashboard Ctrl', href: '/superadmin?view=staff-dash', icon: <ShieldCheck /> })
-            // navItems.push({ label: 'Parent Dashboard Ctrl', href: '/superadmin?view=parent-dash', icon: <Star /> })
         }
 
-        if (isCampusHead) {
+        if (permissions.deletionHub?.access) {
+            navItems.push({ label: 'Deletion Hub', href: '/superadmin?view=deletion-requests', icon: <Trash2 /> })
+        }
+        // navItems.push({ label: 'Parent Dashboard Ctrl', href: '/superadmin?view=parent-dash', icon: <Star /> })
+
+        if (isCampusLevel) {
             permissions.studentManagement.access && navItems.push({ label: 'My Students', href: '/campus/students', icon: <BookOpen /> })
             permissions.referralTracking.access && navItems.push({ label: 'Campus Leads', href: '/campus/referrals', icon: <List /> })
         }
@@ -83,11 +89,14 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
         // Admin-specific shared modules (Hide from Ambassadors)
         if (!isAmbassadorRole) {
-            navItems.push({ label: 'Support Tickets', href: '/tickets', icon: <MessageSquare /> })
+            if (permissions.supportDesk.access) navItems.push({ label: 'Support Tickets', href: '/tickets', icon: <MessageSquare /> })
             if (permissions.settlements.access) {
                 // Campus Head goes to campus-specific finance view
-                const financeHref = isCampusHead ? '/campus?view=finance' : '/finance'
-                navItems.push({ label: 'Finance', href: financeHref, icon: <DollarSign /> })
+                // Finance Admin already has this as 'Home', so we skip adding it again to avoid redundancy
+                if (user.role !== 'Finance Admin') {
+                    const financeHref = isCampusLevel ? '/campus?view=finance' : '/finance'
+                    navItems.push({ label: 'Finance', href: financeHref, icon: <DollarSign /> })
+                }
             }
             if (permissions.auditLog.access) navItems.push({ label: 'Audit Trail', href: '/superadmin?view=audit', icon: <GanttChartSquare /> })
             if (permissions.settings.access) navItems.push({ label: 'Settings', href: '/superadmin?view=settings', icon: <Settings /> })
@@ -96,8 +105,6 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
     // Always accessible
     navItems.push({ label: 'Profile', href: '/profile', icon: <User /> })
-
-
 
     return (
         <div className="flex min-h-screen text-text-primary relative bg-[url('/bg-pattern.png')] bg-cover bg-fixed bg-center">
