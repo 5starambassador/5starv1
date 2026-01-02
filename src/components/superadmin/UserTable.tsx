@@ -213,11 +213,25 @@ export function UserTable({
             >
                 <div className="flex gap-4">
                     <button
+                        onClick={() => {
+                            const csvContent = "Full Name,Mobile Number,Role,Email,Campus Name,EMP ID,Child ERP No\nJohn Doe,9876543210,Staff,john@example.com,Achariya School,EMP001,\nJane Doe,9876543211,Parent,jane@example.com,Achariya School,,STU001"
+                            const blob = new Blob([csvContent], { type: 'text/csv' })
+                            const url = window.URL.createObjectURL(blob)
+                            const a = document.createElement('a')
+                            a.href = url
+                            a.download = 'ambassador_template.csv'
+                            a.click()
+                        }}
+                        className="px-6 py-4 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-xs hover:bg-gray-50 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-3 uppercase tracking-widest"
+                    >
+                        <Download size={18} /> Template
+                    </button>
+                    <button
                         onClick={onBulkAdd}
                         className="px-8 py-4 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-xs hover:bg-gray-50 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-3 uppercase tracking-widest"
                         suppressHydrationWarning
                     >
-                        <Download size={18} /> Bulk Upload
+                        <UserPlus size={18} /> Bulk Upload
                     </button>
                     <button
                         onClick={onAddUser}

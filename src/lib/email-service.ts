@@ -11,7 +11,7 @@ export const EmailService = {
 
         try {
             const { data, error } = await resend.emails.send({
-                from: 'Achariya Ambassador <onboarding@resend.dev>', // Change to verified domain later
+                from: process.env.EMAIL_FROM || 'Achariya Ambassador <onboarding@resend.dev>',
                 to: [to],
                 subject: 'Welcome to Achariya Ambassador Program! 🌟',
                 html: `
@@ -45,7 +45,7 @@ export const EmailService = {
 
         try {
             await resend.emails.send({
-                from: 'Achariya Leads <leads@resend.dev>',
+                from: process.env.EMAIL_FROM ? `Achariya Leads <${process.env.EMAIL_FROM.split('<')[1] || process.env.EMAIL_FROM}` : 'Achariya Leads <leads@resend.dev>',
                 to: [to],
                 subject: 'New Lead Assigned 🎯',
                 html: `
@@ -70,7 +70,7 @@ export const EmailService = {
 
         try {
             await resend.emails.send({
-                from: 'Achariya Accounts <accounts@resend.dev>',
+                from: process.env.EMAIL_FROM ? `Achariya Accounts <${process.env.EMAIL_FROM.split('<')[1] || process.env.EMAIL_FROM}` : 'Achariya Accounts <accounts@resend.dev>',
                 to: [to],
                 subject: 'Payment Received ✅',
                 html: `
@@ -100,7 +100,7 @@ export const EmailService = {
             const title = isFromAdmin ? 'New Response from Support' : 'New Client Reply';
 
             await resend.emails.send({
-                from: 'Achariya Support <support@resend.dev>',
+                from: process.env.EMAIL_FROM ? `Achariya Support <${process.env.EMAIL_FROM.split('<')[1] || process.env.EMAIL_FROM}` : 'Achariya Support <support@resend.dev>',
                 to: [to],
                 subject: subject,
                 html: `
@@ -131,7 +131,7 @@ export const EmailService = {
 
         try {
             await resend.emails.send({
-                from: 'Achariya Reports <reports@resend.dev>',
+                from: process.env.EMAIL_FROM ? `Achariya Reports <${process.env.EMAIL_FROM.split('<')[1] || process.env.EMAIL_FROM}` : 'Achariya Reports <reports@resend.dev>',
                 to: [to],
                 subject: subject,
                 html: `

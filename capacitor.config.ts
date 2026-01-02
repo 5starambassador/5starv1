@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: '5-Star Ambassador',
   webDir: 'public',
   server: {
-    url: 'https://5starv1.vercel.app', // Production Vercel URL
+    url: 'https://www.5starambassador.com', // Production Vercel URL
     cleartext: true
   },
   plugins: {

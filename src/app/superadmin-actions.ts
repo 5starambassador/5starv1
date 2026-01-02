@@ -671,7 +671,10 @@ export async function bulkAddUsers(users: Array<{
     fullName: string
     mobileNumber: string
     role: 'Parent' | 'Staff'
-    assignedCampus?: string
+    email: string
+    assignedCampus: string
+    empId?: string
+    childEprNo?: string
 }>) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Admin')) {
@@ -684,6 +687,29 @@ export async function bulkAddUsers(users: Array<{
 
     for (const userData of users) {
         try {
+            // Validation
+            if (!userData.assignedCampus) {
+                failed++
+                errors.push(`${userData.mobileNumber}: Missing campus`)
+                continue
+            }
+            if (!userData.email) {
+                failed++
+                errors.push(`${userData.mobileNumber}: Missing email`)
+                continue
+            }
+            // Role-based validation
+            if (userData.role === 'Staff' && !userData.empId) {
+                failed++
+                errors.push(`${userData.mobileNumber}: Staff requires EMP.ID`)
+                continue
+            }
+            if (userData.role === 'Parent' && !userData.childEprNo) {
+                failed++
+                errors.push(`${userData.mobileNumber}: Parent requires Student ERP No`)
+                continue
+            }
+
             const existing = await prisma.user.findUnique({
                 where: { mobileNumber: userData.mobileNumber }
             })
@@ -701,14 +727,18 @@ export async function bulkAddUsers(users: Array<{
                     fullName: userData.fullName,
                     mobileNumber: userData.mobileNumber,
                     role: userData.role,
+                    email: userData.email,
                     referralCode,
                     childInAchariya: false,
-                    assignedCampus: userData.assignedCampus || null,
+                    assignedCampus: userData.assignedCampus,
                     status: 'Active',
                     yearFeeBenefitPercent: 0,
                     longTermBenefitPercent: 0,
                     confirmedReferralCount: 0,
-                    isFiveStarMember: false
+
+                    isFiveStarMember: false,
+                    empId: userData.empId || null,
+                    childEprNo: userData.childEprNo || null
                 }
             })
             added++

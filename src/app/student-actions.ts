@@ -291,7 +291,16 @@ export async function convertLeadToStudent(leadId: number, studentDetails: {
     }
 }
 
-export async function bulkAddStudents(students: Array<{ fullName: string, parentMobile: string, grade: string, campusName: string, section?: string, rollNumber?: string }>) {
+export async function bulkAddStudents(students: Array<{
+    fullName: string,
+    parentMobile: string,
+    grade: string,
+    campusName: string,
+    section?: string,
+    rollNumber?: string,
+    ambassadorMobile?: string
+    ambassadorName?: string
+}>) {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
         return { success: false, added: 0, failed: students.length, errors: ['Unauthorized'] }
@@ -318,7 +327,37 @@ export async function bulkAddStudents(students: Array<{ fullName: string, parent
                 continue
             }
 
-            // 3. Calculate Fees (Reusing logic)
+            // 3. Find Ambassador (Mobile Priority, Name Fallback)
+            let ambassadorId = null
+
+            // Try Mobile First
+            if (s.ambassadorMobile) {
+                const ambassador = await prisma.user.findUnique({ where: { mobileNumber: s.ambassadorMobile } })
+                if (ambassador) {
+                    ambassadorId = ambassador.userId
+                } else {
+                    errors.push(`${s.fullName}: Ambassador Mobile not found (${s.ambassadorMobile}), skipping link.`)
+                }
+            }
+            // Try Name Second (if no mobile)
+            else if (s.ambassadorName) {
+                const matches = await prisma.user.findMany({
+                    where: {
+                        fullName: { equals: s.ambassadorName, mode: 'insensitive' },
+                        role: { not: 'Student' } // Exclude students? Actually checking all non-students is safer
+                    }
+                })
+
+                if (matches.length === 1) {
+                    ambassadorId = matches[0].userId
+                } else if (matches.length > 1) {
+                    errors.push(`${s.fullName}: Multiple ambassadors named "${s.ambassadorName}". Use Mobile Number instead.`)
+                } else {
+                    errors.push(`${s.fullName}: No ambassador named "${s.ambassadorName}" found.`)
+                }
+            }
+
+            // 4. Calculate Fees (Reusing logic)
             // Base Fee
             let baseFee = 60000
             const gradeFee = await prisma.gradeFee.findUnique({
@@ -329,7 +368,7 @@ export async function bulkAddStudents(students: Array<{ fullName: string, parent
             // Discount
             const discountPercent = parent.yearFeeBenefitPercent || 0
 
-            // 4. Create Student
+            // 5. Create Student
             await prisma.student.create({
                 data: {
                     fullName: s.fullName,
@@ -338,6 +377,7 @@ export async function bulkAddStudents(students: Array<{ fullName: string, parent
                     grade: s.grade,
                     section: s.section,
                     rollNumber: s.rollNumber,
+                    ambassadorId: ambassadorId,
                     baseFee,
                     discountPercent,
                     status: 'Active'

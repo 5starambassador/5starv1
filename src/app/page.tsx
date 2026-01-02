@@ -203,7 +203,7 @@ export default function LoginPage() {
           <div className="mb-8 relative inline-block group cursor-default">
             <div className="absolute inset-0 bg-white/10 blur-[30px] rounded-full group-hover:bg-white/20 transition-all duration-700"></div>
             <img
-              src="/achariya_25_logo.jpg"
+              src="/brand-logo.jpg"
               alt="Achariya 25th Year Logo"
               className="mx-auto relative z-10 h-[150px] w-auto drop-shadow-2xl rounded-2xl hover:scale-105 transition-transform duration-500"
             />

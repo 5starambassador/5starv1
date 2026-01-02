@@ -23,7 +23,7 @@ export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProp
     // Configuration
     const requiredHeaders = type === 'students'
         ? ['fullName', 'parentMobile', 'campusName', 'grade']
-        : ['fullName', 'mobileNumber', 'role'] // Users
+        : ['fullName', 'mobileNumber', 'role', 'email', 'campusName'] // Users
 
     const handleDrag = (e: React.DragEvent) => {
         e.preventDefault()
@@ -103,8 +103,12 @@ export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProp
                     if (header.toLowerCase() === 'mobile') key = type === 'users' ? 'mobileNumber' : 'parentMobile'
                     if (header.toLowerCase() === 'mobilenumber') key = 'mobileNumber'
                     if (header.toLowerCase() === 'parentmobile') key = 'parentMobile'
-                    if (header.toLowerCase() === 'campus') key = 'campusName'
-                    if (header.toLowerCase() === 'campusname') key = 'campusName'
+                    if (header.toLowerCase().includes('campus')) key = type === 'users' ? 'assignedCampus' : 'campusName'
+                    if (header.toLowerCase() === 'email' || header.toLowerCase() === 'mail') key = 'email'
+                    if (header.toLowerCase().includes('empid') || header.toLowerCase().includes('employee id')) key = 'empId'
+                    if (header.toLowerCase().includes('erp') || header.toLowerCase().includes('child erp')) key = 'childEprNo'
+                    if (header.toLowerCase().includes('ambassador mobile')) key = 'ambassadorMobile'
+                    if (header.toLowerCase().includes('ambassador name')) key = 'ambassadorName'
 
                     row[key] = values[index]
                 })
@@ -293,8 +297,8 @@ export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProp
                                             onClick={handleUpload}
                                             disabled={!!validationError || status === 'uploading'}
                                             className={`px-8 py-2 rounded-lg font-bold text-white flex items-center gap-2 ${validationError || status === 'uploading'
-                                                    ? 'bg-gray-300 cursor-not-allowed'
-                                                    : 'bg-primary-gold hover:bg-yellow-500 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all'
+                                                ? 'bg-gray-300 cursor-not-allowed'
+                                                : 'bg-primary-gold hover:bg-yellow-500 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all'
                                                 }`}
                                         >
                                             {status === 'uploading' && <RefreshCw className="animate-spin" size={16} />}
