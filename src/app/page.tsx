@@ -205,7 +205,7 @@ export default function LoginPage() {
             <img
               src="/achariya_25_logo.jpg"
               alt="Achariya 25th Year Logo"
-              className="mx-auto relative z-10 h-[150px] w-auto drop-shadow-2xl rounded-2xl hover:scale-105 transition-transform duration-500"
+              className="mx-auto relative z-10 h-[150px] w-auto drop-shadow-2xl rounded-[2rem] hover:scale-105 transition-transform duration-500"
             />
           </div>
 
@@ -235,7 +235,7 @@ export default function LoginPage() {
             </h1>
           </div>
 
-          <div className="inline-block px-8 py-2.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md shadow-xl">
+          <div className="inline-block px-6 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md shadow-xl">
             <p className="text-lg font-bold uppercase tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-300">
               25th Year Celebration
             </p>
