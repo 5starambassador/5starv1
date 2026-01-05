@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Users, TrendingUp, Award, BarChart3, DollarSign, CheckCircle, RefreshCw, Trophy, Building2, BookOpen, Shield, GraduationCap, Phone, Mail, Clock } from 'lucide-react'
+import { Users, TrendingUp, Award, BarChart3, IndianRupee, CheckCircle, RefreshCw, Trophy, Building2, BookOpen, Shield, GraduationCap, Phone, Mail, Clock } from 'lucide-react'
 import { ReferralTable } from './referral-table'
 import { useState, useEffect } from 'react'
 import { PremiumHeader } from '@/components/premium/PremiumHeader'
@@ -364,7 +364,7 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                         <PremiumStatCard
                             title="Est. Value"
                             value={`₹${(analytics?.totalEstimatedValue || 0).toLocaleString()}`}
-                            icon={<DollarSign size={24} />}
+                            icon={<IndianRupee size={24} />}
                             gradient="linear-gradient(135deg, #4F46E5 0%, #3730A3 100%)"
                             subtext="Incentive Value"
                         />

@@ -4,11 +4,15 @@ import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Upload, X, Check, AlertCircle, RefreshCw, Filter, Download, FileText } from 'lucide-react'
 
+import { toast } from 'sonner' // Added import
+
 interface CSVUploaderProps {
-    type: 'students' | 'users'
+    type: 'students' | 'users' | 'fees'
     onUpload: (data: any[]) => Promise<{ success: boolean; added: number; failed: number; errors: string[] }>
     onClose: () => void
 }
+
+// ... (existing code)
 
 export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProps) {
     const [file, setFile] = useState<File | null>(null)
@@ -31,8 +35,22 @@ export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProp
         ? ['fullName', 'parentMobile', 'campusName', 'grade']
         : ['fullName', 'mobileNumber', 'role', 'email', 'assignedCampus'] // Users
 
+    const TEMPLATES = {
+        students: {
+            headers: ['Parent Name', 'Parent Mobile', 'Student Name', 'Campus Code', 'Grade', 'Section', 'Roll No', 'Student ERP No', 'Academic Year', 'Fee', 'Ambassador Code'],
+            filename: 'student_template.csv'
+        },
+        users: {
+            headers: ['Full Name', 'Mobile Number', 'Role', 'Email', 'Assigned Campus', 'Emp ID', 'Child EPR No'],
+            filename: 'user_template.csv'
+        },
+        fees: {
+            headers: ['Campus Name', 'Grade', 'Academic Year', 'Annual Fee'],
+            filename: 'fee_structure_template.csv'
+        }
+    }
     // Helper: Normalize keys
-    const getNormalizedKey = (header: string, type: 'students' | 'users') => {
+    const getNormalizedKey = (header: string, type: 'students' | 'users' | 'fees') => {
         const normHeader = header.toLowerCase().replace(/\s/g, '')
 
         // Extras (Check these first to avoid collisions with "Parent" if header is "Parent Ambassador")
@@ -41,7 +59,10 @@ export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProp
         if (normHeader.includes('parent') && normHeader.includes('mobile')) return 'parentMobile'
         if (normHeader.includes('parent') && normHeader.includes('name')) return 'parentName'
 
-        if (normHeader.includes('campus')) return type === 'users' ? 'assignedCampus' : 'campusName'
+        if (normHeader.includes('campus')) {
+            if (type === 'fees') return 'campusName'
+            return type === 'users' ? 'assignedCampus' : 'campusName'
+        }
         if (normHeader === 'email' || normHeader === 'mail') return 'email'
         if (normHeader === 'role') return 'role'
 
@@ -156,15 +177,40 @@ export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProp
         setStatus('uploading')
 
         try {
-            const res = await onUpload(parsedData)
-            if (res.success) {
-                setStatus('success')
-                setResult({ added: res.added, errors: res.errors || [] })
+            if (type === 'fees') {
+                const fees = parsedData.map(row => ({
+                    campusName: row[getNormalizedKey('Campus Name', type)] || row['campusname'] || '',
+                    grade: row[getNormalizedKey('Grade', type)] || '',
+                    academicYear: row[getNormalizedKey('Academic Year', type)] || '2025-2026',
+                    annualFee: parseFloat(row[getNormalizedKey('Annual Fee', type)]?.toString() || '0')
+                })).filter(f => f.campusName && f.grade && f.annualFee > 0)
+
+                const { uploadFeeStructure } = await import('@/app/fee-actions')
+                const res = await uploadFeeStructure(fees)
+
+                if (res.success) {
+                    toast.success(`Processed ${res.processed} fee entries`)
+                    if (res.errors && res.errors.length > 0) {
+                        toast.warning(`Some errors: ${res.errors.slice(0, 3).join(', ')}`)
+                    }
+                    onClose()
+                } else {
+                    toast.error(res.error || 'Failed to upload fees')
+                    setStatus('error')
+                }
             } else {
-                setValidationError('Upload failed on server.')
-                setStatus('error')
+                // Existing student/user upload logic
+                const res = await onUpload(parsedData)
+                if (res.success) {
+                    setStatus('success')
+                    setResult({ added: res.added, errors: res.errors || [] })
+                } else {
+                    setValidationError('Upload failed on server.')
+                    setStatus('error')
+                }
             }
         } catch (err) {
+            console.error(err)
             setValidationError('Network error occurred.')
             setStatus('error')
         }

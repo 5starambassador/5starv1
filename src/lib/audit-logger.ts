@@ -17,7 +17,7 @@ export async function logAction(
         const ip = headersList.get('x-forwarded-for')?.split(',')[0] || headersList.get('x-real-ip') || 'unknown'
         const userAgent = headersList.get('user-agent') || 'unknown'
 
-        await prisma.activityLog.create({
+        await (prisma as any).activityLog.create({
             data: {
                 adminId: session?.userType === 'admin' ? Number(session.userId) : null,
                 userId: session?.userType === 'user' ? Number(session.userId) : null,
@@ -25,10 +25,9 @@ export async function logAction(
                 module,
                 targetId: targetId || null,
                 description,
+                metadata: metadata || null,
                 ipAddress: ip,
                 userAgent,
-                // We'll store metadata in description or a different field if we want to expand.
-                // For now, let's just use what's in the schema.
             }
         })
     } catch (error) {

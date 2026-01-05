@@ -51,6 +51,7 @@ export async function addStudent(data: {
         fullName: string
         mobileNumber: string
     }
+    academicYear?: string // Added
 }) {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
@@ -58,76 +59,74 @@ export async function addStudent(data: {
     }
 
     try {
-        let parentId = data.parentId
+        // Wrap in transaction to ensure atomic parent/student creation
+        const student = await prisma.$transaction(async (tx) => {
+            let pId = data.parentId
 
-        // Create new parent if details provided
-        if (data.newParent) {
-            const existingParent = await prisma.user.findUnique({
-                where: { mobileNumber: data.newParent.mobileNumber }
-            })
-
-            if (existingParent) {
-                // If parent exists, just use their ID (or could throw error depending on preference)
-                parentId = existingParent.userId
-            } else {
-                // Generate smart referral code
-                const referralCode = await generateSmartReferralCode('Parent')
-
-                const newParent = await prisma.user.create({
-                    data: {
-                        fullName: data.newParent.fullName,
-                        mobileNumber: data.newParent.mobileNumber,
-                        role: 'Parent',
-                        referralCode,
-                        childInAchariya: true,
-                        status: 'Active',
-                        yearFeeBenefitPercent: 0,
-                        confirmedReferralCount: 0,
-                        isFiveStarMember: false
-                    }
+            if (!pId && data.newParent) {
+                const existingParent = await tx.user.findUnique({
+                    where: { mobileNumber: data.newParent.mobileNumber }
                 })
-                parentId = newParent.userId
+
+                if (existingParent) {
+                    pId = existingParent.userId
+                } else {
+                    const referralCode = await generateSmartReferralCode('Parent')
+                    const newParent = await tx.user.create({
+                        data: {
+                            fullName: data.newParent.fullName,
+                            mobileNumber: data.newParent.mobileNumber,
+                            role: 'Parent',
+                            referralCode,
+                            childInAchariya: true,
+                            status: 'Active',
+                            yearFeeBenefitPercent: 0,
+                            confirmedReferralCount: 0,
+                            isFiveStarMember: false,
+                            academicYear: data.academicYear || '2025-2026'
+                        }
+                    })
+                    pId = newParent.userId
+                }
             }
-        }
 
-        // Calculate Fees if missing (Live Data)
-        let baseFee = data.baseFee
-        let discountPercent = data.discountPercent
+            // Calculate Fees (Strict 0 fallback)
+            let bFee = data.baseFee
+            let dPercent = data.discountPercent
 
-        if (baseFee === undefined || baseFee === null) {
-            // Fetch default fee for Campus + Grade
-            baseFee = 60000 // Default fallback
-            const gradeFee = await prisma.gradeFee.findUnique({
-                where: {
-                    campusId_grade: {
-                        campusId: data.campusId,
-                        grade: data.grade
-                    }
+            if (bFee === undefined || bFee === null) {
+                const gradeFees: any[] = await tx.$queryRaw`
+                    SELECT "annualFee" FROM "GradeFee" 
+                    WHERE "campusId" = ${data.campusId} 
+                    AND "grade" = ${data.grade} 
+                    AND "academicYear" = ${data.academicYear || '2025-2026'}
+                    LIMIT 1
+                `
+                if (gradeFees.length > 0) bFee = gradeFees[0].annualFee
+                else bFee = 0
+            }
+
+            if (dPercent === undefined || dPercent === null) {
+                const p = await tx.user.findUnique({
+                    where: { userId: pId }
+                })
+                dPercent = p?.yearFeeBenefitPercent || 0
+            }
+
+            return await tx.student.create({
+                data: {
+                    fullName: data.fullName,
+                    parentId: pId,
+                    campusId: data.campusId,
+                    grade: data.grade,
+                    section: data.section,
+                    rollNumber: data.rollNumber,
+                    status: 'Active',
+                    baseFee: bFee as number,
+                    discountPercent: dPercent as number,
+                    academicYear: data.academicYear || '2025-2026'
                 }
             })
-            if (gradeFee) baseFee = gradeFee.annualFee
-        }
-
-        if (discountPercent === undefined || discountPercent === null) {
-            // Fetch parent's discount entitlement
-            const parent = await prisma.user.findUnique({
-                where: { userId: parentId }
-            })
-            discountPercent = parent?.yearFeeBenefitPercent || 0
-        }
-
-        const student = await prisma.student.create({
-            data: {
-                fullName: data.fullName,
-                parentId: parentId,
-                campusId: data.campusId,
-                grade: data.grade,
-                section: data.section,
-                rollNumber: data.rollNumber,
-                status: 'Active',
-                baseFee: baseFee as number,
-                discountPercent: discountPercent as number
-            }
         })
         revalidatePath('/superadmin')
         revalidatePath('/dashboard')
@@ -149,6 +148,7 @@ export async function updateStudent(studentId: number, data: Partial<{
     status: string
     baseFee: number
     discountPercent: number
+    academicYear: string
 }>) {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
@@ -160,15 +160,14 @@ export async function updateStudent(studentId: number, data: Partial<{
         let updateData = { ...data }
 
         if (data.campusId && data.grade && !data.baseFee) {
-            const gradeFee = await prisma.gradeFee.findUnique({
-                where: {
-                    campusId_grade: {
-                        campusId: data.campusId,
-                        grade: data.grade
-                    }
-                }
-            })
-            if (gradeFee) updateData.baseFee = gradeFee.annualFee
+            const gradeFees: any[] = await prisma.$queryRaw`
+                SELECT "annualFee" FROM "GradeFee" 
+                WHERE "campusId" = ${data.campusId || 0} 
+                AND "grade" = ${data.grade || ''} 
+                AND "academicYear" = ${data.academicYear || '2025-2026'}
+                LIMIT 1
+            `
+            if (gradeFees.length > 0) updateData.baseFee = gradeFees[0].annualFee
         }
 
         await prisma.student.update({
@@ -217,71 +216,86 @@ export async function convertLeadToStudent(leadId: number, studentDetails: {
             return { success: false, error: `Could not resolve Campus ID for "${lead.campus}"` }
         }
 
-        // 2. Resolve or Create Parent User
-        let parentId: number
-        const existingParent = await prisma.user.findUnique({
-            where: { mobileNumber: lead.parentMobile }
-        })
+        // Execute as a Transaction to ensure atomic conversion
+        const result = await prisma.$transaction(async (tx) => {
+            // 2. Resolve or Create Parent User
+            let pId: number
+            const existingParent = await tx.user.findUnique({
+                where: { mobileNumber: lead.parentMobile }
+            })
 
-        if (existingParent) {
-            parentId = existingParent.userId
-        } else {
-            // Create new parent user
-            const referralCode = await generateSmartReferralCode('Parent')
+            if (existingParent) {
+                pId = existingParent.userId
+            } else {
+                const referralCode = await generateSmartReferralCode('Parent')
+                const newParent = await tx.user.create({
+                    data: {
+                        fullName: lead.parentName,
+                        mobileNumber: lead.parentMobile,
+                        role: 'Parent',
+                        referralCode,
+                        childInAchariya: true,
+                        status: 'Active',
+                        yearFeeBenefitPercent: 0,
+                        confirmedReferralCount: 0,
+                        isFiveStarMember: false,
+                        academicYear: lead.admittedYear || '2025-2026'
+                    }
+                })
+                pId = newParent.userId
+            }
 
-            const newParent = await prisma.user.create({
+            // 3. Find base fee (Strict 0 fallback)
+            let bFee = 0
+            if (campusId && lead.gradeInterested) {
+                const gradeFees: any[] = await tx.$queryRaw`
+                    SELECT "annualFee" FROM "GradeFee" 
+                    WHERE "campusId" = ${campusId} 
+                    AND "grade" = ${lead.gradeInterested} 
+                    AND "academicYear" = ${lead.admittedYear || '2025-2026'}
+                    LIMIT 1
+                `
+                if (gradeFees.length > 0) bFee = gradeFees[0].annualFee
+            }
+
+            // 4. Create Student
+            const student = await tx.student.create({
                 data: {
-                    fullName: lead.parentName,
-                    mobileNumber: lead.parentMobile,
-                    role: 'Parent',
-                    referralCode,
-                    childInAchariya: true,
+                    fullName: studentDetails.studentName || lead.studentName || 'Unknown',
+                    parentId: pId,
+                    ambassadorId: lead.userId,
+                    campusId: campusId,
+                    grade: lead.gradeInterested || 'Unknown',
+                    section: studentDetails.section,
+                    rollNumber: studentDetails.rollNumber,
+                    referralLeadId: lead.leadId,
+                    baseFee: bFee,
+                    discountPercent: lead.user.yearFeeBenefitPercent || 0,
                     status: 'Active',
-                    yearFeeBenefitPercent: 0,
-                    confirmedReferralCount: 0,
-                    isFiveStarMember: false,
                     academicYear: lead.admittedYear || '2025-2026'
                 }
             })
-            parentId = newParent.userId
-        }
 
-        // 3. Find or default base fee from campus/grade
-        let baseFee = 60000
-        if (campusId && lead.gradeInterested) {
-            const gradeFee = await prisma.gradeFee.findUnique({
-                where: {
-                    campusId_grade: {
-                        campusId: campusId,
-                        grade: lead.gradeInterested
-                    }
-                }
+            // 5. Update Referral Lead Status
+            await tx.referralLead.update({
+                where: { leadId: lead.leadId },
+                data: { leadStatus: 'Confirmed' } // Or 'Admitted' if you prefer, but UI usually expects 'Confirmed'
             })
-            if (gradeFee) baseFee = gradeFee.annualFee
-        }
 
-        // 4. Create Student
-        const student = await prisma.student.create({
-            data: {
-                fullName: studentDetails.studentName,
-                parentId: parentId,
-                ambassadorId: lead.userId,
-                campusId: campusId,
-                grade: lead.gradeInterested || 'Unknown',
-                section: studentDetails.section,
-                rollNumber: studentDetails.rollNumber,
-                referralLeadId: lead.leadId,
-                baseFee,
-                discountPercent: lead.user.yearFeeBenefitPercent || 0,
-                status: 'Active'
-            }
+            // 6. Increment Ambassador's count
+            await tx.user.update({
+                where: { userId: lead.userId },
+                data: { confirmedReferralCount: { increment: 1 } }
+            })
+
+            return student
         })
 
         revalidatePath('/superadmin')
         revalidatePath('/campus')
         revalidatePath('/students')
 
-        return { success: true, student }
+        return { success: true, student: result }
     } catch (error: any) {
         if (error.code === 'P2002') {
             return { success: false, error: 'Lead is already linked to a student' }
@@ -424,33 +438,37 @@ export async function bulkAddStudents(students: Array<{
                 referralCounts.set(ambassadorId, currentCount + 1)
             }
 
-            // 4. Calculate Fees (Reusing logic)
-            // Base Fee
-            let baseFee = 60000
-            const gradeFee = await prisma.gradeFee.findUnique({
-                where: { campusId_grade: { campusId: campus.id, grade: s.grade } }
-            })
-            if (gradeFee) baseFee = gradeFee.annualFee
+            // Perform Student Creation in a transaction to ensure Parent-Student link is atomic
+            await prisma.$transaction(async (tx) => {
+                // Calculate Fees (Reusing logic with tx)
+                let bFee = 0
+                const gradeFees: any[] = await tx.$queryRaw`
+                    SELECT "annualFee" FROM "GradeFee" 
+                    WHERE "campusId" = ${campus.id} 
+                    AND "grade" = ${s.grade} 
+                    AND "academicYear" = ${s.academicYear || '2025-2026'}
+                    LIMIT 1
+                `
+                if (gradeFees.length > 0) bFee = gradeFees[0].annualFee
 
-            // Discount
-            const discountPercent = parent.yearFeeBenefitPercent || 0
+                const dPercent = parent.yearFeeBenefitPercent || 0
 
-            // 5. Create Student
-            await prisma.student.create({
-                data: {
-                    fullName: s.fullName,
-                    parentId: parent.userId,
-                    campusId: campus.id,
-                    grade: s.grade,
-                    section: s.section,
-                    rollNumber: s.rollNumber,
-                    admissionNumber: s.admissionNumber,
-                    ambassadorId: ambassadorId,
-                    baseFee,
-                    discountPercent,
-                    status: 'Active',
-                    academicYear: s.academicYear || '2025-2026'
-                }
+                await tx.student.create({
+                    data: {
+                        fullName: s.fullName,
+                        parentId: parent.userId,
+                        campusId: campus.id,
+                        grade: s.grade,
+                        section: s.section,
+                        rollNumber: s.rollNumber,
+                        admissionNumber: s.admissionNumber,
+                        ambassadorId: ambassadorId,
+                        baseFee: bFee,
+                        discountPercent: dPercent,
+                        status: 'Active',
+                        academicYear: s.academicYear || '2025-2026'
+                    }
+                })
             })
             added++
         } catch (error) {

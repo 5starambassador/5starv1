@@ -17,8 +17,11 @@ export async function emailReport(reportId: string, criteria?: any) {
         // 1. Fetch Data based on Report ID
         if (reportId === 'users') {
             const users = await prisma.user.findMany({
+                where: {
+                    ...(user.role !== 'Super Admin' && user.assignedCampus ? { assignedCampus: user.assignedCampus } : {})
+                },
                 orderBy: { createdAt: 'desc' },
-                take: 100 // Limit for email safety, or change to 500
+                take: 500 // Increased limit for detailed audit
             })
 
             subject = `Users Report - ${new Date().toLocaleDateString()}`
@@ -55,7 +58,10 @@ export async function emailReport(reportId: string, criteria?: any) {
         }
         else if (reportId === 'campus') {
             const campuses = await prisma.campus.findMany({
-                where: { isActive: true },
+                where: {
+                    isActive: true,
+                    ...(user.role !== 'Super Admin' && user.assignedCampus ? { campusName: user.assignedCampus } : {})
+                },
                 include: {
                     _count: {
                         select: { students: true }
@@ -93,7 +99,11 @@ export async function emailReport(reportId: string, criteria?: any) {
             `
         }
         else if (reportId === 'admins') {
+            // Admin list is sensitive, normally only Super Admin sees it, but Campus Head might see their own team
             const admins = await prisma.admin.findMany({
+                where: {
+                    ...(user.role !== 'Super Admin' && user.assignedCampus ? { assignedCampus: user.assignedCampus } : {})
+                },
                 orderBy: { createdAt: 'desc' }
             })
 

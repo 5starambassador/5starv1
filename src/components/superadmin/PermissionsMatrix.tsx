@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BarChart3, Users, BookOpen, ShieldCheck, Building2, Download, DollarSign, Database, GanttChartSquare, MessageSquare, Settings, UserPlus, Edit, Trash, List, Wallet, ChevronDown, ChevronRight, CheckCircle2, Eye, Key } from 'lucide-react'
+import { BarChart3, Users, BookOpen, ShieldCheck, Building2, Download, IndianRupee, Database, GanttChartSquare, MessageSquare, Settings, UserPlus, Edit, Trash, List, Wallet, ChevronDown, ChevronRight, CheckCircle2, Eye, Key } from 'lucide-react'
 
 interface PermissionsMatrixProps {
     rolePermissionsMatrix: Record<string, any>
@@ -24,7 +24,7 @@ const SECTIONS = [
             { key: 'adminManagement', label: 'Admin Management', icon: ShieldCheck },
             { key: 'campusPerformance', label: 'Campus Performance', icon: Building2 },
             { key: 'reports', label: 'Reports & Exports', icon: Download },
-            { key: 'settlements', label: 'Finance & Settlements', icon: DollarSign },
+            { key: 'settlements', label: 'Finance & Settlements', icon: IndianRupee },
             { key: 'marketingKit', label: 'Marketing Kit', icon: Database },
             { key: 'auditLog', label: 'Audit Trail', icon: GanttChartSquare },
             { key: 'supportDesk', label: 'Support Desk', icon: MessageSquare },

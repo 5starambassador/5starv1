@@ -1,6 +1,6 @@
 'use client'
 
-import { Download, FileText, Users, DollarSign } from 'lucide-react'
+import { Download, FileText, Users, IndianRupee } from 'lucide-react'
 import { generatePDFReport } from '@/lib/pdf-export'
 import { toast } from 'sonner'
 
@@ -153,7 +153,7 @@ export function CampusReportsClient({
             <div className="bg-white rounded-2xl border border-gray-100 p-6">
                 <div className="flex items-center gap-3 mb-3">
                     <div className="p-2 bg-green-100 rounded-xl">
-                        <DollarSign size={20} className="text-green-600" />
+                        <IndianRupee size={20} className="text-green-600" />
                     </div>
                     <h3 className="font-bold text-gray-900">Finance Report</h3>
                 </div>

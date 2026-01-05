@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Users, TrendingUp, Award, BarChart3, DollarSign, CheckCircle, Building2, RefreshCw, Trophy } from 'lucide-react'
+import { Users, TrendingUp, Award, BarChart3, IndianRupee, CheckCircle, Building2, RefreshCw, Trophy } from 'lucide-react'
 import { ReferralTable } from '../admin/referral-table'
 import { useState } from 'react'
 
@@ -229,9 +229,9 @@ export function CampusClient({ campus, analytics, referrals, confirmReferral }: 
                         boxShadow: '0 10px 20px -5px rgba(236, 72, 153, 0.3)'
                     }}
                 >
-                    <DollarSign size={48} style={{ position: 'absolute', right: '-10px', bottom: '-10px', color: 'rgba(255,255,255,0.15)' }} />
+                    <IndianRupee size={48} style={{ position: 'absolute', right: '-10px', bottom: '-10px', color: 'rgba(255,255,255,0.15)' }} />
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', position: 'relative' }}>
-                        <DollarSign size={16} style={{ color: 'rgba(255,255,255,0.9)' }} />
+                        <IndianRupee size={16} style={{ color: 'rgba(255,255,255,0.9)' }} />
                         <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: '600', letterSpacing: '0.02em' }}>Benefits</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', position: 'relative' }}>

@@ -4,8 +4,13 @@ import { useState, useEffect, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Search, Filter, TrendingUp, Users, Target, Building2, DollarSign, BarChart3, Settings, X, Upload, Trash2, Star, Calendar, Bell, Shield, Database, GanttChartSquare, AlertTriangle, BookOpen, Check, Pencil, MessageSquare, Download, ShieldCheck, RefreshCw, Trophy, UserPlus, List, Wallet, Edit, Trash, Phone, ArrowRight, Clock, CheckCircle } from 'lucide-react'
-import { getSystemSettings, updateSystemSettings } from '@/app/settings-actions'
+import { Search, Filter, TrendingUp, Users, Target, Building2, IndianRupee, BarChart3, Settings, X, Upload, Trash2, Star, Calendar, Bell, Shield, Database, GanttChartSquare, AlertTriangle, BookOpen, Check, Pencil, MessageSquare, Download, ShieldCheck, RefreshCw, Trophy, UserPlus, List, Wallet, Edit, Trash, Phone, ArrowRight, Clock, CheckCircle, Plus } from 'lucide-react'
+import {
+    getSystemSettings,
+    updateSystemSettings,
+    getAcademicYears,
+    addAcademicYear
+} from '@/app/settings-actions'
 import { getLeadSettings, updateLeadSettings } from '@/app/lead-actions'
 import { getSecuritySettings, updateSecuritySettings, getRetentionSettings, updateRetentionSettings } from '@/app/security-actions'
 import { getNotificationSettings, updateNotificationSettings } from '@/app/notification-actions'
@@ -50,6 +55,7 @@ const PermissionsMatrix = dynamic(() => import('@/components/superadmin/Permissi
 const BenefitSlabTable = dynamic(() => import('@/components/superadmin/BenefitSlabTable').then(m => m.BenefitSlabTable), { ssr: false })
 const AuditTrailTable = dynamic(() => import('@/components/superadmin/AuditTrailTable').then(m => m.AuditTrailTable), { ssr: false })
 const DeletionRequestsTable = dynamic(() => import('@/components/superadmin/DeletionRequestsTable').then(m => m.DeletionRequestsTable), { ssr: false })
+const FeeManagementTable = dynamic(() => import('@/components/superadmin/FeeManagementTable').then(m => m.FeeManagementTable), { ssr: false })
 
 import { User, Student, ReferralLead, RolePermissions, SystemAnalytics, CampusPerformance, Admin, Campus, SystemSettings, MarketingAsset, BulkStudentData, BulkUserData } from '@/types'
 
@@ -146,19 +152,55 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     // Form states
     const [userForm, setUserForm] = useState({ fullName: '', mobileNumber: '', role: 'Parent' as 'Parent' | 'Staff', assignedCampus: '' })
     const [adminForm, setAdminForm] = useState({ adminName: '', adminMobile: '', role: 'CampusHead' as 'CampusHead' | 'CampusAdmin', assignedCampus: '' })
-    const [studentForm, setStudentForm] = useState({
+    const [studentForm, setStudentForm] = useState<any>({
         fullName: '',
         parentId: '',
         campusId: '',
         grade: '',
         section: '',
         rollNumber: '',
-        baseFee: 60000,
+        baseFee: undefined,
         discountPercent: 0,
         isNewParent: false,
         newParentName: '',
         newParentMobile: ''
     })
+
+    // Academic Year State
+    const [academicYears, setAcademicYears] = useState<any[]>([])
+    const [showAddYearModal, setShowAddYearModal] = useState(false)
+    const [newYearData, setNewYearData] = useState({ year: '', startDate: '', endDate: '' })
+
+    // Load AY on mount
+    useEffect(() => {
+        getAcademicYears().then(res => {
+            if (res.success && res.data) setAcademicYears(res.data)
+        })
+    }, [])
+
+    const handleAddAcademicYear = async () => {
+        if (!newYearData.year || !newYearData.startDate || !newYearData.endDate) return toast.error('Fill all fields')
+        setModalLoading(true)
+        try {
+            const res = await addAcademicYear({
+                year: newYearData.year,
+                startDate: new Date(newYearData.startDate),
+                endDate: new Date(newYearData.endDate)
+            })
+            if (res.success) {
+                toast.success('Academic Year Added')
+                setShowAddYearModal(false)
+                setNewYearData({ year: '', startDate: '', endDate: '' })
+                // Refresh list
+                const list = await getAcademicYears()
+                if (list.success && list.data) setAcademicYears(list.data)
+            } else {
+                toast.error('Failed to add year')
+            }
+        } finally {
+            setModalLoading(false)
+        }
+    }
     const [editingStudent, setEditingStudent] = useState<any>(null)
 
     // Bulk upload state
@@ -190,12 +232,12 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     }
 
     // Map URL view param to internal view state
-    const mapViewParam = (view: string): 'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'deletion-requests' | 'referrals' => {
-        const validViews = ['home', 'analytics', 'users', 'admins', 'campuses', 'settings', 'reports', 'students', 'settlements', 'marketing', 'audit', 'support', 'permissions', 'staff-dash', 'parent-dash', 'deletion-requests', 'referrals']
+    const mapViewParam = (view: string): 'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'deletion-requests' | 'referrals' | 'fees' => {
+        const validViews = ['home', 'analytics', 'users', 'admins', 'campuses', 'settings', 'reports', 'students', 'settlements', 'marketing', 'audit', 'support', 'permissions', 'staff-dash', 'parent-dash', 'deletion-requests', 'referrals', 'fees']
         return (validViews.includes(view) ? view : 'home') as any
     }
 
-    const [selectedView, setSelectedView] = useState<'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'deletion-requests' | 'referrals'>(mapViewParam(initialView))
+    const [selectedView, setSelectedView] = useState<'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'deletion-requests' | 'referrals' | 'fees'>(mapViewParam(initialView))
 
     // Unified Status & Settings States
     const [settingsState, setSettingsState] = useState<any>(systemSettings || null)
@@ -636,7 +678,6 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         setLoading(true)
         const result = await updateSystemSettings({
             currentAcademicYear: settingsState.currentAcademicYear,
-            defaultStudentFee: settingsState.defaultStudentFee,
             allowNewRegistrations: registrationEnabled,
             maintenanceMode: settingsState.maintenanceMode
         })
@@ -751,7 +792,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     }
 
     // Dynamic page titles based on selected view
-    const pageConfig: Record<'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'deletion-requests' | 'referrals', { title: string, subtitle: string }> = {
+    const pageConfig: Record<'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'deletion-requests' | 'referrals' | 'fees', { title: string, subtitle: string }> = {
         home: { title: 'Dashboard', subtitle: 'Quick overview and actions' },
         analytics: { title: 'Analytics Overview', subtitle: 'System-wide performance metrics and insights' },
         campuses: { title: 'Campus Performance', subtitle: 'Detailed metrics and comparison across all campuses' },
@@ -768,7 +809,8 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         support: { title: 'Support Desk', subtitle: 'Manage queries and ambassador support tickets' },
         permissions: { title: 'Permissions Matrix', subtitle: 'Dynamic module allotment for administrative roles' },
         'deletion-requests': { title: 'Account Deletion Hub', subtitle: 'Review and process account removal requests for compliance' },
-        'referrals': { title: 'Global Referral Management', subtitle: 'Track and convert ambassador leads into students across all campuses' }
+        'referrals': { title: 'Global Referral Management', subtitle: 'Track and convert ambassador leads into students across all campuses' },
+        'fees': { title: 'Fee Management', subtitle: 'Manage academic year fee structures across campuses' }
     }
 
     return (
@@ -1112,6 +1154,13 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                         generateLeadPipelineReport={generateLeadPipelineReport}
                         onWeeklyReport={handleWeeklyReport}
                     />
+                )}
+
+                {/* Fee Management View */}
+                {selectedView === 'fees' && (
+                    <div className="animate-fade-in">
+                        <FeeManagementTable />
+                    </div>
                 )}
 
                 {/* User Management View */}
@@ -1895,21 +1944,27 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                         <div className="space-y-3">
                                             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Academic Year</label>
-                                            <input
-                                                type="text"
-                                                value={settingsState.currentAcademicYear}
-                                                onChange={(e) => setSettingsState({ ...settingsState, currentAcademicYear: e.target.value })}
-                                                className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:bg-white focus:border-red-500 focus:ring-4 focus:ring-red-500/10 transition-all font-bold text-gray-700"
-                                            />
+                                            <div className="flex gap-2">
+                                                <select
+                                                    value={settingsState.currentAcademicYear}
+                                                    onChange={(e) => setSettingsState({ ...settingsState, currentAcademicYear: e.target.value })}
+                                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:bg-white focus:border-red-500 focus:ring-4 focus:ring-red-500/10 transition-all font-bold text-gray-700 appearance-none"
+                                                >
+                                                    <option value="">Select Year</option>
+                                                    {academicYears.map((ay) => (
+                                                        <option key={ay.id} value={ay.year}>{ay.year}</option>
+                                                    ))}
+                                                </select>
+                                                <button
+                                                    onClick={() => setShowAddYearModal(true)}
+                                                    className="px-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-colors border border-red-100"
+                                                >
+                                                    <Plus size={20} />
+                                                </button>
+                                            </div>
                                         </div>
                                         <div className="space-y-3">
-                                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Default Student Fee (₹)</label>
-                                            <input
-                                                type="number"
-                                                value={settingsState.defaultStudentFee}
-                                                onChange={(e) => setSettingsState({ ...settingsState, defaultStudentFee: parseInt(e.target.value) })}
-                                                className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:bg-white focus:border-red-500 focus:ring-4 focus:ring-red-500/10 transition-all font-bold text-gray-700"
-                                            />
+                                            {/* Default Student Fee removed as per user request */}
                                         </div>
 
                                         <div className="col-span-1 md:col-span-2 space-y-4">
@@ -2297,6 +2352,59 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                     style={{ flex: 1, padding: '12px', background: '#10B981', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}
                                 >
                                     {modalLoading ? 'Saving...' : editingStudent ? 'Update Only' : 'Add Student'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Add Academic Year Modal */}
+            {
+                showAddYearModal && (
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ background: 'white', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>Add Academic Year</h3>
+                                <button onClick={() => setShowAddYearModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Year Name</label>
+                                    <input
+                                        placeholder="e.g. 2026-2027"
+                                        className="w-full border p-2 rounded-lg text-sm font-bold mt-1"
+                                        value={newYearData.year}
+                                        onChange={e => setNewYearData({ ...newYearData, year: e.target.value })}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="text-[10px] text-gray-500 font-bold uppercase">Start Date</label>
+                                        <input
+                                            type="date"
+                                            className="w-full border p-2 rounded-lg text-sm mt-1"
+                                            value={newYearData.startDate}
+                                            onChange={e => setNewYearData({ ...newYearData, startDate: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-gray-500 font-bold uppercase">End Date</label>
+                                        <input
+                                            type="date"
+                                            className="w-full border p-2 rounded-lg text-sm mt-1"
+                                            value={newYearData.endDate}
+                                            onChange={e => setNewYearData({ ...newYearData, endDate: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex gap-2 mt-6">
+                                <button onClick={() => setShowAddYearModal(false)} className="flex-1 py-2 text-gray-500 text-sm font-bold border rounded-lg">Cancel</button>
+                                <button onClick={handleAddAcademicYear} disabled={modalLoading} className="flex-1 py-2 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700">
+                                    {modalLoading ? 'Adding...' : 'Add Year'}
                                 </button>
                             </div>
                         </div>

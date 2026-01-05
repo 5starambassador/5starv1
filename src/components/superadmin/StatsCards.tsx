@@ -1,4 +1,4 @@
-import { Users, UserPlus, CheckCircle, TrendingUp, Wallet, BookOpen, ArrowUpRight, ArrowDownRight, Target, DollarSign } from 'lucide-react'
+import { Users, UserPlus, CheckCircle, TrendingUp, Wallet, BookOpen, ArrowUpRight, ArrowDownRight, Target, IndianRupee } from 'lucide-react'
 import { PremiumStatCard } from '../premium/PremiumStatCard'
 
 interface StatsCardsProps {
@@ -85,7 +85,7 @@ export function StatsCards({ analytics }: StatsCardsProps) {
             label: 'Fee Pipeline',
             value: `₹${(analytics.totalEstimatedRevenue / 100000).toFixed(1)}L`,
             sub: 'Estimated Potential',
-            icon: DollarSign,
+            icon: IndianRupee,
             grad: 'bg-grad-amber'
         },
     ]

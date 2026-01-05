@@ -1,7 +1,7 @@
 import { getCurrentUser } from '@/lib/auth-service'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, DollarSign, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2 } from 'lucide-react'
+import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, IndianRupee, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2 } from 'lucide-react'
 import { MobileMenu } from '@/components/MobileMenu'
 import { NotificationDropdown } from '@/components/NotificationDropdown'
 import MobileSidebarWrapper from '@/components/MobileSidebarWrapper'
@@ -58,6 +58,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         if (permissions.adminManagement.access) navItems.push({ label: 'Admin Management', href: `${baseAdminPath}?view=admins`, icon: <Target /> })
         if (permissions.reports.access) navItems.push({ label: 'Reports', href: `${baseAdminPath}?view=reports`, icon: <FileDown /> })
         if (permissions.referralTracking.access && isSuperAdmin) navItems.push({ label: 'Global Referral Module', href: `/superadmin?view=referrals`, icon: <Target /> })
+        if (isSuperAdmin) navItems.push({ label: 'Fee Management', href: `/superadmin?view=fees`, icon: <IndianRupee /> })
 
         // Management of specific dashboard types
         if (isSuperAdmin) {
@@ -95,7 +96,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                 // Finance Admin already has this as 'Home', so we skip adding it again to avoid redundancy
                 if (user.role !== 'Finance Admin') {
                     const financeHref = isCampusLevel ? '/campus?view=finance' : '/finance'
-                    navItems.push({ label: 'Finance', href: financeHref, icon: <DollarSign /> })
+                    navItems.push({ label: 'Finance', href: financeHref, icon: <IndianRupee /> })
                 }
             }
             if (permissions.auditLog.access) navItems.push({ label: 'Audit Trail', href: '/superadmin?view=audit', icon: <GanttChartSquare /> })

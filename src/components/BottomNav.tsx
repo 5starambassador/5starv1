@@ -1,6 +1,6 @@
 'use client'
 
-import { Home, UserPlus, BarChart3, List, User, DollarSign } from 'lucide-react'
+import { Home, UserPlus, BarChart3, List, User, IndianRupee } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -33,7 +33,7 @@ export function BottomNav({ role }: { role?: string }) {
                         href="/finance"
                         className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive('/finance') ? 'text-emerald-600' : 'text-gray-500 dark:text-gray-400'}`}
                     >
-                        <DollarSign size={24} strokeWidth={isActive('/finance') ? 2.5 : 2} />
+                        <IndianRupee size={24} strokeWidth={isActive('/finance') ? 2.5 : 2} />
                         <span className="text-[10px] font-medium">Finance</span>
                     </Link>
                 )}

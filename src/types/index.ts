@@ -160,7 +160,6 @@ export interface SystemSettings {
     id: number
     allowNewRegistrations: boolean
     currentAcademicYear: string
-    defaultStudentFee: number
     maintenanceMode: boolean
     staffReferralText?: string | null
     parentReferralText?: string | null

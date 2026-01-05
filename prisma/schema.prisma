@@ -267,6 +267,7 @@ model ActivityLog {
   module      String
   targetId    String?
   description String
+  metadata    Json?
   ipAddress   String?
   userAgent   String?
   createdAt   DateTime @default(now())
@@ -337,13 +338,14 @@ model CampusTarget {
 }
 
 model GradeFee {
-  id        Int    @id @default(autoincrement())
-  grade     String
-  annualFee Int
-  campusId  Int
-  campus    Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  id           Int      @id @default(autoincrement())
+  campusId     Int
+  grade        String
+  academicYear String   @default("2025-2026")
+  annualFee    Int
+  campus       Campus   @relation(fields: [campusId], references: [id], onDelete: Cascade)
 
-  @@unique([campusId, grade])
+  @@unique([campusId, grade, academicYear])
 }
 
 model NotificationSettings {
