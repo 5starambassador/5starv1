@@ -1,15 +1,17 @@
 'use client'
 
-import { useState } from 'react'
-import { Save, Share2, Smartphone, Loader2, CheckCircle2, AlertTriangle, LayoutDashboard } from 'lucide-react'
-import { updateSystemSettings } from '@/app/settings-actions'
+import { useState, useEffect } from 'react'
+import { Save, Share2, Smartphone, Loader2, CheckCircle2, AlertTriangle, LayoutDashboard, Calendar, Plus } from 'lucide-react'
+import { updateSystemSettings, getAcademicYears, addAcademicYear, setCurrentAcademicYear } from '@/app/settings-actions'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 interface DashboardSettingsProps {
     type: 'staff' | 'parent'
     initialSettings: {
         welcomeMessage?: string
         referralText?: string
+        currentAcademicYear?: string
     }
 }
 
@@ -19,6 +21,58 @@ export default function DashboardSettings({ type, initialSettings }: DashboardSe
     const [referralText, setReferralText] = useState(initialSettings.referralText || '')
     const [isSaving, setIsSaving] = useState(false)
     const [showSuccess, setShowSuccess] = useState(false)
+
+    // Academic Year State
+    const [years, setYears] = useState<any[]>([])
+    const [showYearModal, setShowYearModal] = useState(false)
+    const [newYearData, setNewYearData] = useState({ year: '', startDate: '', endDate: '' })
+    const [yearLoading, setYearLoading] = useState(false)
+
+    useEffect(() => {
+        loadYears()
+    }, [])
+
+    const loadYears = async () => {
+        const res = await getAcademicYears()
+        if (res.success && res.data) setYears(res.data)
+    }
+
+    const handleAddYear = async () => {
+        if (!newYearData.year || !newYearData.startDate || !newYearData.endDate) return toast.error('Fill all fields')
+        setYearLoading(true)
+        try {
+            const res = await addAcademicYear({
+                year: newYearData.year,
+                startDate: new Date(newYearData.startDate),
+                endDate: new Date(newYearData.endDate)
+            })
+            if (res.success) {
+                toast.success('Year Added')
+                setShowYearModal(false)
+                loadYears()
+                setNewYearData({ year: '', startDate: '', endDate: '' })
+            } else {
+                toast.error(res.error || 'Failed')
+            }
+        } finally {
+            setYearLoading(false)
+        }
+    }
+
+    const handleSetCurrent = async (year: string) => {
+        const confirm = window.confirm(`Set ${year} as current? This affects all registrations.`)
+        if (!confirm) return
+        try {
+            const res = await setCurrentAcademicYear(year)
+            if (res.success) {
+                toast.success(`Current Year updated to ${year}`)
+                router.refresh()
+                loadYears()
+            } else {
+                toast.error('Failed')
+            }
+        } catch (e) { toast.error('Error') }
+    }
 
     const handleSave = async () => {
         setIsSaving(true)
@@ -99,6 +153,98 @@ export default function DashboardSettings({ type, initialSettings }: DashboardSe
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '32px' }}>
                     {/* Form Side */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        {/* Academic Year Management (Only show on Staff/Main settings or create a separate tab?) Actually user probably wants it in "Settings" generally. Assuming this component is "Generic" settings now. */}
+                        {/* We'll render it at the top if type is 'staff' (assuming staff/superadmin view) or just generic */}
+                        <div style={{ padding: '24px', background: '#F0F9FF', borderRadius: '12px', border: '1px solid #BAE6FD' }}>
+                            <div className="flex justify-between items-center mb-4">
+                                <div>
+                                    <h3 className="font-bold text-sky-900 flex items-center gap-2">
+                                        <Calendar size={18} /> Academic Year Management
+                                    </h3>
+                                    <p className="text-xs text-sky-700 mt-1">
+                                        Current System Year: <strong>{initialSettings.currentAcademicYear || 'N/A'}</strong>
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setShowYearModal(true)}
+                                    className="text-xs bg-sky-600 text-white px-3 py-2 rounded-lg font-bold hover:bg-sky-700 flex items-center gap-1"
+                                >
+                                    <Plus size={14} /> Add Year
+                                </button>
+                            </div>
+
+                            <div className="space-y-2">
+                                {years.length === 0 && <p className="text-xs text-gray-500 italic">No years configured. System uses default 2025-2026.</p>}
+                                {years.map((y) => (
+                                    <div key={y.id} className="flex justify-between items-center bg-white p-3 rounded-lg border border-sky-100 shadow-sm">
+                                        <div>
+                                            <span className="font-bold text-gray-800 text-sm">{y.year}</span>
+                                            <div className="text-[10px] text-gray-500">
+                                                {new Date(y.startDate).toLocaleDateString()} - {new Date(y.endDate).toLocaleDateString()}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {y.isCurrent || initialSettings.currentAcademicYear === y.year ? (
+                                                <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold border border-green-200">
+                                                    Current
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleSetCurrent(y.year)}
+                                                    className="text-[10px] text-sky-600 hover:underline font-medium"
+                                                >
+                                                    Set as Current
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Add Year Modal */}
+                        {showYearModal && (
+                            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                                <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
+                                    <h3 className="font-bold text-lg mb-4">Add Academic Year</h3>
+                                    <div className="space-y-3">
+                                        <input
+                                            placeholder="Year Name (e.g. 2026-2027)"
+                                            className="w-full border p-2 rounded text-sm font-bold"
+                                            value={newYearData.year}
+                                            onChange={e => setNewYearData({ ...newYearData, year: e.target.value })}
+                                        />
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="text-[10px] text-gray-500 font-bold uppercase">Start Date</label>
+                                                <input
+                                                    type="date"
+                                                    className="w-full border p-2 rounded text-sm"
+                                                    value={newYearData.startDate}
+                                                    onChange={e => setNewYearData({ ...newYearData, startDate: e.target.value })}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-gray-500 font-bold uppercase">End Date</label>
+                                                <input
+                                                    type="date"
+                                                    className="w-full border p-2 rounded text-sm"
+                                                    value={newYearData.endDate}
+                                                    onChange={e => setNewYearData({ ...newYearData, endDate: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 mt-6">
+                                        <button onClick={() => setShowYearModal(false)} className="flex-1 py-2 text-gray-500 text-sm font-bold border rounded-lg">Cancel</button>
+                                        <button onClick={handleAddYear} disabled={yearLoading} className="flex-1 py-2 bg-sky-600 text-white text-sm font-bold rounded-lg hover:bg-sky-700">
+                                            {yearLoading ? 'Adding...' : 'Add Year'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <div>
                             <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', marginBottom: '8px' }}>
                                 Dashboard Welcome Title
