@@ -194,5 +194,8 @@ export interface BulkUserData {
     fullName: string
     mobileNumber: string
     role: 'Parent' | 'Staff' | 'Alumni'
-    assignedCampus?: string
+    email: string
+    assignedCampus: string
+    empId?: string
+    childEprNo?: string
 }

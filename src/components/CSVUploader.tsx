@@ -80,7 +80,21 @@ export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProp
             setHeaders(fileHeaders)
 
             // Validate Headers
-            const missing = requiredHeaders.filter(req => !fileHeaders.some(h => h.toLowerCase() === req.toLowerCase()))
+            const missing = requiredHeaders.filter(req => !fileHeaders.some(h => {
+                const lowerH = h.toLowerCase()
+                const lowerReq = req.toLowerCase()
+
+                // Exact match or match with spaces removed (e.g., "Full Name" == "fullname")
+                if (lowerH === lowerReq) return true
+                if (lowerH.replace(/\s/g, '') === lowerReq.replace(/\s/g, '')) return true
+
+                // Special cases
+                if (req === 'mobileNumber' && lowerH === 'mobile') return true
+                if (req === 'campusName' && lowerH.includes('campus')) return true
+                if (req === 'parentMobile' && lowerH === 'mobile') return true
+
+                return false
+            }))
 
             if (missing.length > 0) {
                 setValidationError(`Missing required columns: ${missing.join(', ')}`)
@@ -98,17 +112,21 @@ export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProp
                 fileHeaders.forEach((header, index) => {
                     // Normalize keys for our API
                     let key = header
-                    if (header.toLowerCase() === 'fullname') key = 'fullName'
-                    if (header.toLowerCase() === 'full name') key = 'fullName'
-                    if (header.toLowerCase() === 'mobile') key = type === 'users' ? 'mobileNumber' : 'parentMobile'
-                    if (header.toLowerCase() === 'mobilenumber') key = 'mobileNumber'
-                    if (header.toLowerCase() === 'parentmobile') key = 'parentMobile'
-                    if (header.toLowerCase().includes('campus')) key = type === 'users' ? 'assignedCampus' : 'campusName'
-                    if (header.toLowerCase() === 'email' || header.toLowerCase() === 'mail') key = 'email'
-                    if (header.toLowerCase().includes('empid') || header.toLowerCase().includes('employee id')) key = 'empId'
-                    if (header.toLowerCase().includes('erp') || header.toLowerCase().includes('child erp')) key = 'childEprNo'
-                    if (header.toLowerCase().includes('ambassador mobile')) key = 'ambassadorMobile'
-                    if (header.toLowerCase().includes('ambassador name')) key = 'ambassadorName'
+                    const normHeader = header.toLowerCase().replace(/\s/g, '')
+
+                    if (normHeader === 'fullname') key = 'fullName'
+                    if (normHeader === 'mobile') key = type === 'users' ? 'mobileNumber' : 'parentMobile'
+                    if (normHeader === 'mobilenumber') key = 'mobileNumber'
+                    if (normHeader === 'parentmobile') key = 'parentMobile'
+                    if (normHeader.includes('campus')) key = type === 'users' ? 'assignedCampus' : 'campusName'
+                    if (normHeader === 'email' || normHeader === 'mail') key = 'email'
+                    if (normHeader.includes('empid') || normHeader.includes('employeeid')) key = 'empId'
+                    if (normHeader.includes('erp') || normHeader.includes('childerp')) key = 'childEprNo'
+                    if (normHeader.includes('ambassadormobile')) key = 'ambassadorMobile'
+                    if (normHeader.includes('ambassadorname')) key = 'ambassadorName'
+
+                    // Fallback for role
+                    if (normHeader === 'role') key = 'role'
 
                     row[key] = values[index]
                 })
