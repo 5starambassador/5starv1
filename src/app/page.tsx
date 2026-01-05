@@ -200,46 +200,43 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-sm animate-in fade-in zoom-in-95 duration-700 mx-auto">
         {/* Brand Header */}
         <div className="text-center mb-6">
-          <div className="mb-4 relative inline-block group cursor-default">
-            <div className="absolute inset-0 bg-white/10 blur-[30px] rounded-full group-hover:bg-white/20 transition-all duration-700"></div>
-            <img
-              src="/achariya_25_logo.jpg"
-              alt="Achariya 25th Year Logo"
-              className="mx-auto relative z-10 h-[150px] w-auto drop-shadow-2xl rounded-[2rem] hover:scale-105 transition-transform duration-500"
-            />
-          </div>
+          <img
+            src="/achariya_25_logo.jpg"
+            alt="Achariya 25th Year Logo"
+            className="mx-auto relative z-10 h-[150px] w-auto shadow-[0_0_50px_-12px_rgba(251,191,36,0.6)] border border-amber-400/20 hover:shadow-[0_0_60px_-5px_rgba(251,191,36,0.8)] hover:scale-105 transition-all duration-500"
+          />
+        </div>
 
-          <div className="flex flex-col items-center justify-center gap-2 mb-4">
-            <div className="flex items-center gap-0 mb-3 justify-center -space-x-3">
-              {[1, 2, 3, 4, 5].map((i, index) => {
-                let size = 45;
-                if (index === 2) size = 85;
-                else if (index === 1 || index === 3) size = 60;
-                const delay = Math.abs(index - 2) * 100;
+        <div className="flex flex-col items-center justify-center gap-2 mb-4">
+          <div className="flex items-center gap-0 mb-3 justify-center -space-x-3">
+            {[1, 2, 3, 4, 5].map((i, index) => {
+              let size = 45;
+              if (index === 2) size = 85;
+              else if (index === 1 || index === 3) size = 60;
+              const delay = Math.abs(index - 2) * 100;
 
-                return (
-                  <div key={i} className="animate-pulse-gold relative" style={{ animationDelay: `${delay}ms` }}>
-                    <div className="absolute inset-0 bg-amber-400 blur-md opacity-40 rounded-full scale-75"></div>
-                    <Star
-                      size={size}
-                      fill="#F59E0B"
-                      stroke="none"
-                      className="text-amber-500 relative z-10 drop-shadow-lg"
-                    />
-                  </div>
-                )
-              })}
-            </div>
-            <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-white to-amber-200 tracking-tight drop-shadow-sm font-heading leading-tight">
-              Ambassador
-            </h1>
+              return (
+                <div key={i} className="animate-pulse-gold relative" style={{ animationDelay: `${delay}ms` }}>
+                  <div className="absolute inset-0 bg-amber-400 blur-md opacity-40 rounded-full scale-75"></div>
+                  <Star
+                    size={size}
+                    fill="#F59E0B"
+                    stroke="none"
+                    className="text-amber-500 relative z-10 drop-shadow-lg"
+                  />
+                </div>
+              )
+            })}
           </div>
+          <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-white to-amber-200 tracking-tight drop-shadow-sm font-heading leading-tight">
+            Ambassador
+          </h1>
+        </div>
 
-          <div className="inline-block px-6 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md shadow-xl">
-            <p className="text-lg font-bold uppercase tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-300">
-              25th Year Celebration
-            </p>
-          </div>
+        <div className="inline-block px-6 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md shadow-xl">
+          <p className="text-lg font-bold uppercase tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-300">
+            25th Year Celebration
+          </p>
         </div>
 
         {/* Form Section */}
@@ -269,7 +266,7 @@ export default function LoginPage() {
 
                 <div className="text-center">
                   <button
-                    className="block mx-auto w-[280px] h-12 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 text-black font-black tracking-[0.15em] text-sm uppercase shadow-lg shadow-amber-900/40 hover:shadow-amber-500/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    className="block mx-auto w-auto px-12 min-w-[200px] h-12 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 text-black font-black tracking-[0.15em] text-sm uppercase shadow-lg shadow-amber-900/40 hover:shadow-amber-500/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
                     onClick={handleSendOtp}
                     disabled={loading}
                   >
@@ -733,6 +730,6 @@ export default function LoginPage() {
         </div>
       </div>
       <PrivacyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
-    </main>
+    </main >
   )
 }
