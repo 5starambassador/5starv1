@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { Upload, FileText, Check, AlertCircle, X, RefreshCw } from 'lucide-react'
+import React, { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { Upload, X, Check, AlertCircle, RefreshCw, Filter, Download, FileText } from 'lucide-react'
 
 interface CSVUploaderProps {
     type: 'students' | 'users'
@@ -10,20 +11,56 @@ interface CSVUploaderProps {
 }
 
 export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProps) {
-    const [dragActive, setDragActive] = useState(false)
     const [file, setFile] = useState<File | null>(null)
+    const [dragActive, setDragActive] = useState(false)
     const [parsedData, setParsedData] = useState<any[]>([])
     const [previewData, setPreviewData] = useState<any[]>([])
     const [headers, setHeaders] = useState<string[]>([])
     const [status, setStatus] = useState<'idle' | 'parsing' | 'uploading' | 'success' | 'error'>('idle')
     const [validationError, setValidationError] = useState<string | null>(null)
     const [result, setResult] = useState<{ added: number; errors: string[] } | null>(null)
+    const [mounted, setMounted] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
 
     // Configuration
     const requiredHeaders = type === 'students'
         ? ['fullName', 'parentMobile', 'campusName', 'grade']
-        : ['fullName', 'mobileNumber', 'role', 'email', 'campusName'] // Users
+        : ['fullName', 'mobileNumber', 'role', 'email', 'assignedCampus'] // Users
+
+    // Helper: Normalize keys
+    const getNormalizedKey = (header: string, type: 'students' | 'users') => {
+        const normHeader = header.toLowerCase().replace(/\s/g, '')
+
+        // Extras (Check these first to avoid collisions with "Parent" if header is "Parent Ambassador")
+        if (normHeader.includes('ambassadormobile')) return 'ambassadorMobile'
+        if (normHeader.includes('ambassadorname')) return 'ambassadorName'
+        if (normHeader.includes('parent') && normHeader.includes('mobile')) return 'parentMobile'
+        if (normHeader.includes('parent') && normHeader.includes('name')) return 'parentName'
+
+        if (normHeader.includes('campus')) return type === 'users' ? 'assignedCampus' : 'campusName'
+        if (normHeader === 'email' || normHeader === 'mail') return 'email'
+        if (normHeader === 'role') return 'role'
+
+        // Identity & Relation
+        if (normHeader.includes('empid') || normHeader.includes('employeeid')) return 'empId'
+
+        // Handle ERP Number based on type
+        if (normHeader.includes('erp') || normHeader.includes('childerp')) {
+            return type === 'users' ? 'childEprNo' : 'admissionNumber'
+        }
+
+        // Academic
+        if (normHeader === 'grade') return 'grade'
+        if (normHeader === 'section') return 'section'
+        if (normHeader === 'rollnumber') return 'rollNumber'
+        if (normHeader === 'ay' || normHeader === 'academicyear') return 'academicYear'
+
+        return header // Default fallback
+    }
 
     const handleDrag = (e: React.DragEvent) => {
         e.preventDefault()
@@ -80,20 +117,10 @@ export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProp
             setHeaders(fileHeaders)
 
             // Validate Headers
+            // Validate Headers
             const missing = requiredHeaders.filter(req => !fileHeaders.some(h => {
-                const lowerH = h.toLowerCase()
-                const lowerReq = req.toLowerCase()
-
-                // Exact match or match with spaces removed (e.g., "Full Name" == "fullname")
-                if (lowerH === lowerReq) return true
-                if (lowerH.replace(/\s/g, '') === lowerReq.replace(/\s/g, '')) return true
-
-                // Special cases
-                if (req === 'mobileNumber' && lowerH === 'mobile') return true
-                if (req === 'campusName' && lowerH.includes('campus')) return true
-                if (req === 'parentMobile' && lowerH === 'mobile') return true
-
-                return false
+                const mappedKey = getNormalizedKey(h, type)
+                return mappedKey === req
             }))
 
             if (missing.length > 0) {
@@ -110,28 +137,12 @@ export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProp
 
                 const row: any = {}
                 fileHeaders.forEach((header, index) => {
-                    // Normalize keys for our API
-                    let key = header
-                    const normHeader = header.toLowerCase().replace(/\s/g, '')
-
-                    if (normHeader === 'fullname') key = 'fullName'
-                    if (normHeader === 'mobile') key = type === 'users' ? 'mobileNumber' : 'parentMobile'
-                    if (normHeader === 'mobilenumber') key = 'mobileNumber'
-                    if (normHeader === 'parentmobile') key = 'parentMobile'
-                    if (normHeader.includes('campus')) key = type === 'users' ? 'assignedCampus' : 'campusName'
-                    if (normHeader === 'email' || normHeader === 'mail') key = 'email'
-                    if (normHeader.includes('empid') || normHeader.includes('employeeid')) key = 'empId'
-                    if (normHeader.includes('erp') || normHeader.includes('childerp')) key = 'childEprNo'
-                    if (normHeader.includes('ambassadormobile')) key = 'ambassadorMobile'
-                    if (normHeader.includes('ambassadorname')) key = 'ambassadorName'
-
-                    // Fallback for role
-                    if (normHeader === 'role') key = 'role'
-
+                    const key = getNormalizedKey(header, type)
                     row[key] = values[index]
                 })
                 data.push(row)
             }
+
 
             setParsedData(data)
             setPreviewData(data.slice(0, 5))
@@ -168,9 +179,11 @@ export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProp
         setResult(null)
     }
 
-    return (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    if (!mounted) return null
+
+    return createPortal(
+        <div className="fixed inset-0 bg-black/50 z-[5000] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-2xl w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
 
                 {/* Header */}
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
@@ -287,15 +300,7 @@ export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProp
                                                 {previewData.map((row, i) => (
                                                     <tr key={i} className="hover:bg-gray-50">
                                                         {headers.map((h, j) => {
-                                                            // Match key normalization logic for display
-                                                            let key = h
-                                                            if (h.toLowerCase() === 'fullname') key = 'fullName'
-                                                            if (h.toLowerCase() === 'full name') key = 'fullName'
-                                                            if (h.toLowerCase() === 'mobile') key = type === 'users' ? 'mobileNumber' : 'parentMobile'
-                                                            if (h.toLowerCase() === 'mobilenumber') key = 'mobileNumber'
-                                                            if (h.toLowerCase() === 'parentmobile') key = 'parentMobile'
-                                                            if (h.toLowerCase() === 'campus') key = 'campusName'
-                                                            if (h.toLowerCase() === 'campusname') key = 'campusName'
+                                                            const key = getNormalizedKey(h, type)
                                                             return <td key={j} className="px-4 py-2 text-gray-700">{row[key]}</td>
                                                         })}
                                                     </tr>
@@ -316,7 +321,7 @@ export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProp
                                             disabled={!!validationError || status === 'uploading'}
                                             className={`px-8 py-2 rounded-lg font-bold text-white flex items-center gap-2 ${validationError || status === 'uploading'
                                                 ? 'bg-gray-300 cursor-not-allowed'
-                                                : 'bg-primary-gold hover:bg-yellow-500 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all'
+                                                : 'bg-gradient-to-r from-amber-400 to-amber-600 hover:shadow-amber-500/20 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all'
                                                 }`}
                                         >
                                             {status === 'uploading' && <RefreshCw className="animate-spin" size={16} />}
@@ -329,6 +334,8 @@ export default function CSVUploader({ type, onUpload, onClose }: CSVUploaderProp
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+
+        document.body
     )
 }

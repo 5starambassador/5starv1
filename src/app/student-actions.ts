@@ -294,12 +294,15 @@ export async function convertLeadToStudent(leadId: number, studentDetails: {
 export async function bulkAddStudents(students: Array<{
     fullName: string,
     parentMobile: string,
+    parentName?: string,
     grade: string,
     campusName: string,
     section?: string,
     rollNumber?: string,
+    admissionNumber?: string,
     ambassadorMobile?: string
     ambassadorName?: string
+    academicYear?: string
 }>) {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
@@ -309,14 +312,54 @@ export async function bulkAddStudents(students: Array<{
     let failed = 0
     let errors: string[] = []
 
+    // Cache referral counts for limits
+    const referralCounts = new Map<number, number>()
+
     for (const s of students) {
         try {
-            // 1. Find Parent
-            const parent = await prisma.user.findUnique({ where: { mobileNumber: s.parentMobile } })
+            // 0. Duplicate Check (ERP No)
+            if (s.admissionNumber) {
+                const existingStudent = await prisma.student.findUnique({
+                    where: { admissionNumber: s.admissionNumber }
+                })
+                if (existingStudent) {
+                    failed++
+                    errors.push(`${s.fullName}: Duplicate Student ERP No (${s.admissionNumber})`)
+                    continue
+                }
+            }
+
+            // 1. Find or Create Parent
+            let parent = await prisma.user.findUnique({ where: { mobileNumber: s.parentMobile } })
+
             if (!parent) {
-                failed++
-                errors.push(`${s.fullName}: Parent not found (${s.parentMobile})`)
-                continue
+                if (s.parentName) {
+                    try {
+                        const referralCode = await generateSmartReferralCode('Parent')
+                        parent = await prisma.user.create({
+                            data: {
+                                fullName: s.parentName,
+                                mobileNumber: s.parentMobile,
+                                role: 'Parent',
+                                referralCode,
+                                childInAchariya: true,
+                                status: 'Active',
+                                yearFeeBenefitPercent: 0,
+                                confirmedReferralCount: 0,
+                                isFiveStarMember: false,
+                                academicYear: s.academicYear || '2025-2026'
+                            }
+                        })
+                    } catch (err) {
+                        failed++
+                        errors.push(`${s.fullName}: Failed to create parent (${s.parentMobile})`)
+                        continue
+                    }
+                } else {
+                    failed++
+                    errors.push(`${s.fullName}: Parent not found & no name provided (${s.parentMobile})`)
+                    continue
+                }
             }
 
             // 2. Find Campus
@@ -357,6 +400,30 @@ export async function bulkAddStudents(students: Array<{
                 }
             }
 
+            // 3.1 Referral Limit Check
+            if (ambassadorId) {
+                // Get existing count for this ambassador in this AY
+                if (!referralCounts.has(ambassadorId)) {
+                    const count = await prisma.student.count({
+                        where: {
+                            ambassadorId: ambassadorId,
+                            academicYear: s.academicYear || '2025-2026' // Assuming hardcoded for now or fetch from SystemSettings if available
+                        }
+                    })
+                    referralCounts.set(ambassadorId, count)
+                }
+
+                const currentCount = referralCounts.get(ambassadorId) || 0
+                if (currentCount >= 5) {
+                    failed++
+                    errors.push(`${s.fullName}: Ambassador limit reached (Max 5) for ${s.ambassadorMobile || s.ambassadorName}`)
+                    continue
+                }
+
+                // Increment locally to catch limits within the same batch
+                referralCounts.set(ambassadorId, currentCount + 1)
+            }
+
             // 4. Calculate Fees (Reusing logic)
             // Base Fee
             let baseFee = 60000
@@ -377,10 +444,12 @@ export async function bulkAddStudents(students: Array<{
                     grade: s.grade,
                     section: s.section,
                     rollNumber: s.rollNumber,
+                    admissionNumber: s.admissionNumber,
                     ambassadorId: ambassadorId,
                     baseFee,
                     discountPercent,
-                    status: 'Active'
+                    status: 'Active',
+                    academicYear: s.academicYear || '2025-2026'
                 }
             })
             added++

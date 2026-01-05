@@ -225,6 +225,23 @@ export function StudentTable({
                             />
                         </div>
                         <button
+                            onClick={() => {
+                                const headers = ['Full Name', 'Parent Name', 'Parent Mobile', 'Campus Name', 'Grade', 'Section', 'Roll Number', 'Student ERP No', 'Ambassador Mobile', 'Ambassador Name', 'AY']
+                                const csvContent = headers.join(',') + '\n' + 'John Doe,Jane Doe,9876543210,Main Campus,Grade 10,A,24AG123,ERP001,9876543211,Jane Amb,2024-25'
+                                const blob = new Blob([csvContent], { type: 'text/csv' })
+                                const url = window.URL.createObjectURL(blob)
+                                const link = document.createElement('a')
+                                link.href = url
+                                link.setAttribute('download', 'student_template.csv')
+                                document.body.appendChild(link)
+                                link.click()
+                                document.body.removeChild(link)
+                            }}
+                            className="px-4 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold text-xs hover:bg-gray-50 hover:shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
+                        >
+                            <Filter size={16} /> Template
+                        </button>
+                        <button
                             onClick={onBulkAdd}
                             className="px-4 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold text-xs hover:bg-gray-50 hover:shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
                         >

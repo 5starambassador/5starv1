@@ -710,13 +710,30 @@ export async function bulkAddUsers(users: Array<{
                 continue
             }
 
+            if (userData.role === 'Staff' && userData.empId) {
+                const existingEmp = await prisma.user.findFirst({ where: { empId: userData.empId } })
+                if (existingEmp) {
+                    failed++
+                    errors.push(`${userData.mobileNumber}: EMP ID ${userData.empId} already exists`)
+                    continue
+                }
+            }
+            if (userData.role === 'Parent' && userData.childEprNo) {
+                const existingErp = await prisma.user.findFirst({ where: { childEprNo: userData.childEprNo } })
+                if (existingErp) {
+                    failed++
+                    errors.push(`${userData.mobileNumber}: Student ERP ${userData.childEprNo} already exists`)
+                    continue
+                }
+            }
+
             const existing = await prisma.user.findUnique({
                 where: { mobileNumber: userData.mobileNumber }
             })
 
             if (existing) {
                 failed++
-                errors.push(`${userData.mobileNumber}: Already exists`)
+                errors.push(`${userData.mobileNumber}: Mobile Number already exists`)
                 continue
             }
 

@@ -57,6 +57,7 @@ model Student {
   grade           String
   section         String?
   rollNumber      String?
+  admissionNumber String?       @unique
   academicYear    String        @default("2025-2026")
   status          String        @default("Active")
   baseFee         Int           @default(60000)
