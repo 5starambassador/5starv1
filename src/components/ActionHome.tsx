@@ -55,6 +55,19 @@ export function ActionHome({ user, recentReferrals, whatsappUrl, monthStats }: A
             <style dangerouslySetInnerHTML={{
                 __html: `
                 :root { --font-outfit: 'Outfit', sans-serif; }
+                @keyframes shimmer {
+                    100% { transform: translateX(100%); }
+                }
+                .animate-shimmer {
+                    animation: shimmer 2s infinite;
+                }
+                @keyframes float-slow {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-5px); }
+                }
+                .animate-float-slow {
+                    animation: float-slow 4s ease-in-out infinite;
+                }
             `}} />
 
             {/* Hero Section - Optimized Mobile Padding */}
@@ -62,6 +75,32 @@ export function ActionHome({ user, recentReferrals, whatsappUrl, monthStats }: A
                 {/* Background decoration */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
                 <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-2xl" />
+
+                {/* 5-Star Achievement Badge - Ultra Premium Shield Trophy Style */}
+                {/* 5-Star Achievement Badge - Using Reference Image Asset */}
+                {displayCount >= 5 && (
+                    <div className="absolute top-4 right-4 md:top-6 md:right-6 z-30 animate-in fade-in zoom-in duration-1000 delay-500">
+                        <div className="relative group flex flex-col items-center">
+                            {/* Premium Glow Base */}
+                            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-28 bg-amber-400/20 blur-[40px] rounded-full animate-pulse" />
+
+                            {/* Badge Image with Premium Styling */}
+                            <div className="relative animate-float-slow drop-shadow-[0_15px_30px_rgba(0,0,0,0.4)]">
+                                <img
+                                    src="/images/ambassador-badge.png"
+                                    alt="5-Star Ambassador Badge"
+                                    className="w-[90px] md:w-[110px] h-auto transition-transform duration-500 group-hover:scale-110 select-none"
+                                />
+
+                                {/* Overlay Shine Effect */}
+                                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
+                            </div>
+
+                            {/* Optional subtle light below */}
+                            <div className="absolute -bottom-2 w-1/2 h-1 bg-amber-500/15 blur-lg animate-pulse" />
+                        </div>
+                    </div>
+                )}
 
                 <div className="relative z-10">
                     {/* Greeting */}

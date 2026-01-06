@@ -305,15 +305,15 @@ export default function LoginPage() {
                       autoFocus
                       autoComplete="current-password"
                       disabled={loading}
-                      className={`w-full bg-white/5 border border-white/10 rounded-full px-6 h-12 text-white placeholder-white/20 focus:outline-none focus:border-amber-400/50 focus:bg-white/10 transition-all text-xl font-bold tracking-widest text-center backdrop-blur-md ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      placeholder="Enter password"
+                      className={`w-full bg-white/5 border border-white/10 rounded-full pl-10 pr-12 h-12 text-white placeholder-white/20 focus:outline-none focus:border-amber-400/50 focus:bg-white/10 transition-all text-lg font-bold tracking-wider text-center backdrop-blur-md ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      placeholder="Password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && password && handleLoginPassword()}
                     />
                     <button
                       type="button"
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-amber-400 transition-colors"
+                      className="absolute right-5 top-1/2 -translate-y-1/2 text-white/40 hover:text-amber-400 transition-colors"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
