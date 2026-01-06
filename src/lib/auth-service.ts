@@ -46,7 +46,17 @@ export const getCurrentUser = cache(async () => {
                 return { ...finalUser, assignedCampus: campus.campusName }
             }
         }
-        return finalUser
+        // Calculate current year confirmed referrals for Dual Track Benefit display
+        const currentYearStart = new Date(new Date().getFullYear(), 0, 1)
+        const currentYearCount = await prisma.referralLead.count({
+            where: {
+                userId: user.userId,
+                leadStatus: 'Confirmed',
+                confirmedDate: { gte: currentYearStart }
+            }
+        })
+
+        return { ...finalUser, currentYearCount }
     }
 
     return null

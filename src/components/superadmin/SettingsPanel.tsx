@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react'
 import {
     Settings, Shield, Zap, Clock, Save, Loader2,
     Smartphone, Mail, Lock, Globe, Database,
-    AlertCircle, CheckCircle2, UserCheck, Bell
+    AlertCircle, CheckCircle2, UserCheck, Bell, Calendar, Plus
 } from 'lucide-react'
 import {
     getSystemSettings, updateSystemSettings,
     getSecuritySettings, updateSecuritySettings,
-    getLeadManagementSettings, updateLeadManagementSettings
+    getLeadManagementSettings, updateLeadManagementSettings,
+    getAcademicYears, addAcademicYear, setCurrentAcademicYear
 } from '@/app/settings-actions'
 import { getNotificationSettings, updateNotificationSettings } from '@/app/notification-actions'
 import { getRetentionSettings, updateRetentionSettings } from '@/app/security-actions'
@@ -17,7 +18,7 @@ import { toast } from 'sonner'
 import { SecurityPanel } from './SecurityPanel'
 
 export function SettingsPanel() {
-    const [activeTab, setActiveTab] = useState<'general' | 'dashboards' | 'security' | 'logic' | 'notifications' | 'retention'>('general')
+    const [activeTab, setActiveTab] = useState<'general' | 'dashboards' | 'security' | 'logic' | 'notifications' | 'retention' | 'years'>('general')
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
 
@@ -27,22 +28,28 @@ export function SettingsPanel() {
     const [leadSettings, setLeadSettings] = useState<any>(null)
     const [notificationSettings, setNotificationSettings] = useState<any>(null)
     const [retentionSettings, setRetentionSettings] = useState<any>(null)
+    const [academicYearsList, setAcademicYearsList] = useState<any[]>([])
+    const [newYearForm, setNewYearForm] = useState({ year: '', startDate: '', endDate: '' })
 
     const fetchData = async () => {
         setLoading(true)
         try {
-            const [sys, sec, lead, notif, ret] = await Promise.all([
+            const [sys, sec, lead, notif, ret, yearsRes] = await Promise.all([
                 getSystemSettings(),
                 getSecuritySettings(),
                 getLeadManagementSettings(),
                 getNotificationSettings(),
-                getRetentionSettings()
+                getRetentionSettings(),
+                getAcademicYears()
             ])
             setSystemSettings(sys)
             setSecuritySettings(sec)
             setLeadSettings(lead)
             setNotificationSettings(notif)
             setRetentionSettings(ret)
+            if (yearsRes.success && yearsRes.data) {
+                setAcademicYearsList(yearsRes.data)
+            }
         } catch (error) {
             console.error('Failed to fetch settings:', error)
             toast.error('Partial failure in loading settings')
@@ -125,6 +132,7 @@ export function SettingsPanel() {
                     { id: 'logic', label: 'Lead Logic', icon: Zap },
                     { id: 'notifications', label: 'Notifications', icon: Bell },
                     { id: 'retention', label: 'Data Retention', icon: Database },
+                    { id: 'years', label: 'Academic Years', icon: Calendar },
                 ].map((tab) => (
                     <button
                         key={tab.id}
@@ -143,6 +151,143 @@ export function SettingsPanel() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Main Content Area */}
                 <div className="lg:col-span-2 space-y-6">
+                    {/* Academic Years Settings */}
+                    {activeTab === 'years' && (
+                        <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-8 space-y-8">
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
+                                    <Calendar className="text-blue-600" size={24} />
+                                    Academic Cycles
+                                </h3>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                {/* Year List */}
+                                <div className="lg:col-span-2 space-y-4">
+                                    <h4 className="font-bold text-gray-900 text-sm">Registered Years</h4>
+                                    {academicYearsList.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {academicYearsList.map((year: any) => (
+                                                <div
+                                                    key={year.id}
+                                                    className={`group p-4 rounded-xl border transition-all flex items-center justify-between ${year.isCurrent
+                                                        ? 'bg-blue-50 border-blue-200 shadow-sm'
+                                                        : 'bg-white border-gray-100 hover:border-gray-200'
+                                                        }`}
+                                                >
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`text-lg font-black ${year.isCurrent ? 'text-blue-700' : 'text-gray-700'}`}>
+                                                                {year.year}
+                                                            </span>
+                                                            {year.isCurrent && (
+                                                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] uppercase font-black tracking-wider rounded-full">
+                                                                    Active
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-3 mt-1 text-xs font-medium text-gray-500">
+                                                            <span>{new Date(year.startDate).toLocaleDateString()}</span>
+                                                            <span>→</span>
+                                                            <span>{new Date(year.endDate).toLocaleDateString()}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {!year.isCurrent && (
+                                                        <button
+                                                            onClick={async () => {
+                                                                setSaving(true)
+                                                                const res = await setCurrentAcademicYear(year.year)
+                                                                if (res.success) {
+                                                                    toast.success(`Active year set to ${year.year}`)
+                                                                    fetchData()
+                                                                } else {
+                                                                    toast.error('Failed to update')
+                                                                }
+                                                                setSaving(false)
+                                                            }}
+                                                            className="opacity-0 group-hover:opacity-100 transition-opacity px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-bold"
+                                                        >
+                                                            Set Active
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                            <p className="text-sm text-gray-400 font-bold">No academic years defined.</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Add New Year */}
+                                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 h-fit">
+                                    <h4 className="font-bold text-gray-900 text-sm mb-4 flex items-center gap-2">
+                                        <Plus size={16} /> Add Cycle
+                                    </h4>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Year Label</label>
+                                            <input
+                                                placeholder="e.g. 2026-2027"
+                                                className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm font-bold"
+                                                value={newYearForm.year}
+                                                onChange={e => setNewYearForm({ ...newYearForm, year: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Start</label>
+                                                <input
+                                                    type="date"
+                                                    className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-xs"
+                                                    value={newYearForm.startDate}
+                                                    onChange={e => setNewYearForm({ ...newYearForm, startDate: e.target.value })}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">End</label>
+                                                <input
+                                                    type="date"
+                                                    className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-xs"
+                                                    value={newYearForm.endDate}
+                                                    onChange={e => setNewYearForm({ ...newYearForm, endDate: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                if (!newYearForm.year || !newYearForm.startDate || !newYearForm.endDate) {
+                                                    toast.error('Please fill all fields')
+                                                    return
+                                                }
+                                                setSaving(true)
+                                                const res = await addAcademicYear({
+                                                    year: newYearForm.year,
+                                                    startDate: new Date(newYearForm.startDate),
+                                                    endDate: new Date(newYearForm.endDate)
+                                                })
+                                                if (res.success) {
+                                                    toast.success('Academic year added')
+                                                    setNewYearForm({ year: '', startDate: '', endDate: '' })
+                                                    fetchData()
+                                                } else {
+                                                    toast.error(res.error || 'Failed to add')
+                                                }
+                                                setSaving(false)
+                                            }}
+                                            disabled={saving}
+                                            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-200 transition-all flex justify-center"
+                                        >
+                                            {saving ? <Loader2 className="animate-spin" size={16} /> : 'Create Cycle'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* General Settings */}
                     {activeTab === 'general' && (
                         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-8 space-y-8">
@@ -476,7 +621,7 @@ export function SettingsPanel() {
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     )
 }

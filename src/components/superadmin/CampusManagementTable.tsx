@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { MapPin, Edit, Trash, Plus, School } from 'lucide-react'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
@@ -18,9 +19,12 @@ interface CampusManagementTableProps {
     onEdit: (campus: Campus) => void
     onDelete: (id: number, name: string) => void
     onAdd: () => void
+    onBulkDelete?: (ids: number[]) => void
 }
 
-export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd }: CampusManagementTableProps) {
+export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBulkDelete }: CampusManagementTableProps) {
+    const [selectedCampuses, setSelectedCampuses] = useState<Campus[]>([])
+
     const columns = [
         {
             header: 'Campus Name',
@@ -97,13 +101,24 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd }: Cam
                 subtitle="Manage physical school locations and their capacities"
                 icon={School}
             >
-                <button
-                    onClick={onAdd}
-                    className="px-5 py-2.5 bg-gray-900 text-white rounded-xl font-bold text-xs shadow-lg shadow-gray-200 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2"
-                >
-                    <Plus size={16} strokeWidth={2.5} />
-                    Add Campus
-                </button>
+                <div className="flex items-center gap-3">
+                    {selectedCampuses.length > 0 && onBulkDelete && (
+                        <button
+                            onClick={() => onBulkDelete(selectedCampuses.map(c => c.id))}
+                            className="px-5 py-2.5 bg-red-100/50 text-red-600 border border-red-200 rounded-xl font-bold text-xs hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-all flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200"
+                        >
+                            <Trash size={16} strokeWidth={2.5} />
+                            Delete ({selectedCampuses.length})
+                        </button>
+                    )}
+                    <button
+                        onClick={onAdd}
+                        className="px-5 py-2.5 bg-gray-900 text-white rounded-xl font-bold text-xs shadow-lg shadow-gray-200 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                    >
+                        <Plus size={16} strokeWidth={2.5} />
+                        Add Campus
+                    </button>
+                </div>
             </PremiumHeader>
 
             {/* Table */}
@@ -115,6 +130,9 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd }: Cam
                         searchKey="campusName"
                         searchPlaceholder="Search campuses..."
                         pageSize={10}
+                        enableMultiSelection={true}
+                        onSelectionChange={(selected) => setSelectedCampuses(selected)}
+                        uniqueKey="id"
                     />
                 </div>
             </PremiumCard>

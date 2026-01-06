@@ -218,7 +218,7 @@ export default async function AnalyticsPage() {
                             <span className="w-2 h-2 rounded-full bg-red-600"></span>
                             Short Term (This Year)
                         </h4>
-                        <BenefitGrid currentCount={userData.confirmedReferralCount} />
+                        <BenefitGrid currentCount={userData.currentYearCount !== undefined ? userData.currentYearCount : userData.confirmedReferralCount} />
                     </div>
 
                     {/* Long Term Benefits - Premium Dark Card */}

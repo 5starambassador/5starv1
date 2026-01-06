@@ -110,20 +110,106 @@ export async function updateCampus(id: number, data: any) {
     }
 }
 
-export async function deleteCampus(id: number) {
+export async function deleteCampus(id: number, force: boolean = false) {
     try {
         const user = await getCurrentUser()
         if (!user || user.role !== 'Super Admin') {
             return { success: false, error: 'Unauthorized' }
         }
 
-        await prisma.campus.delete({
-            where: { id }
+        // Check for dependencies
+        const hasStudents = await prisma.student.count({
+            where: { campusId: id }
         })
+
+        if (hasStudents > 0 && !force) {
+            return {
+                success: false,
+                error: 'Cannot delete campus: Has active students enrolled.',
+                requiresForce: true
+            }
+        }
+
+        const hasTargets = await prisma.campusTarget.count({
+            where: { campusId: id }
+        })
+
+        // Use transaction for clean cleanup
+        await prisma.$transaction(async (tx) => {
+            if (hasStudents > 0 && force) {
+                // Delete students first
+                await tx.student.deleteMany({ where: { campusId: id } })
+            }
+
+            if (hasTargets > 0) {
+                await tx.campusTarget.deleteMany({ where: { campusId: id } })
+            }
+
+            await tx.campus.delete({
+                where: { id }
+            })
+        })
+
+        return { success: true }
+    } catch (error: any) {
+        console.error('Error deleting campus:', error)
+        if (error.code === 'P2003') {
+            return { success: false, error: 'Cannot delete: Associated data exists.' }
+        }
+        return { success: false, error: 'Failed to delete campus' }
+    }
+}
+
+export async function deleteCampuses(ids: number[], force: boolean = false) {
+    try {
+        const user = await getCurrentUser()
+        if (!user || user.role !== 'Super Admin') {
+            return { success: false, error: 'Unauthorized' }
+        }
+
+        const campusesWithStudents = await prisma.campus.findMany({
+            where: {
+                id: { in: ids },
+                students: { some: {} }
+            },
+            select: { campusName: true }
+        })
+
+        if (campusesWithStudents.length > 0 && !force) {
+            const names = campusesWithStudents.map(c => c.campusName).join(', ')
+            return {
+                success: false,
+                error: `Cannot delete: The following campuses have active students: ${names}`,
+                requiresForce: true
+            }
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // 1. Force Cleanup if requested
+            if (force) {
+                await tx.student.deleteMany({
+                    where: { campusId: { in: ids } }
+                })
+            }
+
+            // 2. Cleanup dependencies (Weak entities)
+            await tx.campusTarget.deleteMany({
+                where: { campusId: { in: ids } }
+            })
+
+            // 3. Bulk Delete
+            await tx.campus.deleteMany({
+                where: { id: { in: ids } }
+            })
+        })
+
+        revalidatePath('/dashboard')
+        revalidatePath('/campus')
+
         return { success: true }
     } catch (error) {
-        console.error('Error deleting campus:', error)
-        return { success: false, error: 'Failed to delete campus' }
+        console.error('Error deleting campuses:', error)
+        return { success: false, error: 'Failed to delete campuses' }
     }
 }
 
@@ -272,13 +358,26 @@ export async function confirmCampusReferral(leadId: number, campusName: string) 
 
         // Use transaction to ensure consistency if possible, or sequential
         // Re-fetch count to be safe
+
+        // 1. Current Year Count (NEW)
+        const currentYearStart = new Date(new Date().getFullYear(), 0, 1)
+        const currentYearCount = await prisma.referralLead.count({
+            where: {
+                userId,
+                leadStatus: 'Confirmed',
+                confirmedDate: { gte: currentYearStart }
+            }
+        })
+
+        // 2. Lifetime Count
         const count = await prisma.referralLead.count({
             where: { userId, leadStatus: 'Confirmed' }
         })
 
         // Track 1: Short-term slabs for new/regular users
+        // 1: 5%, 2: 10%, 3: 25%, 4: 30%, 5: 50%
         const slabs = { 1: 5, 2: 10, 3: 25, 4: 30, 5: 50 }
-        const lookupCount = Math.min(count, 5)
+        const lookupCount = Math.min(currentYearCount, 5) // Use currentYearCount
         let yearFeeBenefit = slabs[lookupCount as keyof typeof slabs] || 0
 
         // Track 2: Long-term cumulative for 5-star members
@@ -287,16 +386,7 @@ export async function confirmCampusReferral(leadId: number, campusName: string) 
 
         if (user?.isFiveStarMember) {
             // DATE-BASED CUMULATIVE CALCULATION matches admin-actions.ts
-            const currentYearStart = new Date(new Date().getFullYear(), 0, 1)
-
-            // 1. Current Year Activity (Boost: 5%)
-            const currentYearCount = await prisma.referralLead.count({
-                where: {
-                    userId,
-                    leadStatus: 'Confirmed',
-                    confirmedDate: { gte: currentYearStart }
-                }
-            })
+            // currentYearCount already calculated
 
             // 2. Prior Years History (Base: 3%)
             const priorYearCount = count - currentYearCount

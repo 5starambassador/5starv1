@@ -1,4 +1,4 @@
-export type Role = 'Super Admin' | 'Admission Admin' | 'Campus Head' | 'Campus Admin' | 'Staff' | 'Parent' | 'Finance Admin' | 'Alumni'
+export type Role = 'Super Admin' | 'Admission Admin' | 'Campus Head' | 'Campus Admin' | 'CampusHead' | 'CampusAdmin' | 'Staff' | 'Parent' | 'Finance Admin' | 'Alumni'
 
 export interface ModulePermission {
     access: boolean
@@ -42,8 +42,12 @@ export interface User {
     confirmedReferralCount: number
     yearFeeBenefitPercent: number
     longTermBenefitPercent: number
+    longTermBenefitLocked?: boolean
     createdAt: Date
     empId?: string | null
+    childEprNo?: string | null
+    isFiveStarMember?: boolean
+    currentYearCount?: number
 }
 
 export interface Student {
@@ -77,6 +81,7 @@ export interface ReferralLead {
     user?: User
     student?: Student
 }
+
 export interface Campus {
     id: number
     campusName: string
@@ -113,7 +118,6 @@ export interface SystemAnalytics {
     staffCount: number
     parentCount: number
     userRoleDistribution: { name: string; value: number }[]
-    // New metrics for Phase 2
     avgLeadsPerAmbassador: number
     totalEstimatedRevenue: number
     conversionFunnel: { stage: string; count: number }[]
@@ -128,46 +132,17 @@ export interface CampusPerformance {
     ambassadors: number
 }
 
-export interface AdminAnalytics {
-    success: boolean
-    totalLeads: number
-    confirmedLeads: number
-    pendingLeads: number
-    conversionRate: string | number
-    totalAmbassadors: number
-    avgReferralsPerAmbassador: string | number
-    totalEstimatedValue: number
-    campusDistribution: Array<{
-        campus: string
-        count: number
-        percentage: string | number
-    }>
-    roleBreakdown: {
-        parent: { count: number; percentage: string | number }
-        staff: { count: number; percentage: string | number }
-    }
-    statusBreakdown: Array<{
-        status: string
-        count: number
-        percentage: string | number
-    }>
-    topPerformers: Array<{
-        name: string
-        role: string
-        referralCode: string
-        count: number
-    }>
-}
-
 export interface SystemSettings {
     id: number
     allowNewRegistrations: boolean
     currentAcademicYear: string
     maintenanceMode: boolean
+    defaultStudentFee?: number
     staffReferralText?: string | null
     parentReferralText?: string | null
     staffWelcomeMessage?: string | null
     parentWelcomeMessage?: string | null
+    alumniWelcomeMessage?: string | null
     updatedAt: Date
 }
 

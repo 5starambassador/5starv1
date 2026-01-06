@@ -258,7 +258,7 @@ export default function LoginPage() {
                     autoComplete="tel"
                     inputMode="numeric"
                     disabled={loading}
-                    className={`block mx-auto w-[280px] bg-white/5 border border-white/10 rounded-full px-4 h-12 text-white placeholder-white/20 focus:outline-none focus:border-amber-400/50 focus:bg-white/10 focus:shadow-[0_0_30px_-5px_rgba(245,158,11,0.3)] transition-all text-xl font-bold tracking-[0.1em] text-center backdrop-blur-md ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`block mx-auto w-[280px] bg-white/5 border border-white/10 rounded-full px-4 h-12 text-white placeholder-white/20 focus:outline-none focus:border-amber-400/50 focus:bg-white/10 focus:shadow-[0_0_30px_-5px_rgba(245,158,11,0.3)] transition-all text-lg font-bold tracking-[0.1em] text-center backdrop-blur-md ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     placeholder="Enter 10-digit mobile"
                     value={mobile}
                     onChange={(e) => {

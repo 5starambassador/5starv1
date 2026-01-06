@@ -43,6 +43,9 @@ export function ActionHome({ user, recentReferrals, whatsappUrl, monthStats }: A
 
     const referralTrend = monthStats ? calculateChange(monthStats.currentConfirmed, monthStats.prevConfirmed) : null
 
+    const displayCount = (user as any).currentYearCount !== undefined ? (user as any).currentYearCount : user.confirmedReferralCount
+    const isFiveStar = user.benefitStatus === 'Active' && user.yearFeeBenefitPercent >= 50 // Or explicit 5-star flag
+
     return (
         <div className="space-y-6 md:space-y-8 max-w-2xl mx-auto pb-10 font-[family-name:var(--font-outfit)]">
             {/* Import Premium Font Locally - Standard HTML */}
@@ -105,9 +108,9 @@ export function ActionHome({ user, recentReferrals, whatsappUrl, monthStats }: A
                             </div>
 
                             <div>
-                                <p className="text-[10px] uppercase tracking-widest font-bold text-red-100/70 mb-1">Confirmed Referrals</p>
+                                <p className="text-[10px] uppercase tracking-widest font-bold text-red-100/70 mb-1">Active Referrals (This Year)</p>
                                 <div className="flex items-baseline gap-2 mb-3">
-                                    <h2 className="text-4xl font-black tracking-tight">{user.confirmedReferralCount}</h2>
+                                    <h2 className="text-4xl font-black tracking-tight">{displayCount}</h2>
                                     <span className="text-sm font-bold text-red-100/50">/ 5 Goal</span>
                                 </div>
 
@@ -115,13 +118,13 @@ export function ActionHome({ user, recentReferrals, whatsappUrl, monthStats }: A
                                 <div className="relative h-2 w-full bg-black/20 rounded-full overflow-hidden mb-2.5">
                                     <div
                                         className="absolute top-0 left-0 h-full bg-gradient-to-r from-yellow-300 to-yellow-500 transition-all duration-1000 ease-out rounded-full shadow-[0_0_10px_rgba(253,224,71,0.5)]"
-                                        style={{ width: `${Math.min((user.confirmedReferralCount / 5) * 100, 100)}%` }}
+                                        style={{ width: `${Math.min((displayCount / 5) * 100, 100)}%` }}
                                     />
                                 </div>
                                 <p className="text-[11px] font-semibold text-red-100/90 flex items-center gap-1.5">
-                                    {user.confirmedReferralCount >= 5
+                                    {displayCount >= 5
                                         ? <span><Star size={10} className="inline fill-yellow-300 text-yellow-300" /> You're a 5-Star Ambassador!</span>
-                                        : `${5 - user.confirmedReferralCount} more to reach 5-Star Status`}
+                                        : `${5 - displayCount} more to reach 5-Star Status`}
                                 </p>
                             </div>
                         </div>

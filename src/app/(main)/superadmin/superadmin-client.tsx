@@ -14,7 +14,7 @@ import {
 import { getLeadSettings, updateLeadSettings } from '@/app/lead-actions'
 import { getSecuritySettings, updateSecuritySettings, getRetentionSettings, updateRetentionSettings } from '@/app/security-actions'
 import { getNotificationSettings, updateNotificationSettings } from '@/app/notification-actions'
-import { getCampuses, updateCampus, addCampus, deleteCampus } from '@/app/campus-actions'
+import { getCampuses, updateCampus, addCampus, deleteCampus, deleteCampuses } from '@/app/campus-actions'
 import { getBenefitSlabs, updateBenefitSlab, addBenefitSlab, deleteBenefitSlab } from '@/app/benefit-actions'
 import { addUser, updateUser, addAdmin, removeUser, deleteAdmin, bulkAddUsers, updateUserStatus, updateAdminStatus, getSystemAnalytics, getUserGrowthTrend, getCampusComparison, getCampusDetails, triggerWeeklyKPIReport, adminResetPassword } from '@/app/superadmin-actions'
 import { getDeletionRequests } from '@/app/deletion-actions'
@@ -156,9 +156,15 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
 
     // Form states
     const [userForm, setUserForm] = useState({
-        fullName: '', mobileNumber: '', role: 'Parent' as 'Parent' | 'Staff', assignedCampus: '',
-        empId: '', childEprNo: '', isFiveStarMember: false,
-        yearFeeBenefitPercent: 0, longTermBenefitPercent: 0
+        fullName: '',
+        mobileNumber: '',
+        role: 'Parent' as 'Parent' | 'Staff' | 'CampusAdmin' | 'CampusHead',
+        assignedCampus: '',
+        empId: '',
+        childEprNo: '',
+        isFiveStarMember: false,
+        yearFeeBenefitPercent: 0,
+        longTermBenefitPercent: 0
     })
     const [adminForm, setAdminForm] = useState({ adminName: '', adminMobile: '', role: 'CampusHead' as 'CampusHead' | 'CampusAdmin', assignedCampus: '' })
     const [studentForm, setStudentForm] = useState<any>({
@@ -254,6 +260,11 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     const [loading, setLoading] = useState(false)
     const [slabs, setSlabs] = useState<any[]>([])
 
+    // Missing States Restored
+    const [settingsState, setSettingsState] = useState<SystemSettings | null>(systemSettings || null)
+    const [notificationSettings, setNotificationSettings] = useState<any>(null)
+    const [registrationEnabled, setRegistrationEnabled] = useState(true)
+
     // Module Specific States
     const [settlements, setSettlements] = useState<any[]>([])
     const [resources, setResources] = useState<any[]>([])
@@ -288,6 +299,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     // Settings View State
     const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'leads' | 'security' | 'notifications'>('general')
     const [isTableExpanded, setIsTableExpanded] = useState(false)
+    const [activeCampusTab, setActiveCampusTab] = useState<'metrics' | 'management'>('metrics')
 
     // Sync view with URL params when they change
     useEffect(() => {
@@ -304,13 +316,20 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         async function loadData() {
             setLoading(true)
             try {
-                const [cmp, slb] = await Promise.all([
+                const [cmp, slb, sys, notif] = await Promise.all([
                     getCampuses(),
-                    getBenefitSlabs()
+                    getBenefitSlabs(),
+                    getSystemSettings(),
+                    getNotificationSettings()
                 ])
 
                 if (cmp.success && cmp.campuses) setCampuses(cmp.campuses)
                 if (slb.success && slb.slabs) setSlabs(slb.slabs)
+                if (sys) {
+                    setSettingsState(sys)
+                    setRegistrationEnabled(sys.allowNewRegistrations)
+                }
+                if (notif) setNotificationSettings(notif)
             } catch (error) {
                 console.error('Failed to load initial data:', error)
             } finally {
@@ -422,7 +441,17 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         if (result.success) {
             setShowAddUserModal(false)
             setEditingUser(null)
-            setUserForm({ fullName: '', mobileNumber: '', role: 'Parent', assignedCampus: '', empId: '', childEprNo: '' })
+            setUserForm({
+                fullName: '',
+                mobileNumber: '',
+                role: 'Parent',
+                assignedCampus: '',
+                empId: '',
+                childEprNo: '',
+                isFiveStarMember: false,
+                yearFeeBenefitPercent: 0,
+                longTermBenefitPercent: 0
+            })
             router.refresh()
         } else {
             toast.error(result.error || 'Failed to save user')
@@ -1025,110 +1054,199 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                     </>
                 )}
 
-                {/* Campus Performance View */}
+                {/* Campus View */}
                 {selectedView === 'campuses' && (
                     <div className="space-y-6 animate-fade-in">
-                        {/* Summary Stats Row - Premium Redesign */}
-                        <div style={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: '16px',
-                            marginBottom: '32px'
-                        }}>
-                            <div className="premium-shadow text-center relative overflow-hidden group" style={{
-                                flex: '1 1 200px',
-                                padding: '32px',
-                                borderRadius: '24px',
-                                background: 'linear-gradient(135deg, #FF1E1E 0%, #A30000 100%)'
-                            }}>
-                                <p className="text-3xl font-black text-white relative z-10" style={{ fontSize: '36px', letterSpacing: '-0.02em' }}>{campuses.length}</p>
-                                <p className="text-[10px] font-black text-white/70 mt-2 uppercase tracking-[0.2em] relative z-10">Total Locations</p>
-                            </div>
-                            <div className="premium-shadow text-center relative overflow-hidden group" style={{
-                                flex: '1 1 200px',
-                                padding: '32px',
-                                borderRadius: '24px',
-                                background: 'linear-gradient(135deg, #3B82F6 0%, #172554 100%)'
-                            }}>
-                                <p className="text-3xl font-black text-white relative z-10" style={{ fontSize: '36px', letterSpacing: '-0.02em' }}>{analyticsData.totalLeads.toLocaleString()}</p>
-                                <p className="text-[10px] font-black text-white/70 mt-2 uppercase tracking-[0.2em] relative z-10">Gross Pipeline</p>
-                            </div>
-                            <div className="premium-shadow text-center relative overflow-hidden group" style={{
-                                flex: '1 1 200px',
-                                padding: '32px',
-                                borderRadius: '24px',
-                                background: 'linear-gradient(135deg, #10B981 0%, #064E3B 100%)'
-                            }}>
-                                <p className="text-3xl font-black text-white relative z-10" style={{ fontSize: '36px', letterSpacing: '-0.02em' }}>{analyticsData.totalConfirmed.toLocaleString()}</p>
-                                <p className="text-[10px] font-black text-white/70 mt-2 uppercase tracking-[0.2em] relative z-10">Total Admissions</p>
-                            </div>
-                            <div className="premium-shadow text-center relative overflow-hidden group" style={{
-                                flex: '1 1 200px',
-                                padding: '32px',
-                                borderRadius: '24px',
-                                background: 'linear-gradient(135deg, #F59E0B 0%, #78350F 100%)'
-                            }}>
-                                <p className="text-3xl font-black text-white relative z-10" style={{ fontSize: '36px', letterSpacing: '-0.02em' }}>{analyticsData.globalConversionRate}%</p>
-                                <p className="text-[10px] font-black text-white/70 mt-2 uppercase tracking-[0.2em] relative z-10">System Yield</p>
+                        {/* Tab Switcher */}
+                        <div className="flex justify-center mb-6">
+                            <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-200 flex items-center">
+                                <button
+                                    onClick={() => setActiveCampusTab('metrics')}
+                                    className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeCampusTab === 'metrics' ? 'bg-gray-100 text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                                >
+                                    Analytics & Performance
+                                </button>
+                                <button
+                                    onClick={() => setActiveCampusTab('management')}
+                                    className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeCampusTab === 'management' ? 'bg-gray-100 text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                                >
+                                    Campus Management
+                                </button>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            {/* Analytics Charts Grid */}
-                            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                                <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
-                                    <TrendingUp size={18} className="text-orange-500" />
-                                    Lead Volume by Campus
-                                </h3>
-                                <div style={{ height: '350px' }}>
-                                    <CampusBarChart data={campusCompData} />
+                        {activeCampusTab === 'metrics' ? (
+                            <>
+                                {/* Summary Stats Row - Premium Redesign */}
+                                <div style={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    gap: '16px',
+                                    marginBottom: '32px'
+                                }}>
+                                    <div className="premium-shadow text-center relative overflow-hidden group" style={{
+                                        flex: '1 1 200px',
+                                        padding: '32px',
+                                        borderRadius: '24px',
+                                        background: 'linear-gradient(135deg, #FF1E1E 0%, #A30000 100%)'
+                                    }}>
+                                        <p className="text-3xl font-black text-white relative z-10" style={{ fontSize: '36px', letterSpacing: '-0.02em' }}>{campuses.length}</p>
+                                        <p className="text-[10px] font-black text-white/70 mt-2 uppercase tracking-[0.2em] relative z-10">Total Locations</p>
+                                    </div>
+                                    <div className="premium-shadow text-center relative overflow-hidden group" style={{
+                                        flex: '1 1 200px',
+                                        padding: '32px',
+                                        borderRadius: '24px',
+                                        background: 'linear-gradient(135deg, #3B82F6 0%, #172554 100%)'
+                                    }}>
+                                        <p className="text-3xl font-black text-white relative z-10" style={{ fontSize: '36px', letterSpacing: '-0.02em' }}>{analyticsData.totalLeads.toLocaleString()}</p>
+                                        <p className="text-[10px] font-black text-white/70 mt-2 uppercase tracking-[0.2em] relative z-10">Gross Pipeline</p>
+                                    </div>
+                                    <div className="premium-shadow text-center relative overflow-hidden group" style={{
+                                        flex: '1 1 200px',
+                                        padding: '32px',
+                                        borderRadius: '24px',
+                                        background: 'linear-gradient(135deg, #10B981 0%, #064E3B 100%)'
+                                    }}>
+                                        <p className="text-3xl font-black text-white relative z-10" style={{ fontSize: '36px', letterSpacing: '-0.02em' }}>{analyticsData.totalConfirmed.toLocaleString()}</p>
+                                        <p className="text-[10px] font-black text-white/70 mt-2 uppercase tracking-[0.2em] relative z-10">Total Admissions</p>
+                                    </div>
+                                    <div className="premium-shadow text-center relative overflow-hidden group" style={{
+                                        flex: '1 1 200px',
+                                        padding: '32px',
+                                        borderRadius: '24px',
+                                        background: 'linear-gradient(135deg, #F59E0B 0%, #78350F 100%)'
+                                    }}>
+                                        <p className="text-3xl font-black text-white relative z-10" style={{ fontSize: '36px', letterSpacing: '-0.02em' }}>{analyticsData.globalConversionRate}%</p>
+                                        <p className="text-[10px] font-black text-white/70 mt-2 uppercase tracking-[0.2em] relative z-10">System Yield</p>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                                <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
-                                    <Target size={18} className="text-blue-500" />
-                                    Lead Distribution
-                                </h3>
-                                <div style={{ height: '350px' }}>
-                                    <GenericPieChart data={campusCompData} dataKey="totalLeads" nameKey="campus" />
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    {/* Analytics Charts Grid */}
+                                    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                                        <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+                                            <TrendingUp size={18} className="text-orange-500" />
+                                            Lead Volume by Campus
+                                        </h3>
+                                        <div style={{ height: '350px' }}>
+                                            <CampusBarChart data={campusCompData} />
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                                        <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+                                            <Target size={18} className="text-blue-500" />
+                                            Lead Distribution
+                                        </h3>
+                                        <div style={{ height: '350px' }}>
+                                            <GenericPieChart data={campusCompData} dataKey="totalLeads" nameKey="campus" />
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm lg:col-span-2">
+                                        <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+                                            <TrendingUp size={18} className="text-emerald-500" />
+                                            Lead Conversion Funnel
+                                        </h3>
+                                        <div style={{ height: '350px' }}>
+                                            <ConversionFunnelChart data={analytics?.conversionFunnel || []} />
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                                        <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+                                            <CheckCircle size={18} className="text-emerald-600" />
+                                            Campus Conversion Efficiency (%)
+                                        </h3>
+                                        <div style={{ height: '350px' }}>
+                                            <CampusEfficiencyChart data={campusComparison || []} />
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                                        <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+                                            <Users size={18} className="text-purple-500" />
+                                            Lead Structure
+                                        </h3>
+                                        <div style={{ height: '350px' }}>
+                                            <GenericPieChart data={analytics?.userRoleDistribution || []} dataKey="value" nameKey="name" />
+                                        </div>
+                                    </div>
+                                    <div className="lg:col-span-2">
+                                        <CampusPerformanceTable
+                                            comparison={campusCompData}
+                                            onCampusClick={handleCampusClick}
+                                            isExpanded={isTableExpanded}
+                                            onToggleExpand={() => setIsTableExpanded(!isTableExpanded)}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm lg:col-span-2">
-                                <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
-                                    <TrendingUp size={18} className="text-emerald-500" />
-                                    Lead Conversion Funnel
-                                </h3>
-                                <div style={{ height: '350px' }}>
-                                    <ConversionFunnelChart data={analytics?.conversionFunnel || []} />
-                                </div>
-                            </div>
-                            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                                <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
-                                    <CheckCircle size={18} className="text-emerald-600" />
-                                    Campus Conversion Efficiency (%)
-                                </h3>
-                                <div style={{ height: '350px' }}>
-                                    <CampusEfficiencyChart data={campusComparison || []} />
-                                </div>
-                            </div>
-                            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                                <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
-                                    <Users size={18} className="text-purple-500" />
-                                    Lead Structure
-                                </h3>
-                                <div style={{ height: '350px' }}>
-                                    <GenericPieChart data={analytics?.userRoleDistribution || []} dataKey="value" nameKey="name" />
-                                </div>
-                            </div>
-                            <div className="lg:col-span-2">
-                                <CampusPerformanceTable
-                                    comparison={campusCompData}
-                                    onCampusClick={handleCampusClick}
-                                    isExpanded={isTableExpanded}
-                                    onToggleExpand={() => setIsTableExpanded(!isTableExpanded)}
-                                />
-                            </div>
-                        </div>
+                            </>
+                        ) : (
+                            <CampusManagementTable
+                                campuses={campuses}
+                                onAdd={() => {
+                                    setEditingCampus(null)
+                                    setCampusForm({
+                                        campusName: '',
+                                        campusCode: '',
+                                        location: '',
+                                        grades: '9-12',
+                                        maxCapacity: 500,
+                                        gradeFees: []
+                                    })
+                                    setShowCampusModal(true)
+                                }}
+                                onEdit={(campus: any) => {
+                                    setEditingCampus(campus)
+                                    setCampusForm({
+                                        campusName: campus.campusName,
+                                        campusCode: campus.campusCode,
+                                        location: campus.location,
+                                        grades: campus.grades || '9-12',
+                                        maxCapacity: campus.maxCapacity || 500,
+                                        gradeFees: campus.gradeFees || []
+                                    })
+                                    setShowCampusModal(true)
+                                }}
+                                onDelete={async (id: number) => {
+                                    const result = await deleteCampus(id)
+                                    if (result.success) {
+                                        toast.success('Campus deleted successfully')
+                                    } else {
+                                        if (result.requiresForce) {
+                                            if (confirm(`${result.error}\n\nDo you want to FORCE DELETE? This will permanently delete all associated students and data.`)) {
+                                                const forceResult = await deleteCampus(id, true)
+                                                if (forceResult.success) {
+                                                    toast.success('Campus force deleted successfully')
+                                                } else {
+                                                    toast.error(forceResult.error || 'Failed to force delete campus')
+                                                }
+                                            }
+                                        } else {
+                                            toast.error(result.error || 'Failed to delete campus')
+                                        }
+                                    }
+                                }}
+                                onBulkDelete={async (ids) => {
+                                    if (!confirm(`Are you sure you want to delete ${ids.length} campuses? This action cannot be undone.`)) return
+                                    const result = await deleteCampuses(ids)
+                                    if (result.success) {
+                                        toast.success('Campuses deleted successfully')
+                                    } else {
+                                        if (result.requiresForce) {
+                                            if (confirm(`${result.error}\n\nDo you want to FORCE DELETE these campuses? This will permanently delete ALL students associated with them.`)) {
+                                                const forceResult = await deleteCampuses(ids, true)
+                                                if (forceResult.success) {
+                                                    toast.success('Campuses force deleted successfully')
+                                                } else {
+                                                    toast.error(forceResult.error || 'Failed to force delete campuses')
+                                                }
+                                            }
+                                        } else {
+                                            toast.error(result.error || 'Failed to delete campuses')
+                                        }
+                                    }
+                                }}
+                            />
+                        )}
                     </div>
                 )}
 

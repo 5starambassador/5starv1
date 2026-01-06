@@ -186,6 +186,17 @@ export async function confirmReferral(leadId: number) {
 
             // Count confirmed referrals for the CURRENT academic year
             // Note: In a production system, we'd filter by academicYear field
+            const currentYearStart = new Date(new Date().getFullYear(), 0, 1);
+
+            const currentYearCount = await tx.referralLead.count({
+                where: {
+                    userId,
+                    leadStatus: 'Confirmed',
+                    confirmedDate: { gte: currentYearStart }
+                }
+            })
+
+            // Count LIFETIME confirmed referrals
             const count = await tx.referralLead.count({
                 where: {
                     userId,
@@ -194,9 +205,10 @@ export async function confirmReferral(leadId: number) {
             })
 
             // Determine Benefit % based on the 5-Star system logic (1.5)
+            // TRACK 1: New Referrals This Year (Reset annually)
             // 1: 5%, 2: 10%, 3: 25%, 4: 30%, 5: 50%
             const shortTermSlabs: Record<number, number> = { 1: 5, 2: 10, 3: 25, 4: 30, 5: 50 };
-            const lookupCount = Math.min(count, 5);
+            const lookupCount = Math.min(currentYearCount, 5); // Use currentYearCount, NOT lifetime count
             let yearFeeBenefit = shortTermSlabs[lookupCount] || 0;
 
             // Long Term Benefit Logic (Track 2 - For Returning 5-Star Members)
@@ -208,21 +220,12 @@ export async function confirmReferral(leadId: number) {
             if (user?.isFiveStarMember) { // Check eligibility first
                 // DATE-BASED CUMULATIVE CALCULATION
                 // We must distinguish between "Prior Years History" and "Current Year Activity"
-                // Assuming Academic/Calendar year starts Jan 1st of current year (matches lastActiveYear logic)
-                const currentYearStart = new Date(new Date().getFullYear(), 0, 1);
 
-                // 1. Count referrals confirmed in CURRENT year (Boost: 5%)
-                const currentYearCount = await tx.referralLead.count({
-                    where: {
-                        userId,
-                        leadStatus: 'Confirmed',
-                        confirmedDate: { gte: currentYearStart }
-                    }
-                });
+                // 1. Current Year Activity (Boost: 5%)
+                // Already calculated as currentYearCount
 
                 // 2. Count referrals from PRIOR years (Base: 3%)
                 // Total 'count' includes current, so subtract current to get prior
-                // Or query directly: confirmedDate < currentYearStart
                 const priorYearCount = count - currentYearCount;
 
                 // 3. Apply Formula ONLY if active this year
