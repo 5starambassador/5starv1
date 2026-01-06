@@ -269,20 +269,60 @@ export async function confirmCampusReferral(leadId: number, campusName: string) 
 
         // Update User Counts & Benefits
         const userId = lead.userId
+
+        // Use transaction to ensure consistency if possible, or sequential
+        // Re-fetch count to be safe
         const count = await prisma.referralLead.count({
             where: { userId, leadStatus: 'Confirmed' }
         })
 
+        // Track 1: Short-term slabs for new/regular users
         const slabs = { 1: 5, 2: 10, 3: 25, 4: 30, 5: 50 }
         const lookupCount = Math.min(count, 5)
-        const yearFeeBenefit = slabs[lookupCount as keyof typeof slabs] || 0
+        let yearFeeBenefit = slabs[lookupCount as keyof typeof slabs] || 0
+
+        // Track 2: Long-term cumulative for 5-star members
+        const user = await prisma.user.findUnique({ where: { userId } })
+        let longTermTotal = 0
+
+        if (user?.isFiveStarMember) {
+            // DATE-BASED CUMULATIVE CALCULATION matches admin-actions.ts
+            const currentYearStart = new Date(new Date().getFullYear(), 0, 1)
+
+            // 1. Current Year Activity (Boost: 5%)
+            const currentYearCount = await prisma.referralLead.count({
+                where: {
+                    userId,
+                    leadStatus: 'Confirmed',
+                    confirmedDate: { gte: currentYearStart }
+                }
+            })
+
+            // 2. Prior Years History (Base: 3%)
+            const priorYearCount = count - currentYearCount
+
+            // 3. Apply Formula if active this year
+            if (currentYearCount >= 1) {
+                const cumulativeBase = priorYearCount * 3
+                const currentYearBoost = currentYearCount * 5
+                longTermTotal = cumulativeBase + currentYearBoost
+
+                if (longTermTotal > yearFeeBenefit) {
+                    yearFeeBenefit = longTermTotal
+                }
+            }
+        }
 
         await prisma.user.update({
             where: { userId },
             data: {
                 confirmedReferralCount: count,
                 yearFeeBenefitPercent: yearFeeBenefit,
-                benefitStatus: count >= 1 ? 'Active' : 'Inactive'
+                longTermBenefitPercent: longTermTotal,
+                benefitStatus: count >= 1 ? 'Active' : 'Inactive',
+                // Sticky 5-star flag
+                isFiveStarMember: user?.isFiveStarMember || count >= 5,
+                lastActiveYear: new Date().getFullYear()
             }
         })
 

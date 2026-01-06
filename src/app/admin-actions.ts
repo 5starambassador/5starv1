@@ -199,22 +199,42 @@ export async function confirmReferral(leadId: number) {
             const lookupCount = Math.min(count, 5);
             let yearFeeBenefit = shortTermSlabs[lookupCount] || 0;
 
-            // Long Term Benefit Logic (2nd Year Onwards)
-            // Prereq: Must be Five Star Member (5 referrals in PREVIOUS year)
-            // Activation: Must have at least 1 referral this year to unlock
+            // Long Term Benefit Logic (Track 2 - For Returning 5-Star Members)
+            // Prereq: Must be Five Star Member (achieved 5+ referrals in PREVIOUS years)
+            // Activation: Must have at least 1 NEW referral this year to unlock
             let longTermTotal = 0;
             const user = await tx.user.findUnique({ where: { userId } });
 
-            if (user?.isFiveStarMember && count >= 1) {
-                // Base 15% + (5% per EACH new referral this year)
-                // EXPERT: This overrides the short-term benefit if it's higher
-                const baseLongTerm = 15;
-                const incremental = count * 5;
-                longTermTotal = baseLongTerm + incremental;
+            if (user?.isFiveStarMember) { // Check eligibility first
+                // DATE-BASED CUMULATIVE CALCULATION
+                // We must distinguish between "Prior Years History" and "Current Year Activity"
+                // Assuming Academic/Calendar year starts Jan 1st of current year (matches lastActiveYear logic)
+                const currentYearStart = new Date(new Date().getFullYear(), 0, 1);
 
-                // If long-term is higher than short-term (which it usually is), use it
-                if (longTermTotal > yearFeeBenefit) {
-                    yearFeeBenefit = longTermTotal;
+                // 1. Count referrals confirmed in CURRENT year (Boost: 5%)
+                const currentYearCount = await tx.referralLead.count({
+                    where: {
+                        userId,
+                        leadStatus: 'Confirmed',
+                        confirmedDate: { gte: currentYearStart }
+                    }
+                });
+
+                // 2. Count referrals from PRIOR years (Base: 3%)
+                // Total 'count' includes current, so subtract current to get prior
+                // Or query directly: confirmedDate < currentYearStart
+                const priorYearCount = count - currentYearCount;
+
+                // 3. Apply Formula ONLY if active this year
+                if (currentYearCount >= 1) {
+                    const cumulativeBase = priorYearCount * 3;
+                    const currentYearBoost = currentYearCount * 5;
+                    longTermTotal = cumulativeBase + currentYearBoost;
+
+                    // System picks the higher of: short-term slab OR cumulative long-term
+                    if (longTermTotal > yearFeeBenefit) {
+                        yearFeeBenefit = longTermTotal;
+                    }
                 }
             }
 
@@ -225,10 +245,11 @@ export async function confirmReferral(leadId: number) {
                     confirmedReferralCount: count,
                     yearFeeBenefitPercent: yearFeeBenefit,
                     longTermBenefitPercent: longTermTotal,
-                    benefitStatus: count >= 1 ? 'Active' : 'Inactive',
-                    // Qualify for Five Star status if they hit 5 referrals this year
+                    benefitStatus: count >= 1 ? 'Active' : 'Inactive', // Basic active check
+                    // Qualify for Five Star status if they hit 5 referrals this year OR already have it
+                    // Sticky flag: once 5-star, always 5-star
                     isFiveStarMember: user?.isFiveStarMember || count >= 5,
-                    lastActiveYear: 2025
+                    lastActiveYear: new Date().getFullYear()
                 }
             })
 
@@ -403,7 +424,7 @@ export async function getAdminCampusPerformance() {
             })
 
             const pending = await prisma.referralLead.count({
-                where: { campus, leadStatus: { in: ['New', 'Follow-up'] } }
+                where: { campus, leadStatus: { in: ['New', 'Follow_up'] } }
             })
 
             const conversionRate = totalLeads > 0
