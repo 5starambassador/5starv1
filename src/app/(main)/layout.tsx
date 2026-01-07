@@ -87,8 +87,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         }
 
         // Shared Tooling (Available to all who have permission, but hidden for Super Admin who has dedicated management views)
-        if (permissions.marketingKit.access) navItems.push({ label: 'Promo Kit', href: '/marketing', icon: <Database /> })
-        if (permissions.supportDesk.access && !isSuperAdmin) navItems.push({ label: 'Support Desk', href: '/support', icon: <MessageSquare /> })
+        if (permissions.marketingKit.access) navItems.push({ label: 'Promo Kit', href: '/marketing', icon: <Database className="text-[#CC0000]" /> })
+        if (permissions.supportDesk.access && !isSuperAdmin) navItems.push({ label: 'Support Desk', href: '/support', icon: <MessageSquare className="text-[#CC0000]" /> })
 
         // Admin-specific shared modules (Hide from Ambassadors)
         if (!isAmbassadorRole) {
@@ -107,7 +107,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     }
 
     // Always accessible
-    navItems.push({ label: 'Profile', href: '/profile', icon: <User /> })
+    navItems.push({ label: 'Profile', href: '/profile', icon: <User className="text-[#CC0000]" /> })
 
     return (
         <div className="flex min-h-screen text-text-primary relative bg-[url('/bg-pattern.png')] bg-cover bg-fixed bg-center">
