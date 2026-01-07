@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./fonts.css";
 import "./globals.css";
 import { Toaster } from "sonner";
@@ -7,15 +7,11 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { SWRegistration } from "@/components/SWRegistration";
 import { OfflineSync } from "@/components/OfflineSync";
 
-// const geistSans = Geist({
-//   variable: "--font-geist-sans",
-//   subsets: ["latin"],
-// });
-
-// const geistMono = Geist_Mono({
-//   variable: "--font-geist-mono",
-//   subsets: ["latin"],
-// });
+const outfit = Outfit({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-outfit",
+});
 
 import type { Viewport } from 'next'
 
@@ -74,7 +70,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased font-sans" suppressHydrationWarning>
+      <body className={`${outfit.variable} antialiased font-sans`} suppressHydrationWarning>
         <ThemeProvider>
           <Toaster position="top-center" richColors />
           <SWRegistration />

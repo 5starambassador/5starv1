@@ -68,15 +68,7 @@ export default async function AnalyticsPage() {
 
     return (
         <div className="-mx-2 xl:mx-0">
-            <div className="space-y-6 md:space-y-8 max-w-2xl mx-auto pb-10 font-[family-name:var(--font-outfit)]">
-                {/* Import Premium Font Locally - Standard HTML for Server Components */}
-                <link rel="preconnect" href="https://fonts.googleapis.com" />
-                <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-                <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-                <style dangerouslySetInnerHTML={{
-                    __html: `
-                :root { --font-outfit: 'Outfit', sans-serif; }
-            `}} />
+            <div className="space-y-6 md:space-y-8 max-w-2xl mx-auto pb-10">
 
                 {/* Back to Home Link */}
                 <Link href="/dashboard" className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-800 text-sm font-bold no-underline transition-colors px-2">

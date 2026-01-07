@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { Share2, UserPlus, BarChart3, ChevronRight, Clock, Star, TrendingUp, ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react'
 
 // StatusBadge is defined locally in this file
@@ -86,11 +87,15 @@ export function ActionHome({ user, recentReferrals, whatsappUrl, monthStats }: A
                             <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-24 bg-yellow-400/25 blur-[35px] rounded-full animate-pulse" style={{ animationDelay: '0.5s' }} />
                             <div className="absolute inset-0 bg-gradient-radial from-amber-400/20 to-transparent blur-xl" />
 
+
                             {/* Badge Image with Premium Styling */}
                             <div className="relative animate-float-slow drop-shadow-[0_15px_30px_rgba(245,158,11,0.5)]">
-                                <img
-                                    src="/images/ambassador-badge.png"
+                                <Image
+                                    src="/images/ambassador-badge-transparent.png"
                                     alt="5-Star Ambassador Badge"
+                                    width={110}
+                                    height={110}
+                                    priority
                                     className="w-[90px] md:w-[110px] h-auto transition-transform duration-500 group-hover:scale-110 select-none"
                                     style={{ filter: 'drop-shadow(0 0 20px rgba(251, 191, 36, 0.6))' }}
                                 />
