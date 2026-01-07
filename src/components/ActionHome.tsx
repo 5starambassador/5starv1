@@ -88,16 +88,19 @@ export function ActionHome({ user, recentReferrals, whatsappUrl, monthStats }: A
                             <div className="absolute inset-0 bg-gradient-radial from-amber-400/20 to-transparent blur-xl" />
 
 
-                            {/* Badge Image with Premium Styling */}
+                            {/* Badge Image with Premium Styling - Transparent Background via CSS */}
                             <div className="relative animate-float-slow drop-shadow-[0_15px_30px_rgba(245,158,11,0.5)]">
                                 <Image
-                                    src="/images/ambassador-badge.jpg"
+                                    src="/images/ambassador-badge.png"
                                     alt="5-Star Ambassador Badge"
                                     width={110}
                                     height={110}
                                     priority
                                     className="w-[90px] md:w-[110px] h-auto transition-transform duration-500 group-hover:scale-110 select-none"
-                                    style={{ filter: 'drop-shadow(0 0 20px rgba(251, 191, 36, 0.6))' }}
+                                    style={{
+                                        filter: 'drop-shadow(0 0 20px rgba(251, 191, 36, 0.6))',
+                                        mixBlendMode: 'multiply'
+                                    }}
                                 />
 
                                 {/* Overlay Shine Effect */}
