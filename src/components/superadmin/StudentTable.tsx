@@ -411,9 +411,8 @@ export function StudentTable({
                 </div>
             )}
 
-            {/* Table */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto max-w-full">
+            <div className="w-full xl:max-w-[calc(100vw-340px)] mx-auto overflow-hidden">
+                <div className="overflow-x-auto pb-4 custom-scrollbar">
                     <DataTable
                         data={filteredStudents}
                         columns={columns as any}

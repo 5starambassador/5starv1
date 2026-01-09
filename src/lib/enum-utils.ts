@@ -21,6 +21,7 @@ export function mapAdminRole(role: AdminRole): string {
         case AdminRole.Super_Admin: return 'Super Admin'
         case AdminRole.Finance_Admin: return 'Finance Admin'
         case AdminRole.Campus_Head: return 'Campus Head'
+        case AdminRole.Campus_Admin: return 'Campus Admin'
         case AdminRole.Admission_Admin: return 'Admission Admin'
         default: return 'Admin'
     }
@@ -58,10 +59,12 @@ export function toUserRole(role: string): UserRole {
 }
 
 export function toAdminRole(role: string): AdminRole {
-    if (role === 'Super Admin') return AdminRole.Super_Admin
-    if (role === 'Finance Admin') return AdminRole.Finance_Admin
-    if (role === 'Campus Head') return AdminRole.Campus_Head
-    return AdminRole.Admission_Admin
+    const normalized = role?.trim()
+    if (normalized === 'Super Admin' || normalized === 'Super_Admin') return AdminRole.Super_Admin
+    if (normalized === 'Finance Admin' || normalized === 'Finance_Admin') return AdminRole.Finance_Admin
+    if (normalized === 'Campus Head' || normalized === 'Campus_Head' || normalized === 'CampusHead') return AdminRole.Campus_Head
+    if (normalized === 'Campus Admin' || normalized === 'Campus_Admin' || normalized === 'CampusAdmin') return AdminRole.Campus_Admin
+    return AdminRole.Admission_Admin // Default to Admission_Admin for others
 }
 
 export function toLeadStatus(status: string): LeadStatus {

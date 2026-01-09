@@ -54,8 +54,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
         // These modules might not be ready in AdminClient yet, but if permissions allow, we link them.
         // We might need to implement these views in AdminClient or condition these links further.
-        if (permissions.userManagement.access) navItems.push({ label: 'User Management', href: `${baseAdminPath}?view=users`, icon: <Users /> })
-        if (permissions.studentManagement.access) navItems.push({ label: 'Student Management', href: `${baseAdminPath}?view=students`, icon: <BookOpen /> })
+        if (permissions.userManagement.access) navItems.push({ label: 'User Management', href: isCampusLevel ? '/campus/users' : `${baseAdminPath}?view=users`, icon: <Users /> })
+        if (permissions.studentManagement.access) navItems.push({ label: 'Student Management', href: isCampusLevel ? '/campus/students' : `${baseAdminPath}?view=students`, icon: <BookOpen /> })
         if (permissions.adminManagement.access) navItems.push({ label: 'Admin Management', href: `${baseAdminPath}?view=admins`, icon: <UserCog /> })
         if (permissions.reports.access) navItems.push({ label: 'Reports', href: `${baseAdminPath}?view=reports`, icon: <FileDown /> })
         if (permissions.referralTracking.access && isSuperAdmin) navItems.push({ label: 'Global Referral Module', href: `/superadmin?view=referrals`, icon: <Globe /> })
@@ -74,7 +74,6 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         // navItems.push({ label: 'Parent Dashboard Ctrl', href: '/superadmin?view=parent-dash', icon: <Star /> })
 
         if (isCampusLevel) {
-            permissions.studentManagement.access && navItems.push({ label: 'My Students', href: '/campus/students', icon: <BookOpen /> })
             permissions.referralTracking.access && navItems.push({ label: 'Campus Leads', href: '/campus/referrals', icon: <List /> })
         }
 

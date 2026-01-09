@@ -2,13 +2,14 @@ export type Role = 'Super Admin' | 'Admission Admin' | 'Campus Head' | 'Campus A
 
 export interface ModulePermission {
     access: boolean
-    scope: 'all' | 'campus' | 'view-only' | 'none' | 'self'
+    scope: 'all' | 'campus' | 'view-only' | 'campus-view' | 'none' | 'self'
     canCreate?: boolean
     canEdit?: boolean
     canDelete?: boolean
 }
 
 export interface RolePermissions {
+    [key: string]: any
     analytics: ModulePermission
     userManagement: ModulePermission
     studentManagement: ModulePermission
@@ -123,6 +124,36 @@ export interface SystemAnalytics {
     avgLeadsPerAmbassador: number
     totalEstimatedRevenue: number
     conversionFunnel: { stage: string; count: number }[]
+}
+
+export interface AdminAnalytics {
+    totalLeads: number
+    confirmedLeads: number
+    pendingLeads: number
+    conversionRate: string
+    totalAmbassadors: number
+    avgReferralsPerAmbassador: string
+    totalEstimatedValue: number
+    campusDistribution: {
+        campus: string
+        count: number
+        percentage: string
+    }[]
+    roleBreakdown: {
+        parent: { count: number; percentage: string }
+        staff: { count: number; percentage: string }
+    }
+    statusBreakdown: {
+        status: string
+        count: number
+        percentage: string
+    }[]
+    topPerformers: {
+        name: string
+        role: string
+        referralCode: string
+        count: number
+    }[]
 }
 
 export interface CampusPerformance {

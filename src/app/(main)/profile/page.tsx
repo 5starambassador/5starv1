@@ -18,6 +18,9 @@ export default async function ProfilePage() {
         assignedCampus: 'assignedCampus' in user ? (user.assignedCampus ?? undefined) : undefined,
         yearFeeBenefitPercent: 'yearFeeBenefitPercent' in user ? user.yearFeeBenefitPercent : undefined,
         longTermBenefitPercent: 'longTermBenefitPercent' in user ? user.longTermBenefitPercent : undefined,
+        email: user.email ?? undefined,
+        address: user.address ?? undefined,
+        profileImage: user.profileImage ?? undefined,
         createdAt: user.createdAt.toISOString()
     }
 

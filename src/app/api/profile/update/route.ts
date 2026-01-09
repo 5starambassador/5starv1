@@ -1,30 +1,27 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { getSession } from '@/lib/session'
 import prisma from '@/lib/prisma'
 
 export async function POST(request: Request) {
     try {
-        const cookieStore = await cookies()
-        const sessionData = cookieStore.get('session')?.value
+        const session = await getSession()
 
-        if (!sessionData) {
+        if (!session || !session.userId) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
         }
 
-        const { userId, adminId, role } = JSON.parse(sessionData)
+        const userId = Number(session.userId)
+        const userType = session.userType as 'user' | 'admin'
         const { fullName, email, address } = await request.json()
 
         if (!fullName || fullName.trim().length < 2) {
             return NextResponse.json({ error: 'Full name must be at least 2 characters' }, { status: 400 })
         }
 
-        // Update based on user type
-        if (role === 'Super Admin' || role === 'CampusHead' || role === 'CampusAdmin') {
-            if (!adminId) {
-                return NextResponse.json({ error: 'Admin ID not found' }, { status: 400 })
-            }
+        // Update based on user type (the userId in session is mapped correctly to the primary key of each table)
+        if (userType === 'admin') {
             await prisma.admin.update({
-                where: { adminId },
+                where: { adminId: userId },
                 data: {
                     adminName: fullName.trim(),
                     email: email?.trim() || null,
@@ -32,11 +29,8 @@ export async function POST(request: Request) {
                 }
             })
         } else {
-            if (!userId) {
-                return NextResponse.json({ error: 'User ID not found' }, { status: 400 })
-            }
             await prisma.user.update({
-                where: { userId },
+                where: { userId: userId },
                 data: {
                     fullName: fullName.trim(),
                     email: email?.trim() || null,

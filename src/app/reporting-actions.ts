@@ -139,7 +139,7 @@ export async function emailReport(reportId: string, criteria?: any) {
             })
 
             subject = `Campus Overview - ${new Date().toLocaleDateString()}`
-            title = 'Campus Performance'
+            title = 'Campus Management'
 
             const rows = campuses.map(c => `
                 <tr style="border-bottom: 1px solid #eee;">

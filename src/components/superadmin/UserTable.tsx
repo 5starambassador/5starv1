@@ -464,20 +464,22 @@ export function UserTable({
                 </div>
             )}
 
-            <div className="w-full overflow-x-auto pb-4">
-                <DataTable
-                    data={users}
-                    columns={columns as any}
-                    searchKey={['fullName', 'referralCode', 'mobileNumber']}
-                    searchValue={searchTerm}
-                    onSearchChange={onSearchChange}
-                    searchPlaceholder="Search ambassadors by name, code or mobile..."
-                    pageSize={10}
-                    renderExpandedRow={renderExpandedRow}
-                    enableMultiSelection={true}
-                    onSelectionChange={(selected) => setSelectedUsers(selected)}
-                    uniqueKey="userId"
-                />
+            <div className="w-full xl:max-w-[calc(100vw-340px)] mx-auto overflow-hidden">
+                <div className="overflow-x-auto pb-4 custom-scrollbar">
+                    <DataTable
+                        data={users}
+                        columns={columns as any}
+                        searchKey={['fullName', 'referralCode', 'mobileNumber']}
+                        searchValue={searchTerm}
+                        onSearchChange={onSearchChange}
+                        searchPlaceholder="Search ambassadors by name, code or mobile..."
+                        pageSize={10}
+                        renderExpandedRow={renderExpandedRow}
+                        enableMultiSelection={true}
+                        onSelectionChange={(selected) => setSelectedUsers(selected)}
+                        uniqueKey="userId"
+                    />
+                </div>
             </div>
 
             {/* Export Modal */}

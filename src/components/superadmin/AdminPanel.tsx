@@ -7,7 +7,8 @@ import { X } from 'lucide-react'
 import { Admin, Campus } from '@/types'
 import { AdminTable } from '@/components/superadmin/AdminTable'
 import { ResetPasswordModal } from '@/components/superadmin/ResetPasswordModal'
-import { addAdmin, deleteAdmin, updateAdminStatus } from '@/app/superadmin-actions'
+import { addAdmin, deleteAdmin, updateAdminStatus, updateAdmin } from '@/app/superadmin-actions'
+import { mapAdminRole } from '@/lib/enum-utils'
 
 interface AdminPanelProps {
     admins: Admin[]
@@ -19,6 +20,7 @@ export function AdminPanel({ admins, campuses }: AdminPanelProps) {
     const [searchQuery, setSearchQuery] = useState('')
     const [showAddAdminModal, setShowAddAdminModal] = useState(false)
     const [modalLoading, setModalLoading] = useState(false)
+    const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null)
 
     // Reset Password State
     const [resetTarget, setResetTarget] = useState<{ id: number, name: string, type: 'user' | 'admin' } | null>(null)
@@ -28,30 +30,55 @@ export function AdminPanel({ admins, campuses }: AdminPanelProps) {
         adminName: '',
         adminMobile: '',
         password: '',
-        role: 'CampusAdmin' as 'CampusHead' | 'CampusAdmin' | 'Admission Admin' | 'Finance Admin' | 'Super Admin',
+        role: 'Campus Admin' as 'Campus Head' | 'Campus Admin' | 'Admission Admin' | 'Finance Admin' | 'Super Admin',
         assignedCampus: ''
     })
 
-    const handleAddAdmin = async () => {
+    const handleOpenAddModal = () => {
+        setEditingAdmin(null)
+        setAdminForm({ adminName: '', adminMobile: '', password: '', role: 'Campus Admin', assignedCampus: '' })
+        setShowAddAdminModal(true)
+    }
+
+    const handleOpenEditModal = (admin: Admin) => {
+        setEditingAdmin(admin)
+        setAdminForm({
+            adminName: admin.adminName,
+            adminMobile: admin.adminMobile,
+            password: '', // Don't show password on edit
+            role: mapAdminRole(admin.role as any) as any,
+            assignedCampus: admin.assignedCampus || ''
+        })
+        setShowAddAdminModal(true)
+    }
+
+    const handleSaveAdmin = async () => {
         if (!adminForm.adminName || !adminForm.adminMobile || !adminForm.role) {
             toast.error('Please fill in required fields')
             return
         }
-        if ((adminForm.role === 'CampusHead' || adminForm.role === 'CampusAdmin') && !adminForm.assignedCampus) {
+        if ((adminForm.role === 'Campus Head' || adminForm.role === 'Campus Admin') && !adminForm.assignedCampus) {
             toast.error('Assigned Campus is required for this role')
             return
         }
 
         setModalLoading(true)
-        const result = await addAdmin(adminForm)
+        let result
+        if (editingAdmin) {
+            result = await updateAdmin(editingAdmin.adminId, adminForm)
+        } else {
+            result = await addAdmin(adminForm)
+        }
         setModalLoading(false)
 
         if (result.success) {
             setShowAddAdminModal(false)
-            setAdminForm({ adminName: '', adminMobile: '', password: '', role: 'CampusAdmin', assignedCampus: '' })
+            setAdminForm({ adminName: '', adminMobile: '', password: '', role: 'Campus Admin', assignedCampus: '' })
+            setEditingAdmin(null)
             router.refresh()
+            toast.success(editingAdmin ? 'Admin updated successfully' : 'Admin added successfully')
         } else {
-            toast.error(result.error || 'Failed to add admin')
+            toast.error(result.error || 'Failed to save admin')
         }
     }
 
@@ -88,19 +115,21 @@ export function AdminPanel({ admins, campuses }: AdminPanelProps) {
                 admins={admins}
                 searchTerm={searchQuery}
                 onSearchChange={setSearchQuery}
-                onAddAdmin={() => setShowAddAdminModal(true)}
+                onAddAdmin={handleOpenAddModal}
                 onDelete={(id, name) => handleDeleteAdmin(id, name)}
                 onToggleStatus={handleToggleAdminStatus}
                 onResetPassword={openResetModal}
+                onEdit={handleOpenEditModal}
+                onBulkAdd={() => { }} // Add placeholder for missing prop
             />
 
-            {/* Add Admin Modal */}
+            {/* Add/Edit Admin Modal */}
             {
                 showAddAdminModal && (
                     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <div style={{ background: 'white', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>Add New Admin</h3>
+                                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>{editingAdmin ? 'Edit Administrator' : 'Add New Admin'}</h3>
                                 <button onClick={() => setShowAddAdminModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
                                     <X size={20} />
                                 </button>
@@ -126,16 +155,18 @@ export function AdminPanel({ admins, campuses }: AdminPanelProps) {
                                         placeholder="10 digit mobile number"
                                     />
                                 </div>
-                                <div>
-                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Password (Optional)</label>
-                                    <input
-                                        type="password"
-                                        value={adminForm.password}
-                                        onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
-                                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                        placeholder="Defaults to Mobile Number"
-                                    />
-                                </div>
+                                {!editingAdmin && (
+                                    <div>
+                                        <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Password (Optional)</label>
+                                        <input
+                                            type="password"
+                                            value={adminForm.password}
+                                            onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                                            style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
+                                            placeholder="Defaults to Mobile Number"
+                                        />
+                                    </div>
+                                )}
                                 <div>
                                     <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Role *</label>
                                     <select
@@ -143,14 +174,14 @@ export function AdminPanel({ admins, campuses }: AdminPanelProps) {
                                         onChange={(e) => setAdminForm({ ...adminForm, role: e.target.value as any })}
                                         style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
                                     >
-                                        <option value="CampusHead">Campus Head</option>
-                                        <option value="CampusAdmin">Campus Admin</option>
+                                        <option value="Campus Head">Campus Head</option>
+                                        <option value="Campus Admin">Campus Admin</option>
                                         <option value="Admission Admin">Admission Admin</option>
                                         <option value="Finance Admin">Finance Admin</option>
                                         <option value="Super Admin">Super Admin</option>
                                     </select>
                                 </div>
-                                {(adminForm.role === 'CampusHead' || adminForm.role === 'CampusAdmin') && (
+                                {(adminForm.role === 'Campus Head' || adminForm.role === 'Campus Admin') && (
                                     <div>
                                         <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Assigned Campus *</label>
                                         <select
@@ -171,11 +202,11 @@ export function AdminPanel({ admins, campuses }: AdminPanelProps) {
                                         Cancel
                                     </button>
                                     <button
-                                        onClick={handleAddAdmin}
+                                        onClick={handleSaveAdmin}
                                         disabled={modalLoading}
                                         style={{ flex: 1, padding: '10px', background: '#DC2626', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}
                                     >
-                                        {modalLoading ? 'Adding...' : 'Add Admin'}
+                                        {modalLoading ? 'Saving...' : (editingAdmin ? 'Update Administrator' : 'Add Admin')}
                                     </button>
                                 </div>
                             </div>

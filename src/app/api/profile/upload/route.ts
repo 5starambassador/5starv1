@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { getSession } from '@/lib/session'
 import prisma from '@/lib/prisma'
 
 export async function POST(request: Request) {
     try {
-        const cookieStore = await cookies()
-        const sessionData = cookieStore.get('session')?.value
+        const session = await getSession()
 
-        if (!sessionData) {
+        if (!session || !session.userId) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
         }
 
-        const { userId, adminId, role } = JSON.parse(sessionData)
+        const userId = Number(session.userId)
+        const userType = session.userType as 'user' | 'admin'
         const { image } = await request.json()
 
         if (!image) {
@@ -19,20 +19,14 @@ export async function POST(request: Request) {
         }
 
         // Update based on user type
-        if (role === 'Super Admin' || role === 'CampusHead' || role === 'CampusAdmin') {
-            if (!adminId) {
-                return NextResponse.json({ error: 'Admin ID not found' }, { status: 400 })
-            }
+        if (userType === 'admin') {
             await prisma.admin.update({
-                where: { adminId },
+                where: { adminId: userId },
                 data: { profileImage: image }
             })
         } else {
-            if (!userId) {
-                return NextResponse.json({ error: 'User ID not found' }, { status: 400 })
-            }
             await prisma.user.update({
-                where: { userId },
+                where: { userId: userId },
                 data: { profileImage: image }
             })
         }

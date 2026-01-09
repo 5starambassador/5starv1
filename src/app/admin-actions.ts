@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { logAction } from '@/lib/audit-logger'
 import { mapLeadStatus, mapUserRole, mapAccountStatus } from '@/lib/enum-utils'
 import { notifyReferralConfirmed, notifyFiveStarAchievement, notifyReferralStatusChanged } from '@/lib/notification-helper'
+import { AdminAnalytics } from '@/types'
 
 /**
  * Fetches all referral leads with ambassador information.
@@ -40,7 +41,7 @@ export async function getAllReferrals() {
  * 
  * @returns Object containing detailed metrics and success status
  */
-export async function getAdminAnalytics() {
+export async function getAdminAnalytics(): Promise<{ success: boolean; error?: string } & Partial<AdminAnalytics>> {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Admin')) return { success: false, error: 'Unauthorized' }
 
@@ -420,7 +421,7 @@ export async function getAdminCampusPerformance() {
 
     // Check module permission
     if (!await hasPermission('campusPerformance')) {
-        return { success: false, error: 'Access Denied to Campus Performance' }
+        return { success: false, error: 'Access Denied to Campus Management' }
     }
 
     try {
@@ -481,6 +482,6 @@ export async function getAdminCampusPerformance() {
 
     } catch (error) {
         console.error('getAdminCampusPerformance error:', error)
-        return { success: false, error: 'Failed to fetch campus performance' }
+        return { success: false, error: 'Failed to fetch campus management' }
     }
 }

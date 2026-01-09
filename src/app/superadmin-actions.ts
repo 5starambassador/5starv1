@@ -920,7 +920,7 @@ export async function bulkAddUsers(users: Array<{
 export async function addAdmin(data: {
     adminName: string
     adminMobile: string
-    role: 'CampusHead' | 'CampusAdmin' | 'Admission Admin' | 'Finance Admin' | 'Super Admin'
+    role: 'Campus Head' | 'Campus Admin' | 'Admission Admin' | 'Finance Admin' | 'Super Admin'
     assignedCampus?: string | null
     password?: string
 }) {
@@ -960,7 +960,48 @@ export async function addAdmin(data: {
     }
 }
 
-// ===================== DELETE ADMIN =====================
+export async function updateAdmin(adminId: number, data: {
+    adminName?: string
+    adminMobile?: string
+    role?: 'Campus Head' | 'Campus Admin' | 'Admission Admin' | 'Finance Admin' | 'Super Admin'
+    assignedCampus?: string
+}) {
+    const requester = await getCurrentUser()
+    if (!requester || requester.role !== 'Super Admin') {
+        return { success: false, error: 'Unauthorized: Only Super Admin can edit admins' }
+    }
+
+    try {
+        const previousAdmin = await prisma.admin.findUnique({ where: { adminId } })
+        if (!previousAdmin) return { success: false, error: 'Admin not found' }
+
+        const updateData: any = {
+            adminName: data.adminName,
+            adminMobile: data.adminMobile,
+            role: data.role ? toAdminRole(data.role) : undefined,
+            assignedCampus: data.assignedCampus
+        }
+
+        // Clean undefined fields
+        Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key])
+
+        const updatedAdmin = await prisma.admin.update({
+            where: { adminId },
+            data: updateData
+        })
+
+        await logAction('UPDATE', 'admin', `Updated admin: ${adminId}`, adminId.toString(), null, {
+            previous: previousAdmin,
+            next: updatedAdmin
+        })
+
+        return { success: true, admin: updatedAdmin }
+    } catch (error) {
+        console.error('Update admin error:', error)
+        return { success: false, error: 'Failed to update admin' }
+    }
+}
+
 /**
  * Deletes an administrator account. Prevents self-deletion.
  * @param adminId - ID of the admin to delete.

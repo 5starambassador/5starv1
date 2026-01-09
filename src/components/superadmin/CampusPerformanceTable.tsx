@@ -46,7 +46,7 @@ export function CampusPerformanceTable({ comparison, onCampusClick, isExpanded =
                     <div className="p-2 bg-red-50 rounded-xl">
                         <Building2 size={20} className="text-[#CC0000]" />
                     </div>
-                    Campus Performance Comparison
+                    Campus Management
                 </h3>
                 {onToggleExpand && (
                     <button
@@ -64,87 +64,89 @@ export function CampusPerformanceTable({ comparison, onCampusClick, isExpanded =
                     </button>
                 )}
             </div>
-            <div className={`overflow-auto ${isExpanded ? 'h-[calc(100vh-100px)]' : 'max-h-[500px]'}`}>
-                <table className="w-full border-collapse block md:table">
-                    <thead className="hidden md:table-header-group">
-                        <tr className="bg-gray-50/50 border-b border-gray-100 sticky top-0 z-10 backdrop-blur-md">
-                            <th className="p-5 text-left text-[11px] font-black text-gray-500 uppercase tracking-widest">Campus</th>
-                            <th className="p-5 text-center text-[11px] font-black text-gray-500 uppercase tracking-widest">Total Leads</th>
-                            <th className="p-5 text-center text-[11px] font-black text-gray-500 uppercase tracking-widest">Confirmed</th>
-                            <th className="p-5 text-center text-[11px] font-black text-gray-500 uppercase tracking-widest">Ambassadors (Active / Total)</th>
-                            <th className="p-5 text-right text-[11px] font-black text-gray-500 uppercase tracking-widest w-[150px]">Conv. Rate</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50 block md:table-row-group p-4 md:p-0">
-                        {comparison.map((c) => {
-                            const totalUsers = (c.staffCount || 0) + (c.parentCount || 0)
-                            return (
-                                <tr
-                                    key={c.campus}
-                                    onClick={() => onCampusClick?.(c.campus)}
-                                    className="group hover:bg-blue-50/50 transition-all cursor-pointer block md:table-row bg-white rounded-2xl md:rounded-none border border-gray-100 md:border-b md:border-x-0 md:border-t-0 mb-4 md:mb-0 shadow-sm md:shadow-none p-4 md:p-0 relative"
-                                >
-                                    <td className="p-2 md:p-5 flex justify-between md:table-cell items-center">
-                                        <span className="md:hidden font-bold text-gray-400 text-xs uppercase tracking-wider">Campus</span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-extrabold text-gray-900 text-[15px] group-hover:text-blue-700 transition-colors">{c.campus}</span>
-                                            {c.pending > 20 && (
-                                                <div title="High Pending Leads" className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="p-2 md:p-5 flex justify-between md:table-cell items-center md:text-center">
-                                        <span className="md:hidden font-bold text-gray-400 text-xs uppercase tracking-wider">Total Leads</span>
-                                        <div className="flex flex-col items-center justify-end md:justify-center">
-                                            <span className="font-bold text-gray-700 text-sm">{c.totalLeads.toLocaleString()}</span>
-                                            {renderTrend(calculateTrend(c.totalLeads, c.prevLeads))}
-                                        </div>
-                                    </td>
-                                    <td className="p-2 md:p-5 flex justify-between md:table-cell items-center md:text-center">
-                                        <span className="md:hidden font-bold text-gray-400 text-xs uppercase tracking-wider">Confirmed</span>
-                                        <div className="flex flex-col items-center justify-end md:justify-center">
+            <div className={`overflow-x-auto max-w-full custom-scrollbar ${isExpanded ? 'h-[calc(100vh-100px)]' : 'max-h-[500px]'}`}>
+                <div className="w-full xl:max-w-[calc(100vw-340px)] mx-auto overflow-hidden">
+                    <table className="w-full border-collapse block md:table">
+                        <thead className="hidden md:table-header-group">
+                            <tr className="bg-gray-50/50 border-b border-gray-100 sticky top-0 z-10 backdrop-blur-md">
+                                <th className="p-5 text-left text-[11px] font-black text-gray-500 uppercase tracking-widest">Campus</th>
+                                <th className="p-5 text-center text-[11px] font-black text-gray-500 uppercase tracking-widest">Total Leads</th>
+                                <th className="p-5 text-center text-[11px] font-black text-gray-500 uppercase tracking-widest">Confirmed</th>
+                                <th className="p-5 text-center text-[11px] font-black text-gray-500 uppercase tracking-widest">Ambassadors (Active / Total)</th>
+                                <th className="p-5 text-right text-[11px] font-black text-gray-500 uppercase tracking-widest w-[150px]">Conv. Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50 block md:table-row-group p-4 md:p-0">
+                            {comparison.map((c) => {
+                                const totalUsers = (c.staffCount || 0) + (c.parentCount || 0)
+                                return (
+                                    <tr
+                                        key={c.campus}
+                                        onClick={() => onCampusClick?.(c.campus)}
+                                        className="group hover:bg-blue-50/50 transition-all cursor-pointer block md:table-row bg-white rounded-2xl md:rounded-none border border-gray-100 md:border-b md:border-x-0 md:border-t-0 mb-4 md:mb-0 shadow-sm md:shadow-none p-4 md:p-0 relative"
+                                    >
+                                        <td className="p-2 md:p-5 flex justify-between md:table-cell items-center">
+                                            <span className="md:hidden font-bold text-gray-400 text-xs uppercase tracking-wider">Campus</span>
                                             <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                                                <span className="font-extrabold text-emerald-600 text-sm">{c.confirmed.toLocaleString()}</span>
+                                                <span className="font-extrabold text-gray-900 text-[15px] group-hover:text-blue-700 transition-colors">{c.campus}</span>
+                                                {c.pending > 20 && (
+                                                    <div title="High Pending Leads" className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                                                )}
                                             </div>
-                                            {renderTrend(calculateTrend(c.confirmed, c.prevConfirmed))}
-                                        </div>
-                                    </td>
-                                    <td className="p-2 md:p-5 flex justify-between md:table-cell items-center md:text-center">
-                                        <span className="md:hidden font-bold text-gray-400 text-xs uppercase tracking-wider">Ambassadors</span>
-                                        <div className="flex flex-col items-center justify-end md:justify-center">
-                                            <div className="flex items-center gap-2">
-                                                <Users size={14} className="text-blue-500" />
-                                                <span className="font-bold text-blue-600 text-sm">
-                                                    {c.ambassadors.toLocaleString()} / <span className="text-gray-400">{totalUsers.toLocaleString()}</span>
+                                        </td>
+                                        <td className="p-2 md:p-5 flex justify-between md:table-cell items-center md:text-center">
+                                            <span className="md:hidden font-bold text-gray-400 text-xs uppercase tracking-wider">Total Leads</span>
+                                            <div className="flex flex-col items-center justify-end md:justify-center">
+                                                <span className="font-bold text-gray-700 text-sm">{c.totalLeads.toLocaleString()}</span>
+                                                {renderTrend(calculateTrend(c.totalLeads, c.prevLeads))}
+                                            </div>
+                                        </td>
+                                        <td className="p-2 md:p-5 flex justify-between md:table-cell items-center md:text-center">
+                                            <span className="md:hidden font-bold text-gray-400 text-xs uppercase tracking-wider">Confirmed</span>
+                                            <div className="flex flex-col items-center justify-end md:justify-center">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                                    <span className="font-extrabold text-emerald-600 text-sm">{c.confirmed.toLocaleString()}</span>
+                                                </div>
+                                                {renderTrend(calculateTrend(c.confirmed, c.prevConfirmed))}
+                                            </div>
+                                        </td>
+                                        <td className="p-2 md:p-5 flex justify-between md:table-cell items-center md:text-center">
+                                            <span className="md:hidden font-bold text-gray-400 text-xs uppercase tracking-wider">Ambassadors</span>
+                                            <div className="flex flex-col items-center justify-end md:justify-center">
+                                                <div className="flex items-center gap-2">
+                                                    <Users size={14} className="text-blue-500" />
+                                                    <span className="font-bold text-blue-600 text-sm">
+                                                        {c.ambassadors.toLocaleString()} / <span className="text-gray-400">{totalUsers.toLocaleString()}</span>
+                                                    </span>
+                                                </div>
+                                                <span className="text-[10px] text-gray-400 font-medium md:mt-1 font-mono">
+                                                    {c.staffCount || 0}S | {c.parentCount || 0}P
                                                 </span>
                                             </div>
-                                            <span className="text-[10px] text-gray-400 font-medium md:mt-1 font-mono">
-                                                {c.staffCount || 0}S | {c.parentCount || 0}P
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="p-2 md:p-5 flex justify-between md:table-cell items-center md:text-right">
-                                        <span className="md:hidden font-bold text-gray-400 text-xs uppercase tracking-wider">Conv. Rate</span>
-                                        <div className="w-full max-w-[140px] ml-auto">
-                                            <div className="flex justify-between items-end mb-1">
-                                                <span className={`text-[10px] font-black ${c.conversionRate > 30 ? 'text-emerald-600' : c.conversionRate > 10 ? 'text-orange-500' : 'text-red-500'}`}>
-                                                    {c.conversionRate}%
-                                                </span>
+                                        </td>
+                                        <td className="p-2 md:p-5 flex justify-between md:table-cell items-center md:text-right">
+                                            <span className="md:hidden font-bold text-gray-400 text-xs uppercase tracking-wider">Conv. Rate</span>
+                                            <div className="w-full max-w-[140px] ml-auto">
+                                                <div className="flex justify-between items-end mb-1">
+                                                    <span className={`text-[10px] font-black ${c.conversionRate > 30 ? 'text-emerald-600' : c.conversionRate > 10 ? 'text-orange-500' : 'text-red-500'}`}>
+                                                        {c.conversionRate}%
+                                                    </span>
+                                                </div>
+                                                <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full rounded-full ${c.conversionRate > 30 ? 'bg-emerald-500' : c.conversionRate > 10 ? 'bg-orange-400' : 'bg-red-500'}`}
+                                                        style={{ width: `${Math.min(c.conversionRate, 100)}%` }}
+                                                    ></div>
+                                                </div>
                                             </div>
-                                            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                                                <div
-                                                    className={`h-full rounded-full ${c.conversionRate > 30 ? 'bg-emerald-500' : c.conversionRate > 10 ? 'bg-orange-400' : 'bg-red-500'}`}
-                                                    style={{ width: `${Math.min(c.conversionRate, 100)}%` }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )
-                        })}
-                    </tbody>
-                </table>
+                                        </td>
+                                    </tr>
+                                )
+                            })}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     )

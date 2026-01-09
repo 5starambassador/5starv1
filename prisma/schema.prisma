@@ -415,6 +415,7 @@ enum AdminRole {
   Super_Admin     @map("Super Admin")
   Finance_Admin   @map("Finance Admin")
   Campus_Head     @map("Campus Head")
+  Campus_Admin    @map("Campus Admin")
   Admission_Admin @map("Admission Admin")
 }
 

@@ -10,7 +10,7 @@ interface PermissionsMatrixProps {
     onSave: () => void
 }
 
-const ROLES = ['Super Admin', 'Campus Head', 'Finance Admin', 'Admission Admin', 'Campus Admin', 'Staff', 'Parent', 'Alumni']
+const ROLES = ['Super Admin', 'Campus Head', 'Finance Admin', 'Admission Admin', 'Campus Admin', 'Staff', 'Parent', 'Alumni', 'Others']
 
 const SECTIONS = [
     {
@@ -19,12 +19,18 @@ const SECTIONS = [
         modules: [
             { key: 'analytics', label: 'Analytics Overview', icon: BarChart3 },
             { key: 'userManagement', label: 'User Management', icon: Users },
+            { key: 'userManagement.canCreate', label: 'Create Users', icon: UserPlus, isSub: true },
+            { key: 'userManagement.canEdit', label: 'Edit Users', icon: Edit, isSub: true },
+            { key: 'userManagement.canDelete', label: 'Delete Users', icon: Trash, isSub: true },
             { key: 'studentManagement', label: 'Student Management', icon: BookOpen },
             { key: 'studentManagement.canCreate', label: 'Add Student', icon: UserPlus, isSub: true },
             { key: 'studentManagement.canEdit', label: 'Edit Student', icon: Edit, isSub: true },
             { key: 'studentManagement.canDelete', label: 'Delete Student', icon: Trash, isSub: true },
             { key: 'adminManagement', label: 'Admin Management', icon: ShieldCheck },
-            { key: 'campusPerformance', label: 'Campus Performance', icon: Building2 },
+            { key: 'adminManagement.canCreate', label: 'Create Admins', icon: UserPlus, isSub: true },
+            { key: 'adminManagement.canEdit', label: 'Edit Admins', icon: Edit, isSub: true },
+            { key: 'adminManagement.canDelete', label: 'Delete Admins', icon: Trash, isSub: true },
+            { key: 'campusPerformance', label: 'Campus Management', icon: Building2 },
             { key: 'reports', label: 'Reports & Exports', icon: Download },
             { key: 'settlements', label: 'Finance & Settlements', icon: IndianRupee },
             { key: 'marketingKit', label: 'Marketing Kit', icon: Database },
@@ -88,7 +94,7 @@ export function PermissionsMatrix({
         const newMatrix = { ...rolePermissionsMatrix }
         if (!newMatrix[role]?.[moduleKey]) return
 
-        const scopes = ['all', 'campus', 'self', 'view-only']
+        const scopes = ['all', 'campus', 'campus-view', 'self', 'view-only']
 
         const currentIndex = scopes.indexOf(currentScope)
         const nextIndex = (currentIndex + 1) % scopes.length
@@ -99,7 +105,7 @@ export function PermissionsMatrix({
     }
 
     return (
-        <div className="space-y-6 animate-fade-in pb-20 w-full max-w-[calc(100vw-300px)]">
+        <div className="space-y-6 animate-fade-in pb-20 w-full xl:max-w-[calc(100vw-340px)] mx-auto">
             <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #f0f0f0', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>
                 {/* Header Actions */}
                 <div style={{ padding: '24px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to right, #ffffff, #f9fafb)' }}>
@@ -362,6 +368,12 @@ const ScopePill = ({ scope, onClick, disabled }: { scope: string, onClick: () =>
             bg = '#F3F4F6'
             color = '#4B5563'
             label = 'View'
+            icon = <Eye size={10} />
+            break
+        case 'campus-view':
+            bg = '#E0F2FE' // light sky blue
+            color = '#0369A1' // sky blue 800
+            label = 'Campus View'
             icon = <Eye size={10} />
             break
     }

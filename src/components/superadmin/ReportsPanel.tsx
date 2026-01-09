@@ -133,7 +133,7 @@ export function ReportsPanel({
                 roi: roiRes.success ? roiRes.roi : null,
                 achievement: achievementRes.success ? (achievementRes.achievementData || []) : [],
                 velocity: funnelRes.success ? (funnelRes.avgVelocity || '0') : '0',
-                milestones: milestoneRes.success ? milestoneRes.milestones : { distribution: [], risingStars: [] },
+                milestones: (milestoneRes.success && milestoneRes.milestones) ? milestoneRes.milestones : { distribution: [], risingStars: [] },
                 intelligence: intelligenceRes.success ? (intelligenceRes.intelligence || { campuses: [], totalPredicted: 0, avgVelocity: '0' }) : { campuses: [], totalPredicted: 0, avgVelocity: '0' },
                 retention: retentionRes.success ? (retentionRes.retention || { cohorts: [], avgDaysToConfirm: '0' }) : { cohorts: [], avgDaysToConfirm: '0' }
             })
@@ -214,9 +214,9 @@ export function ReportsPanel({
                 break
             case 'campus':
                 generatePDFReport({
-                    title: 'Campus Performance Report',
+                    title: 'Campus Management Report',
                     subtitle: `Total Campuses: ${filteredCampusComparison.length}`,
-                    fileName: 'campus_performance',
+                    fileName: 'campus_management',
                     columns: [
                         { header: 'Campus', dataKey: 'campus' },
                         { header: 'Total Leads', dataKey: 'totalLeads' },

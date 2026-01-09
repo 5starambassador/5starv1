@@ -136,7 +136,7 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBul
         <div className="space-y-6 animate-fade-in">
             {/* Header */}
             <PremiumHeader
-                title={mode === 'management' ? "Campus Locations" : "Campus Performance"}
+                title={mode === 'management' ? "Campus Locations" : "Campus Management"}
                 subtitle={mode === 'management' ? "Manage physical school locations and their capacities" : "Track leads, admissions, and conversion metrics per campus"}
                 icon={School}
             >
@@ -169,9 +169,8 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBul
                 )}
             </PremiumHeader>
 
-            {/* Table */}
-            <PremiumCard noPadding>
-                <div className="overflow-x-auto max-w-full">
+            <div className="w-full xl:max-w-[calc(100vw-340px)] mx-auto overflow-hidden">
+                <div className="overflow-x-auto pb-4 custom-scrollbar">
                     <DataTable
                         data={campuses}
                         columns={columns as any}
@@ -183,7 +182,7 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBul
                         uniqueKey="id"
                     />
                 </div>
-            </PremiumCard>
+            </div>
 
             {showUpload && (
                 <CSVUploader

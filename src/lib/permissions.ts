@@ -4,7 +4,7 @@
  */
 
 export type AdminRole = 'Super Admin' | 'Campus Head' | 'Finance Admin' | 'Admission Admin' | 'Campus Admin' | 'Staff' | 'Parent' | 'Alumni' | 'Others'
-export type DataScope = 'all' | 'campus' | 'view-only' | 'none' | 'self'
+export type DataScope = 'all' | 'campus' | 'view-only' | 'campus-view' | 'none' | 'self'
 
 export interface ModulePermission {
     access: boolean
@@ -124,7 +124,7 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
     },
     'Campus Admin': {
         analytics: { access: true, scope: 'campus' },
-        userManagement: { access: false, scope: 'none' },
+        userManagement: { access: true, scope: 'campus', canCreate: true, canEdit: true },
         studentManagement: { access: true, scope: 'campus', canCreate: true, canEdit: true },
         adminManagement: { access: false, scope: 'none' },
         campusPerformance: { access: false, scope: 'none' },
@@ -312,8 +312,9 @@ export function getPermissionDescription(permission: ModulePermission): string {
     if (!permission.access) return 'No Access'
 
     const scope = permission.scope === 'all' ? 'All Data' :
-        permission.scope === 'campus' ? 'Campus Only' :
-            permission.scope === 'view-only' ? 'View Only' : 'No Access'
+        permission.scope === 'campus' ? 'Campus Manager' :
+            permission.scope === 'view-only' ? 'Global View' :
+                permission.scope === 'campus-view' ? 'Campus View' : 'No Access'
 
     const actions = []
     if (permission.canCreate) actions.push('Create')
@@ -332,7 +333,7 @@ export function getPrismaScopeFilter(user: any, module: keyof RolePermissions): 
     if (scope === 'all') return {}
 
     // Default filters for common models
-    if (scope === 'campus') {
+    if (scope === 'campus' || scope === 'campus-view') {
         const campusId = user.campusId || (user as any).adminCampusId
         const campusName = user.assignedCampus
 

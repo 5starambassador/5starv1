@@ -16,10 +16,9 @@ import {
     generateCampusDistributionReport
 } from '@/app/report-actions'
 import { addStudent, updateStudent } from '@/app/student-actions'
-import { User, Student, ReferralLead, RolePermissions, SystemAnalytics, CampusPerformance, Admin, Campus } from '@/types'
+import { User, Student, ReferralLead, RolePermissions, AdminAnalytics, CampusPerformance, Admin, Campus } from '@/types'
 
-// Local type for AdminAnalytics to fix import error
-type AdminAnalytics = SystemAnalytics
+
 
 interface AdminClientProps {
     referrals: ReferralLead[]
@@ -251,7 +250,7 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                                 </div>
                             </div>
                             <div className="space-y-4">
-                                {(analytics?.topPerformers || []).slice(0, 5).map((performer: any, idx: number) => (
+                                {(analytics?.topPerformers || []).slice(0, 5).map((performer, idx) => (
                                     <div key={idx} className="flex items-center justify-between p-4 bg-gray-50/50 hover:bg-white hover:shadow-md border border-transparent hover:border-gray-100 rounded-2xl transition-all">
                                         <div className="flex items-center gap-4">
                                             <span className="w-8 h-8 bg-red-100 text-red-600 rounded-full text-xs font-bold flex items-center justify-center">{idx + 1}</span>
@@ -356,7 +355,7 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                     {/* Desktop Table */}
                     <PremiumCard noPadding>
                         <div className="p-8 border-b border-gray-100">
-                            <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1.5">Campus Performance Details</h2>
+                            <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1.5">Campus Management Details</h2>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full">
@@ -454,7 +453,7 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                                 Top Performers
                             </h2>
                             <div className="space-y-3">
-                                {analytics.topPerformers.map((performer, idx) => (
+                                {(analytics?.topPerformers || []).map((performer, idx) => (
                                     <div key={idx} className={`flex items-center justify-between p-4 rounded-2xl transition-all ${idx === 0 ? 'bg-amber-50 border border-amber-100' : 'bg-gray-50 border-transparent border'}`}>
                                         <div className="flex items-center gap-4">
                                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${idx === 0 ? 'bg-amber-200 text-amber-800' : 'bg-white text-gray-500 shadow-sm'}`}>

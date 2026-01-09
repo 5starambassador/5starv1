@@ -42,7 +42,7 @@ export function CommandPalette() {
                 { icon: LayoutDashboard, label: 'Dashboard Overview', path: '/superadmin?view=start' },
                 { icon: Users, label: 'Manage Ambassadors', path: '/superadmin?view=users' },
                 { icon: GraduationCap, label: 'Manage Students', path: '/superadmin?view=students' },
-                { icon: Building2, label: 'Campus Performance', path: '/superadmin?view=campus' },
+                { icon: Building2, label: 'Campus Management', path: '/superadmin?view=campus' },
                 { icon: Shield, label: 'System Audit Logs', path: '/superadmin?view=audit' },
                 { icon: Wallet, label: 'Fee Management', path: '/superadmin?view=fees' },
                 { icon: Settings, label: 'Global Notifications', path: '/superadmin?view=settings' },

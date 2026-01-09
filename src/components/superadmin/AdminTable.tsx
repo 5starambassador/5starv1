@@ -1,4 +1,4 @@
-import { ShieldCheck, Download, MoreHorizontal, CheckCircle, XCircle, Calendar, Hash, Building2, Smartphone, Shield, Trash2, Key } from 'lucide-react'
+import { ShieldCheck, Download, MoreHorizontal, CheckCircle, XCircle, Calendar, Hash, Building2, Smartphone, Shield, Trash2, Key, Edit2 } from 'lucide-react'
 import { PremiumHeader } from '@/components/premium/PremiumHeader'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
@@ -7,16 +7,18 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { bulkAdminAction } from '@/app/bulk-admin-actions'
+import { mapAdminRole } from '@/lib/enum-utils'
 
 interface AdminTableProps {
     admins: Admin[]
     searchTerm: string // Keeping for interface compatibility but DataTable has internal search
     onSearchChange: (value: string) => void
     onAddAdmin: () => void
-    onBulkAdd: () => void
+    onBulkAdd?: () => void
     onDelete: (adminId: number, name: string) => void
     onToggleStatus: (adminId: number, currentStatus: string) => void
     onResetPassword?: (id: number, name: string, type: 'user' | 'admin') => void
+    onEdit?: (admin: Admin) => void
 }
 
 export function AdminTable({
@@ -25,7 +27,8 @@ export function AdminTable({
     onBulkAdd,
     onDelete,
     onToggleStatus,
-    onResetPassword
+    onResetPassword,
+    onEdit
 }: AdminTableProps) {
     const router = useRouter()
     const [selectedAdmins, setSelectedAdmins] = useState<Admin[]>([])
@@ -80,7 +83,7 @@ export function AdminTable({
             filterable: true,
             cell: (admin: Admin) => (
                 <Badge variant="outline" className="font-black text-[10px] tracking-wider uppercase border-gray-200">
-                    {admin.role}
+                    {mapAdminRole(admin.role as any)}
                 </Badge>
             )
         },
@@ -112,6 +115,12 @@ export function AdminTable({
             accessorKey: (admin: Admin) => admin.adminId,
             cell: (admin: Admin) => (
                 <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                        onClick={() => onEdit?.(admin)}
+                        className="p-2 rounded-xl text-blue-600 hover:text-white hover:bg-blue-600 transition-all border border-blue-50 shadow-sm bg-white hover:scale-110 active:scale-95 group"
+                    >
+                        <Edit2 size={16} strokeWidth={2.5} />
+                    </button>
                     <button
                         onClick={() => onToggleStatus(admin.adminId, admin.status)}
                         className={`p-2 rounded-xl transition-all shadow-sm bg-white border border-gray-100 flex items-center justify-center hover:scale-110 active:scale-95 ${admin.status === 'Active' ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-50' : 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50'}`}
@@ -151,7 +160,7 @@ export function AdminTable({
                         Privilege Level
                     </p>
                     <p className="text-sm font-black text-blue-600 uppercase">
-                        {admin.role === 'Super Admin' ? 'System Owner' : 'Campus Head'}
+                        {mapAdminRole(admin.role as any)}
                     </p>
                 </div>
                 <div className="space-y-1.5">
@@ -253,17 +262,21 @@ export function AdminTable({
                 </div>
             )}
 
-            <DataTable
-                data={admins}
-                columns={columns as any}
-                searchKey="adminName"
-                searchPlaceholder="Search administrators by name or mobile..."
-                pageSize={10}
-                renderExpandedRow={renderExpandedRow}
-                enableMultiSelection={true}
-                onSelectionChange={(selected) => setSelectedAdmins(selected)}
-                uniqueKey="adminId"
-            />
+            <div className="w-full xl:max-w-[calc(100vw-340px)] mx-auto overflow-hidden">
+                <div className="overflow-x-auto pb-4 custom-scrollbar">
+                    <DataTable
+                        data={admins}
+                        columns={columns as any}
+                        searchKey="adminName"
+                        searchPlaceholder="Search administrators by name or mobile..."
+                        pageSize={10}
+                        renderExpandedRow={renderExpandedRow}
+                        enableMultiSelection={true}
+                        onSelectionChange={(selected) => setSelectedAdmins(selected)}
+                        uniqueKey="adminId"
+                    />
+                </div>
+            </div>
         </div>
     )
 }

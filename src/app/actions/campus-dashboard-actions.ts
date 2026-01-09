@@ -307,6 +307,43 @@ export async function getCampusRecentActivity() {
     }
 }
 
+// --- Users ---
+export async function getCampusUsers(query?: string) {
+    const access = await verifyCampusAccess()
+    if (access.error) return { error: access.error }
+
+    // User model uses 'assignedCampus' string.
+    // If Super Admin, fetch all. If Campus Admin, fetch where assignedCampus == campusName
+    const whereClause: any = access.isSuperAdmin
+        ? {}
+        : { assignedCampus: access.campusName }
+
+    // Ensure we don't fetch users with no assigned campus if we are strictly looking for campus users,
+    // although for Super Admin it's fine.
+    // Also, usually we filter by Role or other criteria, but "User Management" implies all users in that campus.
+
+    if (query) {
+        whereClause.OR = [
+            { fullName: { contains: query, mode: 'insensitive' } },
+            { email: { contains: query, mode: 'insensitive' } },
+            { mobileNumber: { contains: query, mode: 'insensitive' } },
+            { referralCode: { contains: query, mode: 'insensitive' } }
+        ]
+    }
+
+    try {
+        const users = await prisma.user.findMany({
+            where: whereClause,
+            orderBy: { createdAt: 'desc' },
+            take: 50 // Limit for now
+        })
+        return { success: true, data: users }
+    } catch (error) {
+        console.error('getCampusUsers Error:', error)
+        return { error: 'Failed to fetch users' }
+    }
+}
+
 // --- Campus Finance Report Data ---
 export async function getCampusFinance(days: number = 30) {
     const access = await verifyCampusAccess()

@@ -127,7 +127,7 @@ export function AnalyticsDashboard({ analyticsData: initialAnalytics, trendData,
             <div className="pt-8 border-t border-gray-200">
                 <h2 className="text-2xl font-black text-gray-900 mb-8 flex items-center gap-3">
                     <Target className="text-blue-600" size={28} />
-                    Campus Performance Benchmarks
+                    Campus Management
                 </h2>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">

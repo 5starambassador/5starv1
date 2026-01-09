@@ -166,7 +166,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
             const loadPermissions = async () => {
                 setLoading(true)
                 try {
-                    const roles = ['Super Admin', 'Campus Head', 'Finance Admin', 'Admission Admin', 'Campus Admin', 'Staff', 'Parent', 'Alumni']
+                    const roles = ['Super Admin', 'Campus Head', 'Finance Admin', 'Admission Admin', 'Campus Admin', 'Staff', 'Parent', 'Alumni', 'Others']
                     const results = await Promise.all(roles.map(role => getRolePermissions(role)))
                     const matrix: Record<string, RolePermissions> = {}
                     roles.forEach((role, i) => { if (results[i].success && results[i].permissions) matrix[role] = results[i].permissions! })
@@ -273,9 +273,9 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                 {/* Settings View */}
                 {selectedView === 'settings' && <SettingsPanel />}
 
-                {/* Permissions Matrix View */}
+                {/* Permissions Matrix View - Use full available width */}
                 {selectedView === 'permissions' && (
-                    <div className="space-y-6 animate-fade-in">
+                    <div className="space-y-6 animate-fade-in w-full">
                         <PermissionsMatrix
                             rolePermissionsMatrix={rolePermissionsMatrix}
                             isLoading={loading}

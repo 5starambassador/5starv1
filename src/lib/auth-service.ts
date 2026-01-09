@@ -14,10 +14,21 @@ export const getCurrentUser = cache(async () => {
             where: { adminId: Number(session.userId) }
         })
         if (admin) {
+            // Resolve campusId if assignedCampus is present (Critical for permission scoping)
+            let campusId = null
+            if (admin.assignedCampus) {
+                const campus = await prisma.campus.findUnique({
+                    where: { campusName: admin.assignedCampus },
+                    select: { id: true }
+                })
+                if (campus) campusId = campus.id
+            }
+
             // Map to User-like structure for compatibility
             return {
                 ...admin,
                 userId: admin.adminId, // Map for compatibility
+                campusId, // Inject resolved campusId
                 fullName: admin.adminName,
                 mobileNumber: admin.adminMobile,
                 // Map role back to legacy string

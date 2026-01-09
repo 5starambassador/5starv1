@@ -48,6 +48,7 @@ export async function getPermissionScope(module: keyof RolePermissions) {
  * - 'campus': Filter to user's assigned campus only
  * - 'self': Filter to user's own data (userId match)
  * - 'view-only': Same as 'all' or 'campus' but read-only (handled separately)
+ * - 'campus-view': Filter to assigned campus AND read-only
  * - 'none': No access (returns null)
  * 
  * @param module - The permission module to check
@@ -86,6 +87,20 @@ export async function getScopeFilter(
             }
             return { filter: { [campusField]: campusId }, isReadOnly: false }
 
+        case 'campus-view':
+            // Filter to assigned campus (Read Only)
+            const cvId = (user as any).campusId
+            if (!user.assignedCampus && !cvId) {
+                return { filter: null, isReadOnly: true }
+            }
+            if (useCampusName && user.assignedCampus) {
+                return {
+                    filter: { [campusField]: { contains: user.assignedCampus, mode: 'insensitive' } },
+                    isReadOnly: true // Force TRUE
+                }
+            }
+            return { filter: { [campusField]: cvId }, isReadOnly: true } // Force TRUE
+
         case 'self':
             // Filter to own data only (userId exists on User, adminId on Admin)
             const userId = (user as any).userId || (user as any).adminId
@@ -106,6 +121,6 @@ export async function getScopeFilter(
  */
 export async function canEdit(module: keyof RolePermissions): Promise<boolean> {
     const scope = await getPermissionScope(module)
-    return scope !== 'none' && scope !== 'view-only'
+    return scope !== 'none' && scope !== 'view-only' && scope !== 'campus-view'
 }
 
