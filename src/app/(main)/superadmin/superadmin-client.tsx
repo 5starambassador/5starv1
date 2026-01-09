@@ -53,7 +53,7 @@ const CampusManagementTable = dynamic(() => import('../../../components/superadm
 const PermissionsMatrix = dynamic(() => import('@/components/superadmin/PermissionsMatrix').then(m => m.PermissionsMatrix), { ssr: false, loading: () => <div className="h-96 w-full animate-pulse bg-gray-100 rounded-lg" /> })
 const BenefitSlabTable = dynamic(() => import('@/components/superadmin/BenefitSlabTable').then(m => m.BenefitSlabTable), { ssr: false })
 const AuditTrailTable = dynamic(() => import('@/components/superadmin/AuditTrailTable').then(m => m.AuditTrailTable), { ssr: false })
-const DeletionRequestsTable = dynamic(() => import('@/components/superadmin/DeletionRequestsTable').then(m => m.DeletionRequestsTable), { ssr: false })
+
 const FeeManagementTable = dynamic(() => import('@/components/superadmin/FeeManagementTable').then(m => m.FeeManagementTable), { ssr: false })
 const EngagementPanel = dynamic(() => import('@/components/superadmin/EngagementPanel').then(m => m.EngagementPanel), { ssr: false })
 const AuditLogPanel = dynamic(() => import('@/components/superadmin/AuditLogPanel').then(m => m.AuditLogPanel), { ssr: false })
@@ -62,7 +62,7 @@ const LeaderboardWidget = dynamic(() => import('@/components/superadmin/Leaderbo
 const SettingsPanel = dynamic(() => import('@/components/superadmin/SettingsPanel').then(m => m.SettingsPanel), { ssr: false })
 const RetentionHeatmap = dynamic(() => import('@/components/analytics/RetentionHeatmap').then(m => m.RetentionHeatmap), { ssr: false, loading: () => <div className="h-96 w-full animate-pulse bg-gray-100 rounded-3xl" /> })
 
-import { User, Student, ReferralLead, RolePermissions, SystemAnalytics, CampusPerformance, Admin, Campus, SystemSettings, MarketingAsset, BulkStudentData, BulkUserData } from '@/types'
+import { User, Student, ReferralLead, RolePermissions, SystemAnalytics, CampusPerformance, Admin, Campus, SystemSettings, MarketingAsset, BulkStudentData, BulkUserData, Role } from '@/types'
 
 interface Props {
     analytics: SystemAnalytics
@@ -80,6 +80,7 @@ interface Props {
 
 export default function SuperadminClient({ analytics, campusComparison = [], users = [], admins = [], students = [], initialView = 'analytics', marketingAssets = [],
     systemSettings,
+    currentUser,
     growthTrend = [],
     urgentTicketCount = 0
 }: Props) {
@@ -158,7 +159,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     const [userForm, setUserForm] = useState({
         fullName: '',
         mobileNumber: '',
-        role: 'Parent' as 'Parent' | 'Staff' | 'CampusAdmin' | 'CampusHead',
+        role: 'Parent' as Role,
         assignedCampus: '',
         empId: '',
         childEprNo: '',
@@ -166,7 +167,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         yearFeeBenefitPercent: 0,
         longTermBenefitPercent: 0
     })
-    const [adminForm, setAdminForm] = useState({ adminName: '', adminMobile: '', role: 'CampusHead' as 'CampusHead' | 'CampusAdmin', assignedCampus: '' })
+    const [adminForm, setAdminForm] = useState({ adminName: '', adminMobile: '', role: 'CampusHead' as 'CampusHead' | 'CampusAdmin' | 'Admission Admin' | 'Finance Admin' | 'Super Admin', assignedCampus: '', password: '' })
     const [studentForm, setStudentForm] = useState<any>({
         fullName: '',
         parentId: '',
@@ -248,12 +249,12 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     }
 
     // Map URL view param to internal view state
-    const mapViewParam = (view: string): 'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'deletion-requests' | 'referrals' | 'fees' | 'engagement' => {
-        const validViews = ['home', 'analytics', 'users', 'admins', 'campuses', 'settings', 'reports', 'students', 'settlements', 'marketing', 'audit', 'support', 'permissions', 'staff-dash', 'parent-dash', 'deletion-requests', 'referrals', 'fees', 'engagement']
+    const mapViewParam = (view: string): 'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'referrals' | 'fees' | 'engagement' => {
+        const validViews = ['home', 'analytics', 'users', 'admins', 'campuses', 'settings', 'reports', 'students', 'settlements', 'marketing', 'audit', 'support', 'permissions', 'staff-dash', 'parent-dash', 'referrals', 'fees', 'engagement']
         return (validViews.includes(view) ? view : 'home') as any
     }
 
-    const [selectedView, setSelectedView] = useState<'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'deletion-requests' | 'referrals' | 'fees' | 'engagement'>(mapViewParam(initialView))
+    const [selectedView, setSelectedView] = useState<'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'referrals' | 'fees' | 'engagement'>(mapViewParam(initialView))
 
     // Unified Status & Settings States
     const [campuses, setCampuses] = useState<any[]>([])
@@ -271,7 +272,6 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     const [activityLogs, setActivityLogs] = useState<any[]>([])
     const [supportTickets, setSupportTickets] = useState<any[]>([])
     const [rolePermissionsMatrix, setRolePermissionsMatrix] = useState<Record<string, any>>({})
-    const [deletionRequests, setDeletionRequests] = useState<any[]>([])
 
     // New Campus Modal State
     const [showCampusModal, setShowCampusModal] = useState(false)
@@ -280,10 +280,11 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         campusName: '',
         campusCode: '',
         location: '',
-        grades: '9-12',
+        grades: '',
         maxCapacity: 500,
         gradeFees: [] as Array<{ grade: string; annualFee: number }>
     })
+    const [customGradeInput, setCustomGradeInput] = useState('')
 
     // Benefit Slab Modal/Edit State
     const [showBenefitModal, setShowBenefitModal] = useState(false)
@@ -341,7 +342,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
 
     // New effect to load permissions matrix
     useEffect(() => {
-        if (selectedView === 'permissions' || selectedView === 'settings') { // Added settings to trigger load for PermissionsMatrix component
+        if (selectedView === 'permissions') {
             const loadPermissions = async () => {
                 setLoading(true)
                 try {
@@ -375,21 +376,6 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         }
     }, [urgentTicketCount, router])
 
-    // Effect to load deletion requests
-    useEffect(() => {
-        if (selectedView === 'deletion-requests') {
-            loadDeletionRequests()
-        }
-    }, [selectedView])
-
-    const loadDeletionRequests = async () => {
-        setLoading(true)
-        const res = await getDeletionRequests()
-        setLoading(false)
-        if (res.success && res.data) {
-            setDeletionRequests(res.data)
-        }
-    }
 
     const handleToggleRegistration = async () => {
         setLoading(true)
@@ -420,7 +406,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
             result = await updateUser(editingUser.userId, {
                 fullName: userForm.fullName,
                 mobileNumber: userForm.mobileNumber,
-                role: userForm.role,
+                role: userForm.role as any,
                 assignedCampus: userForm.assignedCampus || undefined,
                 empId: userForm.empId || undefined,
                 childEprNo: userForm.childEprNo || undefined,
@@ -432,7 +418,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
             result = await addUser({
                 fullName: userForm.fullName,
                 mobileNumber: userForm.mobileNumber,
-                role: userForm.role,
+                role: userForm.role as any,
                 assignedCampus: userForm.assignedCampus || undefined
             })
         }
@@ -561,10 +547,18 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
 
     // Add Admin Handler
     const handleAddAdmin = async () => {
-        if (!adminForm.adminName || !adminForm.adminMobile || !adminForm.assignedCampus) {
-            toast.error('Please fill in all required fields')
+        const isCampusRole = ['CampusHead', 'CampusAdmin'].includes(adminForm.role)
+
+        if (!adminForm.adminName || !adminForm.adminMobile) {
+            toast.error('Please fill in Name and Mobile Number')
             return
         }
+
+        if (isCampusRole && !adminForm.assignedCampus) {
+            toast.error('Please select an Assigned Campus')
+            return
+        }
+
         if (adminForm.adminMobile.length !== 10) {
             toast.error('Mobile number must be 10 digits')
             return
@@ -574,12 +568,13 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
             adminName: adminForm.adminName,
             adminMobile: adminForm.adminMobile,
             role: adminForm.role,
-            assignedCampus: adminForm.assignedCampus
+            assignedCampus: adminForm.assignedCampus,
+            password: adminForm.password
         })
         setModalLoading(false)
         if (result.success) {
             setShowAddAdminModal(false)
-            setAdminForm({ adminName: '', adminMobile: '', role: 'CampusHead', assignedCampus: '' })
+            setAdminForm({ adminName: '', adminMobile: '', role: 'CampusHead', assignedCampus: '', password: '' })
             router.refresh()
         } else {
             toast.error(result.error || 'Failed to add admin')
@@ -683,7 +678,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         if (result.success) {
             setShowCampusModal(false)
             setEditingCampus(null)
-            setCampusForm({ campusName: '', campusCode: '', location: '', grades: '9-12', maxCapacity: 500, gradeFees: [] })
+            setCampusForm({ campusName: '', campusCode: '', location: '', grades: '', maxCapacity: 500, gradeFees: [] })
             // Re-fetch campuses
             const fresh = await getCampuses()
             if (fresh.success && fresh.campuses) setCampuses(fresh.campuses)
@@ -739,7 +734,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         setLoading(false)
         if (result) {
             toast.success('System settings updated successfully')
-            setSettingsState(result)
+            setSettingsState(result.data || null)
         }
     }
 
@@ -815,7 +810,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     }
 
     // Dynamic page titles based on selected view
-    const pageConfig: Record<'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'deletion-requests' | 'referrals' | 'fees' | 'engagement', { title: string, subtitle: string }> = {
+    const pageConfig: Record<'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'referrals' | 'fees' | 'engagement', { title: string, subtitle: string }> = {
         home: { title: 'Dashboard', subtitle: 'Quick overview and actions' },
         analytics: { title: 'Analytics Overview', subtitle: 'System-wide performance metrics and insights' },
         campuses: { title: 'Campus Performance', subtitle: 'Detailed metrics and comparison across all campuses' },
@@ -832,7 +827,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         audit: { title: 'Audit Trail', subtitle: 'System-wide activity logs and transparency' },
         support: { title: 'Support Desk', subtitle: 'Manage queries and ambassador support tickets' },
         permissions: { title: 'Permissions Matrix', subtitle: 'Dynamic module allotment for administrative roles' },
-        'deletion-requests': { title: 'Account Deletion Hub', subtitle: 'Review and process account removal requests for compliance' },
+
         'referrals': { title: 'Global Referral Management', subtitle: 'Track and convert ambassador leads into students across all campuses' },
         'fees': { title: 'Fee Management', subtitle: 'Manage academic year fee structures across campuses' }
     }
@@ -1188,7 +1183,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                         campusName: '',
                                         campusCode: '',
                                         location: '',
-                                        grades: '9-12',
+                                        grades: '',
                                         maxCapacity: 500,
                                         gradeFees: []
                                     })
@@ -1258,7 +1253,6 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                         admins={admins}
                         campusComparison={campusCompData}
                         onDownloadReport={handleDownloadReport}
-                        generateLeadPipelineReport={generateLeadPipelineReport}
                         onWeeklyReport={handleWeeklyReport}
                     />
                 )}
@@ -1426,14 +1420,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                 )}
 
                 {/* Deletion Requests Hub */}
-                {selectedView === 'deletion-requests' && (
-                    <div className="space-y-6 animate-fade-in">
-                        <DeletionRequestsTable
-                            requests={deletionRequests}
-                            onRefresh={loadDeletionRequests}
-                        />
-                    </div>
-                )}
+
 
                 {/* Permissions Matrix View */}
                 {selectedView === 'permissions' && (
@@ -1508,7 +1495,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                                 value={selectedView === 'staff-dash' ? (systemSettings?.staffWelcomeMessage || '') : (systemSettings?.parentWelcomeMessage || '')}
                                                 onChange={(e) => {
                                                     const field = selectedView === 'staff-dash' ? 'staffWelcomeMessage' : 'parentWelcomeMessage'
-                                                    setSettingsState({ ...settingsState, [field]: e.target.value })
+                                                    setSettingsState(prev => prev ? ({ ...prev, [field]: e.target.value }) : null)
                                                 }}
                                                 placeholder="e.g. Welcome to the Staff Ambassador Dashboard"
                                                 style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none', fontSize: '14px' }}
@@ -1522,7 +1509,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                                 value={selectedView === 'staff-dash' ? (systemSettings?.staffReferralText || '') : (systemSettings?.parentReferralText || '')}
                                                 onChange={(e) => {
                                                     const field = selectedView === 'staff-dash' ? 'staffReferralText' : 'parentReferralText'
-                                                    setSettingsState({ ...settingsState, [field]: e.target.value })
+                                                    setSettingsState(prev => prev ? ({ ...prev, [field]: e.target.value }) : null)
                                                 }}
                                                 placeholder="The message that will be pre-filled when they click Share..."
                                                 style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none', fontSize: '14px', resize: 'vertical' }}
@@ -1729,22 +1716,25 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                     <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Role *</label>
                                     <select
                                         value={userForm.role}
-                                        onChange={(e) => setUserForm({ ...userForm, role: e.target.value as 'Parent' | 'Staff' })}
+                                        onChange={(e) => setUserForm({ ...userForm, role: e.target.value as any })}
                                         style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
                                     >
                                         <option value="Parent">Parent</option>
                                         <option value="Staff">Staff</option>
+                                        <option value="Alumni">Alumni</option>
+                                        <option value="Others">Others</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Assigned Campus</label>
-                                    <input
-                                        type="text"
+                                    <select
                                         value={userForm.assignedCampus}
                                         onChange={(e) => setUserForm({ ...userForm, assignedCampus: e.target.value })}
                                         style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                        placeholder="Campus name (optional)"
-                                    />
+                                    >
+                                        <option value="">Select Campus (Optional)</option>
+                                        {campuses.map(c => <option key={c.id} value={c.campusName}>{c.campusName}</option>)}
+                                    </select>
                                 </div>
                                 {userForm.role === 'Staff' && (
                                     <div>
@@ -1854,26 +1844,42 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                     />
                                 </div>
                                 <div>
+                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Password (Optional)</label>
+                                    <input
+                                        type="password"
+                                        value={adminForm.password}
+                                        onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
+                                        placeholder="Defaults to Mobile Number"
+                                    />
+                                </div>
+                                <div>
                                     <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Role *</label>
                                     <select
                                         value={adminForm.role}
-                                        onChange={(e) => setAdminForm({ ...adminForm, role: e.target.value as 'CampusHead' | 'CampusAdmin' })}
+                                        onChange={(e) => setAdminForm({ ...adminForm, role: e.target.value as any })}
                                         style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
                                     >
                                         <option value="CampusHead">Campus Head</option>
                                         <option value="CampusAdmin">Campus Admin</option>
+                                        <option value="Admission Admin">Admission Admin</option>
+                                        <option value="Finance Admin">Finance Admin</option>
+                                        <option value="Super Admin">Super Admin</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Assigned Campus *</label>
-                                    <input
-                                        type="text"
-                                        value={adminForm.assignedCampus}
-                                        onChange={(e) => setAdminForm({ ...adminForm, assignedCampus: e.target.value })}
-                                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                        placeholder="Campus name"
-                                    />
-                                </div>
+                                {(adminForm.role === 'CampusHead' || adminForm.role === 'CampusAdmin') && (
+                                    <div>
+                                        <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Assigned Campus *</label>
+                                        <select
+                                            value={adminForm.assignedCampus}
+                                            onChange={(e) => setAdminForm({ ...adminForm, assignedCampus: e.target.value })}
+                                            style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
+                                        >
+                                            <option value="">Select Campus</option>
+                                            {campuses.map(c => <option key={c.id} value={c.campusName}>{c.campusName}</option>)}
+                                        </select>
+                                    </div>
+                                )}
                                 <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
                                     <button
                                         onClick={() => setShowAddAdminModal(false)}
@@ -1946,6 +1952,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                     <CSVUploader
                         type={bulkUploadType}
                         onUpload={handleBulkUpload}
+                        userRole={currentUser?.role}
                         onClose={() => {
                             setBulkUploadType(null)
                             router.refresh()
@@ -2004,41 +2011,151 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                             <div style={{ height: '1px', background: '#E5E7EB', margin: '20px 0' }}></div>
 
                             <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '8px' }}>
-                                <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#111827', marginBottom: '12px' }}>Grade-wise Annual Fees</h3>
-                                <div className="space-y-3">
+                                <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#111827', marginBottom: '12px' }}>School Grades</h3>
+                                <div className="grid grid-cols-3 gap-3">
                                     {[
-                                        "Pre-KG", "LKG", "UKG",
+                                        "Pre-Mont", "Pre Mont FD", "Pre Mont HD", "Pre Mont TD",
+                                        "Mont-1", "Mont-2",
                                         "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5",
                                         "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10",
                                         "Grade 11", "Grade 12"
                                     ].map((grade) => {
-                                        const currentFee = campusForm.gradeFees.find(gf => gf.grade === grade)?.annualFee || 60000
+                                        const currentGrades = campusForm.grades ? campusForm.grades.split(',').map(g => g.trim()) : []
+                                        const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+                                        const isSelected = currentGrades.some(g => norm(g) === norm(grade))
+
                                         return (
-                                            <div key={grade} className="flex items-center justify-between gap-4 p-2.5 rounded-lg border border-gray-100 bg-gray-50/50">
-                                                <span className="text-xs font-bold text-gray-700">{grade}</span>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-gray-400 text-xs font-bold">₹</span>
-                                                    <input
-                                                        type="number"
-                                                        value={currentFee}
-                                                        onChange={(e) => {
-                                                            const val = parseInt(e.target.value) || 0
-                                                            const exist = campusForm.gradeFees.find(gf => gf.grade === grade)
-                                                            let newFees
-                                                            if (exist) {
-                                                                newFees = campusForm.gradeFees.map(gf => gf.grade === grade ? { ...gf, annualFee: val } : gf)
-                                                            } else {
-                                                                newFees = [...campusForm.gradeFees, { grade, annualFee: val }]
-                                                            }
-                                                            setCampusForm({ ...campusForm, gradeFees: newFees })
-                                                        }}
-                                                        style={{ width: '100px', padding: '6px 8px', border: '1px solid #D1D5DB', borderRadius: '6px', fontSize: '12px', textAlign: 'right', fontWeight: 'bold' }}
-                                                    />
-                                                </div>
-                                            </div>
+                                            <label key={grade} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-gray-50 border border-transparent hover:border-200 transition-all">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={(e) => {
+                                                        let newGrades = [...currentGrades]
+
+                                                        if (e.target.checked) {
+                                                            if (!isSelected) newGrades.push(grade)
+                                                        } else {
+                                                            newGrades = newGrades.filter(g => norm(g) !== norm(grade))
+                                                        }
+
+                                                        // Define standard order
+                                                        const standardOrder = [
+                                                            "Pre-Mont", "Pre Mont FD", "Pre Mont HD", "Pre Mont TD",
+                                                            "Mont-1", "Mont-2",
+                                                            "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5",
+                                                            "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10",
+                                                            "Grade 11", "Grade 12"
+                                                        ]
+
+                                                        // Sort based on standard order
+                                                        newGrades.sort((a, b) => {
+                                                            const idxA = standardOrder.findIndex(s => norm(s) === norm(a))
+                                                            const idxB = standardOrder.findIndex(s => norm(s) === norm(b))
+                                                            // If not found in standard (custom grade?), put at end
+                                                            return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB)
+                                                        })
+
+                                                        // Deduplicate just in case
+                                                        newGrades = [...new Set(newGrades)]
+
+                                                        setCampusForm({ ...campusForm, grades: newGrades.join(', ') })
+                                                    }}
+                                                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white"
+                                                />
+                                                <span className="text-xs font-medium text-gray-700">{grade}</span>
+                                            </label>
                                         )
                                     })}
                                 </div>
+                                {/* Custom Courses / College Grades Section */}
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 mt-6 mb-2">
+                                    <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#111827', marginBottom: '8px' }}>College Courses / Custom Tags</h3>
+                                    <p className="text-[11px] text-gray-500 mb-4">
+                                        Manage specific courses (e.g., B.Tech, MBA) for college campuses.
+                                    </p>
+
+                                    {/* Display Active Tags */}
+                                    <div className="flex flex-wrap gap-2 mb-4">
+                                        {(() => {
+                                            const currentGrades = campusForm.grades ? campusForm.grades.split(',').map(g => g.trim()).filter(Boolean) : []
+                                            const standardGrades = [
+                                                "Pre-Mont", "Pre Mont FD", "Pre Mont HD", "Pre Mont TD",
+                                                "Mont-1", "Mont-2",
+                                                "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5",
+                                                "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10",
+                                                "Grade 11", "Grade 12"
+                                            ]
+                                            const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+                                            // Get only non-standard grades
+                                            const customTags = currentGrades.filter(g => !standardGrades.some(s => norm(s) === norm(g)))
+
+                                            if (customTags.length === 0) return <p className="text-xs text-gray-400 italic">No custom courses added.</p>
+
+                                            return customTags.map((tag, idx) => (
+                                                <span key={idx} className="inline-flex items-center gap-1 px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-semibold text-gray-700 shadow-sm">
+                                                    {tag}
+                                                    <button
+                                                        onClick={() => {
+                                                            const newGrades = currentGrades.filter(g => g !== tag)
+                                                            setCampusForm({ ...campusForm, grades: newGrades.join(', ') })
+                                                        }}
+                                                        className="hover:text-red-500 transition-colors ml-1"
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                </span>
+                                            ))
+                                        })()}
+                                    </div>
+
+                                    {/* Add New Tag Input */}
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={customGradeInput}
+                                            onChange={(e) => setCustomGradeInput(e.target.value)}
+                                            placeholder="Enter course name (e.g. B.Sc, MBA)"
+                                            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault()
+                                                    if (customGradeInput.trim()) {
+                                                        const currentGrades = campusForm.grades ? campusForm.grades.split(',').map(g => g.trim()).filter(Boolean) : []
+                                                        const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+                                                        const inputNorm = norm(customGradeInput.trim())
+
+                                                        if (!currentGrades.some(g => norm(g) === inputNorm)) {
+                                                            const newGrades = [...currentGrades, customGradeInput.trim()]
+                                                            setCampusForm({ ...campusForm, grades: newGrades.join(', ') })
+                                                        }
+                                                        setCustomGradeInput('')
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault()
+                                                if (customGradeInput.trim()) {
+                                                    const currentGrades = campusForm.grades ? campusForm.grades.split(',').map(g => g.trim()).filter(Boolean) : []
+                                                    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+                                                    const inputNorm = norm(customGradeInput.trim())
+
+                                                    if (!currentGrades.some(g => norm(g) === inputNorm)) {
+                                                        const newGrades = [...currentGrades, customGradeInput.trim()]
+                                                        setCampusForm({ ...campusForm, grades: newGrades.join(', ') })
+                                                    }
+                                                    setCustomGradeInput('')
+                                                }
+                                            }}
+                                            className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-black transition-all flex items-center gap-1"
+                                        >
+                                            <Plus size={14} /> Add
+                                        </button>
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-gray-400 mt-2">* Fees are now managed in the Fee Management section.</p>
                             </div>
 
                             <div className="flex gap-3 mt-8">
@@ -2158,7 +2275,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                         style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
                                     >
                                         <option value="">Select Grade</option>
-                                        {['Pre-KG', 'LKG', 'UKG', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map(g => (
+                                        {['Pre-Mont', 'Mont-1', 'Mont-2', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map(g => (
                                             <option key={g} value={g}>{g}</option>
                                         ))}
                                     </select>

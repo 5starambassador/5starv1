@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { MapPin, Edit, Trash, Plus, School } from 'lucide-react'
+import { MapPin, Edit, Trash, Plus, School, Upload } from 'lucide-react'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import { PremiumCard } from '@/components/premium/PremiumCard'
 import { PremiumHeader } from '@/components/premium/PremiumHeader'
+import CSVUploader from '@/components/CSVUploader'
 
 interface Campus {
     id: number
@@ -24,6 +25,7 @@ interface CampusManagementTableProps {
 
 export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBulkDelete }: CampusManagementTableProps) {
     const [selectedCampuses, setSelectedCampuses] = useState<Campus[]>([])
+    const [showUpload, setShowUpload] = useState(false)
 
     const columns = [
         {
@@ -112,6 +114,13 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBul
                         </button>
                     )}
                     <button
+                        onClick={() => setShowUpload(true)}
+                        className="px-5 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-xl font-bold text-xs hover:bg-gray-50 transition-all flex items-center gap-2"
+                    >
+                        <Upload size={16} strokeWidth={2.5} />
+                        Bulk Upload
+                    </button>
+                    <button
                         onClick={onAdd}
                         className="px-5 py-2.5 bg-gray-900 text-white rounded-xl font-bold text-xs shadow-lg shadow-gray-200 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2"
                     >
@@ -136,6 +145,13 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBul
                     />
                 </div>
             </PremiumCard>
+
+            {showUpload && (
+                <CSVUploader
+                    type="campuses"
+                    onClose={() => setShowUpload(false)}
+                />
+            )}
         </div>
     )
 }

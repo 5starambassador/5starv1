@@ -1,4 +1,4 @@
-export type Role = 'Super Admin' | 'Admission Admin' | 'Campus Head' | 'Campus Admin' | 'CampusHead' | 'CampusAdmin' | 'Staff' | 'Parent' | 'Finance Admin' | 'Alumni'
+export type Role = 'Super Admin' | 'Admission Admin' | 'Campus Head' | 'Campus Admin' | 'CampusHead' | 'CampusAdmin' | 'Staff' | 'Parent' | 'Finance Admin' | 'Alumni' | 'Others'
 
 export interface ModulePermission {
     access: boolean
@@ -37,6 +37,8 @@ export interface User {
     role: string
     status: string
     referralCode: string
+    email?: string | null
+    password?: string | null
     campusId?: number | null
     assignedCampus?: string | null
     confirmedReferralCount: number
@@ -170,7 +172,7 @@ export interface BulkStudentData {
 export interface BulkUserData {
     fullName: string
     mobileNumber: string
-    role: 'Parent' | 'Staff' | 'Alumni'
+    role: 'Parent' | 'Staff' | 'Alumni' | 'Others'
     email: string
     assignedCampus: string
     empId?: string

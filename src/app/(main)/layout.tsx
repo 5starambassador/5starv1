@@ -69,7 +69,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         }
 
         if (permissions.deletionHub?.access) {
-            navItems.push({ label: 'Deletion Hub', href: '/superadmin?view=deletion-requests', icon: <Trash2 /> })
+
         }
         // navItems.push({ label: 'Parent Dashboard Ctrl', href: '/superadmin?view=parent-dash', icon: <Star /> })
 
@@ -165,7 +165,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             </div>
 
             <main
-                className="flex-1 p-4 pt-20 xl:p-8 xl:pt-8 pb-20 xl:pb-8 w-full max-w-[1600px] mx-auto relative z-10"
+                className="flex-1 min-w-0 p-4 pt-20 xl:p-8 xl:pt-8 pb-20 xl:pb-8 w-full max-w-[1600px] mx-auto relative z-10"
             >
                 {/* Desktop Notification Header */}
                 <header className="hidden xl:flex justify-end mb-4 absolute top-4 right-8 z-20">

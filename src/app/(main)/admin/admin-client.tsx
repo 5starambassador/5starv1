@@ -1,9 +1,10 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Users, TrendingUp, Award, BarChart3, IndianRupee, CheckCircle, RefreshCw, Trophy, Building2, BookOpen, Shield, GraduationCap, Phone, Mail, Clock } from 'lucide-react'
+import { Users, TrendingUp, Award, BarChart3, IndianRupee, CheckCircle, RefreshCw, Trophy, Building2, BookOpen, Shield, GraduationCap, Phone, Mail, Clock, Plus, Filter, Search, X, Pencil } from 'lucide-react'
 import { ReferralTable } from './referral-table'
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { PremiumHeader } from '@/components/premium/PremiumHeader'
 import { PremiumStatCard } from '@/components/premium/PremiumStatCard'
 import { PremiumCard } from '@/components/premium/PremiumCard'
@@ -14,7 +15,11 @@ import {
     generateMonthlyTrendsReport,
     generateCampusDistributionReport
 } from '@/app/report-actions'
-import { User, Student, ReferralLead, RolePermissions, AdminAnalytics, CampusPerformance, Admin, Campus } from '@/types'
+import { addStudent, updateStudent } from '@/app/student-actions'
+import { User, Student, ReferralLead, RolePermissions, SystemAnalytics, CampusPerformance, Admin, Campus } from '@/types'
+
+// Local type for AdminAnalytics to fix import error
+type AdminAnalytics = SystemAnalytics
 
 interface AdminClientProps {
     referrals: ReferralLead[]
@@ -48,6 +53,51 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
     const [studentSearch, setStudentSearch] = useState('')
     const [studentCampusFilter, setStudentCampusFilter] = useState('All')
     const [studentGradeFilter, setStudentGradeFilter] = useState('All')
+
+    // Student Modal State (Added)
+    const [showStudentModal, setShowStudentModal] = useState(false)
+    const [studentForm, setStudentForm] = useState<any>({
+        fullName: '',
+        parentId: '',
+        campusId: '',
+        grade: '',
+        section: '',
+        rollNumber: '',
+        baseFee: undefined,
+        discountPercent: 0,
+        isNewParent: false,
+        newParentName: '',
+        newParentMobile: ''
+    })
+    const [editingStudent, setEditingStudent] = useState<any>(null)
+    const [modalLoading, setModalLoading] = useState(false)
+
+    // Handlers (Added)
+    const handleAddStudent = async () => {
+        setModalLoading(true)
+        try {
+            if (editingStudent) {
+                const res = await updateStudent(editingStudent.studentId, studentForm)
+                if (res.success) {
+                    toast.success('Student updated successfully')
+                    setShowStudentModal(false)
+                    router.refresh()
+                } else {
+                    toast.error(res.error || 'Update failed')
+                }
+            } else {
+                const res = await addStudent(studentForm)
+                if (res.success) {
+                    toast.success('Student added successfully')
+                    setShowStudentModal(false)
+                    router.refresh()
+                } else {
+                    toast.error(res.error || 'Addition failed')
+                }
+            }
+        } catch (e) { toast.error('An error occurred') }
+        finally { setModalLoading(false) }
+    }
 
     // View state
     const [selectedView, setSelectedView] = useState<string>(initialView)
@@ -635,6 +685,23 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                                 </div>
                                 <h2 className="text-xl font-black text-gray-900 tracking-tight">Registered Students</h2>
                             </div>
+                            {/* Add Student Button (Conditional) */}
+                            {permissions?.studentManagement?.canCreate && (
+                                <button
+                                    onClick={() => {
+                                        setEditingStudent(null)
+                                        setStudentForm({
+                                            fullName: '', parentId: '', campusId: '', grade: '', section: '',
+                                            rollNumber: '', baseFee: undefined, discountPercent: 0,
+                                            isNewParent: false, newParentName: '', newParentMobile: ''
+                                        })
+                                        setShowStudentModal(true)
+                                    }}
+                                    className="px-6 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-bold text-xs shadow-lg shadow-red-500/20 hover:shadow-red-500/40 hover:-translate-y-0.5 transition-all flex items-center gap-2 uppercase tracking-wide"
+                                >
+                                    <GraduationCap size={16} /> New Student
+                                </button>
+                            )}
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
@@ -666,6 +733,30 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
                                                         Active
                                                     </span>
                                                 </td>
+                                                {/* Edit Action (Conditional) */}
+                                                {permissions?.studentManagement?.canEdit && (
+                                                    <td className="px-6 py-4 text-right">
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingStudent(student)
+                                                                setStudentForm({
+                                                                    fullName: student.fullName,
+                                                                    parentId: student.parentId,
+                                                                    campusId: student.campusId,
+                                                                    grade: student.grade,
+                                                                    section: student.section,
+                                                                    rollNumber: student.rollNumber,
+                                                                    baseFee: student.baseFee,
+                                                                    discountPercent: student.discountPercent || 0
+                                                                })
+                                                                setShowStudentModal(true)
+                                                            }}
+                                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                        >
+                                                            <Pencil size={16} />
+                                                        </button>
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))}
                                 </tbody>
@@ -676,28 +767,177 @@ export function AdminClient({ referrals, analytics, confirmReferral, initialView
             )}
 
             {/* REPORTS VIEW */}
-            {selectedView === 'reports' && permissions?.reports?.access && (
-                <ReportsPanel
-                    users={users}
-                    campuses={campuses}
-                    admins={admins}
-                    campusComparison={campusPerformance}
-                    generateLeadPipelineReport={generateLeadPipelineReport}
-                    onDownloadReport={async (fn) => {
-                        const res = await fn()
-                        if (res.success && res.csv) {
-                            const blob = new Blob([res.csv], { type: 'text/csv' })
-                            const url = window.URL.createObjectURL(blob)
-                            const a = document.createElement('a')
-                            a.href = url
-                            a.download = res.filename || 'report.csv'
-                            a.click()
-                        } else {
-                            alert(res.error || 'Failed to download report')
-                        }
-                    }}
-                />
-            )}
-        </div>
+            {
+                selectedView === 'reports' && permissions?.reports?.access && (
+                    <ReportsPanel
+                        users={users}
+                        campuses={campuses}
+                        admins={admins}
+                        campusComparison={campusPerformance}
+                        onDownloadReport={async (fn) => {
+                            const res = await fn()
+                            if (res.success && res.csv) {
+                                const blob = new Blob([res.csv], { type: 'text/csv' })
+                                const url = window.URL.createObjectURL(blob)
+                                const a = document.createElement('a')
+                                a.href = url
+                                a.download = res.filename || 'report.csv'
+                                a.click()
+                            } else {
+                                toast.error(res.error || 'Failed to download report')
+                            }
+                        }}
+                    />
+                )
+            }
+
+            {/* Student Modal */}
+            {
+                showStudentModal && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-300">
+                            <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                                <div>
+                                    <h3 className="text-xl font-black text-gray-900 tracking-tight">
+                                        {editingStudent ? 'Edit Student Details' : 'Register New Student'}
+                                    </h3>
+                                    <p className="text-sm font-medium text-gray-400 mt-1">
+                                        {editingStudent ? 'Update academic or personal information' : 'Add a new student to the master database'}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setShowStudentModal(false)}
+                                    className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400 hover:text-gray-600"
+                                >
+                                    <X size={20} strokeWidth={2.5} />
+                                </button>
+                            </div>
+
+                            <div className="p-8 space-y-6">
+                                {/* Basic Info */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Student Name *</label>
+                                        <input
+                                            type="text"
+                                            value={studentForm.fullName}
+                                            onChange={(e) => setStudentForm({ ...studentForm, fullName: e.target.value })}
+                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 placeholder:font-medium placeholder:text-gray-400 transition-all"
+                                            placeholder="First & Last Name"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Roll Number</label>
+                                        <input
+                                            type="text"
+                                            value={studentForm.rollNumber}
+                                            onChange={(e) => setStudentForm({ ...studentForm, rollNumber: e.target.value })}
+                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 placeholder:font-medium placeholder:text-gray-400 transition-all"
+                                            placeholder="Optional"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Academic Details */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="md:col-span-2">
+                                        <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Campus *</label>
+                                        <select
+                                            value={studentForm.campusId}
+                                            onChange={(e) => setStudentForm({ ...studentForm, campusId: e.target.value })}
+                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 cursor-pointer transition-all appearance-none"
+                                            disabled={!!editingStudent} // Often locked on edit, but consistent with SuperAdmin
+                                        >
+                                            <option value="">Select Campus</option>
+                                            {campuses.map(c => <option key={c.id} value={c.id}>{c.campusName}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Grade *</label>
+                                        <select
+                                            value={studentForm.grade}
+                                            onChange={(e) => setStudentForm({ ...studentForm, grade: e.target.value })}
+                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 cursor-pointer transition-all appearance-none"
+                                        >
+                                            <option value="">Select</option>
+                                            {['Pre-KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => (
+                                                <option key={g} value={g}>{g}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Parent Selection (Simplified for now - strictly existing parents or new) */}
+                                {!editingStudent && (
+                                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                                        <div className="flex items-center gap-4">
+                                            <button
+                                                onClick={() => setStudentForm({ ...studentForm, isNewParent: false })}
+                                                className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-all ${!studentForm.isNewParent ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-gray-200 text-gray-500'}`}
+                                            >
+                                                Existing Parent
+                                            </button>
+                                            <button
+                                                onClick={() => setStudentForm({ ...studentForm, isNewParent: true })}
+                                                className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-all ${studentForm.isNewParent ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-gray-200 text-gray-500'}`}
+                                            >
+                                                New Parent
+                                            </button>
+                                        </div>
+
+                                        {studentForm.isNewParent ? (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Parent Full Name"
+                                                    value={studentForm.newParentName}
+                                                    onChange={(e) => setStudentForm({ ...studentForm, newParentName: e.target.value })}
+                                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 transition-all"
+                                                />
+                                                <input
+                                                    type="tel"
+                                                    placeholder="Mobile Number"
+                                                    value={studentForm.newParentMobile}
+                                                    onChange={(e) => setStudentForm({ ...studentForm, newParentMobile: e.target.value })}
+                                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 transition-all"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <select
+                                                value={studentForm.parentId}
+                                                onChange={(e) => setStudentForm({ ...studentForm, parentId: e.target.value })}
+                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 cursor-pointer transition-all appearance-none"
+                                            >
+                                                <option value="">Select Existing Parent</option>
+                                                {users.filter(u => u.role === 'Parent').map(u => (
+                                                    <option key={u.userId} value={u.userId}>{u.fullName} ({u.mobileNumber})</option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div className="pt-6 flex justify-end gap-3 sticky bottom-0 bg-white">
+                                    <button
+                                        onClick={() => setShowStudentModal(false)}
+                                        className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-sm transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleAddStudent}
+                                        disabled={modalLoading}
+                                        className="px-8 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm shadow-xl shadow-red-600/20 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                                    >
+                                        {modalLoading ? <Clock className="animate-spin" size={18} /> : <CheckCircle size={18} />}
+                                        {editingStudent ? 'Save Changes' : 'Register Student'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
     )
 }

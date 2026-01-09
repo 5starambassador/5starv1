@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
     Settings, Shield, Zap, Clock, Save, Loader2,
     Smartphone, Mail, Lock, Globe, Database,
-    AlertCircle, CheckCircle2, UserCheck, Bell, Calendar, Plus
+    AlertCircle, CheckCircle2, UserCheck, Bell, Calendar, Plus, UploadCloud
 } from 'lucide-react'
 import {
     getSystemSettings, updateSystemSettings,
@@ -14,11 +14,14 @@ import {
 } from '@/app/settings-actions'
 import { getNotificationSettings, updateNotificationSettings } from '@/app/notification-actions'
 import { getRetentionSettings, updateRetentionSettings } from '@/app/security-actions'
+import { getDeletionRequests, approveDeletion, rejectDeletion } from '@/app/deletion-actions'
+import { resetDatabase } from '@/app/reset-actions'
+import { backupDatabase, restoreDatabase } from '@/app/backup-actions'
 import { toast } from 'sonner'
 import { SecurityPanel } from './SecurityPanel'
 
 export function SettingsPanel() {
-    const [activeTab, setActiveTab] = useState<'general' | 'dashboards' | 'security' | 'logic' | 'notifications' | 'retention' | 'years'>('general')
+    const [activeTab, setActiveTab] = useState<'general' | 'dashboards' | 'security' | 'logic' | 'notifications' | 'data' | 'years'>('general')
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
 
@@ -31,25 +34,35 @@ export function SettingsPanel() {
     const [academicYearsList, setAcademicYearsList] = useState<any[]>([])
     const [newYearForm, setNewYearForm] = useState({ year: '', startDate: '', endDate: '' })
 
+    // Data Management States
+    const [deletionRequests, setDeletionRequests] = useState<any[]>([])
+    const [resetCode, setResetCode] = useState('')
+    const [showResetConfirm, setShowResetConfirm] = useState(false)
+    const [isBackingUp, setIsBackingUp] = useState(false)
+    const [isRestoring, setIsRestoring] = useState(false)
+    const restoreFileRef = useRef<HTMLInputElement>(null)
+
     const fetchData = async () => {
         setLoading(true)
         try {
-            const [sys, sec, lead, notif, ret, yearsRes] = await Promise.all([
+            const [sys, sec, lead, notif, ret, yearsRes, delRes] = await Promise.all([
                 getSystemSettings(),
                 getSecuritySettings(),
                 getLeadManagementSettings(),
                 getNotificationSettings(),
                 getRetentionSettings(),
-                getAcademicYears()
+                getAcademicYears(),
+                getDeletionRequests()
             ])
             setSystemSettings(sys)
             setSecuritySettings(sec)
             setLeadSettings(lead)
             setNotificationSettings(notif)
             setRetentionSettings(ret)
-            if (yearsRes.success && yearsRes.data) {
-                setAcademicYearsList(yearsRes.data)
-            }
+
+            if (yearsRes.success && yearsRes.data) setAcademicYearsList(yearsRes.data)
+            if (delRes.success && delRes.data) setDeletionRequests(delRes.data)
+
         } catch (error) {
             console.error('Failed to fetch settings:', error)
             toast.error('Partial failure in loading settings')
@@ -110,35 +123,25 @@ export function SettingsPanel() {
     )
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Header */}
-            <div className="flex justify-between items-center bg-gray-900 p-8 rounded-[2rem] text-white shadow-2xl relative overflow-hidden">
-                <div className="relative z-10">
-                    <h2 className="text-3xl font-black tracking-tight flex items-center gap-3">
-                        <Settings className="text-red-500" size={32} />
-                        System Control
-                    </h2>
-                    <p className="text-gray-400 font-medium mt-1">Configure core engine and security protocols</p>
-                </div>
-                <div className="absolute top-0 right-0 w-64 h-64 bg-red-600 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 opacity-20" />
-            </div>
+        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
 
             {/* Navigation Tabs */}
-            <div className="flex flex-wrap gap-2 bg-gray-100 p-2 rounded-2xl w-fit">
+            <div className="flex flex-nowrap overflow-x-auto pb-2 gap-2 bg-gray-100 p-2 rounded-2xl w-full scrollbar-hide">
                 {[
                     { id: 'general', label: 'General', icon: Settings },
                     { id: 'dashboards', label: 'Dashboards', icon: Globe },
                     { id: 'security', label: 'Security & Auth', icon: Shield },
                     { id: 'logic', label: 'Lead Logic', icon: Zap },
                     { id: 'notifications', label: 'Notifications', icon: Bell },
-                    { id: 'retention', label: 'Data Retention', icon: Database },
+                    { id: 'data', label: 'Data & Compliance', icon: Database },
                     { id: 'years', label: 'Academic Years', icon: Calendar },
                 ].map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === tab.id
-                            ? 'bg-white text-gray-900 shadow-md scale-105'
+                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm whitespace-nowrap transition-all flex-shrink-0 ${activeTab === tab.id
+                            ? 'bg-white text-gray-900 shadow-md scale-100'
                             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
                             }`}
                     >
@@ -339,18 +342,7 @@ export function SettingsPanel() {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Default Student Fee</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">₹</div>
-                                    <input
-                                        type="number"
-                                        value={systemSettings.defaultStudentFee}
-                                        onChange={(e) => setSystemSettings({ ...systemSettings, defaultStudentFee: parseInt(e.target.value) })}
-                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none font-bold text-gray-800"
-                                    />
-                                </div>
-                            </div>
+
                         </div>
                     )}
 
@@ -413,7 +405,7 @@ export function SettingsPanel() {
                                             className="w-full p-4 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-red-500 text-sm"
                                         />
                                     </div>
-                                    <p className="text-[10px] text-gray-400 italic">Tip: Use {'{referralLink}'} placeholder.</p>
+                                    <p className="text-[10px] text-gray-400 italic">Tip: Use {'{referralLink}'} and {'{academicYear}'} placeholders.</p>
                                 </div>
                             </div>
                         </div>
@@ -528,48 +520,262 @@ export function SettingsPanel() {
                         </div>
                     )}
 
-                    {/* Retention Settings */}
-                    {activeTab === 'retention' && retentionSettings && (
-                        <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-8 space-y-8">
-                            <div className="flex justify-between items-center">
-                                <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
-                                    <Database className="text-gray-700" size={24} />
-                                    Data Retention & Purge
-                                </h3>
-                                <button
-                                    onClick={handleSaveRetention}
-                                    disabled={saving}
-                                    className="px-6 py-2 bg-gray-900 hover:bg-black text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all"
-                                >
-                                    {saving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
-                                    Update Policy
-                                </button>
+                    {/* Data & Compliance Center */}
+                    {activeTab === 'data' && (
+                        <div className="space-y-8 animate-in fade-in">
+
+                            {/* 1. Retention Policy */}
+                            <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-8 space-y-6">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
+                                        <Database className="text-blue-600" size={24} />
+                                        Data Retention Policy
+                                    </h3>
+                                    <button
+                                        onClick={handleSaveRetention}
+                                        disabled={saving || !retentionSettings}
+                                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg shadow-blue-200 disabled:opacity-50"
+                                    >
+                                        {saving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+                                        Update Policy
+                                    </button>
+                                </div>
+
+                                {retentionSettings ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Keep Inactive Data (Months)</label>
+                                            <input
+                                                type="number"
+                                                value={retentionSettings.keepInactiveDataMonths}
+                                                onChange={(e) => setRetentionSettings({ ...retentionSettings, keepInactiveDataMonths: parseInt(e.target.value) })}
+                                                className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Archive Leads After (Days)</label>
+                                            <input
+                                                type="number"
+                                                value={retentionSettings.archiveLeadsAfterDays}
+                                                onChange={(e) => setRetentionSettings({ ...retentionSettings, archiveLeadsAfterDays: parseInt(e.target.value) })}
+                                                className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold"
+                                            />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm font-bold">
+                                        Failed to load retention settings.
+                                    </div>
+                                )}
                             </div>
 
-                            <div className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Keep Inactive Data (Months)</label>
-                                        <input
-                                            type="number"
-                                            value={retentionSettings.keepInactiveDataMonths}
-                                            onChange={(e) => setRetentionSettings({ ...retentionSettings, keepInactiveDataMonths: parseInt(e.target.value) })}
-                                            className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Archive Leads After (Days)</label>
-                                        <input
-                                            type="number"
-                                            value={retentionSettings.archiveLeadsAfterDays}
-                                            onChange={(e) => setRetentionSettings({ ...retentionSettings, archiveLeadsAfterDays: parseInt(e.target.value) })}
-                                            className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold"
-                                        />
-                                    </div>
+                            {/* 2. Deletion Requests */}
+                            <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-8 space-y-6">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
+                                        <UserCheck className="text-purple-600" size={24} />
+                                        Privacy Center
+                                    </h3>
+                                    <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-bold">
+                                        {deletionRequests.length} Pending Requests
+                                    </span>
                                 </div>
-                                <div className="p-4 bg-red-50 rounded-2xl border border-red-100 flex gap-3">
-                                    <AlertCircle className="text-red-600 shrink-0" />
-                                    <p className="text-[11px] text-red-900 font-medium">Compliance: Data older than these thresholds will be automatically moved to cold storage or purged per regional guidelines.</p>
+
+                                {deletionRequests.length === 0 ? (
+                                    <div className="text-center py-10 bg-gray-50 rounded-2xl border border-dashed text-gray-400 text-sm font-medium">
+                                        No active deletion requests
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {deletionRequests.map((req: any) => (
+                                            <div key={req.userId} className="flex justify-between items-center p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                                <div>
+                                                    <p className="font-bold text-gray-900">{req.fullName}</p>
+                                                    <p className="text-xs text-gray-500">{req.role} • {new Date(req.deletionRequestedAt).toLocaleDateString()}</p>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (confirm('Reject deletion request?')) {
+                                                                const res = await rejectDeletion(req.userId)
+                                                                if (res.success) {
+                                                                    toast.success('Rejected'); fetchData()
+                                                                }
+                                                            }
+                                                        }}
+                                                        className="px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                                                    >
+                                                        Reject
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (confirm('PERMANENTLY DELETE USER? This cannot be undone.')) {
+                                                                const res = await approveDeletion(req.userId)
+                                                                if (res.success) {
+                                                                    toast.success('Deleted'); fetchData()
+                                                                }
+                                                            }
+                                                        }}
+                                                        className="px-3 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                                                    >
+                                                        Approve
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* 3. Disaster Recovery (Backup & Reset) */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Backup */}
+                                <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-8 space-y-6">
+                                    <div>
+                                        <h3 className="text-xl font-black text-gray-900 flex items-center gap-2 mb-2">
+                                            <Database className="text-emerald-600" size={24} />
+                                            Backup
+                                        </h3>
+                                        <p className="text-sm text-gray-500">Export full database snapshot (JSON).</p>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            setIsBackingUp(true)
+                                            try {
+                                                const res = await backupDatabase()
+                                                if (res.success && res.data) {
+                                                    const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' })
+                                                    const url = URL.createObjectURL(blob)
+                                                    const a = document.createElement('a')
+                                                    a.href = url
+                                                    a.download = `5star-backup-${new Date().toISOString()}.json`
+                                                    document.body.appendChild(a)
+                                                    a.click()
+                                                    document.body.removeChild(a)
+                                                    URL.revokeObjectURL(url)
+                                                    toast.success('Backup downloaded')
+                                                } else {
+                                                    toast.error('Backup failed')
+                                                }
+                                            } catch (e) { toast.error('Error creating backup') }
+                                            setIsBackingUp(false)
+                                        }}
+                                        disabled={isBackingUp}
+                                        className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-sm flex justify-center items-center gap-2 transition-all shadow-lg shadow-emerald-200"
+                                    >
+                                        {isBackingUp ? <Loader2 className="animate-spin" /> : <Save size={18} />}
+                                        Download Backup
+                                    </button>
+                                </div>
+
+                                {/* Danger Zone: Reset */}
+                                <div className="bg-red-50 rounded-3xl border border-red-100 shadow-xl p-8 space-y-6">
+                                    <div>
+                                        <h3 className="text-xl font-black text-red-900 flex items-center gap-2 mb-2">
+                                            <AlertCircle className="text-red-600" size={24} />
+                                            Danger Zone
+                                        </h3>
+                                        <p className="text-xs text-red-700 font-medium">Reset database to factory state. Clears all users and students.</p>
+                                    </div>
+
+                                    {!showResetConfirm ? (
+                                        <div className="space-y-3">
+                                            <button
+                                                onClick={() => setShowResetConfirm(true)}
+                                                className="w-full py-4 bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white rounded-xl font-black text-sm flex justify-center items-center gap-2 transition-all"
+                                            >
+                                                <AlertCircle size={18} />
+                                                Reset Database
+                                            </button>
+
+                                            <div className="pt-4 border-t border-red-100">
+                                                <input
+                                                    type="file"
+                                                    accept=".json"
+                                                    ref={restoreFileRef}
+                                                    className="hidden"
+                                                    onChange={async (e) => {
+                                                        const file = e.target.files?.[0]
+                                                        if (!file) return
+
+                                                        if (!confirm('CRITICAL WARNING: This will WIPE ALL CURRENT DATA and replace it with the backup. This action cannot be undone. Are you sure?')) {
+                                                            if (restoreFileRef.current) restoreFileRef.current.value = ''
+                                                            return
+                                                        }
+
+                                                        setIsRestoring(true)
+                                                        const reader = new FileReader()
+                                                        reader.onload = async (event) => {
+                                                            try {
+                                                                const json = JSON.parse(event.target?.result as string)
+                                                                const res = await restoreDatabase(json)
+                                                                if (res.success) {
+                                                                    toast.success('Database restored successfully')
+                                                                    window.location.reload()
+                                                                } else {
+                                                                    toast.error(res.error || 'Restore failed')
+                                                                }
+                                                            } catch (err) {
+                                                                toast.error('Invalid backup file')
+                                                            } finally {
+                                                                setIsRestoring(false)
+                                                                if (restoreFileRef.current) restoreFileRef.current.value = ''
+                                                            }
+                                                        }
+                                                        reader.readAsText(file)
+                                                    }}
+                                                />
+                                                <button
+                                                    onClick={() => restoreFileRef.current?.click()}
+                                                    disabled={isRestoring}
+                                                    className="w-full py-3 bg-red-600 text-white hover:bg-red-700 rounded-xl font-bold text-xs flex justify-center items-center gap-2 transition-all shadow-md shadow-red-200"
+                                                >
+                                                    {isRestoring ? <Loader2 className="animate-spin" size={16} /> : <UploadCloud size={16} />}
+                                                    Restore from Backup
+                                                </button>
+                                                <p className="text-[10px] text-red-400 text-center mt-2 font-medium">
+                                                    Upload JSON backup to restore system state.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3 bg-white p-4 rounded-xl border border-red-200">
+                                            <p className="text-xs font-bold text-red-600 uppercase">Confirm Deletion</p>
+                                            <input
+                                                value={resetCode}
+                                                onChange={(e) => setResetCode(e.target.value)}
+                                                placeholder="Type DELETE"
+                                                className="w-full p-2 border border-red-200 rounded-lg text-sm"
+                                            />
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => { setShowResetConfirm(false); setResetCode('') }}
+                                                    className="flex-1 py-2 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (resetCode !== 'DELETE') return
+                                                        setLoading(true)
+                                                        const res = await resetDatabase('DELETE')
+                                                        if (res.success) {
+                                                            toast.success('Database Reset Complete')
+                                                            setShowResetConfirm(false)
+                                                            setResetCode('')
+                                                        } else {
+                                                            toast.error(res.error)
+                                                        }
+                                                        setLoading(false)
+                                                    }}
+                                                    disabled={resetCode !== 'DELETE'}
+                                                    className="flex-1 py-2 bg-red-600 text-white rounded-lg text-xs font-bold disabled:opacity-50"
+                                                >
+                                                    CONFIRM
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

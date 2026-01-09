@@ -178,6 +178,15 @@ export function UserTable({
             )
         },
         {
+            header: 'Password',
+            accessorKey: 'password',
+            cell: (user: User) => (
+                <code className="text-[10px] bg-gray-100 px-2 py-1 rounded text-red-600 font-mono">
+                    {user.password || '••••••'}
+                </code>
+            )
+        },
+        {
             header: 'Actions',
             accessorKey: (user: User) => user.userId,
             cell: (user: User) => (
@@ -281,6 +290,86 @@ export function UserTable({
         </div>
     )
 
+    // Export State
+    const [showExportModal, setShowExportModal] = useState(false)
+    const [selectedColumns, setSelectedColumns] = useState({
+        fullName: true,
+        mobileNumber: true,
+        role: true,
+        campus: true,
+        referralCode: true,
+        confirmedReferrals: true,
+        status: true,
+        email: false,
+        empId: false,
+        childEprNo: false,
+        yearBenefit: false,
+        longTermBenefit: false,
+        joinedDate: false,
+        password: false
+    })
+
+    const handleExport = () => {
+        // Filter data based on search
+        const filteredData = users.filter(user =>
+            user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            user.mobileNumber?.includes(searchTerm) ||
+            user.referralCode?.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+
+        const headers = []
+        if (selectedColumns.fullName) headers.push('Full Name')
+        if (selectedColumns.mobileNumber) headers.push('Mobile Number')
+        if (selectedColumns.role) headers.push('Role')
+        if (selectedColumns.email) headers.push('Email')
+        if (selectedColumns.campus) headers.push('Campus')
+        if (selectedColumns.empId) headers.push('EMP ID')
+        if (selectedColumns.childEprNo) headers.push('Child ERP No')
+        if (selectedColumns.referralCode) headers.push('Referral Code')
+        if (selectedColumns.confirmedReferrals) headers.push('Confirmed Referrals')
+        if (selectedColumns.yearBenefit) headers.push('Year Benefit %')
+        if (selectedColumns.longTermBenefit) headers.push('Long Term Benefit %')
+        if (selectedColumns.joinedDate) headers.push('Joined Date')
+        if (selectedColumns.status) headers.push('Status')
+        if (selectedColumns.password) headers.push('Password')
+
+        const csvRows = [headers.join(',')]
+
+        for (const user of filteredData) {
+            const row = []
+            if (selectedColumns.fullName) row.push(`"${user.fullName || ''}"`)
+            if (selectedColumns.mobileNumber) row.push(`"${user.mobileNumber || ''}"`)
+            if (selectedColumns.role) row.push(`"${user.role || ''}"`)
+            if (selectedColumns.email) row.push(`"${user.email || ''}"`)
+            if (selectedColumns.campus) row.push(`"${user.assignedCampus || ''}"`)
+            if (selectedColumns.empId) row.push(`"${user.empId || ''}"`)
+            if (selectedColumns.childEprNo) row.push(`"${user.childEprNo || ''}"`)
+            if (selectedColumns.referralCode) row.push(`"${user.referralCode || ''}"`)
+            if (selectedColumns.confirmedReferrals) row.push(user.confirmedReferralCount || 0)
+            if (selectedColumns.yearBenefit) row.push(user.yearFeeBenefitPercent || 0)
+            if (selectedColumns.longTermBenefit) row.push(user.longTermBenefitPercent || 0)
+            if (selectedColumns.joinedDate) row.push(`"${new Date(user.createdAt).toLocaleDateString()}"`)
+            if (selectedColumns.status) row.push(`"${user.status}"`)
+            if (selectedColumns.password) row.push(`"${user.password || ''}"`)
+
+            csvRows.push(row.join(','))
+        }
+
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `ambassadors_export_${new Date().toISOString().split('T')[0]}.csv`
+        a.click()
+        setShowExportModal(false)
+        toast.success('Export downloaded successfully')
+    }
+
+    // Toggle Column Handler
+    const toggleColumn = (key: keyof typeof selectedColumns) => {
+        setSelectedColumns(prev => ({ ...prev, [key]: !prev[key] }))
+    }
+
     return (
         <div className="space-y-6 animate-fade-in relative">
             {/* Premium Header */}
@@ -292,10 +381,16 @@ export function UserTable({
                 gradientFrom="from-red-600"
                 gradientTo="to-red-600"
             >
-                <div className="flex gap-4">
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setShowExportModal(true)}
+                        className="px-4 py-3 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-xs hover:bg-gray-50 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-2 uppercase tracking-widest"
+                    >
+                        <Download size={16} /> Export
+                    </button>
                     <button
                         onClick={() => {
-                            const csvContent = "Full Name,Mobile Number,Role,Email,Campus Name,EMP ID,Child ERP No\nJohn Doe,9876543210,Staff,john@example.com,Achariya School,EMP001,\nJane Doe,9876543211,Parent,jane@example.com,Achariya School,,STU001"
+                            const csvContent = "Full Name,Mobile Number,Role,Email,Campus Name,EMP ID,Child ERP No,Academic Year,Password\nJohn Doe,9876543210,Staff,john@example.com,Achariya School,EMP001,,2025-2026,Pass@123\nJane Doe,9876543211,Parent,jane@example.com,Achariya School,,STU001,2025-2026,Pass@123"
                             const blob = new Blob([csvContent], { type: 'text/csv' })
                             const url = window.URL.createObjectURL(blob)
                             const a = document.createElement('a')
@@ -303,23 +398,23 @@ export function UserTable({
                             a.download = 'ambassador_template.csv'
                             a.click()
                         }}
-                        className="px-6 py-4 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-xs hover:bg-gray-50 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-3 uppercase tracking-widest"
+                        className="px-4 py-3 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-xs hover:bg-gray-50 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-2 uppercase tracking-widest"
                     >
-                        <Download size={18} /> Template
+                        <Download size={16} /> Template
                     </button>
                     <button
                         onClick={onBulkAdd}
-                        className="px-8 py-4 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-xs hover:bg-gray-50 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-3 uppercase tracking-widest"
+                        className="px-4 py-3 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-xs hover:bg-gray-50 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-2 uppercase tracking-widest"
                         suppressHydrationWarning
                     >
-                        <UserPlus size={18} /> Bulk Upload
+                        <UserPlus size={16} /> Bulk Upload
                     </button>
                     <button
                         onClick={onAddUser}
-                        className="px-10 py-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-2xl font-black text-xs shadow-2xl shadow-gray-900/20 hover:shadow-gray-900/40 hover:-translate-y-1 active:translate-y-0 transition-all flex items-center gap-3 uppercase tracking-widest border border-gray-700"
+                        className="px-5 py-3 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-2xl font-black text-xs shadow-2xl shadow-gray-900/20 hover:shadow-gray-900/40 hover:-translate-y-1 active:translate-y-0 transition-all flex items-center gap-2 uppercase tracking-widest border border-gray-700"
                         suppressHydrationWarning
                     >
-                        <UserPlus size={18} /> New Ambassador
+                        <UserPlus size={16} /> Add New
                     </button>
                 </div>
             </PremiumHeader>
@@ -369,19 +464,69 @@ export function UserTable({
                 </div>
             )}
 
-            <DataTable
-                data={users}
-                columns={columns as any}
-                searchKey={['fullName', 'referralCode', 'mobileNumber']}
-                searchValue={searchTerm}
-                onSearchChange={onSearchChange}
-                searchPlaceholder="Search ambassadors by name, code or mobile..."
-                pageSize={10}
-                renderExpandedRow={renderExpandedRow}
-                enableMultiSelection={true}
-                onSelectionChange={(selected) => setSelectedUsers(selected)}
-                uniqueKey="userId"
-            />
+            <div className="w-full overflow-x-auto pb-4">
+                <DataTable
+                    data={users}
+                    columns={columns as any}
+                    searchKey={['fullName', 'referralCode', 'mobileNumber']}
+                    searchValue={searchTerm}
+                    onSearchChange={onSearchChange}
+                    searchPlaceholder="Search ambassadors by name, code or mobile..."
+                    pageSize={10}
+                    renderExpandedRow={renderExpandedRow}
+                    enableMultiSelection={true}
+                    onSelectionChange={(selected) => setSelectedUsers(selected)}
+                    uniqueKey="userId"
+                />
+            </div>
+
+            {/* Export Modal */}
+            {showExportModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-lg font-bold text-gray-900">Export Data</h3>
+                            <button onClick={() => setShowExportModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <XCircle size={20} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4 mb-6 max-h-[60vh] overflow-y-auto pr-2">
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Select Columns</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                {Object.entries(selectedColumns).map(([key, value]) => (
+                                    <label key={key} className="flex items-center gap-2 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 cursor-pointer transition-all">
+                                        <input
+                                            type="checkbox"
+                                            checked={value}
+                                            onChange={() => toggleColumn(key as keyof typeof selectedColumns)}
+                                            className="w-4 h-4 rounded text-red-600 focus:ring-red-500 border-gray-300"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700 capitalize">
+                                            {key.replace(/([A-Z])/g, ' $1').trim()}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-4 border-t border-gray-100">
+                            <button
+                                onClick={() => setShowExportModal(false)}
+                                className="flex-1 py-3 text-gray-600 font-bold text-sm bg-gray-50 hover:bg-gray-100 rounded-xl transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleExport}
+                                className="flex-1 py-3 text-white font-bold text-sm bg-gray-900 hover:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+                            >
+                                <Download size={16} /> Download CSV
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* User Audit Timeline Modal */}
             {showAuditTimeline && selectedUserForAudit && (
@@ -397,3 +542,4 @@ export function UserTable({
         </div>
     )
 }
+

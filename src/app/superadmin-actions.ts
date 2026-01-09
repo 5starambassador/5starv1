@@ -822,8 +822,8 @@ export async function bulkAddUsers(users: Array<{
 export async function addAdmin(data: {
     adminName: string
     adminMobile: string
-    role: 'CampusHead' | 'CampusAdmin'
-    assignedCampus: string
+    role: 'CampusHead' | 'CampusAdmin' | 'Admission Admin' | 'Finance Admin' | 'Super Admin'
+    assignedCampus?: string | null
     password?: string
 }) {
     const admin = await getCurrentUser()
@@ -840,12 +840,16 @@ export async function addAdmin(data: {
             return { success: false, error: 'Mobile number already registered for admin' }
         }
 
+        const password = data.password || data.adminMobile
+        const hashedPassword = await bcrypt.hash(password, 10)
+
         const newAdmin = await prisma.admin.create({
             data: {
                 adminName: data.adminName,
                 adminMobile: data.adminMobile,
-                role: data.role === 'CampusHead' ? AdminRole.Campus_Head : AdminRole.Admission_Admin,
-                assignedCampus: data.assignedCampus
+                role: toAdminRole(data.role),
+                assignedCampus: data.assignedCampus || null,
+                password: hashedPassword
             }
         })
 

@@ -13,7 +13,7 @@ import prisma from '@/lib/prisma'
  * @param role - The user's role (e.g., 'Parent', 'Staff', 'Alumni')
  * @returns A string like 'ACH25-P00042'
  */
-export async function generateSmartReferralCode(role: string): Promise<string> {
+export async function generateSmartReferralCode(role: string, academicYear?: string): Promise<string> {
     const normalizedRole = role.toUpperCase()
     let rolePrefix = 'M' // Default for general members
 
@@ -22,17 +22,24 @@ export async function generateSmartReferralCode(role: string): Promise<string> {
     else if (normalizedRole.includes('ALUMNI')) rolePrefix = 'A'
 
     // Count existing users with this role to determine the next number
-    // We use a transaction or optimistic locking in a real strict env, 
-    // but for this scale, a direct count + 1 is acceptable.
+    // We use a transaction or optimistic locking in a real strict env
     const roleCount = await prisma.user.count({
-        where: { role: role }
+        where: { role: role as any } // Cast to any to bypass strict Enum check if needed, or import UserRole
     })
 
-    // Format: ACH25-P00001 (Start from 1, pad with 5 zeros)
-    // We add 1 to the count to get the next sequence number
+    // Format: ACH25-P00001
     const sequenceNumber = (roleCount + 1).toString().padStart(5, '0')
 
-    const yearSuffix = new Date().getFullYear().toString().slice(-2)
+    // Determine Year Suffix
+    // If academicYear is "2025-2026", we want "25"
+    let yearSuffix = new Date().getFullYear().toString().slice(-2)
+    if (academicYear) {
+        // Extract first 4 digits
+        const startYear = academicYear.split('-')[0] // "2025"
+        if (startYear && startYear.length === 4) {
+            yearSuffix = startYear.slice(-2) // "25"
+        }
+    }
 
     return `ACH${yearSuffix}-${rolePrefix}${sequenceNumber}`
 }

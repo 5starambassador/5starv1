@@ -101,9 +101,12 @@ function ReferralFormContent() {
             else if (item.toLowerCase().startsWith('grade -')) {
                 finalGrades.push(item)
             }
-            // Other formats like "Pre - Mont"
+            // Map legacy names to new names or keep existing
             else {
-                finalGrades.push(item)
+                if (item === 'Pre-KG') finalGrades.push('Pre-Mont')
+                else if (item === 'LKG') finalGrades.push('Mont-1')
+                else if (item === 'UKG') finalGrades.push('Mont-2')
+                else finalGrades.push(item)
             }
         })
         return finalGrades

@@ -63,7 +63,9 @@ export async function getSystemSettings() {
             allowNewRegistrations: false, // Fail-closed default
             currentAcademicYear: currentYearRecord?.year || '2025-2026',
             defaultStudentFee: 60000,
-            maintenanceMode: false
+            maintenanceMode: false,
+            id: 0,
+            updatedAt: new Date()
         }
 
         if (!settings) return defaultSettings
@@ -78,7 +80,9 @@ export async function getSystemSettings() {
             allowNewRegistrations: false,
             currentAcademicYear: '2025-2026',
             defaultStudentFee: 60000,
-            maintenanceMode: false
+            maintenanceMode: false,
+            id: 0,
+            updatedAt: new Date()
         }
     }
 }
@@ -138,8 +142,21 @@ export async function updateSystemSettings(rawData: any) {
         if (Object.keys(changeLog).length > 0) {
             await logAction('UPDATE', 'settings', `Config updated by ${user.fullName}`, id.toString(), null, { changes: changeLog })
         }
+
+        // Fetch current academic year
+        // @ts-ignore
+        const currentYearRecord = await prisma.academicYear.findFirst({
+            where: { isCurrent: true }
+        })
+
         revalidatePath('/superadmin')
-        return { success: true, data: settings }
+        return {
+            success: true,
+            data: {
+                ...settings,
+                currentAcademicYear: currentYearRecord?.year || '2025-2026'
+            }
+        }
     } catch (error) {
         console.error('Error updating system settings:', error)
         return { success: false, error: 'Failed' }

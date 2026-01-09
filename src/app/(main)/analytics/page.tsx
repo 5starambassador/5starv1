@@ -59,7 +59,9 @@ export default async function AnalyticsPage() {
         rawShareText = systemSettings?.parentReferralText || `Hello 👋 I'm part of Achariya's 5-Star Ambassador Program. I recommend you to explore admission for your child. Click here: {referralLink}`
     }
 
-    const shareText = rawShareText.replace(/\{referralLink\}|\$\{referralLink\}/g, referralLink)
+    const shareText = rawShareText
+        .replace(/\{referralLink\}|\$\{referralLink\}/g, referralLink)
+        .replace(/\{academicYear\}|\$\{academicYear\}/g, userData.academicYear || '2025-2026')
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`
 
     const permissions = await getMyPermissions()
