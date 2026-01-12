@@ -1,59 +1,10 @@
 
 > achariya-ambassador@0.1.0 build
-> next build
+> prisma generate && next build
 
-   Γû▓ Next.js 16.0.10 (Turbopack)
-   - Environments: .env
-
-   Creating an optimized production build ...
-
-> Build error occurred
-Error: Turbopack build failed with 3 errors:
-./src/app/(main)/campus/page.tsx:3:1
-Export confirmCampusReferral doesn't exist in target module
-  1 | import { getCurrentUser } from '@/lib/auth-service'
-  2 | import { redirect } from 'next/navigation'
-> 3 | import { getCampusAnalytics, getCampusReferrals, confirmCampusReferral } from '@/app/campus-actions'
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  4 | import { CampusClient } from './campus-client'
-  5 |
-  6 | export default async function CampusPage() {
-
-The export confirmCampusReferral was not found in module [project]/src/app/campus-actions.ts [app-rsc] (ecmascript).
-Did you mean to import getCampuses?
-All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Error: 
+EPERM: operation not permitted, rename 'F:\5 star\node_modules\.prisma\client\query_engine-windows.dll.node.tmp36996' -> 'F:\5 star\node_modules\.prisma\client\query_engine-windows.dll.node'
 
 
-./src/app/(main)/campus/page.tsx:3:1
-Export getCampusAnalytics doesn't exist in target module
-  1 | import { getCurrentUser } from '@/lib/auth-service'
-  2 | import { redirect } from 'next/navigation'
-> 3 | import { getCampusAnalytics, getCampusReferrals, confirmCampusReferral } from '@/app/campus-actions'
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  4 | import { CampusClient } from './campus-client'
-  5 |
-  6 | export default async function CampusPage() {
-
-The export getCampusAnalytics was not found in module [project]/src/app/campus-actions.ts [app-rsc] (ecmascript).
-Did you mean to import getCampuses?
-All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
-
-
-./src/app/(main)/campus/page.tsx:3:1
-Export getCampusReferrals doesn't exist in target module
-  1 | import { getCurrentUser } from '@/lib/auth-service'
-  2 | import { redirect } from 'next/navigation'
-> 3 | import { getCampusAnalytics, getCampusReferrals, confirmCampusReferral } from '@/app/campus-actions'
-    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  4 | import { CampusClient } from './campus-client'
-  5 |
-  6 | export default async function CampusPage() {
-
-The export getCampusReferrals was not found in module [project]/src/app/campus-actions.ts [app-rsc] (ecmascript).
-Did you mean to import getCampuses?
-All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
-
-
-    at <unknown> (./src/app/(main)/campus/page.tsx:3:1)
-    at <unknown> (./src/app/(main)/campus/page.tsx:3:1)
-    at <unknown> (./src/app/(main)/campus/page.tsx:3:1)

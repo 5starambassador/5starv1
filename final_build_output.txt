@@ -1,0 +1,93 @@
+
+> achariya-ambassador@0.1.0 build
+> prisma generate && next build
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+Γ£ö Generated Prisma Client (v5.22.0) to .\node_modules\@prisma\client in 218ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Curious about the SQL queries Prisma ORM generates? Optimize helps you enhance your visibility: https://pris.ly/tip-2-optimize
+
+   Γû▓ Next.js 16.0.10 (Turbopack)
+   - Environments: .env.production, .env
+   - Experiments (use with caution):
+     ┬╖ serverActions
+
+ ΓÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+   Creating an optimized production build ...
+
+> Build error occurred
+Error: Turbopack build failed with 4 errors:
+./src/app/(main)/design/purple-gold/analytics/page.tsx:5:1
+Module not found: Can't resolve '../../dashboard/year-dropdown'
+  3 | import Link from 'next/link'
+  4 | import { CheckCircle, AlertCircle, TrendingUp, Wallet, ArrowLeft, Star, Award, Zap } from 'lucide-react'
+> 5 | import { YearDropdown } from '../../dashboard/year-dropdown'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | export default async function AnalyticsDesignPage() {
+  8 |     const user = await getCurrentUser()
+
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./src/app/(main)/design/teal-coral/analytics/page.tsx:5:1
+Module not found: Can't resolve '../../dashboard/year-dropdown'
+  3 | import Link from 'next/link'
+  4 | import { CheckCircle, AlertCircle, TrendingUp, Wallet, ArrowLeft, Star, Award, Zap } from 'lucide-react'
+> 5 | import { YearDropdown } from '../../dashboard/year-dropdown'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | export default async function AnalyticsDesignPage() {
+  8 |     const user = await getCurrentUser()
+
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./src/app/(main)/design/purple-gold/page.tsx:4:1
+Module not found: Can't resolve '@/components/themes/ActionHomePurple'
+  2 | import { redirect } from 'next/navigation'
+  3 | import { getMyReferrals, getMyComparisonStats } from '@/app/referral-actions'
+> 4 | import { ActionHomePurple } from '@/components/themes/ActionHomePurple'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 | import { encryptReferralCode } from '@/lib/crypto'
+  6 |
+  7 | export default async function PurpleGoldDashboardPage() {
+
+Import map: aliased to relative './src/components/themes/ActionHomePurple' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./src/app/(main)/design/teal-coral/page.tsx:4:1
+Module not found: Can't resolve '@/components/themes/ActionHomeTeal'
+  2 | import { redirect } from 'next/navigation'
+  3 | import { getMyReferrals, getMyComparisonStats } from '@/app/referral-actions'
+> 4 | import { ActionHomeTeal } from '@/components/themes/ActionHomeTeal'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 | import { encryptReferralCode } from '@/lib/crypto'
+  6 |
+  7 | export default async function TealCoralDashboardPage() {
+
+Import map: aliased to relative './src/components/themes/ActionHomeTeal' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (./src/app/(main)/design/purple-gold/analytics/page.tsx:5:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./src/app/(main)/design/teal-coral/analytics/page.tsx:5:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./src/app/(main)/design/purple-gold/page.tsx:4:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./src/app/(main)/design/teal-coral/page.tsx:4:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
