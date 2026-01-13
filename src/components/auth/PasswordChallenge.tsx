@@ -36,7 +36,7 @@ export const PasswordChallenge = ({ mobile, onLogin, onBack, onForgotPassword, l
                             <span>Achariya Partnership Program (APP)</span>
                         </div>
                         <div className="inline-flex items-center px-4 py-1 rounded-full bg-slate-950/40 backdrop-blur-md border border-amber-500/30 text-[9px] font-black text-amber-500 uppercase tracking-[0.2em] shadow-[0_0_15px_rgba(245,158,11,0.1)]">
-                            25<sup className="text-[0.6em] ml-0.5">th</sup> Year Celebration
+                            25<sup className="text-[0.6em] ml-0.5">th</sup> <span className="ml-1.5">Year Celebration</span>
                         </div>
                     </div>
                 </div>

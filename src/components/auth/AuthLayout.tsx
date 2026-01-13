@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 export const AuthLayout = ({ children, animationKey }: { children: React.ReactNode, animationKey?: string | number }) => {
     return (
-        <main className="h-screen w-full flex bg-[#0f172a] overflow-hidden relative">
+        <main className="fixed inset-0 w-full h-full flex bg-[#0f172a] overflow-hidden z-40">
             {/* Unified Shared Background for Mobile/Desktop seamlessness */}
             <div className="absolute inset-0 bg-[url('/bg-pattern.png')] bg-cover opacity-10 z-0 pointer-events-none"></div>
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/20 blur-[100px] rounded-full translate-x-1/2 -translate-y-1/2 z-0 pointer-events-none"></div>

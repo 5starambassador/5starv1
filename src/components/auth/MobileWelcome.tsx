@@ -37,7 +37,7 @@ export function MobileWelcome({ onGetStarted }: MobileWelcomeProps) {
                             Partnership Program
                         </p>
                         <p className="text-amber-400 text-[10px] font-black uppercase tracking-[0.2em] mt-1.5 drop-shadow-md text-center">
-                            25<sup className="text-[0.6em]">th</sup> Year Celebration
+                            25<sup className="text-[0.6em]">th</sup> <span className="ml-1.5">Year Celebration</span>
                         </p>
                     </div>
                 </motion.div>
