@@ -194,10 +194,10 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, mont
                                             25<sup className="text-[0.6em] ml-0.5">th</sup> <span className="ml-1.5">Year Celebration</span>
                                         </div>
                                     </div>
-                                    <h1 className="text-2xl md:text-3xl font-black text-white mb-1 tracking-tighter leading-none">
+                                    <h1 className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tighter leading-none">
                                         {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-br from-white via-blue-100 to-blue-300">{firstName}</span>
                                     </h1>
-                                    <p className="text-blue-100/70 font-bold uppercase tracking-widest text-[9px]">
+                                    <p className="text-blue-100/70 font-bold uppercase tracking-widest text-[10px]">
                                         {subtitle || "Your Royal Impact Overview"}
                                     </p>
                                 </div>
