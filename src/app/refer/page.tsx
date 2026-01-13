@@ -191,7 +191,7 @@ function ReferralFormContent() {
     }
 
     return (
-        <div className="min-h-screen bg-[#0f172a] text-white font-[family-name:var(--font-outfit)] flex flex-col relative overflow-hidden">
+        <div className="fixed inset-0 w-full h-full overflow-y-auto bg-[#0f172a] text-white font-[family-name:var(--font-outfit)] flex flex-col z-40">
             {/* Ambient Background Effects */}
             <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
                 <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px]" />
@@ -203,9 +203,9 @@ function ReferralFormContent() {
             <header className="px-6 pt-12 pb-6 flex items-center justify-between sticky top-0 z-20">
                 <button
                     onClick={() => step > 1 ? setStep(prev => prev - 1) : router.push('/dashboard')}
-                    className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
+                    className="w-10 h-10 rounded-full flex items-center justify-center bg-white/15 border border-white/20 text-white hover:bg-white/25 transition-all z-50 group shadow-lg"
                 >
-                    <ChevronLeft size={20} className="text-white/80" />
+                    <ChevronLeft className="w-5 h-5 flex-shrink-0 group-hover:-translate-x-0.5 transition-transform" strokeWidth={2.5} />
                 </button>
                 <div className="flex flex-col items-center">
                     <span className="text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] mb-1">
