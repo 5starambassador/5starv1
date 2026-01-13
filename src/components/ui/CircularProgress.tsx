@@ -8,6 +8,7 @@ interface CircularProgressProps {
     strokeWidth?: number
     color?: string
     trackColor?: string
+    className?: string
     children?: ReactNode
 }
 
@@ -17,6 +18,7 @@ export function CircularProgress({
     size = 80,
     strokeWidth = 8,
     color = "text-white",
+    className = "",
     children
 }: CircularProgressProps) {
     const radius = (size - strokeWidth) / 2
@@ -26,7 +28,7 @@ export function CircularProgress({
 
     return (
         <div className="relative flex items-center justify-center p-2">
-            <svg width={size} height={size} className="rotate-[-90deg]">
+            <svg width={size} height={size} className={`rotate-[-90deg] ${className}`}>
                 {/* Background Circle */}
                 <circle
                     cx={size / 2}
@@ -35,9 +37,9 @@ export function CircularProgress({
                     stroke="currentColor"
                     strokeWidth={strokeWidth}
                     fill="transparent"
-                    className="text-white/10"
+                    className="text-white/[0.03]"
                 />
-                {/* Progress Circle */}
+                {/* Progress Circle with Glow Effect */}
                 <circle
                     cx={size / 2}
                     cy={size / 2}
@@ -48,7 +50,7 @@ export function CircularProgress({
                     strokeDasharray={circumference}
                     strokeDashoffset={dashoffset}
                     strokeLinecap="round"
-                    className={`${color} transition-all duration-1000 ease-out`}
+                    className={`${color} transition-all duration-1000 ease-out drop-shadow-[0_0_6px_rgba(251,191,36,0.5)]`}
                 />
             </svg>
             {/* Center Content */}

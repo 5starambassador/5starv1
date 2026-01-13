@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Star } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { NativeLogin } from '@/components/NativeLogin'
 
@@ -21,16 +22,14 @@ export const MobileEntry = ({ mobile, setMobile, onNext, loading }: MobileEntryP
                     className="h-14 sm:h-20 w-auto mx-auto mb-2 sm:mb-4 shadow-2xl"
                 />
 
-                <div className="flex flex-col items-center mb-4 sm:mb-6 w-full">
-                    <h2 className="text-white text-base sm:text-xl font-black tracking-tight drop-shadow-lg uppercase leading-tight text-center">
-                        Achariya
-                    </h2>
-                    <p className="text-[10px] sm:text-[11px] text-blue-200/70 font-bold uppercase tracking-widest text-center">
-                        Partnership Program
-                    </p>
-                    <p className="text-amber-400 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] mt-1.5 drop-shadow-md text-center">
-                        25<sup className="text-[0.6em]">th</sup> Year Celebration
-                    </p>
+                <div className="flex flex-col items-center gap-2.5 mb-8 w-full mt-2">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-600/20 backdrop-blur-xl border border-blue-400/20 text-[10px] font-black uppercase tracking-[0.15em] text-white shadow-xl">
+                        <Star size={12} className="text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]" />
+                        <span>Achariya Partnership Program (APP)</span>
+                    </div>
+                    <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-slate-950/40 backdrop-blur-md border border-amber-500/30 text-[10px] font-black text-amber-500 uppercase tracking-[0.2em] shadow-[0_0_15px_rgba(245,158,11,0.1)]">
+                        25<sup className="text-[0.6em] ml-0.5">th</sup> Year Celebration
+                    </div>
                 </div>
 
                 {/* Main Action Title - Dominant */}

@@ -1,4 +1,4 @@
-// Force rebuild
+// Force rebuild - restored git state
 import type { Config } from "tailwindcss";
 
 const config: Config = {

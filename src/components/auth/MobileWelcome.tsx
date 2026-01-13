@@ -61,21 +61,7 @@ export function MobileWelcome({ onGetStarted }: MobileWelcomeProps) {
                 </motion.div>
 
                 {/* Stats Grid */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.4 }}
-                    className="grid grid-cols-2 gap-3 mt-auto mb-8"
-                >
-                    <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 flex flex-col justify-center">
-                        <span className="text-[10px] uppercase tracking-wider text-blue-200/60 font-semibold mb-1">Total Rewards</span>
-                        <span className="text-2xl font-black text-white">₹1.2 Cr+</span>
-                    </div>
-                    <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 flex flex-col justify-center">
-                        <span className="text-[10px] uppercase tracking-wider text-blue-200/60 font-semibold mb-1">Active Ambassadors</span>
-                        <span className="text-2xl font-black text-white">2,400+</span>
-                    </div>
-                </motion.div>
+                {/* Stats Grid Removed */}
 
                 {/* Main Action */}
                 <motion.div

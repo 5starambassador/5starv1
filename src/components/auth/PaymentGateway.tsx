@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, Star } from 'lucide-react'
 
 
 interface PaymentGatewayProps {
@@ -21,13 +21,14 @@ export const PaymentGateway = ({ transactionId, setTransactionId, onComplete, on
                 >
                     <ChevronLeft className="w-5 h-5 flex-shrink-0 group-hover:-translate-x-0.5 transition-transform" strokeWidth={2.5} />
                 </button>
-                <div className="flex flex-col items-center mb-2 w-full">
-                    <p className="w-full text-blue-200 text-[10px] font-bold uppercase text-center leading-tight tracking-[0.2em] whitespace-nowrap">
-                        Achariya Partnership Program (APP)
-                    </p>
-                    <p className="text-amber-400 text-[10px] font-black uppercase tracking-[0.2em] mt-1 drop-shadow-md">
-                        25<sup className="text-[0.6em]">th</sup> Year Celebration
-                    </p>
+                <div className="flex flex-col items-center gap-2 mb-6 w-full">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/20 backdrop-blur-xl border border-blue-400/20 text-[9px] font-black uppercase tracking-[0.15em] text-white shadow-lg">
+                        <Star size={10} className="text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]" />
+                        <span>Achariya Partnership Program (APP)</span>
+                    </div>
+                    <div className="inline-flex items-center px-4 py-1 rounded-full bg-slate-950/40 backdrop-blur-md border border-amber-500/30 text-[9px] font-black text-amber-500 uppercase tracking-[0.2em] shadow-[0_0_15px_rgba(245,158,11,0.1)]">
+                        25<sup className="text-[0.6em] ml-0.5">th</sup> Year Celebration
+                    </div>
                 </div>
                 <h2 className="text-xl font-black text-white tracking-tight drop-shadow-md">Secure Payment</h2>
                 <div className="inline-block px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-sm">

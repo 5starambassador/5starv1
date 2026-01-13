@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, Star } from 'lucide-react'
 
 interface OtpVerificationProps {
     mobile: string
@@ -29,15 +29,15 @@ export const OtpVerification = ({ mobile, otp, setOtp, onVerify, onBack, loading
                         alt="Achariya 25th Year"
                         className="h-16 w-auto mb-3 shadow-2xl relative z-10"
                     />
-                    <h2 className="text-white text-base font-black tracking-tight drop-shadow-lg uppercase leading-tight text-center">
-                        Achariya
-                    </h2>
-                    <p className="text-[10px] text-blue-200/70 font-bold uppercase tracking-widest text-center">
-                        Partnership Program
-                    </p>
-                    <p className="text-amber-400 text-[10px] font-black uppercase tracking-[0.2em] mt-1.5 drop-shadow-md text-center">
-                        25<sup className="text-[0.6em]">th</sup> Year Celebration
-                    </p>
+                    <div className="flex flex-col items-center gap-2 mb-6 w-full">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/20 backdrop-blur-xl border border-blue-400/20 text-[9px] font-black uppercase tracking-[0.15em] text-white shadow-lg">
+                            <Star size={10} className="text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]" />
+                            <span>Achariya Partnership Program (APP)</span>
+                        </div>
+                        <div className="inline-flex items-center px-4 py-1 rounded-full bg-slate-950/40 backdrop-blur-md border border-amber-500/30 text-[9px] font-black text-amber-500 uppercase tracking-[0.2em] shadow-[0_0_15px_rgba(245,158,11,0.1)]">
+                            25<sup className="text-[0.6em] ml-0.5">th</sup> Year Celebration
+                        </div>
+                    </div>
                 </div>
                 <h2 className="text-xl font-black text-white tracking-tight drop-shadow-md">Verify Identity</h2>
                 <div className="inline-block px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm">

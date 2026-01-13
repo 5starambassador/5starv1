@@ -57,21 +57,7 @@ export const BrandSidebar = () => {
                 </motion.div>
 
                 {/* Live Stats Ticker (Simulated) */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.8, duration: 1 }}
-                    className="grid grid-cols-2 gap-4"
-                >
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
-                        <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest mb-1">Total Rewards</p>
-                        <p className="text-2xl font-black text-white">₹1.2 Cr+</p>
-                    </div>
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
-                        <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest mb-1">Active Ambassadors</p>
-                        <p className="text-2xl font-black text-white">2,400+</p>
-                    </div>
-                </motion.div>
+                {/* Stats Grid Removed */}
             </div>
 
             {/* Footer */}

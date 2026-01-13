@@ -1,0 +1,492 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../generated_client"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-1.1.x", "rhel-openssl-1.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  userId                 Int             @id @default(autoincrement())
+  fullName               String
+  mobileNumber           String          @unique
+  childInAchariya        Boolean
+  childName              String?
+  grade                  String?
+  campusId               Int?
+  bankAccountDetails     String?
+  referralCode           String?         @unique
+  confirmedReferralCount Int             @default(0)
+  yearFeeBenefitPercent  Float           @default(0)
+  longTermBenefitPercent Float           @default(0)
+  lastActiveYear         Int?
+  isFiveStarMember       Boolean         @default(false)
+  assignedCampus         String?
+  studentFee             Int             @default(60000)
+  academicYear           String          @default("2025-2026")
+  createdAt              DateTime        @default(now())
+  profileImage           String?
+  email                  String?
+  address                String?
+  paymentAmount          Int             @default(0)
+  paymentStatus          String          @default("Pending")
+  transactionId          String?
+  aadharNo               String?
+  childEprNo             String?
+  empId                  String?
+  password               String?
+  deletionRequestedAt    DateTime?
+  role                   UserRole        @default(Parent)
+  status                 AccountStatus   @default(Active)
+  benefitStatus          AccountStatus   @default(Active)
+  notifications          Notification[]
+  referrals              ReferralLead[]
+  settlements            Settlement[]
+  referredStudents       Student[]       @relation("StudentAmbassador")
+  students               Student[]       @relation("StudentParent")
+  supportTickets         SupportTicket[]
+
+  @@index([role])
+  @@index([assignedCampus])
+  @@index([status])
+  @@index([createdAt])
+  @@map("User")
+}
+
+model Student {
+  studentId       Int           @id @default(autoincrement())
+  fullName        String
+  parentId        Int
+  campusId        Int
+  grade           String
+  section         String?
+  rollNumber      String?
+  academicYear    String        @default("2025-2026")
+  status          String        @default("Active")
+  baseFee         Int           @default(60000)
+  discountPercent Float         @default(0)
+  referralLeadId  Int?          @unique
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  ambassadorId    Int?
+  admissionNumber String?       @unique
+  selectedFeeType FeeType?
+  annualFee       Int?
+  ambassador      User?         @relation("StudentAmbassador", fields: [ambassadorId], references: [userId])
+  campus          Campus        @relation(fields: [campusId], references: [id])
+  parent          User          @relation("StudentParent", fields: [parentId], references: [userId])
+  referralLead    ReferralLead? @relation(fields: [referralLeadId], references: [leadId])
+
+  @@index([parentId])
+  @@index([campusId])
+  @@index([ambassadorId])
+  @@index([createdAt])
+}
+
+enum FeeType {
+  OTP
+  WOTP
+}
+
+model ReferralLead {
+  leadId          Int        @id @default(autoincrement())
+  userId          Int
+  parentName      String
+  parentMobile    String
+  campusId        Int?
+  campus          String?
+  gradeInterested String?
+  admittedYear    String?
+  confirmedDate   DateTime?
+  createdAt       DateTime   @default(now())
+  studentName     String?
+  leadStatus      LeadStatus @default(New)
+  admissionNumber String?
+  section         String?
+  selectedFeeType FeeType?
+  annualFee       Int?
+  user            User       @relation(fields: [userId], references: [userId])
+  student         Student?
+
+  @@index([userId])
+  @@index([campus])
+  @@index([leadStatus])
+  @@index([createdAt])
+}
+
+model BenefitSlab {
+  slabId                Int     @id @default(autoincrement())
+  tierName              String?
+  referralCount         Int     @unique
+  yearFeeBenefitPercent Float
+  longTermExtraPercent  Float
+  baseLongTermPercent   Float   @default(15)
+  description           String?
+}
+
+model Admin {
+  adminId        Int            @id @default(autoincrement())
+  adminName      String
+  adminMobile    String         @unique
+  assignedCampus String?
+  createdAt      DateTime       @default(now())
+  profileImage   String?
+  email          String?
+  address        String?
+  password       String?
+  role           AdminRole      @default(Admission_Admin)
+  status         AccountStatus  @default(Active)
+  notifications  Notification[]
+
+  @@index([role])
+  @@index([assignedCampus])
+}
+
+model SystemSettings {
+  id                    Int      @id @default(autoincrement())
+  allowNewRegistrations Boolean  @default(true)
+  defaultStudentFee     Int      @default(60000)
+  maintenanceMode       Boolean  @default(false)
+  staffReferralText     String?  @default("Hello 👋 I’m part of Achariya’s 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: ${referralLink} – Achariya Ambassador")
+  parentReferralText    String?  @default("Hello 👋 I’m part of Achariya’s 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: ${referralLink} – Achariya Ambassador")
+  staffWelcomeMessage   String?  @default("Welcome to the Staff Ambassador Dashboard")
+  parentWelcomeMessage  String?  @default("Welcome to the Parent Ambassador Dashboard")
+  updatedAt             DateTime @updatedAt
+  updatedBy             String?
+  alumniReferralText    String?  @default("Hello 👋 I'm part of Achariya's 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: ${referralLink} – Achariya Ambassador")
+  alumniWelcomeMessage  String?  @default("Welcome to the Alumni Ambassador Dashboard")
+}
+
+model AcademicYear {
+  id        Int      @id @default(autoincrement())
+  year      String   @unique
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(true)
+  isCurrent Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LeadManagementSettings {
+  id                        Int      @id @default(autoincrement())
+  autoAssignLeads           Boolean  @default(true)
+  leadStaleDays             Int      @default(30)
+  followupEscalationDays    Int      @default(7)
+  duplicateDetectionEnabled Boolean  @default(true)
+  updatedAt                 DateTime @updatedAt
+  updatedBy                 String?
+}
+
+model SecuritySettings {
+  id                       Int      @id @default(autoincrement())
+  sessionTimeoutMinutes    Int      @default(30)
+  maxLoginAttempts         Int      @default(5)
+  passwordResetExpiryHours Int      @default(24)
+  twoFactorAuthEnabled     Boolean  @default(false)
+  updatedAt                DateTime @updatedAt
+  updatedBy                String?
+  ipWhitelist              String?
+}
+
+model DataRetentionSettings {
+  id                     Int      @id @default(autoincrement())
+  keepInactiveDataMonths Int      @default(12)
+  archiveLeadsAfterDays  Int      @default(365)
+  backupFrequencyDays    Int      @default(7)
+  updatedAt              DateTime @updatedAt
+  updatedBy              String?
+}
+
+model RolePermissions {
+  id                       Int      @id @default(autoincrement())
+  role                     String   @unique
+  analyticsAccess          Boolean  @default(true)
+  analyticsScope           String   @default("all")
+  userMgmtAccess           Boolean  @default(true)
+  userMgmtScope            String   @default("all")
+  userMgmtCreate           Boolean  @default(false)
+  userMgmtEdit             Boolean  @default(false)
+  userMgmtDelete           Boolean  @default(false)
+  studentMgmtAccess        Boolean  @default(true)
+  studentMgmtScope         String   @default("all")
+  adminMgmtAccess          Boolean  @default(false)
+  adminMgmtScope           String   @default("none")
+  adminMgmtCreate          Boolean  @default(false)
+  adminMgmtEdit            Boolean  @default(false)
+  adminMgmtDelete          Boolean  @default(false)
+  campusPerfAccess         Boolean  @default(true)
+  campusPerfScope          String   @default("all")
+  reportsAccess            Boolean  @default(true)
+  reportsScope             String   @default("all")
+  settlementsAccess        Boolean  @default(false)
+  settlementsScope         String   @default("none")
+  marketingKitAccess       Boolean  @default(false)
+  marketingKitScope        String   @default("none")
+  auditLogAccess           Boolean  @default(false)
+  auditLogScope            String   @default("none")
+  supportDeskAccess        Boolean  @default(false)
+  supportDeskScope         String   @default("none")
+  referralSubmissionAccess Boolean  @default(true)
+  referralSubmissionScope  String   @default("self")
+  referralTrackingAccess   Boolean  @default(true)
+  referralTrackingScope    String   @default("self")
+  savingsCalculatorAccess  Boolean  @default(true)
+  savingsCalculatorScope   String   @default("self")
+  rulesAccessAccess        Boolean  @default(true)
+  rulesAccessScope         String   @default("all")
+  settingsAccess           Boolean  @default(false)
+  settingsScope            String   @default("none")
+  updatedAt                DateTime @updatedAt
+  updatedBy                String?
+  studentMgmtCreate        Boolean  @default(true)
+  studentMgmtDelete        Boolean  @default(false)
+  studentMgmtEdit          Boolean  @default(true)
+  deletionHubAccess        Boolean  @default(false)
+  deletionHubScope         String   @default("none")
+  passwordResetAccess      Boolean  @default(false)
+  passwordResetScope       String   @default("none")
+  engagementCentreAccess   Boolean  @default(false)
+  engagementCentreScope    String   @default("none")
+  feeManagementAccess      Boolean  @default(false)
+  feeManagementScope       String   @default("none")
+}
+
+model Settlement {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  amount        Float
+  status        String    @default("Pending")
+  paymentMethod String?
+  bankReference String?
+  payoutDate    DateTime?
+  processedBy   Int?
+  remarks       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [userId])
+}
+
+model Resource {
+  id           Int      @id @default(autoincrement())
+  title        String
+  description  String?
+  type         String
+  category     String
+  fileUrl      String
+  thumbnailUrl String?
+  isActive     Boolean  @default(true)
+  uploadedBy   Int
+  createdAt    DateTime @default(now())
+}
+
+model ActivityLog {
+  id          Int      @id @default(autoincrement())
+  adminId     Int?
+  userId      Int?
+  action      String
+  module      String
+  targetId    String?
+  description String
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  metadata    Json?
+}
+
+model SupportTicket {
+  id              Int             @id @default(autoincrement())
+  userId          Int
+  subject         String
+  category        String
+  priority        String          @default("Medium")
+  status          String          @default("Open")
+  assignedAdminId Int?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  campus          String?
+  message         String
+  resolvedAt      DateTime?
+  escalationLevel Int             @default(1)
+  lastEscalatedAt DateTime?
+  user            User            @relation(fields: [userId], references: [userId])
+  messages        TicketMessage[]
+}
+
+model TicketMessage {
+  id         Int           @id @default(autoincrement())
+  ticketId   Int
+  senderId   Int
+  senderType String
+  message    String
+  isInternal Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id])
+}
+
+model Campus {
+  id                Int            @id @default(autoincrement())
+  campusName        String         @unique
+  campusCode        String         @unique
+  location          String
+  grades            String
+  maxCapacity       Int            @default(500)
+  currentEnrollment Int            @default(0)
+  isActive          Boolean        @default(true)
+  campusHeadId      Int?
+  contactEmail      String?
+  contactPhone      String?
+  address           String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  targets           CampusTarget[]
+  gradeFees         GradeFee[]
+  students          Student[]
+}
+
+model CampusTarget {
+  id              Int      @id @default(autoincrement())
+  campusId        Int
+  month           Int
+  year            Int
+  leadTarget      Int      @default(0)
+  admissionTarget Int      @default(0)
+  updatedAt       DateTime @updatedAt
+  campus          Campus   @relation(fields: [campusId], references: [id])
+
+  @@unique([campusId, month, year])
+  @@index([campusId])
+}
+
+model GradeFee {
+  id             Int    @id @default(autoincrement())
+  grade          String
+  annualFee_otp  Int?
+  annualFee_wotp Int?
+  campusId       Int
+  academicYear   String @default("2025-2026")
+  campus         Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+  @@unique([campusId, grade, academicYear])
+}
+
+model NotificationSettings {
+  id                          Int      @id @default(autoincrement())
+  emailNotifications          Boolean  @default(true)
+  smsNotifications            Boolean  @default(false)
+  whatsappNotifications       Boolean  @default(true)
+  leadFollowupReminders       Boolean  @default(true)
+  reminderFrequencyDays       Int      @default(3)
+  notifySuperAdminOnNewAdmins Boolean  @default(true)
+  notifyCampusHeadOnNewLeads  Boolean  @default(true)
+  updatedAt                   DateTime @updatedAt
+  updatedBy                   String?
+}
+
+model MarketingAsset {
+  id           Int      @id @default(autoincrement())
+  name         String
+  category     String
+  description  String?
+  fileUrl      String
+  fileType     String?
+  fileSize     Int?
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  uploadedById Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model OtpVerification {
+  id        Int      @id @default(autoincrement())
+  mobile    String   @unique
+  otp       String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  adminId   Int?
+  title     String
+  message   String
+  type      String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  admin     Admin?   @relation(fields: [adminId], references: [adminId])
+  user      User?    @relation(fields: [userId], references: [userId])
+}
+
+model Campaign {
+  id             Int           @id @default(autoincrement())
+  name           String
+  subject        String
+  templateBody   String
+  type           String        @default("EMAIL")
+  status         String        @default("DRAFT")
+  targetAudience Json?
+  schedule       String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  lastRunAt      DateTime?
+  logs           CampaignLog[]
+}
+
+model CampaignLog {
+  id             Int      @id @default(autoincrement())
+  campaignId     Int
+  runAt          DateTime @default(now())
+  status         String
+  recipientCount Int      @default(0)
+  sentCount      Int      @default(0)
+  failedCount    Int      @default(0)
+  errorLog       Json?
+  campaign       Campaign @relation(fields: [campaignId], references: [id])
+}
+
+model RateLimit {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime
+}
+
+enum AccountStatus {
+  Active
+  Inactive
+  Pending
+  Suspended
+  Deletion_Requested @map("Deletion Requested")
+  Deleted
+}
+
+enum AdminRole {
+  Super_Admin     @map("Super Admin")
+  Finance_Admin   @map("Finance Admin")
+  Campus_Head     @map("Campus Head")
+  Admission_Admin @map("Admission Admin")
+  Campus_Admin    @map("Campus Admin")
+}
+
+enum LeadStatus {
+  New
+  Interested
+  Contacted
+  Follow_up  @map("Follow-up")
+  Confirmed
+  Admitted
+  Closed
+  Rejected
+}
+
+enum UserRole {
+  Parent
+  Staff
+  Alumni
+  Others
+}
