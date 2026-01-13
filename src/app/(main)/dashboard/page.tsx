@@ -91,7 +91,10 @@ export default async function DashboardPage() {
     return (
         <div className="-mx-2 xl:mx-0 relative">
             {/* Royal Glass Background Layer */}
-            <div className="fixed inset-0 bg-[#0f172a] -z-50" />
+            <div className="fixed inset-0 bg-[#0f172a] -z-50">
+                {/* Brightness Booster Layer - Global Fix */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/40 via-slate-900/60 to-slate-900 z-0 opacity-100" />
+            </div>
             <div className="fixed inset-0 bg-[url('/bg-pattern.png')] bg-cover opacity-10 -z-40 pointer-events-none" />
             <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-blue-600/20 blur-[100px] rounded-full translate-x-1/2 -translate-y-1/2 -z-40 pointer-events-none" />
             <div className="fixed bottom-0 left-0 w-[500px] h-[500px] bg-indigo-600/10 blur-[100px] rounded-full -translate-x-1/3 translate-y-1/3 -z-40 pointer-events-none" />

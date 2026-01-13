@@ -6,6 +6,7 @@ import { createTicket, getUserTickets } from '@/app/ticket-actions'
 import { TicketChatModal } from '@/components/support/ticket-chat-modal'
 import { toast } from 'sonner'
 import { PageAnimate, PageItem } from '@/components/PageAnimate'
+import { ScrollLock } from '@/components/ui/ScrollLock'
 
 export default function SupportPage() {
     const [tickets, setTickets] = useState<any[]>([])
@@ -76,22 +77,31 @@ export default function SupportPage() {
     }
 
     return (
-        <div className="-mx-2 xl:mx-0 relative font-[family-name:var(--font-outfit)]">
+        <div className="fixed inset-0 w-full h-full overflow-y-auto bg-[#0f172a] z-[100] font-[family-name:var(--font-outfit)] overscroll-y-contain">
+            <ScrollLock />
             {/* Force Dark Background Overlay */}
-            <div className="absolute inset-0 bg-[#0f172a] -z-10" />
+            {/* Force Dark Background Overlay */}
+            <div className="absolute inset-0 bg-[#0f172a] -z-10">
+                {/* Brightness Booster Layer - Increased Intensity */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/40 via-slate-900/60 to-slate-900 z-0 opacity-100" />
+            </div>
 
             <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
                 <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px]" />
                 <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[120px]" />
             </div>
 
-            <PageAnimate className="max-w-4xl mx-auto flex flex-col gap-8 pb-12 relative z-10">
-                {/* Premium Header - Glass Theme */}
-                <PageItem className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 md:p-8 rounded-[32px] shadow-2xl flex flex-wrap items-center justify-between gap-6 relative overflow-hidden group">
+            {/* Main Content Container - Aggressively Centered for Visible Gaps (Matching Profile) */}
+            <PageAnimate className="w-[90%] max-w-lg mx-auto flex flex-col gap-4 pb-64 relative z-10 top-0">
+                {/* SAFE SPACER - Forces content down below fixed headers */}
+                <div className="w-full h-14 shrink-0" />
+
+                {/* Premium Header - Glass Theme - Compacted */}
+                <PageItem className="bg-white/5 backdrop-blur-xl border border-white/10 p-4 rounded-[24px] shadow-2xl flex flex-wrap items-center justify-between gap-4 relative overflow-hidden group">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 opacity-50 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="flex items-center gap-6">
-                        <div className="p-4 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
-                            <MessageSquare size={28} className="text-white" />
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
+                            <MessageSquare size={20} className="text-white" />
                         </div>
                         <div>
                             <h1 className="text-3xl font-black text-white tracking-tight uppercase leading-none mb-2">Support Desk</h1>
@@ -106,36 +116,33 @@ export default function SupportPage() {
                     </button>
                 </PageItem>
 
-                {/* Premium Stats Cards - Glass Theme */}
-                <PageItem className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                {/* Premium Stats Cards - Glass Theme - Compacted */}
+                <PageItem className="grid grid-cols-3 gap-3">
                     {/* Open */}
-                    <div className="bg-white/5 backdrop-blur-lg p-6 rounded-[28px] border border-white/10 shadow-xl relative overflow-hidden group hover:bg-white/10 transition-colors">
+                    <div className="bg-white/5 backdrop-blur-lg p-3 rounded-[20px] border border-white/10 shadow-xl relative overflow-hidden group hover:bg-white/10 transition-colors">
                         <div className="absolute -right-4 -bottom-4 bg-blue-500/20 w-32 h-32 rounded-full blur-2xl group-hover:bg-blue-500/30 transition-colors" />
-                        <div className="flex items-center gap-2 mb-4 relative z-10">
-                            <Clock size={18} className="text-blue-300" />
-                            <span className="text-[10px] font-black text-blue-200 uppercase tracking-widest">Open Cases</span>
+                        <div className="flex flex-col items-center justify-center gap-1 relative z-10 text-center">
+                            <span className="text-[9px] font-black text-blue-200 uppercase tracking-wider">Open</span>
+                            <p className="text-2xl font-black text-white tracking-tighter">{openCount}</p>
                         </div>
-                        <p className="text-5xl font-black text-white tracking-tighter relative z-10">{openCount}</p>
                     </div>
 
                     {/* In-Progress */}
-                    <div className="bg-white/5 backdrop-blur-lg p-6 rounded-[28px] border border-white/10 shadow-xl relative overflow-hidden group hover:bg-white/10 transition-colors">
+                    <div className="bg-white/5 backdrop-blur-lg p-3 rounded-[20px] border border-white/10 shadow-xl relative overflow-hidden group hover:bg-white/10 transition-colors">
                         <div className="absolute -right-4 -bottom-4 bg-amber-500/20 w-32 h-32 rounded-full blur-2xl group-hover:bg-amber-500/30 transition-colors" />
-                        <div className="flex items-center gap-2 mb-4 relative z-10">
-                            <AlertCircle size={18} className="text-amber-300" />
-                            <span className="text-[10px] font-black text-amber-200 uppercase tracking-widest">In-Progress</span>
+                        <div className="flex flex-col items-center justify-center gap-1 relative z-10 text-center">
+                            <span className="text-[9px] font-black text-amber-200 uppercase tracking-wider">Active</span>
+                            <p className="text-2xl font-black text-white tracking-tighter">{inProgressCount}</p>
                         </div>
-                        <p className="text-5xl font-black text-white tracking-tighter relative z-10">{inProgressCount}</p>
                     </div>
 
                     {/* Resolved */}
-                    <div className="bg-white/5 backdrop-blur-lg p-6 rounded-[28px] border border-white/10 shadow-xl relative overflow-hidden group hover:bg-white/10 transition-colors">
+                    <div className="bg-white/5 backdrop-blur-lg p-3 rounded-[20px] border border-white/10 shadow-xl relative overflow-hidden group hover:bg-white/10 transition-colors">
                         <div className="absolute -right-4 -bottom-4 bg-emerald-500/20 w-32 h-32 rounded-full blur-2xl group-hover:bg-emerald-500/30 transition-colors" />
-                        <div className="flex items-center gap-2 mb-4 relative z-10">
-                            <CheckCircle2 size={18} className="text-emerald-300" />
-                            <span className="text-[10px] font-black text-emerald-200 uppercase tracking-widest">Resolved</span>
+                        <div className="flex flex-col items-center justify-center gap-1 relative z-10 text-center">
+                            <span className="text-[9px] font-black text-emerald-200 uppercase tracking-wider">Done</span>
+                            <p className="text-2xl font-black text-white tracking-tighter">{resolvedCount}</p>
                         </div>
-                        <p className="text-5xl font-black text-white tracking-tighter relative z-10">{resolvedCount}</p>
                     </div>
                 </PageItem>
 

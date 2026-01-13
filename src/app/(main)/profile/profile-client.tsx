@@ -8,6 +8,7 @@ import { requestAccountDeletion } from '@/app/deletion-actions'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PageAnimate, PageItem } from '@/components/PageAnimate'
+import { ScrollLock } from '@/components/ui/ScrollLock'
 
 interface ProfileClientProps {
     user: {
@@ -43,7 +44,8 @@ export default function ProfileClient({ user }: ProfileClientProps) {
 
     // Derived or safe default stats
     const referralCount = (user as any).confirmedReferralCount || 0
-    const totalEarned = ((user as any).studentFee || 60000) * ((user.yearFeeBenefitPercent || 0) / 100)
+    // Use projectedValue passed from server side calculations (Matches Dashboard Projected Growth)
+    const totalEarned = (user as any).projectedValue !== undefined ? (user as any).projectedValue : 0
 
     const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -113,38 +115,50 @@ export default function ProfileClient({ user }: ProfileClientProps) {
     }
 
     return (
-        <div className="relative min-h-screen text-white font-[family-name:var(--font-outfit)] pb-24 -mt-20 pt-20">
+        <div className="fixed inset-0 w-full h-full overflow-y-auto bg-[#0f172a] z-[100] font-[family-name:var(--font-outfit)] overscroll-y-contain">
+            <ScrollLock />
             {/* Force Dark Background Overlay to override global layout */}
-            <div className="absolute inset-0 bg-[#0f172a] z-0"></div>
+            {/* Force Dark Background Overlay to override global layout */}
+            <div className="absolute inset-0 bg-slate-900 z-0">
+                {/* Brightness Booster Layer */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 via-slate-900/50 to-slate-900 z-0 opacity-100" />
+            </div>
 
             {/* Ambient Background Effects */}
             <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-                <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px]" />
-                <div className="absolute top-[30%] right-[-10%] w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-[100px]" />
-                <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] bg-pink-600/5 rounded-full blur-[120px]" />
+                <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-500/20 rounded-full blur-[120px]" />
+                <div className="absolute top-[20%] right-[-10%] w-[400px] h-[400px] bg-purple-500/20 rounded-full blur-[100px]" />
+                <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-[120px]" />
             </div>
 
-            <PageAnimate className="relative z-10 max-w-lg mx-auto flex flex-col px-6">
+            {/* Main Content Container - Aggressively Centered for Visible Gaps */}
+            <PageAnimate className="relative z-10 w-[90%] max-w-sm mx-auto flex flex-col pb-24 top-0">
+                {/* SAFE SPACER - Forces content down below fixed headers */}
+                <div className="w-full h-14 shrink-0" />
 
-                {/* Header */}
-                <header className="py-6 flex items-center justify-between">
-                    <h1 className="text-xl font-bold tracking-tight">My Profile</h1>
-                    {!isEditing ? (
+                <header className="py-6 flex items-center justify-between pl-2 relative">
+                    <h1 className="text-xl font-black text-white tracking-tight uppercase">My Profile</h1>
+
+                    {!isEditing && (
                         <button
                             onClick={() => setIsEditing(true)}
-                            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
+                            className="absolute top-6 right-0 w-10 h-10 rounded-full bg-white/20 border border-white/50 flex items-center justify-center z-[9999] shadow-md active:scale-95"
+                            aria-label="Edit Profile"
                         >
-                            <Edit2 size={18} className="text-white/80" />
-                        </button>
-                    ) : (
-                        <div className="flex gap-2">
-                            <button
-                                onClick={handleCancel}
-                                className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
+                            <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="#ffffff"
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="drop-shadow-sm"
                             >
-                                <X size={18} className="text-white/80" />
-                            </button>
-                        </div>
+                                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                            </svg>
+                        </button>
                     )}
                 </header>
 
@@ -179,7 +193,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                         )}
                     </div>
 
-                    <h2 className="text-2xl font-bold mb-1 text-center">{fullName}</h2>
+                    <h2 className="text-2xl font-black text-white mb-1 text-center tracking-tight">{fullName}</h2>
 
                     {user.yearFeeBenefitPercent !== undefined && (
                         <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 mb-6">
@@ -255,51 +269,51 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                         </div>
                     ) : (
                         <>
-                            {/* Read-Only Menu Links */}
-                            <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden divide-y divide-white/5">
-                                <div className="p-4 flex items-center gap-4 hover:bg-white/5 transition-colors group">
+                            {/* Read-Only Menu Links - Separated Cards for Premium Feel */}
+                            <div className="flex flex-col gap-4">
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4 hover:bg-white/10 transition-colors group">
                                     <div className="w-10 h-10 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                                         <Phone size={18} />
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-xs text-white/40 font-bold uppercase tracking-wide">Mobile</p>
-                                        <p className="text-sm font-medium text-white">{user.mobileNumber || user.adminMobile || 'N/A'}</p>
+                                        <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-0.5">Mobile</p>
+                                        <p className="text-sm font-bold text-white tracking-tight">{user.mobileNumber || user.adminMobile || 'N/A'}</p>
                                     </div>
                                 </div>
 
-                                <div className="p-4 flex items-center gap-4 hover:bg-white/5 transition-colors group">
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4 hover:bg-white/10 transition-colors group">
                                     <div className="w-10 h-10 rounded-full bg-purple-500/10 text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                                         <Mail size={18} />
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-xs text-white/40 font-bold uppercase tracking-wide">Email</p>
-                                        <p className="text-sm font-medium text-white">{email || 'Not provided'}</p>
+                                        <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-0.5">Email</p>
+                                        <p className="text-sm font-bold text-white tracking-tight">{email || 'Not provided'}</p>
                                     </div>
                                 </div>
 
-                                <div className="p-4 flex items-center gap-4 hover:bg-white/5 transition-colors group">
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4 hover:bg-white/10 transition-colors group">
                                     <div className="w-10 h-10 rounded-full bg-pink-500/10 text-pink-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                                         <MapPin size={18} />
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-xs text-white/40 font-bold uppercase tracking-wide">Location</p>
-                                        <p className="text-sm font-medium text-white truncate max-w-[200px]">{address || 'No address set'}</p>
+                                        <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-0.5">Location</p>
+                                        <p className="text-sm font-bold text-white tracking-tight truncate max-w-[200px]">{address || 'No address set'}</p>
                                     </div>
                                 </div>
 
-                                <div className="p-4 flex items-center gap-4 hover:bg-white/5 transition-colors group">
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4 hover:bg-white/10 transition-colors group">
                                     <div className="w-10 h-10 rounded-full bg-teal-500/10 text-teal-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                                         <Calendar size={18} />
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-xs text-white/40 font-bold uppercase tracking-wide">Member Since</p>
-                                        <p className="text-sm font-medium text-white">{new Date(user.createdAt).getFullYear()}</p>
+                                        <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-0.5">Member Since</p>
+                                        <p className="text-sm font-bold text-white tracking-tight">{new Date(user.createdAt).getFullYear()}</p>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Danger Zone Links */}
-                            <div className="space-y-3 pt-4">
+                            <div className="space-y-4 pt-2">
                                 <button
                                     onClick={() => setShowPrivacyModal(true)}
                                     className="w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all group active:scale-[0.98]"
@@ -310,12 +324,11 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                         </div>
                                         <div className="text-left">
                                             <h3 className="font-bold text-white text-sm">Privacy & Security</h3>
-                                            <p className="text-xs text-white/40">Manage data & policies</p>
+                                            <p className="text-[10px] text-white/40 uppercase tracking-widest">Manage data & policies</p>
                                         </div>
                                     </div>
                                     <ChevronRight size={18} className="text-white/20 group-hover:text-white/50 transition-colors" />
                                 </button>
-
                                 <button
                                     onClick={() => setShowDeleteConfirm(true)}
                                     className="w-full flex items-center justify-between p-4 rounded-2xl bg-red-500/5 border border-red-500/10 hover:bg-red-500/10 hover:border-red-500/20 transition-all group active:scale-[0.98]"
@@ -326,7 +339,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                         </div>
                                         <div className="text-left">
                                             <h3 className="font-bold text-red-400 text-sm">Delete Account</h3>
-                                            <p className="text-xs text-red-400/50">Permanent action</p>
+                                            <p className="text-[10px] text-red-400/50 uppercase tracking-widest">Permanent action</p>
                                         </div>
                                     </div>
                                     <ChevronRight size={18} className="text-red-400/20 group-hover:text-red-400/50 transition-colors" />
@@ -345,7 +358,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                         </button>
                     </form>
                     <p className="text-center text-[10px] text-white/20 mt-6 uppercase tracking-widest">
-                        Achariya Ambassador • v2.5.0
+                        Achariya Partnership Program • v2.5.0
                     </p>
                 </div>
 
@@ -370,6 +383,6 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                 }}
                 onCancel={() => setShowDeleteConfirm(false)}
             />
-        </div>
+        </div >
     )
 }

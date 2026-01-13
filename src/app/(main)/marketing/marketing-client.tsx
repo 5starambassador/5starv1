@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PageAnimate, PageItem } from '@/components/PageAnimate'
+import { ScrollLock } from '@/components/ui/ScrollLock'
 
 interface Asset {
     id: number
@@ -78,16 +79,25 @@ export function MarketingClient({ grouped, categories, referralCode }: Marketing
     }
 
     return (
-        <div className="-mx-2 xl:mx-0 relative font-[family-name:var(--font-outfit)]">
+        <div className="fixed inset-0 w-full h-full overflow-y-auto bg-[#0f172a] z-[100] font-[family-name:var(--font-outfit)] overscroll-y-contain">
+            <ScrollLock />
             {/* Force Dark Background Overlay */}
-            <div className="absolute inset-0 bg-[#0f172a] -z-10" />
+            {/* Force Dark Background Overlay */}
+            <div className="absolute inset-0 bg-[#0f172a] -z-10">
+                {/* Brightness Booster Layer - Increased Intensity */}
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/40 via-slate-900/60 to-slate-900 z-0 opacity-100" />
+            </div>
 
             <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
                 <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-amber-600/10 rounded-full blur-[120px]" />
                 <div className="absolute bottom-[-10%] left-[10%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px]" />
             </div>
 
-            <PageAnimate className="max-w-6xl mx-auto flex flex-col gap-8 pb-20 relative z-10">
+            {/* Main Content Container - Aggressively Centered for Visible Gaps */}
+            <PageAnimate className="w-[90%] max-w-6xl mx-auto flex flex-col gap-8 pb-32 relative z-10 top-0">
+                {/* SAFE SPACER - Forces content down below fixed headers */}
+                <div className="w-full h-14 shrink-0" />
+
                 {/* Header Section */}
                 <PageItem className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div>
@@ -120,8 +130,8 @@ export function MarketingClient({ grouped, categories, referralCode }: Marketing
                     <button
                         onClick={() => setActiveCategory('All')}
                         className={`px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider transition-all border ${activeCategory === 'All'
-                                ? 'bg-amber-500 text-white border-amber-400 shadow-lg shadow-amber-500/20'
-                                : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'
+                            ? 'bg-amber-500 text-white border-amber-400 shadow-lg shadow-amber-500/20'
+                            : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'
                             }`}
                     >
                         All Assets
@@ -131,8 +141,8 @@ export function MarketingClient({ grouped, categories, referralCode }: Marketing
                             key={cat}
                             onClick={() => setActiveCategory(cat)}
                             className={`px-5 py-2.5 rounded-full text-sm font-bold uppercase tracking-wider transition-all border ${activeCategory === cat
-                                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-600/20'
-                                    : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'
+                                ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-600/20'
+                                : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'
                                 }`}
                         >
                             {cat}

@@ -4,6 +4,8 @@ import { PageAnimate } from '@/components/PageAnimate'
 import { ChevronLeft, Download, Clock, CheckCircle2, MoreVertical, FileDown, User, MapPin, GraduationCap } from 'lucide-react'
 import Link from 'next/link'
 
+import { ScrollLock } from '@/components/ui/ScrollLock'
+
 export default async function ReferralsPage() {
     const referrals = await getMyReferrals()
     const user = await getCurrentUser()
@@ -13,9 +15,14 @@ export default async function ReferralsPage() {
     const asset = referrals.filter((r: any) => r.leadStatus === 'Confirmed' || r.leadStatus === 'Rejected')
 
     return (
-        <div className="-mt-8 pt-8 min-h-screen relative font-[family-name:var(--font-outfit)] pb-20">
+        <div className="fixed inset-0 w-full h-full overflow-y-auto bg-[#0f172a] font-[family-name:var(--font-outfit)] pb-32 z-[100] overscroll-y-contain">
+            <ScrollLock />
             {/* Force Dark Background Overlay to override global layout */}
-            <div className="absolute inset-0 bg-[#0f172a] -z-10" />
+            {/* Force Dark Background Overlay to override global layout */}
+            <div className="absolute inset-0 bg-[#0f172a] -z-10">
+                {/* Brightness Booster Layer */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/40 via-slate-900/60 to-slate-900 z-0 opacity-100" />
+            </div>
 
             {/* Ambient Background Effects - Deep Royal Theme */}
             <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
@@ -24,7 +31,10 @@ export default async function ReferralsPage() {
                 <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] bg-pink-600/5 rounded-full blur-[120px]" />
             </div>
 
-            <div className="relative z-10 max-w-2xl mx-auto min-h-screen flex flex-col p-6">
+            <div className="relative z-10 max-w-2xl mx-auto min-h-[100dvh] flex flex-col p-6">
+
+                {/* SAFE SPACER - Forces content down below any fixed headers */}
+                <div className="w-full h-20 shrink-0" />
 
                 {/* Header */}
                 <header className="flex items-center justify-between mb-8 pt-4">
@@ -57,9 +67,9 @@ export default async function ReferralsPage() {
                             {preAsset.map((referral: any, index: number) => (
                                 <div
                                     key={referral.leadId}
-                                    className="group relative bg-white/5 backdrop-blur-md border border-white/10 rounded-[24px] p-6 overflow-hidden transition-all hover:bg-white/10 hover:border-white/20 hover:shadow-xl"
+                                    className="group relative bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md border border-white/20 rounded-[24px] p-6 overflow-hidden transition-all hover:bg-white/15 hover:border-white/30 hover:shadow-xl shadow-lg backdrop-brightness-125"
                                 >
-                                    <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                                    <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
                                     <div className="relative z-10">
                                         <div className="flex justify-between items-start mb-3">
@@ -124,7 +134,7 @@ export default async function ReferralsPage() {
                             {asset.map((referral: any) => (
                                 <div
                                     key={referral.leadId}
-                                    className="group relative bg-white/5 backdrop-blur-md border border-emerald-500/10 rounded-[24px] p-6 overflow-hidden transition-all hover:bg-emerald-500/5 hover:border-emerald-500/20 hover:shadow-xl"
+                                    className="group relative bg-gradient-to-br from-emerald-900/40 to-slate-900/40 backdrop-blur-md border border-emerald-500/30 rounded-[24px] p-6 overflow-hidden transition-all hover:bg-emerald-900/50 hover:border-emerald-500/40 hover:shadow-xl shadow-lg backdrop-brightness-125"
                                 >
                                     <div className="relative z-10">
                                         <div className="flex justify-between items-start mb-3">

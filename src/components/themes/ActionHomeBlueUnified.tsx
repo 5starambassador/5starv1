@@ -182,7 +182,7 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, mont
                 <div className="lg:col-span-8 space-y-6">
                     <motion.div variants={itemVariants} className="space-y-6">
                         {/* Hero Section - Elite Greeting */}
-                        <GlassCard className="flex-1 relative overflow-hidden !bg-gradient-to-br !from-blue-600/20 !to-indigo-900/40 !border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] group">
+                        <GlassCard className="flex-1 relative overflow-hidden !bg-gradient-to-br !from-blue-600/30 !to-indigo-900/50 !border-white/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] group backdrop-brightness-150">
                             <div className="relative z-10 flex flex-col justify-between h-full">
                                 <div>
                                     <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-[#1e40af]/40 backdrop-blur-xl border border-blue-400/30 text-[10px] font-black uppercase tracking-[0.15em] text-white mb-3 shadow-xl">
@@ -194,10 +194,10 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, mont
                                             25<sup className="text-[0.6em] ml-0.5">th</sup> <span className="ml-1.5">Year Celebration</span>
                                         </div>
                                     </div>
-                                    <h1 className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tighter leading-none">
+                                    <h1 className="text-2xl md:text-3xl font-black text-white mb-1 tracking-tighter leading-none">
                                         {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-br from-white via-blue-100 to-blue-300">{firstName}</span>
                                     </h1>
-                                    <p className="text-blue-100/70 font-bold uppercase tracking-widest text-[10px]">
+                                    <p className="text-blue-100/70 font-bold uppercase tracking-widest text-[9px]">
                                         {subtitle || "Your Royal Impact Overview"}
                                     </p>
                                 </div>
@@ -224,8 +224,8 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, mont
                         </GlassCard>
 
                         <div className="flex flex-col md:flex-row gap-6 w-full relative z-10 transition-all duration-700">
-                            {/* Referrals Status Card - THEME MATCH: BLUE/SLATE */}
-                            <GlassCard className="w-full md:w-64 !bg-gradient-to-br !from-blue-950/60 !to-slate-900/60 !border-blue-500/30 shadow-[0_4px_24px_rgba(59,130,246,0.15)] group/blue mr-6 backdrop-brightness-125">
+                            {/* Referrals Status Card - THEME MATCH: BLUE/SLATE - MAX BRIGHTNESS */}
+                            <GlassCard className="w-full md:w-64 !bg-gradient-to-br !from-blue-800/80 !to-slate-900/80 !border-blue-400/40 shadow-[0_4px_32px_rgba(59,130,246,0.25)] group/blue mr-6 backdrop-brightness-150">
                                 <div className="relative z-10 flex flex-col items-center justify-center h-full text-center py-6">
                                     <h3 className="text-[9px] font-black uppercase tracking-[0.25em] text-blue-300/60 mb-6 group-hover/blue:text-blue-300 transition-colors">Referral Status</h3>
                                     <div className="relative group/progress">
@@ -272,8 +272,8 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, mont
                                 <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-blue-500/10 blur-[40px] rounded-full group-hover/blue:bg-blue-500/20 transition-colors" />
                             </GlassCard>
 
-                            {/* Fee Benefit/Rewards Card - CHROMATIC: INDIGO - HIGH VISIBILITY */}
-                            <GlassCard className="flex-1 !bg-gradient-to-br !from-indigo-900/60 !to-violet-900/60 !border-indigo-400/30 transition-all duration-500 shadow-[0_4px_24px_rgba(99,102,241,0.15)] group/indigo backdrop-brightness-125">
+                            {/* Fee Benefit/Rewards Card - CHROMATIC: INDIGO - MAX BRIGHTNESS */}
+                            <GlassCard className="flex-1 !bg-gradient-to-br !from-indigo-800/80 !to-violet-900/80 !border-indigo-400/40 transition-all duration-500 shadow-[0_4px_32px_rgba(99,102,241,0.25)] group/indigo backdrop-brightness-150">
                                 <div className="relative z-10 flex flex-col justify-between h-full p-1">
                                     <div className="flex items-center gap-3 mb-2">
                                         <div className="w-10 h-10 bg-gradient-to-br from-indigo-400/20 to-indigo-600/10 rounded-xl flex items-center justify-center backdrop-blur-md border border-indigo-500/30 shadow-[0_4px_12px_rgba(99,102,241,0.1)] group-hover/indigo:scale-110 transition-transform">
@@ -355,7 +355,7 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, mont
                                     initial="rest"
                                     whileHover="hover"
                                     whileTap="tap"
-                                    className="group bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-xl border border-white/20 rounded-[32px] p-8 flex items-center justify-between shadow-2xl hover:bg-white/15 transition-all relative overflow-hidden cursor-pointer"
+                                    className="group bg-gradient-to-r from-white/15 to-white/10 backdrop-blur-xl border border-white/30 rounded-[32px] p-8 flex items-center justify-between shadow-2xl hover:bg-white/20 transition-all relative overflow-hidden cursor-pointer"
                                 >
                                     <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none" />
                                     <div className="absolute -top-10 -right-10 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl group-hover:bg-amber-500/30 transition-colors opacity-50" />
@@ -378,7 +378,7 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, mont
 
                     {/* BENEFIT STRUCTURE - Royal Glass Theme (Blue-Slate Variant) */}
                     <motion.div variants={itemVariants}>
-                        <PageItem className="bg-gradient-to-br from-blue-900/60 to-slate-900/60 backdrop-blur-xl rounded-[32px] md:rounded-[40px] p-6 md:p-8 border border-blue-500/30 shadow-2xl relative z-10 mt-6">
+                        <PageItem className="bg-gradient-to-br from-blue-800/70 to-slate-900/70 backdrop-blur-xl rounded-[32px] md:rounded-[40px] p-6 md:p-8 border border-blue-400/40 shadow-2xl relative z-10 mt-6 backdrop-brightness-125">
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="w-1 h-8 bg-gradient-to-b from-blue-400 to-blue-600 rounded-sm" />
                                 <div>
@@ -500,9 +500,9 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, mont
 
                 <div className="lg:col-span-4 space-y-6">
                     <motion.div variants={itemVariants} className="flex flex-col gap-6">
-                        {/* PERFORMANCE OVERVIEW - CHROMATIC: RUBY/PURPLE - HIGH VISIBILITY */}
+                        {/* PERFORMANCE OVERVIEW - CHROMATIC: RUBY/PURPLE - MAX BRIGHTNESS */}
                         {monthStats && (
-                            <PageItem className="!bg-gradient-to-br !from-rose-900/60 !to-purple-900/60 backdrop-blur-xl rounded-[32px] md:rounded-[40px] p-6 md:p-8 border border-rose-500/30 shadow-[0_4px_24px_rgba(244,63,94,0.15)] relative z-10 overflow-hidden group/ruby backdrop-brightness-125">
+                            <PageItem className="!bg-gradient-to-br !from-rose-800/80 !to-purple-900/80 backdrop-blur-xl rounded-[32px] md:rounded-[40px] p-6 md:p-8 border border-rose-400/40 shadow-[0_4px_32px_rgba(244,63,94,0.25)] relative z-10 overflow-hidden group/ruby backdrop-brightness-150">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 blur-[40px] -mr-16 -mt-16 rounded-full group-hover/ruby:bg-rose-500/10 transition-colors" />
                                 <div className="flex items-center gap-3 mb-6 relative z-10">
                                     <div className="w-1 h-8 bg-gradient-to-b from-rose-500 to-purple-600 rounded-full" />
@@ -539,8 +539,8 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, mont
                             </PageItem>
                         )}
 
-                        {/* RECENT REFERRALS - CHROMATIC: CYAN */}
-                        <PageItem className="!bg-gradient-to-br !from-cyan-950/30 !to-blue-900/30 backdrop-blur-xl border border-cyan-500/20 rounded-[32px] md:rounded-[40px] overflow-hidden shadow-2xl relative z-10 min-h-[300px] group/cyan">
+                        {/* RECENT REFERRALS - CHROMATIC: CYAN - MAX BRIGHTNESS */}
+                        <PageItem className="!bg-gradient-to-br !from-cyan-900/80 !to-blue-900/80 backdrop-blur-xl border border-cyan-400/40 rounded-[32px] md:rounded-[40px] overflow-hidden shadow-[0_4px_32px_rgba(34,211,238,0.25)] relative z-10 min-h-[300px] group/cyan backdrop-brightness-125">
                             <div className="absolute top-0 left-0 w-32 h-32 bg-cyan-400/5 blur-[40px] -ml-16 -mt-16 rounded-full group-hover/cyan:bg-cyan-400/10 transition-colors" />
                             <div className="flex items-center justify-between p-6 border-b border-white/5 relative z-10 bg-cyan-950/5">
                                 <h3 className="font-black text-lg text-white tracking-tighter uppercase leading-none">Activity</h3>

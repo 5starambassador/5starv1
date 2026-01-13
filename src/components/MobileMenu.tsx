@@ -49,7 +49,7 @@ export function MobileMenu({ navItems, user, logoutAction, onNavigate: propOnNav
 
 
             {/* Navigation Items - Premium Grid for Mobile */}
-            <nav className={`flex-1 overflow-y-auto px-4 pt-4 pb-4 ${isMobile ? 'grid grid-cols-2 gap-3' : 'space-y-1'}`}>
+            <nav className={`flex-1 overflow-y-auto px-3 pt-3 pb-3 ${isMobile ? 'grid grid-cols-2 gap-2 content-start' : 'space-y-1'}`}>
                 {navItems.map((item) => {
                     // Safe active check logic with Query Param support
                     let isActive = false
@@ -83,7 +83,7 @@ export function MobileMenu({ navItems, user, logoutAction, onNavigate: propOnNav
                             onClick={handleNavigate}
                             className={isMobile
                                 // Mobile: Royal Glass Theme - Compact Grid (2 Cols)
-                                ? `flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all duration-300 group no-underline relative overflow-hidden ${isActive
+                                ? `flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all duration-300 group no-underline relative overflow-hidden ${isActive
                                     ? 'bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.15)]'
                                     : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
                                 }`

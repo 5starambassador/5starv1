@@ -81,7 +81,7 @@ export default function MobileSidebarWrapper({ children }: { children: React.Rea
 
                         {/* Header with Close Button */}
                         {/* Header with Close Button & Branding */}
-                        <div className="relative border-b border-white/10 bg-black/20 backdrop-blur-xl z-10 pb-4">
+                        <div className="relative border-b border-white/10 bg-black/20 backdrop-blur-xl z-10 pb-0">
                             <div className="flex justify-end p-2">
                                 <button
                                     onClick={() => setIsOpen(false)}
@@ -91,7 +91,7 @@ export default function MobileSidebarWrapper({ children }: { children: React.Rea
                                 </button>
                             </div>
 
-                            <div className="flex items-center gap-2 px-2 pb-4 overflow-hidden">
+                            <div className="flex items-center gap-2 px-3 pb-3 overflow-hidden">
                                 <div className="relative group shrink-0">
                                     <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-amber-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
                                     <img
@@ -109,21 +109,23 @@ export default function MobileSidebarWrapper({ children }: { children: React.Rea
                                         Partnership Program
                                     </p>
                                     <p className="text-[9px] uppercase tracking-[0.2em] font-black text-amber-500/90 drop-shadow-md mt-0.5">
-                                        25<sup className="text-[0.6em]">th</sup> Year Celebration
+                                        25<sup className="text-[0.6em] ml-0.5">th</sup> <span className="ml-3">Year Celebration</span>
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Content - Scrollable with safe padding */}
-                            <div className="flex-1 overflow-y-auto pb-8 relative z-10" style={{ maxHeight: 'calc(90vh - 60px)' }}>
-                                {children}
-                            </div>
+                        </div>
+
+                        {/* Content Area - Flex-1 to fill remaining space */}
+                        <div className="flex-1 min-h-0 relative z-10 overflow-hidden">
+                            {children}
                         </div>
 
                     </div>
                 </div>,
                 document.body
-            )}
-        </SidebarContext.Provider>
+            )
+            }
+        </SidebarContext.Provider >
     )
 }
