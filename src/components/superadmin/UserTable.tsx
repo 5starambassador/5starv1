@@ -288,6 +288,21 @@ export function UserTable({
                         #{user.userId.toString().padStart(6, '0')}
                     </p>
                 </div>
+                <div className="space-y-1.5">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <CreditCard size={12} className="text-amber-500" />
+                        Payment
+                    </p>
+                    <p className="text-sm font-bold text-gray-900">
+                        {user.transactionId ? (
+                            <span className="text-emerald-600">
+                                ₹{user.paymentAmount} <span className="text-gray-400 text-xs">({user.transactionId})</span>
+                            </span>
+                        ) : (
+                            <span className="text-gray-400">Not Recorded</span>
+                        )}
+                    </p>
+                </div>
             </div>
 
             <div className="mt-8">

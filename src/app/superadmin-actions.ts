@@ -561,7 +561,9 @@ export async function getAllUsers(): Promise<UserRecord[]> {
             referralCode: true,
             createdAt: true,
             empId: true,
-            isFiveStarMember: true
+            isFiveStarMember: true,
+            transactionId: true,
+            paymentAmount: true
         },
         orderBy: { createdAt: 'desc' }
     })

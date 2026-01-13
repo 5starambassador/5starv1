@@ -308,7 +308,7 @@ export async function registerUser(formData: any) {
                 // Payment Info
                 paymentStatus: transactionId ? 'Completed' : 'Pending', // Dummy flow assumes completion
                 transactionId: transactionId || null,
-                paymentAmount: transactionId ? 1000 : 0
+                paymentAmount: transactionId ? 25 : 0
             }
         })
 

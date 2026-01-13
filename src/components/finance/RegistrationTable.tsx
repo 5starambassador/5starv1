@@ -71,19 +71,24 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
             )
         },
         {
-            header: 'Status',
+            header: 'Payment Status',
+            accessorKey: 'status', // Virtual accessor
+            cell: () => (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 shadow-sm">
+                    <BadgeCheck size={10} strokeWidth={3} />
+                    PAID
+                </span>
+            )
+        },
+        {
+            header: 'Transaction Ref',
             accessorKey: 'transactionId',
             cell: (row: Registration) => (
-                <div className="flex flex-col gap-1">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full w-fit">
-                        <BadgeCheck size={10} strokeWidth={3} />
-                        PAID
-                    </span>
-                    <span className="text-[9px] font-mono text-gray-400 tracking-wider">
-                        REF: {row.transactionId || 'N/A'}
-                    </span>
-                </div>
-            )
+                <span className="font-mono text-xs text-gray-700 bg-gray-50 px-2 py-1 rounded border border-gray-200">
+                    {row.transactionId || 'N/A'}
+                </span>
+            ),
+            filterable: true
         },
         {
             header: 'Date',

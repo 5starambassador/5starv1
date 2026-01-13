@@ -40,20 +40,19 @@ export const PaymentGateway = ({ transactionId, setTransactionId, onComplete, on
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
 
                 <div className="relative z-10">
-                    <p className="text-blue-200/60 text-[10px] font-bold uppercase tracking-wider mb-6">Scan to Pay Rs. 1000</p>
+                    <p className="text-blue-200/60 text-[10px] font-bold uppercase tracking-wider mb-6">Scan to Pay Rs. 25</p>
 
                     {/* QR Code */}
                     <div className="w-56 h-56 mx-auto bg-white p-3 rounded-2xl mb-6 flex items-center justify-center relative overflow-hidden shadow-lg group-hover:scale-105 transition-transform duration-500 border border-white/20">
-                        {/* Placeholder for QR Code Image - In reality this would be an img tag */}
-                        <div className="absolute inset-0 border-[4px] border-black opacity-5"></div>
-                        <div className="absolute top-3 left-3 w-12 h-12 border-[4px] border-black rounded-lg"></div>
-                        <div className="absolute top-3 right-3 w-12 h-12 border-[4px] border-black rounded-lg"></div>
-                        <div className="absolute bottom-3 left-3 w-12 h-12 border-[4px] border-black rounded-lg"></div>
-                        <p className="text-black font-black text-2xl tracking-widest opacity-80">QR CODE</p>
+                        <img
+                            src="/payment-qr.png"
+                            alt="Payment QR Code"
+                            className="w-full h-full object-contain"
+                        />
                     </div>
 
                     <p className="text-white text-sm font-bold tracking-wide">Achariya Educational Public Trust</p>
-                    <p className="text-amber-400 text-xs font-mono mt-2 bg-amber-400/10 inline-block px-3 py-1 rounded-lg border border-amber-400/20">UPI: achariya@okicici</p>
+                    <p className="text-amber-400 text-xs font-mono mt-2 bg-amber-400/10 inline-block px-3 py-1 rounded-lg border border-amber-400/20">UPI: achariya123@fbl</p>
                 </div>
             </div>
 
