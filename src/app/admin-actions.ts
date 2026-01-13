@@ -8,6 +8,7 @@ import { logAction } from '@/lib/audit-logger'
 import { mapLeadStatus, mapUserRole, mapAccountStatus } from '@/lib/enum-utils'
 import { notifyReferralConfirmed, notifyFiveStarAchievement, notifyReferralStatusChanged } from '@/lib/notification-helper'
 import { AdminAnalytics } from '@/types'
+import { buildReferralWhereClause } from '@/lib/filter-utils'
 
 /**
  * Fetches all referral leads with ambassador information.
@@ -39,7 +40,6 @@ export async function getAllReferrals(
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus'))) return { success: false, error: 'Unauthorized' }
 
-    // Get scope filter based on permission settings
     const { filter: scopeFilter, isReadOnly } = await getScopeFilter('referralTracking', {
         campusField: 'campus',
         useCampusName: true
@@ -47,45 +47,8 @@ export async function getAllReferrals(
 
     if (scopeFilter === null) return { success: false, error: 'No access to referral data' }
 
-    // Build Dynamic Where Clause
-    const where: any = { ...scopeFilter }
-
-    if (filters?.status && filters.status !== 'All') {
-        const statuses = filters.status.split(',')
-        where.leadStatus = { in: statuses }
-    }
-
-    if (filters?.role && filters.role !== 'All') {
-        const roles = filters.role.split(',')
-        where.user = { role: { in: roles } }
-    }
-
-    if (filters?.campus && filters.campus !== 'All') {
-        const campuses = filters.campus.split(',')
-        where.campus = { in: campuses }
-    }
-
-    if (filters?.feeType && filters.feeType !== 'All') {
-        const types = filters.feeType.split(',')
-        where.selectedFeeType = { in: types }
-    }
-
-    if (filters?.search) {
-        where.OR = [
-            { parentName: { contains: filters.search, mode: 'insensitive' } },
-            { parentMobile: { contains: filters.search } },
-            { studentName: { contains: filters.search, mode: 'insensitive' } },
-            { admissionNumber: { contains: filters.search, mode: 'insensitive' } },
-            { user: { fullName: { contains: filters.search, mode: 'insensitive' } } },
-            { user: { referralCode: { contains: filters.search, mode: 'insensitive' } } }
-        ]
-    }
-
-    if (filters?.dateRange?.from || filters?.dateRange?.to) {
-        where.createdAt = {}
-        if (filters.dateRange.from) where.createdAt.gte = new Date(filters.dateRange.from)
-        if (filters.dateRange.to) where.createdAt.lte = new Date(filters.dateRange.to)
-    }
+    // Build Dynamic Where Clause (Refactored)
+    const where = buildReferralWhereClause(filters, scopeFilter)
 
     // Build Order By
     let orderBy: any = { createdAt: 'desc' }
@@ -98,7 +61,7 @@ export async function getAllReferrals(
 
     try {
         // Run Count and Find in Parallel
-        const [total, referrals] = await prisma.$transaction([
+        const [total, referrals] = await Promise.all([
             prisma.referralLead.count({ where }),
             prisma.referralLead.findMany({
                 where,
@@ -154,119 +117,111 @@ export async function getAdminAnalytics(): Promise<{ success: boolean; error?: s
 
     if (referralFilter === null || userFilter === null) return { success: false, error: 'Access Denied' }
 
-    const referrals = await prisma.referralLead.findMany({
-        where: referralFilter,
-        include: {
-            user: true,
-            student: { select: { baseFee: true } }
+    try {
+        const [
+            totalLeads,
+            confirmedLeads,
+            statusCounts,
+            campusCounts,
+            roleCounts,
+            totalAmbassadors,
+            topPerformersData
+        ] = await prisma.$transaction([
+            prisma.referralLead.count({ where: referralFilter }),
+            prisma.referralLead.count({ where: { ...referralFilter, leadStatus: 'Confirmed' } }),
+            prisma.referralLead.groupBy({
+                by: ['leadStatus'],
+                _count: { _all: true },
+                where: referralFilter,
+                orderBy: { _count: { leadStatus: 'desc' } }
+            }),
+            prisma.referralLead.groupBy({
+                by: ['campus'],
+                _count: { _all: true },
+                where: referralFilter,
+                orderBy: { _count: { campus: 'desc' } }
+            }),
+            prisma.referralLead.findMany({ where: referralFilter, select: { user: { select: { role: true } } } }),
+            prisma.user.count({ where: { ...userFilter, role: { in: ['Parent', 'Staff'] } } }),
+            prisma.referralLead.groupBy({
+                by: ['userId'],
+                _count: { _all: true },
+                where: referralFilter,
+                orderBy: { _count: { userId: 'desc' } },
+                take: 5
+            })
+        ])
+
+        const pendingLeads = totalLeads - confirmedLeads
+        const conversionRate = totalLeads > 0 ? ((confirmedLeads / totalLeads) * 100).toFixed(1) : '0'
+        const avgReferralsPerAmbassador = totalAmbassadors > 0 ? (totalLeads / totalAmbassadors).toFixed(1) : '0'
+
+        // Total Estimated Value (Simplified)
+        const totalEstimatedValue = 0
+
+        // Campus distribution
+        const campusDistribution = campusCounts.map(c => {
+            const count = (c._count as any)._all || 0
+            return {
+                campus: c.campus || 'Unknown',
+                count: count,
+                percentage: totalLeads > 0 ? ((count / totalLeads) * 100).toFixed(1) : '0'
+            }
+        })
+
+        // Role breakdown
+        const parentReferrals = roleCounts.filter(r => r.user.role === 'Parent').length
+        const staffReferrals = roleCounts.filter(r => r.user.role === 'Staff').length
+        const roleBreakdown = {
+            parent: { count: parentReferrals, percentage: totalLeads > 0 ? ((parentReferrals / totalLeads) * 100).toFixed(1) : '0' },
+            staff: { count: staffReferrals, percentage: totalLeads > 0 ? ((staffReferrals / totalLeads) * 100).toFixed(1) : '0' }
         }
-    })
 
-    const users = await prisma.user.findMany({
-        where: userFilter
-    })
+        // Status breakdown
+        const statusBreakdown = statusCounts.map(s => {
+            const count = (s._count as any)._all || 0
+            return {
+                status: s.leadStatus || 'New',
+                count: count,
+                percentage: totalLeads > 0 ? ((count / totalLeads) * 100).toFixed(1) : '0'
+            }
+        })
 
-    // Basic counts
-    const totalLeads = referrals.length
-    const confirmedLeads = referrals.filter(r => r.leadStatus === 'Confirmed').length
-    const pendingLeads = totalLeads - confirmedLeads
-    const conversionRate = totalLeads > 0 ? ((confirmedLeads / totalLeads) * 100).toFixed(1) : '0'
+        // Top Performers
+        const performerIds = topPerformersData.map(p => p.userId)
+        const performerDetails = await prisma.user.findMany({
+            where: { userId: { in: performerIds } },
+            select: { userId: true, fullName: true, role: true, referralCode: true }
+        })
 
-    // Ambassadors
-    const totalAmbassadors = users.filter(u => u.role === 'Parent' || u.role === 'Staff').length
-    const avgReferralsPerAmbassador = totalAmbassadors > 0 ? (totalLeads / totalAmbassadors).toFixed(1) : '0'
-
-    // Total estimated savings/incentives (Based on Commission Model: Lead Fees)
-    const totalEstimatedValue = referrals.reduce((sum, r) => {
-        // Use the referred student's fee
-        const referralStudentBaseFee = (r as any).student?.baseFee
-        const fee = r.annualFee || referralStudentBaseFee || 60000
-
-        // Percent is still based on the Referrer's current tier (or potential)
-        // For a global estimate, we'll use their yearFeeBenefitPercent
-        const percent = r.user.yearFeeBenefitPercent || 5
-
-        return sum + (fee * percent / 100)
-    }, 0)
-
-    // Campus distribution
-    const campusMap: Record<string, number> = {}
-    referrals.forEach(r => {
-        const campus = r.campus || 'Unknown'
-        campusMap[campus] = (campusMap[campus] || 0) + 1
-    })
-    const campusDistribution = Object.entries(campusMap).map(([campus, count]) => ({
-        campus,
-        count,
-        percentage: ((count / totalLeads) * 100).toFixed(1)
-    }))
-
-    // Role breakdown
-    const parentReferrals = referrals.filter(r => r.user.role === 'Parent').length
-    const staffReferrals = referrals.filter(r => r.user.role === 'Staff').length
-    const roleBreakdown = {
-        parent: { count: parentReferrals, percentage: totalLeads > 0 ? ((parentReferrals / totalLeads) * 100).toFixed(1) : '0' },
-        staff: { count: staffReferrals, percentage: totalLeads > 0 ? ((staffReferrals / totalLeads) * 100).toFixed(1) : '0' }
-    }
-
-    // Status breakdown
-    const statusMap: Record<string, number> = {}
-    referrals.forEach(r => {
-        const status = r.leadStatus || 'New'
-        statusMap[status] = (statusMap[status] || 0) + 1
-    })
-    const statusBreakdown = Object.entries(statusMap).map(([status, count]) => ({
-        status,
-        count,
-        percentage: ((count / totalLeads) * 100).toFixed(1)
-    }))
-
-    // Top performers (Grouped by User)
-    const userReferralCounts: Record<number, { user: { fullName: string; role: string; referralCode: string }, count: number, totalValue: number }> = {}
-    referrals.forEach(r => {
-        if (!userReferralCounts[r.userId]) {
-            userReferralCounts[r.userId] = {
-                user: {
-                    ...r.user,
-                    referralCode: r.user.referralCode || ''
-                },
-                count: 0,
+        const topPerformers = topPerformersData.map(p => {
+            const user = performerDetails.find(u => u.userId === p.userId)
+            return {
+                name: user?.fullName || 'Unknown',
+                role: user?.role || '-',
+                referralCode: user?.referralCode || '-',
+                count: (p._count as any)._all || 0,
                 totalValue: 0
             }
+        })
+
+        return {
+            success: true,
+            totalLeads,
+            confirmedLeads,
+            pendingLeads,
+            conversionRate,
+            totalAmbassadors,
+            avgReferralsPerAmbassador,
+            totalEstimatedValue,
+            campusDistribution,
+            roleBreakdown,
+            statusBreakdown,
+            topPerformers
         }
-        userReferralCounts[r.userId].count++
-
-        // Calculate the commission value for this lead
-        const referralStudentBaseFee = (r as any).student?.baseFee
-        const fee = r.annualFee || referralStudentBaseFee || 60000
-        const percent = r.user.yearFeeBenefitPercent || 5
-        userReferralCounts[r.userId].totalValue += (fee * percent / 100)
-    })
-
-    const topPerformers = Object.values(userReferralCounts)
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5)
-        .map(item => ({
-            name: item.user.fullName,
-            role: item.user.role,
-            referralCode: item.user.referralCode,
-            count: item.count,
-            totalValue: item.totalValue
-        }))
-
-    return {
-        success: true,
-        totalLeads,
-        confirmedLeads,
-        pendingLeads,
-        conversionRate,
-        totalAmbassadors,
-        avgReferralsPerAmbassador,
-        totalEstimatedValue,
-        campusDistribution,
-        roleBreakdown,
-        statusBreakdown,
-        topPerformers
+    } catch (e: any) {
+        console.error('getAdminAnalytics error:', e)
+        return { success: false, error: 'Failed to calc analytics' }
     }
 }
 
@@ -714,7 +669,6 @@ export async function getReferralStats(filters?: {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus'))) return { success: false, error: 'Unauthorized' }
 
-    // Get scope filter
     const { filter: scopeFilter } = await getScopeFilter('referralTracking', {
         campusField: 'campus',
         useCampusName: true
@@ -722,28 +676,8 @@ export async function getReferralStats(filters?: {
 
     if (scopeFilter === null) return { success: false, error: 'No access' }
 
-    // Reconstruct Where Clause (Same logic as getAllReferrals)
-    const where: any = { ...scopeFilter }
-
-    if (filters?.status && filters.status !== 'All') where.leadStatus = { in: filters.status.split(',') }
-    if (filters?.role && filters.role !== 'All') where.user = { role: { in: filters.role.split(',') } }
-    if (filters?.campus && filters.campus !== 'All') where.campus = { in: filters.campus.split(',') }
-    if (filters?.feeType && filters.feeType !== 'All') where.selectedFeeType = filters.feeType
-    if (filters?.search) {
-        where.OR = [
-            { parentName: { contains: filters.search, mode: 'insensitive' } },
-            { parentMobile: { contains: filters.search } },
-            { studentName: { contains: filters.search, mode: 'insensitive' } },
-            { admissionNumber: { contains: filters.search, mode: 'insensitive' } },
-            { user: { fullName: { contains: filters.search, mode: 'insensitive' } } },
-            { user: { referralCode: { contains: filters.search, mode: 'insensitive' } } }
-        ]
-    }
-    if (filters?.dateRange?.from || filters?.dateRange?.to) {
-        where.createdAt = {}
-        if (filters.dateRange.from) where.createdAt.gte = new Date(filters.dateRange.from)
-        if (filters.dateRange.to) where.createdAt.lte = new Date(filters.dateRange.to)
-    }
+    // Reconstruct Where Clause (Refactored)
+    const where = buildReferralWhereClause(filters, scopeFilter)
 
     try {
         const total = await prisma.referralLead.count({ where })
@@ -793,26 +727,7 @@ export async function exportReferrals(filters?: {
 
     if (scopeFilter === null) return { success: false, error: 'No access' }
 
-    const where: any = { ...scopeFilter }
-    if (filters?.status && filters.status !== 'All') where.leadStatus = { in: filters.status.split(',') }
-    if (filters?.role && filters.role !== 'All') where.user = { role: { in: filters.role.split(',') } }
-    if (filters?.campus && filters.campus !== 'All') where.campus = { in: filters.campus.split(',') }
-    if (filters?.feeType && filters.feeType !== 'All') where.selectedFeeType = { in: filters.feeType.split(',') }
-    if (filters?.search) {
-        where.OR = [
-            { parentName: { contains: filters.search, mode: 'insensitive' } },
-            { parentMobile: { contains: filters.search } },
-            { studentName: { contains: filters.search, mode: 'insensitive' } },
-            { admissionNumber: { contains: filters.search, mode: 'insensitive' } },
-            { user: { fullName: { contains: filters.search, mode: 'insensitive' } } },
-            { user: { referralCode: { contains: filters.search, mode: 'insensitive' } } }
-        ]
-    }
-    if (filters?.dateRange?.from || filters?.dateRange?.to) {
-        where.createdAt = {}
-        if (filters.dateRange.from) where.createdAt.gte = new Date(filters.dateRange.from)
-        if (filters.dateRange.to) where.createdAt.lte = new Date(filters.dateRange.to)
-    }
+    const where = buildReferralWhereClause(filters, scopeFilter)
 
     try {
         const referrals = await prisma.referralLead.findMany({

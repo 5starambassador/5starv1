@@ -71,35 +71,85 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
     // Get view from URL params (default to 'home')
     const initialView = getString(params.view) || 'home'
 
-    // Fetch all data
-    const analytics = await getSystemAnalytics()
-    const campusComparison = await getCampusComparison()
-    const users = await getAllUsers()
-    const admins = await getAllAdmins()
-    const students = await getAllStudents()
-    const marketingAssets = await getAdminMarketingAssets()
-    const systemSettings = await getSystemSettings()
-    const growthTrend = await getUserGrowthTrend()
-    const { getAnalyticsTrends } = await import('@/app/analytics-trends-actions')
-    const deepTrends = await getAnalyticsTrends()
+    // Conditional Fetching
+    let analyticsPromise: Promise<any> = Promise.resolve({})
+    let campusComparisonPromise: Promise<any> = Promise.resolve([])
+    let usersPromise: Promise<any> = Promise.resolve([])
+    let adminsPromise: Promise<any> = Promise.resolve([])
+    let studentsPromise: Promise<any> = Promise.resolve([])
+    let marketingAssetsPromise: Promise<any> = Promise.resolve({ assets: [] })
+    let growthTrendPromise: Promise<any> = Promise.resolve([])
+    let deepTrendsPromise: Promise<any> = Promise.resolve({ success: true, trends: null })
+    let referralDataPromise: Promise<any> = Promise.resolve({ referrals: [], meta: { page: 1, limit: 50, total: 0, totalPages: 1 } })
+    let urgentTicketCountPromise: Promise<any> = Promise.resolve(0)
+    let systemSettingsPromise: Promise<any> = Promise.resolve({})
+    let campusesPromise: Promise<any> = Promise.resolve({ success: true, campuses: [] })
 
-    // Referral Data (Paginated)
-    const page = parseInt(getString(params.page) || '1')
-    const limit = parseInt(getString(params.limit) || '50')
-    const filters = {
-        status: getString(params.status),
-        role: getString(params.role),
-        campus: getString(params.campus),
-        search: getString(params.search),
-        dateRange: (params.from && params.to) ? { from: getString(params.from)!, to: getString(params.to)! } : undefined
+    // Common fetches
+    const { getCampuses } = await import('@/app/campus-actions')
+    campusesPromise = getCampuses()
+    urgentTicketCountPromise = import('@/app/ticket-actions').then(m => m.getUrgentTicketCount())
+
+    if (initialView === 'home' || initialView === 'analytics') {
+        analyticsPromise = getSystemAnalytics()
+        campusComparisonPromise = getCampusComparison()
+        marketingAssetsPromise = getAdminMarketingAssets() // Maybe?
+        growthTrendPromise = getUserGrowthTrend()
+        deepTrendsPromise = import('@/app/analytics-trends-actions').then(m => m.getAnalyticsTrends())
+        // Pre-fetch users for search? checking getAllUsers... it's heavy.
     }
 
-    const referralData = await getAllReferrals(page, limit, filters)
+    if (initialView === 'users') {
+        usersPromise = getAllUsers()
+    }
 
+    if (initialView === 'admins') {
+        adminsPromise = getAllAdmins()
+    }
 
-    // Helper to get count
-    const { getUrgentTicketCount } = await import('@/app/ticket-actions')
-    const urgentTicketCount = await getUrgentTicketCount()
+    if (initialView === 'students') {
+        studentsPromise = getAllStudents()
+        usersPromise = getAllUsers() // Needed for parent/ambassador lookup?
+    }
+
+    if (initialView === 'referrals') {
+        const page = parseInt(getString(params.page) || '1')
+        const limit = parseInt(getString(params.limit) || '50')
+        const filters = {
+            status: getString(params.status),
+            role: getString(params.role),
+            campus: getString(params.campus),
+            search: getString(params.search),
+            dateRange: (params.from && params.to) ? { from: getString(params.from)!, to: getString(params.to)! } : undefined
+        }
+        referralDataPromise = getAllReferrals(page, limit, filters)
+    }
+
+    if (initialView === 'marketing') {
+        marketingAssetsPromise = getAdminMarketingAssets()
+    }
+
+    if (initialView === 'settings') {
+        systemSettingsPromise = getSystemSettings()
+    }
+
+    // Always fetch users if needed for search? 
+    // Superadmin loads ALL users? getAllUsers() returns distinct fields.
+
+    // Await all
+    const [analytics, campusComparison, users, admins, students, marketingAssets, growthTrend, deepTrends, referralData, urgentTicketCount, campusesResult] = await Promise.all([
+        analyticsPromise,
+        campusComparisonPromise,
+        usersPromise,
+        adminsPromise,
+        studentsPromise,
+        marketingAssetsPromise,
+        growthTrendPromise,
+        deepTrendsPromise,
+        referralDataPromise,
+        urgentTicketCountPromise,
+        campusesPromise
+    ])
 
     return (
         <ErrorBoundary>
@@ -111,7 +161,8 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
                 students={serializeData(students) as any}
                 currentUser={serializeData(user) as any}
                 initialView={initialView}
-                marketingAssets={serializeData(marketingAssets.assets) as any}
+                marketingAssets={serializeData(marketingAssets.assets || []) as any}
+                campuses={(campusesResult.success ? campusesResult.campuses : []) as any}
 
                 growthTrend={growthTrend}
                 deepTrends={deepTrends.success ? deepTrends : null}

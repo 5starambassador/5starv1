@@ -114,6 +114,7 @@ export default async function DashboardPage() {
                 }}
                 recentReferrals={recentReferrals}
                 whatsappUrl={whatsappUrl}
+                referralLink={referralLink}
                 monthStats={monthStats}
                 totalLeadsCount={pendingCount} // Passing "Pending" count to this prop for separate buckets
                 overrideEarnedAmount={earnedAmount}

@@ -6,6 +6,8 @@ import { confirmReferral } from '@/app/admin-actions'
 import { AdminClient } from './admin-client'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
+export const dynamic = 'force-dynamic'
+
 // Helper function to serialize dates in objects (Since we are passing to client component)
 function serializeData<T>(data: T): T {
     if (data === null || data === undefined) return data
@@ -31,6 +33,7 @@ type SearchParams = Promise<{
     from?: string
     to?: string
     // Add other filters as needed
+    feeType?: string
 }>
 
 export default async function AdminPage({ searchParams }: { searchParams: SearchParams }) {
@@ -39,56 +42,75 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
 
     const params = await searchParams
     const view = params?.view || 'home'
+    const page = parseInt(params.page || '1')
 
     // Parse Filters
-    const page = parseInt(params.page || '1')
     const filters = {
         status: params.status,
         role: params.role,
         campus: params.campus,
         search: params.search,
+        feeType: params.feeType,
         dateRange: (params.from && params.to) ? { from: params.from, to: params.to } : undefined
     }
 
-    // Parallel data fetching
-    const [referrals, analytics, campusesResult, referralStats] = await Promise.all([
-        getAllReferrals(page, 50, filters),
-        getAdminAnalytics(),
-        getCampuses(),
-        getReferralStats(filters)
-    ])
+    // Conditional Data Fetching
+    let referralsPromise: Promise<any> = Promise.resolve({ success: true, referrals: [], meta: { page: 1, limit: 50, total: 0, totalPages: 1 } })
+    let analyticsPromise: Promise<any> = Promise.resolve({ success: true }) // Default empty success to avoid errors
+    let campusesPromise: Promise<any> = Promise.resolve({ success: true, campuses: [] })
+    let referralStatsPromise: Promise<any> = Promise.resolve({ success: true })
+    let usersPromise: Promise<any> = Promise.resolve({ success: true, users: [] })
+    let studentsPromise: Promise<any> = Promise.resolve({ success: true, students: [] })
+    let adminsPromise: Promise<any> = Promise.resolve({ success: true, admins: [] })
+    let campusPerformancePromise: Promise<any> = Promise.resolve({ success: true, campusPerformance: [] })
 
-    // Conditional fetching for heavier views
-    let users: any[] = []
-    let students: any[] = []
-    let admins: any[] = []
-    let campusPerformance: any[] = []
+    // Determine what to fetch based on View
+    if (view === 'home' || view === 'analytics' || view === 'reports') {
+        analyticsPromise = getAdminAnalytics()
+        // Home view might use referral stats too?
+    }
+
+    if (view === 'referrals') {
+        referralsPromise = getAllReferrals(page, 50, filters)
+        referralStatsPromise = getReferralStats(filters)
+        campusesPromise = getCampuses()
+    }
 
     if (view === 'users') {
-        const res = await getAdminUsers()
-        if (res.success && res.users) users = res.users || []
+        usersPromise = getAdminUsers()
+        campusesPromise = getCampuses()
     }
 
     if (view === 'students') {
-        const res = await getAdminStudents()
-        if (res.success && res.students) students = res.students || []
+        studentsPromise = getAdminStudents()
+        campusesPromise = getCampuses()
     }
 
     if (view === 'admins') {
-        const res = await getAdminAdmins()
-        if (res.success && res.admins) admins = res.admins || []
+        adminsPromise = getAdminAdmins()
+        campusesPromise = getCampuses()
     }
 
-    // Always fetch campus performance if view is campuses, or maybe pre-fetch? 
-    // The user wants "Campus Performance" -> assume view='campuses'
     if (view === 'campuses') {
-        const res = await getAdminCampusPerformance()
-        if (res.success && res.campusPerformance) campusPerformance = res.campusPerformance || []
+        campusPerformancePromise = getAdminCampusPerformance()
+        campusesPromise = getCampuses()
     }
+
+    // Execute necessary queries in parallel
+    const [referrals, analytics, campusesResult, referralStats, users, students, admins, campusPerformance] = await Promise.all([
+        referralsPromise,
+        analyticsPromise,
+        campusesPromise,
+        referralStatsPromise,
+        usersPromise,
+        studentsPromise,
+        adminsPromise,
+        campusPerformancePromise
+    ])
 
     const permissions = await import('@/lib/permission-service').then(m => m.getMyPermissions())
 
-    if (!analytics.success) return <div>Error loading analytics</div>
+    // if (!analytics.success && (view === 'home' || view === 'analytics')) return <div>Error loading analytics</div>
 
     return (
         <ErrorBoundary>
@@ -100,10 +122,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
                 confirmReferral={confirmReferral}
                 initialView={view}
                 campuses={(campusesResult.success ? campusesResult.campuses : []) as any}
-                users={serializeData(users) as any}
-                students={serializeData(students) as any}
-                admins={serializeData(admins) as any}
-                campusPerformance={serializeData(campusPerformance) as any}
+                users={serializeData(users.success ? users.users : []) as any}
+                students={serializeData(students.success ? students.students : []) as any}
+                admins={serializeData(admins.success ? admins.admins : []) as any}
+                campusPerformance={serializeData(campusPerformance.success ? campusPerformance.campusPerformance : []) as any}
                 permissions={permissions || undefined}
             />
         </ErrorBoundary>

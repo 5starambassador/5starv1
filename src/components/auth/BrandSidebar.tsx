@@ -51,8 +51,8 @@ export const BrandSidebar = () => {
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-amber-300 to-amber-200">25 Years of</span> <br />
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-white/70">Excellence</span>
                     </h1>
-                    <p className="text-lg text-blue-100/60 font-medium leading-relaxed max-w-md">
-                        Join the elite community of ambassadors shaping the next generation of education. Secure, fast, and prestigious.
+                    <p className="text-gray-200 text-lg leading-relaxed max-w-md mx-auto">
+                        Join an elite community of ambassadors committed to shaping and securing the future of education by empowering minds and enriching lives.
                     </p>
                 </motion.div>
 

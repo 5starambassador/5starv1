@@ -18,15 +18,26 @@ export async function logAction(
         let adminId: number | undefined = undefined
         let userId: number | undefined = undefined
 
-        // Auto-detect actor if not provided or valid
-        const currentUser = await getCurrentUser()
+        // 1. Try to use explicit actorId if provided (handling number/string conversion)
+        if (actorId) {
+            // Heuristic or Metadata-driven distinction could be used, 
+            // but for now, we can check a new 'actorType' in metadata or just try to default.
+            // However, to be safe and simple:
+            if (metadata?.isUser) userId = Number(actorId)
+            else if (metadata?.isAdmin) adminId = Number(actorId)
+            // Fallback: If we can't tell, we might miss saving it to the right FK, 
+            // so we rely on getCurrentUser if actorId is missing metadata context.
+        }
 
-        if (currentUser) {
-            // Check for admin properties
-            if ('adminId' in currentUser) {
-                adminId = (currentUser as any).adminId
-            } else if ('userId' in currentUser) {
-                userId = (currentUser as any).userId
+        // 2. Auto-detect if not explicitly set
+        if (!adminId && !userId) {
+            const currentUser = await getCurrentUser()
+            if (currentUser) {
+                if ('adminId' in currentUser) {
+                    adminId = (currentUser as any).adminId
+                } else if ('userId' in currentUser) {
+                    userId = (currentUser as any).userId
+                }
             }
         }
 

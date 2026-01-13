@@ -79,7 +79,7 @@ export function middleware(request: NextRequest) {
     // CSP - Adjust as needed for external services
     const isProd = process.env.NODE_ENV === 'production'
     const csp = [
-        "default-src 'self'",
+        "default-src 'self' blob:",
         "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com",

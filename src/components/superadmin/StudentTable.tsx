@@ -134,7 +134,6 @@ export function StudentTable({
                     </div>
                 </div>
             ),
-            filterable: true
         },
         {
             header: 'Enrolled Academic',
@@ -152,8 +151,7 @@ export function StudentTable({
                         Grade {student.grade}
                     </div>
                 </div>
-            ),
-            filterable: true
+            )
         },
         {
             header: 'Parent/Guardian',
@@ -171,8 +169,7 @@ export function StudentTable({
                         {student.parent?.mobileNumber || 'No Contact'}
                     </p>
                 </div>
-            ),
-            filterable: true
+            )
         },
         {
             header: 'Ambassador',
@@ -193,8 +190,7 @@ export function StudentTable({
                 </div>
             ) : (
                 <span className="text-xs font-bold text-gray-400 italic">Direct Admission</span>
-            ),
-            filterable: true
+            )
         },
         {
             header: 'Status',
@@ -205,8 +201,7 @@ export function StudentTable({
                 <Badge variant={student.status === 'Active' ? 'success' : 'error'} className="font-black text-[10px] tracking-wider uppercase">
                     {student.status}
                 </Badge>
-            ),
-            filterable: true
+            )
         },
         {
             header: 'Actions',

@@ -13,6 +13,7 @@ import { smsService } from '@/lib/sms-service'
 import { getCurrentUser } from '@/lib/auth-service'
 import { UserRole, AccountStatus, LeadStatus } from '@prisma/client'
 import { mapUserRole, mapAdminRole, mapAccountStatus } from '@/lib/enum-utils'
+import { logAction } from '@/lib/audit-logger'
 
 export async function checkSession() {
     const user = await getCurrentUser()
@@ -167,6 +168,7 @@ export async function loginWithPassword(mobile: string, password: string) {
                 const is2faRequired = isSuperAdmin && securitySettings?.twoFactorAuthEnabled
 
                 await createSession(user.userId, 'user', mapUserRole(user.role), !is2faRequired)
+                await logAction('LOGIN', 'auth', `User logged in: ${mobile}`, user.userId.toString(), user.userId, { isUser: true })
                 return { success: true }
             }
         }
@@ -187,6 +189,7 @@ export async function loginWithPassword(mobile: string, password: string) {
                 const is2faRequired = isAdminRole && securitySettings?.twoFactorAuthEnabled
 
                 await createSession(admin.adminId, 'admin', mapAdminRole(admin.role), !is2faRequired)
+                await logAction('LOGIN', 'auth', `Admin logged in: ${mobile}`, admin.adminId.toString(), admin.adminId, { isAdmin: true })
                 return { success: true }
             }
         }

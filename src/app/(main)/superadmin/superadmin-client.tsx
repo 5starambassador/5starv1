@@ -56,6 +56,7 @@ interface Props {
     urgentTicketCount?: number
     referrals?: any[]
     referralMeta?: any
+    campuses?: Campus[]
 }
 
 export default function SuperadminClient({ analytics, campusComparison = [], users = [], admins = [], students = [], initialView = 'analytics', marketingAssets = [],
@@ -64,7 +65,8 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     deepTrends = null,
     urgentTicketCount = 0,
     referrals = [],
-    referralMeta
+    referralMeta,
+    campuses: initialCampuses = []
 }: Props) {
     const searchParams = useSearchParams()
     const router = useRouter()
@@ -86,7 +88,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     }, [searchParams])
 
     // Data State (Fetched on mount)
-    const [campuses, setCampuses] = useState<Campus[]>([]) // Fetch for dropdowns in other panels
+    const [campuses, setCampuses] = useState<Campus[]>(initialCampuses) // Fetch for dropdowns in other panels
     const [slabs, setSlabs] = useState<BenefitSlab[]>([])
     const [settlements, setSettlements] = useState<any[]>([]) // Placeholder
 
@@ -107,13 +109,15 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         async function loadData() {
             setLoading(true)
             try {
-                const [cmp, slb] = await Promise.all([
-                    getCampuses(),
-                    getBenefitSlabs()
-                ])
+                // If campuses passed via prop, we don't strictly need to fetch, but we can refresh.
+                // Fetching slabs and settlements still needed.
+                const promises: Promise<any>[] = [getBenefitSlabs()]
+                if (campuses.length === 0) promises.push(getCampuses())
 
-                if (cmp.success && cmp.campuses) setCampuses(cmp.campuses)
-                if (slb.success && slb.slabs) setSlabs(slb.slabs)
+                const [slb, cmp] = await Promise.all(promises)
+
+                if (slb?.success && slb.slabs) setSlabs(slb.slabs)
+                if (cmp?.success && cmp.campuses) setCampuses(cmp.campuses)
 
                 await loadSettlements()
             } catch (error) {
@@ -280,6 +284,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                             confirmReferral={confirmReferral}
                             convertLeadToStudent={convertLeadToStudent}
                             rejectReferral={rejectReferral}
+                            campuses={campuses}
                         />
                         {showBulkUpload && (
                             <CSVUploader

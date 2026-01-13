@@ -7,6 +7,7 @@ import { PremiumCard } from '@/components/premium/PremiumCard'
 import { DataTable } from '@/components/ui/DataTable'
 import { toast } from 'sonner'
 import { bulkRejectReferrals, bulkDeleteReferrals, bulkConfirmReferrals, bulkConvertLeadsToStudents, exportReferrals, updateReferral } from '@/app/admin-actions'
+import { getCampuses } from '@/app/campus-actions'
 import { format } from 'date-fns'
 
 interface ReferralManagementTableProps {
@@ -160,16 +161,30 @@ export function ReferralManagementTable({
     const searchParams = useSearchParams()
     const [isPending, startTransition] = useTransition()
 
+    // Fallback Campuses State
+    const [campusList, setCampusList] = useState<any[]>(campuses)
+
+    // Fetch campuses if not provided (Fallback)
+    useEffect(() => {
+        if (campusList.length === 0) {
+            getCampuses().then(res => {
+                if (res.success && res.campuses) {
+                    setCampusList(res.campuses)
+                }
+            })
+        }
+    }, [])
+
     // --- State ---
     // Filters (Mirror URL params)
     // Filters (Mirror URL params)
+    // Filters (Mirror URL params)
     const [search, setSearch] = useState(searchParams.get('search') || '')
-    const [statusValues, setStatusValues] = useState<string[]>(searchParams.get('status')?.split(',') || [])
-    const [roleValues, setRoleValues] = useState<string[]>(searchParams.get('role')?.split(',') || [])
-    const [campusValues, setCampusValues] = useState<string[]>(searchParams.get('campus')?.split(',') || [])
-    const [feeTypeValues, setFeeTypeValues] = useState<string[]>(searchParams.get('feeType')?.split(',') || [])
-    const [dateFrom, setDateFrom] = useState(searchParams.get('from') || '')
-    const [dateTo, setDateTo] = useState(searchParams.get('to') || '')
+
+    // Sync search state with URL when back/forward is used
+    useEffect(() => {
+        setSearch(searchParams.get('search') || '')
+    }, [searchParams])
 
     // Live Mode
     const [isLive, setIsLive] = useState(false)
@@ -527,7 +542,6 @@ export function ReferralManagementTable({
 
 
             {/* Filters */}
-            {/* Filters removed (moved to headers) */}
             <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100 flex flex-wrap gap-4 mb-6">
                 <div className="flex-1 min-w-[200px] relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -541,13 +555,56 @@ export function ReferralManagementTable({
                     />
                 </div>
 
+                {/* Dynamic Filters */}
+                <select
+                    value={searchParams.get('role') || ''}
+                    onChange={(e) => updateParam('role', e.target.value)}
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-red-500/20"
+                >
+                    <option value="">All Roles</option>
+                    <option value="Parent">Parent</option>
+                    <option value="Staff">Staff</option>
+                </select>
+
+                <select
+                    value={searchParams.get('campus') || ''}
+                    onChange={(e) => updateParam('campus', e.target.value)}
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-red-500/20"
+                >
+                    <option value="">All Campuses</option>
+                    {campusList.map(c => (
+                        <option key={c.id} value={c.campusName}>{c.campusName}</option>
+                    ))}
+                </select>
+
+                <select
+                    value={searchParams.get('feeType') || ''}
+                    onChange={(e) => updateParam('feeType', e.target.value)}
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-red-500/20"
+                >
+                    <option value="">All Plans</option>
+                    <option value="OTP">OTP</option>
+                    <option value="WOTP">WOTP</option>
+                </select>
+
+                <select
+                    value={searchParams.get('status') || ''}
+                    onChange={(e) => updateParam('status', e.target.value)}
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-red-500/20"
+                >
+                    <option value="">All Statuses</option>
+                    <option value="New">New</option>
+                    <option value="Follow-up">Follow-up</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Rejected">Rejected</option>
+                </select>
+
                 {/* Date Filter (Keeping Date Range here as it's global) */}
                 <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-2">
                     <input
                         type="date"
-                        value={dateFrom}
+                        value={searchParams.get('from') || ''}
                         onChange={(e) => {
-                            setDateFrom(e.target.value)
                             updateParam('from', e.target.value)
                         }}
                         suppressHydrationWarning={true}
@@ -556,9 +613,8 @@ export function ReferralManagementTable({
                     <span className="text-gray-400">-</span>
                     <input
                         type="date"
-                        value={dateTo}
+                        value={searchParams.get('to') || ''}
                         onChange={(e) => {
-                            setDateTo(e.target.value)
                             updateParam('to', e.target.value)
                         }}
                         suppressHydrationWarning={true}
@@ -811,7 +867,7 @@ export function ReferralManagementTable({
                 )}
                 columns={[
                     ...(showColumns.role ? [{
-                        header: renderFilterHeader('Referrer', roleValues, 'role', ['Parent', 'Staff']),
+                        header: 'Referrer',
                         accessorKey: 'role', // Virtual, handled by cell
                         cell: (r: any) => (
                             <div className="flex items-center gap-3">
@@ -844,7 +900,7 @@ export function ReferralManagementTable({
                         )
                     }] : []),
                     ...(showColumns.campus ? [{
-                        header: renderFilterHeader('Campus', campusValues, 'campus', campuses && campuses.length > 0 ? campuses.map(c => c.campusName) : ['Main Campus', 'JIPMER Campus']),
+                        header: 'Campus',
                         accessorKey: 'campus',
                         cell: (r: any) => <div className="text-center text-sm text-gray-600">{r.campus || '-'}</div>
                     }] : []),
@@ -871,7 +927,7 @@ export function ReferralManagementTable({
                         )
                     }] : []),
                     ...(showColumns.fee ? [{
-                        header: renderFilterHeader('Plan', feeTypeValues, 'feeType', ['OTP', 'WOTP']),
+                        header: 'Plan',
                         accessorKey: 'selectedFeeType',
                         cell: (r: any) => (
                             <div className="text-center">
@@ -889,7 +945,7 @@ export function ReferralManagementTable({
                         )
                     }] : []),
                     {
-                        header: renderFilterHeader('Status', statusValues, 'status', ['New', 'Follow-up', 'Confirmed', 'Rejected']),
+                        header: 'Status',
                         accessorKey: 'leadStatus',
                         cell: (r: any) => (
                             <div className="text-center">

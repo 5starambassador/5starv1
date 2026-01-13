@@ -38,13 +38,30 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
                 transactionId: true,
                 createdAt: true,
                 assignedCampus: true,
-                referralCode: true
+                referralCode: true,
+                campusId: true
             },
             orderBy: { createdAt: 'desc' },
             take: filter === 'Recent' ? 10 : 1000
         })
 
-        return { success: true, data: transactions }
+        // Manual populate campusName since relation is missing in schema
+        const campusIds = transactions.map(t => t.campusId).filter(Boolean) as number[]
+        const uniqueCampusIds = Array.from(new Set(campusIds))
+
+        const campuses = await prisma.campus.findMany({
+            where: { id: { in: uniqueCampusIds } },
+            select: { id: true, campusName: true }
+        })
+
+        const campusMap = new Map(campuses.map(c => [c.id, c.campusName]))
+
+        const mappedTransactions = transactions.map(t => ({
+            ...t,
+            campus: t.campusId ? { campusName: campusMap.get(t.campusId) || '' } : undefined
+        }))
+
+        return { success: true, data: mappedTransactions }
     } catch (error) {
         console.error('Error fetching registration transactions:', error)
         return { success: false, error: 'Failed to fetch transactions' }

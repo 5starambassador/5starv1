@@ -175,10 +175,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                         />
                     </div>
 
-                    {/* Mobile Notification Bell */}
-                    <div className="flex items-center">
-                        <NotificationDropdown />
-                    </div>
+
                 </div>
 
                 <main

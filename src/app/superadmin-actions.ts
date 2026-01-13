@@ -138,7 +138,10 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
 
     // Calculate system-wide benefits
     const activeUsers = await prisma.user.findMany({
-        where: dateFilter,
+        where: {
+            ...dateFilter,
+            confirmedReferralCount: { gt: 0 }
+        },
         select: {
             studentFee: true,
             yearFeeBenefitPercent: true,
@@ -154,7 +157,10 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
     let prevBenefits;
     if (prevDateFilter) {
         const prevUsers = await prisma.user.findMany({
-            where: prevDateFilter,
+            where: {
+                ...prevDateFilter,
+                confirmedReferralCount: { gt: 0 }
+            },
             select: {
                 studentFee: true,
                 yearFeeBenefitPercent: true,
@@ -373,7 +379,11 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
             _count: { _all: true }
         }),
         prisma.user.findMany({
-            where: { assignedCampus: { not: null }, ...dateFilter },
+            where: {
+                assignedCampus: { not: null },
+                ...dateFilter,
+                confirmedReferralCount: { gt: 0 }
+            },
             select: {
                 assignedCampus: true,
                 studentFee: true,
@@ -382,7 +392,11 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
             }
         }),
         prevDateFilter ? prisma.user.findMany({
-            where: { assignedCampus: { not: null }, ...prevDateFilter },
+            where: {
+                assignedCampus: { not: null },
+                ...prevDateFilter,
+                confirmedReferralCount: { gt: 0 }
+            },
             select: {
                 assignedCampus: true,
                 studentFee: true,

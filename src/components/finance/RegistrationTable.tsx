@@ -19,6 +19,9 @@ interface Registration {
     paymentAmount: number
     transactionId: string | null
     createdAt: string | Date
+    campus?: {
+        campusName: string
+    }
 }
 
 interface RegistrationTableProps {
@@ -56,7 +59,7 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
         {
             header: 'Campus',
             accessorKey: 'assignedCampus',
-            cell: (row: Registration) => (row.assignedCampus ? row.assignedCampus : <span className="text-gray-300">-</span>),
+            cell: (row: any) => (row.campus?.campusName || row.assignedCampus || <span className="text-gray-300">-</span>),
             filterable: true
         },
         {

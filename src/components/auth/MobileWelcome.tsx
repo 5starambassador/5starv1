@@ -55,8 +55,8 @@ export function MobileWelcome({ onGetStarted }: MobileWelcomeProps) {
                         <span className="text-white drop-shadow-2xl">Excellence</span>
                     </h1>
 
-                    <p className="mt-6 text-blue-100/70 text-sm font-medium leading-relaxed max-w-[90%] mx-auto">
-                        Join the elite community of ambassadors shaping the next generation of education. Secure, fast, and prestigious.
+                    <p className="text-white/90 text-sm leading-relaxed max-w-[280px] mx-auto text-shadow-sm font-medium">
+                        Join an elite community of ambassadors committed to shaping and securing the future of education by empowering minds and enriching lives.
                     </p>
                 </motion.div>
 

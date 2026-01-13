@@ -294,13 +294,7 @@ export function UserTable({
                         Payment
                     </p>
                     <p className="text-sm font-bold text-gray-900">
-                        {user.transactionId ? (
-                            <span className="text-emerald-600">
-                                ₹{user.paymentAmount} <span className="text-gray-400 text-xs">({user.transactionId})</span>
-                            </span>
-                        ) : (
-                            <span className="text-gray-400">Not Recorded</span>
-                        )}
+                        <span className="text-gray-400">Not Recorded</span>
                     </p>
                 </div>
             </div>

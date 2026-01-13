@@ -26,6 +26,7 @@ interface ActionHomeBlueUnifiedProps {
     }
     recentReferrals: any[]
     whatsappUrl: string
+    referralLink: string
     monthStats?: any | null
     totalLeadsCount?: number
     overrideEarnedAmount?: number
@@ -79,7 +80,7 @@ function getGreeting() {
     return 'Happy Night'
 }
 
-export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, monthStats, totalLeadsCount = 0, overrideEarnedAmount, overrideEstimatedAmount }: ActionHomeBlueUnifiedProps) {
+export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, referralLink, monthStats, totalLeadsCount = 0, overrideEarnedAmount, overrideEstimatedAmount }: ActionHomeBlueUnifiedProps) {
     const firstName = user.fullName.split(' ')[0]
 
     // Dynamic Data
@@ -114,7 +115,7 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, mont
     const [copied, setCopied] = useState(false)
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(`${window.location.origin}/r/${user.referralCode}`)
+        navigator.clipboard.writeText(referralLink)
         setCopied(true)
         toast.success('Referral link copied!')
         setTimeout(() => setCopied(false), 2000)
@@ -545,7 +546,7 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, mont
                             <div className="flex items-center justify-between p-6 border-b border-white/5 relative z-10 bg-cyan-950/5">
                                 <h3 className="font-black text-lg text-white tracking-tighter uppercase leading-none">Activity</h3>
                                 <Link href="/referrals" className="text-[10px] font-black text-cyan-300 uppercase tracking-[0.2em] flex items-center gap-1 hover:bg-cyan-400/10 px-3 py-1.5 rounded-full transition-all border border-transparent hover:border-cyan-400/20 group-hover/cyan:translate-x-1 transition-transform">
-                                    View Profile <ChevronRight size={14} />
+                                    View Referrals <ChevronRight size={14} />
                                 </Link>
                             </div>
 
