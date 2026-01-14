@@ -129,6 +129,17 @@ export const RegistrationRole = ({ formData, setFormData, campuses, onNext, onBa
                                         ))}
                                     </select>
                                 </div>
+                                <div className="p-3 bg-white/5 rounded-xl border border-white/10">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 rounded border-amber-500/50 text-amber-500 focus:ring-amber-500 bg-transparent"
+                                            checked={formData.childInAchariya === 'Yes'}
+                                            onChange={(e) => setFormData({ ...formData, childInAchariya: e.target.checked ? 'Yes' : 'No' })}
+                                        />
+                                        <span className="text-sm font-bold text-white">My Child studies in Achariya</span>
+                                    </label>
+                                </div>
                             </div>
                         )}
 

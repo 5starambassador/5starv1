@@ -141,7 +141,7 @@ export default function LoginPage() {
   const handleForgotPassword = async () => {
     setLoading(true)
     try {
-      const res = await sendOtp(mobile, true)
+      const res = await sendOtp(mobile, true, 'forgot-password')
       setLoading(false)
       if (res.success) {
         setIsForgotMode(true)

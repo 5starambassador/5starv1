@@ -3,6 +3,9 @@ import { redirect } from 'next/navigation'
 import { getMyReferrals, getMyComparisonStats, getDynamicFeeForUser } from '@/app/referral-actions'
 import { ActionHomeBlueUnified } from '@/components/themes/ActionHomeBlueUnified'
 import { encryptReferralCode } from '@/lib/crypto'
+import { calculateBenefitPercent, calculateBenefitAmount } from '@/lib/benefit-calculator'
+import { getStaffBaseFee } from '@/app/fee-actions'
+import { getBenefitSlabs } from '@/app/benefit-actions'
 
 
 export default async function DashboardPage() {
@@ -16,10 +19,16 @@ export default async function DashboardPage() {
     if (user.role.includes('Admin') && user.role !== 'Admission Admin') redirect('/admin')
 
     const userData = user as any
-    const [referrals, dynamicStudentFee] = await Promise.all([
+    const [referrals, dynamicStudentFee, slabsResult] = await Promise.all([
         getMyReferrals(),
-        getDynamicFeeForUser()
+        getDynamicFeeForUser(),
+        getBenefitSlabs()
     ])
+
+    // Map Slabs to Calculator Format
+    const benefitTiers = slabsResult.success && slabsResult.data
+        ? slabsResult.data.map(s => ({ count: s.referralCount, percent: s.yearFeeBenefitPercent }))
+        : undefined // Will fallback to defaults
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://5starambassador.com'
 
@@ -58,35 +67,41 @@ export default async function DashboardPage() {
     const pendingCount = referrals.filter((r: any) => r.leadStatus !== 'Confirmed' && r.leadStatus !== 'Rejected').length
 
     // Calculate Real-Time Benefit Percent (Ensure Calculation is strictly based on Confirmed)
-    const getBenefitPercent = (count: number) => {
-        if (count >= 5) return 50
-        if (count === 4) return 30
-        if (count === 3) return 25
-        if (count === 2) return 10
-        if (count === 1) return 5
-        return 0
-    }
-    const realBenefitPercent = getBenefitPercent(realConfirmedCount)
+    const realBenefitPercent = calculateBenefitPercent(realConfirmedCount, benefitTiers)
     // Calculate Potential/Estimated Percent based on Total Pipeline (Pending + Confirmed)
-    const potentialBenefitPercent = getBenefitPercent(totalLeadsCount)
+    const potentialBenefitPercent = calculateBenefitPercent(totalLeadsCount, benefitTiers)
+
+    // Benefit Calculation Base Variable
+    let benefitBaseVolume = userData.studentFee || 60000 // Default to Student Fee (for Parents)
+
+    // Override for Staff:
+    // 1. If Child in Achariya -> Use Child's Fee (studentFee)
+    // 2. Else -> Use Grade-1 Fee of assigned Branch
+    if (userData.role === 'Staff') {
+        if (userData.childInAchariya && userData.studentFee > 0) {
+            benefitBaseVolume = userData.studentFee
+        } else if (userData.assignedCampus) {
+            benefitBaseVolume = await getStaffBaseFee(userData.assignedCampus)
+        }
+    }
 
     // Calculate Volumes for Lead-Based Benefit
     const confirmedVolume = referrals
         .filter((r: any) => r.leadStatus === 'Confirmed' && r.leadStatus !== 'Rejected')
         .reduce((sum: number, r: any) => {
-            const fee = r.annualFee || (r.student?.baseFee) || 60000
-            return sum + fee
+            // For Staff, use the Grade-1 Fee (benefitBaseVolume) for every confirmed referral
+            // For Parents, it's usually "My Child's Fee" (benefitBaseVolume) as well (fee waiver)
+            return sum + benefitBaseVolume
         }, 0)
 
     const totalVolume = referrals
         .filter((r: any) => r.leadStatus !== 'Rejected')
         .reduce((sum: number, r: any) => {
-            const fee = r.annualFee || (r.student?.baseFee) || 60000
-            return sum + fee
+            return sum + benefitBaseVolume
         }, 0)
 
-    const earnedAmount = (confirmedVolume * realBenefitPercent) / 100
-    const estimatedAmount = (totalVolume * potentialBenefitPercent) / 100
+    const earnedAmount = calculateBenefitAmount(confirmedVolume, realBenefitPercent)
+    const estimatedAmount = calculateBenefitAmount(totalVolume, potentialBenefitPercent)
 
     return (
         <div className="-mx-2 xl:mx-0 relative">

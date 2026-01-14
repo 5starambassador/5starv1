@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, Fragment, useRef, useMemo } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { ChevronRight, CheckCircle, Filter, ChevronDown, Clock, AlertCircle, Phone, MapPin, User, Search, Square, CheckSquare, Trash, XCircle, Download, X, Pencil, ArrowUp, ArrowDown, RefreshCcw, Layout, Calendar, CreditCard, Hash, Shield, Key } from 'lucide-react'
-import { PremiumCard } from '@/components/premium/PremiumCard'
+
 import { DataTable } from '@/components/ui/DataTable'
 import { toast } from 'sonner'
 import { bulkRejectReferrals, bulkDeleteReferrals, bulkConfirmReferrals, bulkConvertLeadsToStudents, exportReferrals, updateReferral } from '@/app/admin-actions'
@@ -459,7 +459,7 @@ export function ReferralManagementTable({
 
 
     return (
-        <PremiumCard>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-[100vw] overflow-x-hidden">
             {/* Header / Stats Row Placeholder if needed */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
@@ -1108,6 +1108,6 @@ export function ReferralManagementTable({
                     </div>
                 </div>
             )}
-        </PremiumCard >
+        </div>
     )
 }

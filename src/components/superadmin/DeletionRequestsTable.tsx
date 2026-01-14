@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Trash2, CheckCircle, XCircle, Clock, ShieldAlert, Download } from 'lucide-react'
-import { PremiumCard } from '@/components/premium/PremiumCard'
+
 import { approveDeletion, rejectDeletion } from '@/app/deletion-actions'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -142,7 +142,7 @@ export function DeletionRequestsTable({ requests, onRefresh }: Props) {
 
     if (requests.length === 0) {
         return (
-            <PremiumCard>
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12">
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                     <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
                         <CheckCircle className="text-gray-300" size={32} />
@@ -152,7 +152,7 @@ export function DeletionRequestsTable({ requests, onRefresh }: Props) {
                         There are no accounts currently queued for deletion.
                     </p>
                 </div>
-            </PremiumCard>
+            </div>
         )
     }
 

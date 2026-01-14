@@ -3,7 +3,7 @@
 
 import { CheckCircle, Filter, ChevronDown, Clock, AlertCircle, Phone, MapPin, User, Search, Square, CheckSquare, Trash, XCircle, Download, X, Pencil } from 'lucide-react'
 import { useState, useMemo } from 'react'
-import { PremiumCard } from '@/components/premium/PremiumCard'
+
 import { toast } from 'sonner'
 import { bulkRejectReferrals, bulkDeleteReferrals } from '@/app/admin-actions'
 
@@ -136,7 +136,7 @@ export function ReferralTable({
     }
 
     return (
-        <PremiumCard>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-red-50 text-red-600 rounded-xl">
@@ -452,7 +452,7 @@ export function ReferralTable({
                     </div>
                 </div>
             )}
-        </PremiumCard>
+        </div>
     )
 }
 

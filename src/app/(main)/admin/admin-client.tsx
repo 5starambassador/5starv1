@@ -5,9 +5,7 @@ import { Users, TrendingUp, Award, BarChart3, IndianRupee, CheckCircle, RefreshC
 import { ReferralManagementTable } from './referral-table-advanced'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { PremiumHeader } from '@/components/premium/PremiumHeader'
-import { PremiumStatCard } from '@/components/premium/PremiumStatCard'
-import { PremiumCard } from '@/components/premium/PremiumCard'
+import { CleanStatCard } from '@/components/superadmin/CleanStatCard'
 import { ReportsPanel } from '@/components/superadmin/ReportsPanel'
 import {
     generateLeadPipelineReport,
@@ -130,7 +128,7 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
             case 'admins': return 'Admin Management';
             case 'students': return 'Student Management';
             case 'home': return 'Dashboard';
-            case 'referrals': return 'Referral Management'; // Added
+            case 'referrals': return 'Referral Management';
             case 'reports': return 'Detailed Reports';
             default: return 'Analytics Overview';
         }
@@ -143,27 +141,26 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
             case 'admins': return 'Manage system administrators';
             case 'students': return 'View registered students';
             case 'home': return 'Quick overview and actions';
-            case 'referrals': return 'Process, verify, and manage referral leads'; // Added
+            case 'referrals': return 'Process, verify, and manage referral leads';
             case 'reports': return 'Generate and download data exports';
             default: return 'Operational insights and lead conversion';
         }
     }
 
     return (
-        <div className="animate-fade-in space-y-8">
-            {/* Premium Header */}
-            <PremiumHeader
-                title={getTitle()}
-                subtitle={getSubtitle()}
-                icon={BarChart3}
-            >
+        <div className="animate-fade-in space-y-8 p-6 bg-gray-50/50 min-h-screen">
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">{getTitle()}</h1>
+                    <p className="text-sm text-gray-500 mt-1">{getSubtitle()}</p>
+                </div>
                 <button
                     onClick={() => router.refresh()}
-                    className="flex items-center gap-2 px-4 py-2 bg-white/50 hover:bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 transition-all shadow-sm hover:shadow-md backdrop-blur-sm"
+                    className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-all shadow-sm"
                 >
                     <RefreshCw size={16} /> Refresh
                 </button>
-            </PremiumHeader>
+            </div>
 
             {/* CONTENT VIEWS */}
 
@@ -171,123 +168,109 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
             {selectedView === 'home' && (
                 <div className="space-y-8">
                     {/* Quick Stats Row */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                        <PremiumStatCard
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <CleanStatCard
                             title="Total Leads"
                             value={analytics?.totalLeads || 0}
-                            icon={<Users size={24} />}
-                            gradient="linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)"
+                            icon={Users}
+                            iconColor="bg-red-50 text-red-600"
+                            subtext="Total inbound leads"
                         />
-                        <PremiumStatCard
+                        <CleanStatCard
                             title="Confirmed"
                             value={analytics?.confirmedLeads || 0}
-                            icon={<CheckCircle size={24} />}
-                            gradient="linear-gradient(135deg, #10B981 0%, #047857 100%)"
+                            icon={CheckCircle}
+                            iconColor="bg-green-50 text-green-600"
+                            subtext="Verified enrollments"
                         />
-                        <PremiumStatCard
+                        <CleanStatCard
                             title="Pending"
                             value={analytics?.pendingLeads || 0}
-                            icon={<Clock size={24} />}
-                            gradient="linear-gradient(135deg, #F59E0B 0%, #B45309 100%)"
+                            icon={Clock}
+                            iconColor="bg-amber-50 text-amber-600"
+                            subtext="Awaiting action"
                         />
-                        <PremiumStatCard
+                        <CleanStatCard
                             title="Conversion"
                             value={`${analytics?.conversionRate || 0}%`}
-                            icon={<TrendingUp size={24} />}
-                            gradient="linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)"
+                            icon={TrendingUp}
+                            iconColor="bg-purple-50 text-purple-600"
+                            subtext="Leads to Confirmed"
                         />
                     </div>
 
                     {/* Quick Actions */}
-                    <PremiumCard>
-                        <div className="p-8 border-b border-gray-100 mb-8">
-                            <div className="flex items-center gap-3">
-                                <span className="w-1.5 h-6 bg-red-600 rounded-full"></span>
-                                <h2 className="text-xl font-black text-gray-900 tracking-tight">Quick Actions</h2>
-                            </div>
-                        </div>
+                    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <h2 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {(permissions?.campusPerformance?.access) && (
                                 <button
                                     onClick={() => router.push('/admin?view=campuses')}
-                                    className="flex flex-col items-center gap-3 p-6 bg-gray-50 hover:bg-white hover:shadow-xl hover:shadow-red-500/10 border border-gray-100 hover:border-red-100 rounded-2xl transition-all group"
+                                    className="flex items-center justify-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors text-sm font-medium text-gray-700"
                                 >
-                                    <div className="p-3 bg-red-50 rounded-xl group-hover:scale-110 transition-transform">
-                                        <Building2 size={24} className="text-red-600" />
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-700">Campuses</span>
+                                    <Building2 size={18} />
+                                    Campuses
                                 </button>
                             )}
                             {(permissions?.userManagement?.access) && (
                                 <button
                                     onClick={() => router.push('/admin?view=users')}
-                                    className="flex flex-col items-center gap-3 p-6 bg-gray-50 hover:bg-white hover:shadow-xl hover:shadow-blue-500/10 border border-gray-100 hover:border-blue-100 rounded-2xl transition-all group"
+                                    className="flex items-center justify-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors text-sm font-medium text-gray-700"
                                 >
-                                    <div className="p-3 bg-blue-50 rounded-xl group-hover:scale-110 transition-transform">
-                                        <Users size={24} className="text-blue-600" />
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-700">Users</span>
+                                    <Users size={18} />
+                                    Users
                                 </button>
                             )}
                             {(permissions?.studentManagement?.access) && (
                                 <button
                                     onClick={() => router.push('/admin?view=students')}
-                                    className="flex flex-col items-center gap-3 p-6 bg-gray-50 hover:bg-white hover:shadow-xl hover:shadow-green-500/10 border border-gray-100 hover:border-green-100 rounded-2xl transition-all group"
+                                    className="flex items-center justify-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors text-sm font-medium text-gray-700"
                                 >
-                                    <div className="p-3 bg-green-50 rounded-xl group-hover:scale-110 transition-transform">
-                                        <BookOpen size={24} className="text-green-600" />
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-700">Students</span>
+                                    <BookOpen size={18} />
+                                    Students
                                 </button>
                             )}
                             {(permissions?.analytics?.access) && (
                                 <button
                                     onClick={() => router.push('/admin?view=reports')}
-                                    className="flex flex-col items-center gap-3 p-6 bg-gray-50 hover:bg-white hover:shadow-xl hover:shadow-purple-500/10 border border-gray-100 hover:border-purple-100 rounded-2xl transition-all group"
+                                    className="flex items-center justify-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors text-sm font-medium text-gray-700"
                                 >
-                                    <div className="p-3 bg-purple-50 rounded-xl group-hover:scale-110 transition-transform">
-                                        <BarChart3 size={24} className="text-purple-600" />
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-700">Analytics</span>
+                                    <BarChart3 size={18} />
+                                    Analytics
                                 </button>
                             )}
                             {/* New Referrals Button */}
                             {(permissions?.referralTracking?.access || permissions?.referralTracking?.scope !== 'none') && (
                                 <button
                                     onClick={() => router.push('/admin?view=referrals')}
-                                    className="flex flex-col items-center gap-3 p-6 bg-gray-50 hover:bg-white hover:shadow-xl hover:shadow-red-500/10 border border-gray-100 hover:border-red-100 rounded-2xl transition-all group"
+                                    className="flex items-center justify-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors text-sm font-medium text-gray-700"
                                 >
-                                    <div className="p-3 bg-red-50 rounded-xl group-hover:scale-110 transition-transform">
-                                        <CheckCircle size={24} className="text-red-600" />
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-700">Referrals</span>
+                                    <CheckCircle size={18} />
+                                    Referrals
                                 </button>
                             )}
                         </div>
-                    </PremiumCard>
+                    </div>
 
                     {/* Top Performers & Role Distribution */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <PremiumCard>
-                            <div className="p-6 border-b border-gray-100 mb-6">
-                                <div className="flex items-center gap-3">
-                                    <Trophy className="text-amber-500" size={24} />
-                                    <h2 className="text-xl font-black text-gray-900 tracking-tight">Top Performers</h2>
-                                </div>
-                            </div>
+                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                <Trophy className="text-amber-500" size={20} />
+                                Top Performers
+                            </h2>
                             <div className="space-y-4">
                                 {(analytics?.topPerformers || []).slice(0, 5).map((performer, idx) => (
-                                    <div key={idx} className="flex items-center justify-between p-4 bg-gray-50/50 hover:bg-white hover:shadow-md border border-transparent hover:border-gray-100 rounded-2xl transition-all">
-                                        <div className="flex items-center gap-4">
-                                            <span className="w-8 h-8 bg-red-100 text-red-600 rounded-full text-xs font-bold flex items-center justify-center">{idx + 1}</span>
+                                    <div key={idx} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 hover:bg-gray-50 px-2 rounded -mx-2">
+                                        <div className="flex items-center gap-3">
+                                            <span className="w-6 h-6 bg-gray-100 text-gray-600 rounded text-xs font-bold flex items-center justify-center">{idx + 1}</span>
                                             <div>
-                                                <span className="text-sm font-bold text-gray-800 block">{performer.name}</span>
-                                                <p className="text-xs text-gray-500 font-medium">{performer.role}</p>
+                                                <span className="text-sm font-medium text-gray-900 block">{performer.name}</span>
+                                                <p className="text-xs text-gray-500">{performer.role}</p>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-lg font-black text-green-600">{performer.count}</p>
-                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">leads</p>
+                                            <span className="text-sm font-bold text-gray-900">{performer.count} Leads</span>
                                         </div>
                                     </div>
                                 ))}
@@ -295,32 +278,32 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                                     <p className="text-center text-gray-400 text-sm py-4">No data available</p>
                                 )}
                             </div>
-                        </PremiumCard>
+                        </div>
 
-                        <PremiumCard>
-                            <h2 className="text-xl font-black mb-6 text-gray-900 tracking-tight flex items-center gap-3">
-                                <Users className="text-blue-500" size={24} />
+                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                <Users className="text-blue-500" size={20} />
                                 Role Distribution
                             </h2>
                             <div className="space-y-4">
-                                <div className="flex items-center justify-between p-4 bg-red-50/50 border border-red-100 rounded-2xl">
-                                    <span className="text-sm font-bold text-gray-700">Parents</span>
-                                    <span className="text-xl font-black text-red-600">{analytics?.roleBreakdown?.parent?.count || 0}</span>
+                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <span className="text-sm font-medium text-gray-700">Parents</span>
+                                    <span className="text-lg font-bold text-gray-900">{analytics?.roleBreakdown?.parent?.count || 0}</span>
                                 </div>
-                                <div className="flex items-center justify-between p-4 bg-green-50/50 border border-green-100 rounded-2xl">
-                                    <span className="text-sm font-bold text-gray-700">Staff</span>
-                                    <span className="text-xl font-black text-green-600">{analytics?.roleBreakdown?.staff?.count || 0}</span>
+                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <span className="text-sm font-medium text-gray-700">Staff</span>
+                                    <span className="text-lg font-bold text-gray-900">{analytics?.roleBreakdown?.staff?.count || 0}</span>
                                 </div>
-                                <div className="flex items-center justify-between p-4 bg-blue-50/50 border border-blue-100 rounded-2xl">
-                                    <span className="text-sm font-bold text-gray-700">Total Ambassadors</span>
-                                    <span className="text-xl font-black text-blue-600">{analytics?.totalAmbassadors || 0}</span>
+                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <span className="text-sm font-medium text-gray-700">Total Ambassadors</span>
+                                    <span className="text-lg font-bold text-gray-900">{analytics?.totalAmbassadors || 0}</span>
                                 </div>
-                                <div className="flex items-center justify-between p-4 bg-purple-50/50 border border-purple-100 rounded-2xl">
-                                    <span className="text-sm font-bold text-gray-700">Est. Value</span>
-                                    <span className="text-xl font-black text-purple-600">₹{(analytics?.totalEstimatedValue || 0).toLocaleString('en-IN')}</span>
+                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <span className="text-sm font-medium text-gray-700">Est. Value</span>
+                                    <span className="text-lg font-bold text-gray-900">₹{(analytics?.totalEstimatedValue || 0).toLocaleString('en-IN')}</span>
                                 </div>
                             </div>
-                        </PremiumCard>
+                        </div>
                     </div>
                 </div>
             )}
@@ -353,8 +336,8 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                     </div>
 
                     {/* Lead Distribution Chart */}
-                    <PremiumCard>
-                        <h2 className="text-xl font-black mb-6 text-gray-900 tracking-tight">Lead Distribution by Campus</h2>
+                    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <h2 className="text-xl font-bold mb-6 text-gray-900 tracking-tight">Lead Distribution by Campus</h2>
                         <div className="space-y-4">
                             {campusPerformance.map((campus) => {
                                 const maxLeads = Math.max(...campusPerformance.map(c => c.totalLeads))
@@ -376,12 +359,12 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                                 )
                             })}
                         </div>
-                    </PremiumCard>
+                    </div>
 
                     {/* Desktop Table */}
-                    <PremiumCard noPadding>
-                        <div className="p-8 border-b border-gray-100">
-                            <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1.5">Campus Management Details</h2>
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="p-6 border-b border-gray-100">
+                            <h2 className="text-xl font-bold text-gray-900 tracking-tight leading-none">Campus Management Details</h2>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full">
@@ -413,7 +396,7 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                                 </tbody>
                             </table>
                         </div>
-                    </PremiumCard>
+                    </div>
                 </div>
             )}
 
@@ -421,33 +404,34 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
             {(selectedView === 'analytics' || !selectedView) && permissions?.analytics?.access && (
                 <div className="space-y-8">
                     {/* KPI Cards */}
+                    {/* KPI Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <PremiumStatCard
+                        <CleanStatCard
                             title="Total Leads"
                             value={analytics?.totalLeads || 0}
-                            icon={<Users size={24} />}
-                            gradient="linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)"
+                            icon={Users}
+                            iconColor="bg-red-50 text-red-600"
                             subtext={`${analytics?.conversionRate || 0}% Conversion`}
                         />
-                        <PremiumStatCard
+                        <CleanStatCard
                             title="Confirmed"
                             value={analytics?.confirmedLeads || 0}
-                            icon={<CheckCircle size={24} />}
-                            gradient="linear-gradient(135deg, #10B981 0%, #047857 100%)"
+                            icon={CheckCircle}
+                            iconColor="bg-green-50 text-green-600"
                             subtext="Verified Enrollments"
                         />
-                        <PremiumStatCard
+                        <CleanStatCard
                             title="Est. Value"
                             value={`₹${(analytics?.totalEstimatedValue || 0).toLocaleString('en-IN')}`}
-                            icon={<IndianRupee size={24} />}
-                            gradient="linear-gradient(135deg, #4F46E5 0%, #3730A3 100%)"
+                            icon={IndianRupee}
+                            iconColor="bg-indigo-50 text-indigo-600"
                             subtext="Incentive Value"
                         />
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <PremiumCard>
-                            <h2 className="text-xl font-black mb-6 text-gray-900 tracking-tight flex items-center gap-3">
+                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                            <h2 className="text-xl font-bold mb-6 text-gray-900 flex items-center gap-3">
                                 <BarChart3 className="text-red-600" size={24} />
                                 Role Distribution
                             </h2>
@@ -471,18 +455,18 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                                     </div>
                                 </div>
                             </div>
-                        </PremiumCard>
+                        </div>
 
-                        <PremiumCard>
-                            <h2 className="text-xl font-black mb-6 text-gray-900 tracking-tight flex items-center gap-3">
+                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                            <h2 className="text-xl font-bold mb-6 text-gray-900 flex items-center gap-3">
                                 <Trophy className="text-amber-500" size={24} />
                                 Top Performers
                             </h2>
                             <div className="space-y-3">
                                 {(analytics?.topPerformers || []).map((performer, idx) => (
-                                    <div key={idx} className={`flex items-center justify-between p-4 rounded-2xl transition-all ${idx === 0 ? 'bg-amber-50 border border-amber-100' : 'bg-gray-50 border-transparent border'}`}>
+                                    <div key={idx} className={`flex items-center justify-between p-4 rounded-xl transition-all ${idx === 0 ? 'bg-amber-50 border border-amber-100' : 'bg-gray-50 border-transparent border'}`}>
                                         <div className="flex items-center gap-4">
-                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${idx === 0 ? 'bg-amber-200 text-amber-800' : 'bg-white text-gray-500 shadow-sm'}`}>
+                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${idx === 0 ? 'bg-amber-200 text-amber-800' : 'bg-white text-gray-500 shadow-sm'}`}>
                                                 {idx + 1}
                                             </div>
                                             <div>
@@ -491,16 +475,16 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-xl font-black text-red-600">{performer.count}</p>
+                                            <p className="text-xl font-bold text-red-600">{performer.count}</p>
                                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">leads</p>
                                             {(performer as any).totalValue > 0 && (
-                                                <p className="text-[11px] font-black text-emerald-600 mt-1">₹{(performer as any).totalValue.toLocaleString('en-IN')}</p>
+                                                <p className="text-[11px] font-bold text-emerald-600 mt-1">₹{(performer as any).totalValue.toLocaleString('en-IN')}</p>
                                             )}
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                        </PremiumCard>
+                        </div>
                     </div>
 
                 </div>
@@ -626,20 +610,20 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                     </div>
 
                     {/* Table */}
-                    <PremiumCard noPadding>
-                        <div className="p-8 border-b border-gray-100">
-                            <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1.5">User Directory</h2>
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="p-6 border-b border-gray-100">
+                            <h2 className="text-xl font-bold text-gray-900 tracking-tight leading-none">User Directory</h2>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
                                 <thead className="bg-gray-50/50 border-b border-gray-100">
                                     <tr>
-                                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Full Name</th>
-                                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Mobile</th>
-                                        <th className="px-6 py-4 text-center text-xs font-bold text-gray-400 uppercase tracking-wider">Role</th>
-                                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Campus</th>
-                                        <th className="px-6 py-4 text-center text-xs font-bold text-gray-400 uppercase tracking-wider">Referrals</th>
-                                        <th className="px-6 py-4 text-center text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Full Name</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Mobile</th>
+                                        <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Role</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Campus</th>
+                                        <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Referrals</th>
+                                        <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
@@ -672,7 +656,7 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                                 </tbody>
                             </table>
                         </div>
-                    </PremiumCard>
+                    </div>
                 </div>
             )}
 
@@ -692,13 +676,13 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                         </div>
                     </div>
 
-                    <PremiumCard noPadding>
-                        <div className="p-8 border-b border-gray-100">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="p-6 border-b border-gray-100">
                             <div className="flex items-center gap-3">
                                 <div className="p-2.5 bg-red-50 text-red-600 rounded-xl">
                                     <Shield size={20} strokeWidth={2.5} />
                                 </div>
-                                <h2 className="text-xl font-black text-gray-900 tracking-tight">System Administrators</h2>
+                                <h2 className="text-xl font-bold text-gray-900 tracking-tight">System Administrators</h2>
                             </div>
                         </div>
                         <div className="overflow-x-auto">
@@ -733,7 +717,7 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                                 </tbody>
                             </table>
                         </div>
-                    </PremiumCard>
+                    </div>
                 </div>
             )}
 
@@ -753,13 +737,13 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                         </div>
                     </div>
 
-                    <PremiumCard noPadding>
-                        <div className="p-8 border-b border-gray-100">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                             <div className="flex items-center gap-3">
                                 <div className="p-2.5 bg-red-50 text-red-600 rounded-xl">
                                     <GraduationCap size={20} strokeWidth={2.5} />
                                 </div>
-                                <h2 className="text-xl font-black text-gray-900 tracking-tight">Registered Students</h2>
+                                <h2 className="text-xl font-bold text-gray-900 tracking-tight">Registered Students</h2>
                             </div>
                             {/* Add Student Button (Conditional) */}
                             {permissions?.studentManagement?.canCreate && (
@@ -838,7 +822,7 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                                 </tbody>
                             </table>
                         </div>
-                    </PremiumCard>
+                    </div>
                 </div>
             )}
 

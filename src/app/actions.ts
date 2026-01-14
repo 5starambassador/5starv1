@@ -24,7 +24,9 @@ export async function checkSession() {
     return { authenticated: false }
 }
 
-export async function sendOtp(mobile: string, forceOtp: boolean = false) {
+import { OTPFlow } from '@/lib/sms-service'
+
+export async function sendOtp(mobile: string, forceOtp: boolean = false, flow: OTPFlow = 'registration') {
     try {
         // Check User
         const user = await prisma.user.findUnique({
@@ -73,7 +75,7 @@ export async function sendOtp(mobile: string, forceOtp: boolean = false) {
         })
 
         // Send SMS
-        await smsService.sendOTP(mobile, otp)
+        await smsService.sendOTP(mobile, otp, flow)
 
         // For "Mock" mode, return the OTP to the frontend for easy testing
         // In production, you would remove 'otp' from this return
@@ -249,7 +251,7 @@ export async function getRegistrationCampuses() {
 }
 
 export async function registerUser(formData: any) {
-    const { fullName, mobileNumber, password, role, childInAchariya, childName, bankAccountDetails, campusId, grade, transactionId, childEprNo, empId, aadharNo, email } = formData
+    const { fullName, mobileNumber, password, role, childInAchariya, childName, bankAccountDetails, campusId, grade, transactionId, childEprNo, empId, aadharNo, email, childCampusId } = formData
 
     // Secure Password Policy Check
     const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.*[A-Z])[a-zA-Z0-9!@#$%^&*]{8,}$/;
@@ -269,16 +271,28 @@ export async function registerUser(formData: any) {
 
     // Fetch fee based on campus and grade
     let studentFee = 60000
-    if (childInAchariya === 'Yes' && campusId && grade) {
-        const gradeFee = await prisma.gradeFee.findFirst({
-            where: {
-                campusId: parseInt(campusId),
-                grade: grade,
-                academicYear: currentYear
-            }
+    let assignedCampusName = null
+
+    if (campusId) {
+        const campus = await prisma.campus.findUnique({
+            where: { id: parseInt(campusId) }
         })
-        if (gradeFee) {
-            studentFee = gradeFee.annualFee_otp || 0
+        if (campus) {
+            assignedCampusName = campus.campusName
+
+            // Calculate Fee if Child in Achariya
+            if (childInAchariya === 'Yes' && grade) {
+                const gradeFee = await prisma.gradeFee.findFirst({
+                    where: {
+                        campusId: parseInt(campusId),
+                        grade: grade,
+                        academicYear: currentYear
+                    }
+                })
+                if (gradeFee) {
+                    studentFee = gradeFee.annualFee_otp || 0
+                }
+            }
         }
     }
 
@@ -298,9 +312,10 @@ export async function registerUser(formData: any) {
                 childName: childName || null,
                 grade: grade || null,
                 campusId: campusId ? parseInt(campusId) : null,
+                assignedCampus: assignedCampusName, // Save the resolved name
                 bankAccountDetails: encrypt(bankAccountDetails) || null,
                 referralCode,
-                benefitStatus: AccountStatus.Inactive,
+                benefitStatus: childInAchariya === 'Yes' ? ('PendingVerification' as any as AccountStatus) : AccountStatus.Inactive,
                 studentFee,
                 academicYear: currentYearRecord?.year || '2025-2026',
                 // New Role Fields
@@ -320,6 +335,14 @@ export async function registerUser(formData: any) {
         const is2faRequired = isSuperAdmin && securitySettings?.twoFactorAuthEnabled
 
         await createSession(user.userId, 'user', mapUserRole(user.role), !is2faRequired)
+
+        // Sync: Notify Admin Verification Queue
+        if (childInAchariya === 'Yes') {
+            revalidatePath('/superadmin/verification')
+        }
+        revalidatePath('/superadmin/users')
+        revalidatePath('/dashboard') // Ensure their own dashboard is fresh
+
         return { success: true }
     } catch (e: any) {
         console.error('Registration error:', e)

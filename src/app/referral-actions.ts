@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { logger } from '@/lib/logger'
 import { revalidatePath } from 'next/cache'
 import { EmailService } from '@/lib/email-service'
+import { smsService } from '@/lib/sms-service'
 import { getNotificationSettings } from './notification-actions'
 import { notifyReferralSubmitted, notifyAdminNewReferral } from '@/lib/notification-helper'
 
@@ -54,25 +55,35 @@ export async function sendReferralOtp(mobile: string, referralCode?: string) {
         }
     }
 
-    // SECURITY: In production, integrate with MSG91 or Twilio
-    // Current implementation stores OTP in DB but logs it for demo purposes
+    if (referralCode) {
+        const ambassador = await prisma.user.findUnique({
+            where: { referralCode }
+        })
+        if (ambassador) {
+            destinationMobile = ambassador.mobileNumber
+            isAmbassadorVerified = true
+            ambassadorName = ambassador.fullName
+        }
+    }
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString()
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
 
     try {
+        // Upsert OTP
         await prisma.otpVerification.upsert({
-            where: { mobile }, // We still use parent's mobile as the unique key for verification
+            where: { mobile },
             update: { otp, expiresAt },
             create: { mobile, otp, expiresAt }
         })
 
         if (process.env.NODE_ENV === 'development') {
-            if (isAmbassadorVerified) {
-                logger.info(`[OTP] Sending OTP ${otp} to Ambassador ${ambassadorName} (${destinationMobile}) for parent ${mobile}`)
-            } else {
-                logger.info(`[OTP] Sending OTP ${otp} to parent ${mobile}`)
-            }
+            // Logs
+            logger.info(`[OTP] Sending OTP ${otp} to ${destinationMobile} (Ambassador: ${isAmbassadorVerified})`)
         }
+
+        // Send SMS via MSG91
+        await smsService.sendOTP(destinationMobile, otp, 'referral')
 
         return {
             success: true,

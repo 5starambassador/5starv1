@@ -68,8 +68,9 @@ export function ImportDataPanel({ type, onSuccess }: ImportDataPanelProps) {
                 filename = 'fee_structure_template.csv'
                 break
             case 'ambassadors':
-                headers = 'Full Name,Mobile Number,Role,Email,Campus Name,Emp ID,Child ERP No,Academic Year,Password,Referral Code\n' +
-                    'John Doe,9876543210,Parent,john@example.com,ASM - KARAIKAL,,,,pass123,'
+                headers = 'Full Name,Mobile Number,Role,Email,Campus Name,Emp ID,Child ERP No,Child In Achariya (Yes/No),Benefit Status,Academic Year,Password,Referral Code\n' +
+                    'John Doe,9876543210,Parent,john@example.com,ASM - KARAIKAL,,24ABS001,Yes,PendingVerification,,pass123,'
+
                 filename = 'ambassador_import_template.csv'
                 break
             case 'students':

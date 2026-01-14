@@ -8,9 +8,8 @@ import { DateRangeSelector } from './date-range-selector'
 import { CampusTargetModal } from './campus-target-modal'
 
 // Imports at top
-import { PremiumHeader } from '@/components/premium/PremiumHeader'
-import { PremiumStatCard } from '@/components/premium/PremiumStatCard'
-import { PremiumCard } from '@/components/premium/PremiumCard'
+
+import { CampusAnalyticsView } from '@/components/campus/CampusAnalyticsView'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,148 +54,11 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
     // View Components Array for easier management
     if (view === 'analytics') {
         return (
-            <div className="space-y-6 animate-fade-in text-gray-900">
-                <Link href="/campus" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium">
-                    <ArrowLeft size={16} /> Back to Home
-                </Link>
-
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-maroon to-primary-gold">
-                            Campus Analytics
-                        </h1>
-                        <p className="text-gray-500 mt-1">Strategic overview for {user.assignedCampus || 'All Campuses'}</p>
-                    </div>
-                    <DateRangeSelector currentDays={days} />
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-5 text-white">
-                        <p className="text-blue-100 text-xs font-medium uppercase tracking-wider">Total Students</p>
-                        <p className="text-3xl font-extrabold mt-1">{stats?.totalStudents || 0}</p>
-                    </div>
-                    <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-5 text-white">
-                        <p className="text-purple-100 text-xs font-medium uppercase tracking-wider">New Leads</p>
-                        <div className="flex items-end gap-2">
-                            <p className="text-3xl font-extrabold mt-1">{stats?.newReferrals || 0}</p>
-                            {leadChange && (
-                                <span className={`text-xs font-bold px-1.5 py-0.5 rounded bg-white/20 mb-1 ${leadChange.isIncrease ? 'text-green-300' : 'text-red-300'}`}>
-                                    {leadChange.isIncrease ? '↑' : '↓'} {leadChange.value}%
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                    <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-5 text-white">
-                        <p className="text-orange-100 text-xs font-medium uppercase tracking-wider">Pending</p>
-                        <p className="text-3xl font-extrabold mt-1">{stats?.pendingAdmissions || 0}</p>
-                    </div>
-                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-5 text-white">
-                        <p className="text-green-100 text-xs font-medium uppercase tracking-wider">Confirmed</p>
-                        <div className="flex items-end gap-2">
-                            <p className="text-3xl font-extrabold mt-1">{stats?.confirmedAdmissions || 0}</p>
-                            {admissionChange && (
-                                <span className={`text-xs font-bold px-1.5 py-0.5 rounded bg-white/20 mb-1 ${admissionChange.isIncrease ? 'text-green-300' : 'text-red-300'}`}>
-                                    {admissionChange.isIncrease ? '↑' : '↓'} {admissionChange.value}%
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Pipeline Funnel */}
-                    <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                        <div className="flex items-center gap-2 mb-6">
-                            <TrendingUp className="text-primary-maroon" size={20} />
-                            <h3 className="font-bold text-gray-900 text-lg">Lead Pipeline Funnel</h3>
-                        </div>
-
-                        <div className="flex flex-col gap-1">
-                            <div className="relative">
-                                <div className="bg-blue-500 rounded-xl p-4 text-white flex justify-between items-center z-10 relative">
-                                    <div className="flex flex-col">
-                                        <span className="text-blue-100 text-xs font-semibold uppercase tracking-wider">New Leads</span>
-                                        <span className="text-2xl font-bold">{stats?.leadsNew || 0}</span>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="text-xs text-blue-100 block opacity-80">Top of Funnel</span>
-                                        <span className="text-sm font-medium">100%</span>
-                                    </div>
-                                </div>
-                                <div className="flex justify-center -my-1 h-6 items-center">
-                                    <div className="w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[10px] border-t-blue-500 opacity-40"></div>
-                                </div>
-                            </div>
-
-                            <div className="relative scale-[0.9] origin-center -mt-2">
-                                <div className="bg-orange-500 rounded-xl p-4 text-white flex justify-between items-center z-10 relative">
-                                    <div className="flex flex-col">
-                                        <span className="text-orange-100 text-xs font-semibold uppercase tracking-wider">Follow-up</span>
-                                        <span className="text-2xl font-bold">{stats?.leadsFollowup || 0}</span>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="text-xs text-orange-100 block opacity-80">Engagement</span>
-                                        <span className="text-sm font-medium">
-                                            {stats?.leadsNew ? (((stats.leadsFollowup || 0) / (stats.leadsNew + stats.leadsFollowup + stats.leadsConfirmed) * 100).toFixed(0)) : 0}%
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="flex justify-center -my-1 h-6 items-center">
-                                    <div className="w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[10px] border-t-orange-500 opacity-40"></div>
-                                </div>
-                            </div>
-
-                            <div className="relative scale-[0.8] origin-center -mt-4">
-                                <div className="bg-green-600 rounded-xl p-4 text-white flex justify-between items-center z-10 relative shadow-lg ring-4 ring-green-100">
-                                    <div className="flex flex-col">
-                                        <span className="text-green-100 text-xs font-semibold uppercase tracking-wider">Converted</span>
-                                        <span className="text-2xl font-bold">{stats?.leadsConfirmed || 0}</span>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="text-xs text-green-100 block opacity-80">Win Rate</span>
-                                        <span className="text-sm font-medium">
-                                            {stats ? (((stats.leadsConfirmed || 0) / (stats.leadsNew + stats.leadsFollowup + stats.leadsConfirmed || 1) * 100).toFixed(1)) : 0}%
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                        <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <Activity size={18} className="text-blue-500" />
-                            Performance Summary
-                        </h3>
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-                                <div>
-                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Current Period Leads</p>
-                                    <p className="text-xl font-bold text-gray-900">{stats?.newReferrals || 0}</p>
-                                </div>
-                                {leadChange && (
-                                    <div className={`flex items-center gap-1 font-bold ${leadChange.isIncrease ? 'text-green-600' : 'text-red-500'}`}>
-                                        {leadChange.isIncrease ? <ArrowUpRight size={20} /> : <ArrowDownRight size={20} />}
-                                        {leadChange.value}%
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-                                <div>
-                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Conversions</p>
-                                    <p className="text-xl font-bold text-gray-900">{stats?.confirmedAdmissions || 0}</p>
-                                </div>
-                                {admissionChange && (
-                                    <div className={`flex items-center gap-1 font-bold ${admissionChange.isIncrease ? 'text-green-600' : 'text-red-500'}`}>
-                                        {admissionChange.isIncrease ? <ArrowUpRight size={20} /> : <ArrowDownRight size={20} />}
-                                        {admissionChange.value}%
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <CampusAnalyticsView
+                stats={stats}
+                campusName={user.assignedCampus || 'All Campuses'}
+                currentDays={days}
+            />
         )
     }
 
@@ -293,22 +155,27 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
     return (
         <div className="space-y-8 max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8">
             {/* Premium Header - Library Component */}
-            <PremiumHeader
-                title={user.assignedCampus || 'Global Campus'}
-                subtitle={`Campus Overview • ${user.fullName}`}
-                icon={Building2}
-                iconColor="text-[#CC0000]"
-                gradientFrom="from-red-600"
-                gradientTo="to-red-600"
-            >
-                {user.role === 'Super Admin' && (
-                    <CampusTargetModal
-                        currentLeads={target?.leadTarget}
-                        currentAdmissions={target?.admissionTarget}
-                    />
-                )}
-                <DateRangeSelector currentDays={days} />
-            </PremiumHeader>
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-red-50 text-red-600 rounded-xl shadow-sm border border-red-100">
+                        <Building2 size={24} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-black text-gray-900 tracking-tight">{user.assignedCampus || 'Global Campus'}</h1>
+                        <p className="text-sm text-gray-500 font-bold tracking-wide">Campus Overview • {user.fullName}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    {user.role === 'Super Admin' && (
+                        <CampusTargetModal
+                            currentLeads={target?.leadTarget}
+                            currentAdmissions={target?.admissionTarget}
+                        />
+                    )}
+                    <DateRangeSelector currentDays={days} />
+                </div>
+            </div>
 
             {/* Target Progress Section - Glass Cards */}
             {!target && user.role === 'Super Admin' ? (
@@ -377,29 +244,53 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
 
             {/* Premium Stats Grid - Library Component */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <PremiumStatCard
-                    title="Total Students"
-                    value={stats?.totalStudents || 0}
-                    icon={<Users size={24} color="white" />}
-                    gradient="linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)" // Sapphire
-                    shadowColor="rgba(37, 99, 235, 0.3)"
-                />
-                <PremiumStatCard
-                    title="New Leads"
-                    value={stats?.newReferrals || 0}
-                    icon={<UserPlus size={24} color="white" />}
-                    gradient="linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%)" // Violet
-                    shadowColor="rgba(124, 58, 237, 0.3)"
-                    change={leadChange}
-                />
-                <PremiumStatCard
-                    title="Admissions"
-                    value={stats?.confirmedAdmissions || 0}
-                    icon={<CheckCircle2 size={24} color="white" />}
-                    gradient="linear-gradient(135deg, #059669 0%, #064E3B 100%)" // Emerald
-                    shadowColor="rgba(5, 150, 105, 0.3)"
-                    change={admissionChange}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider">Total Students</h3>
+                            <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
+                                <Users size={24} />
+                            </div>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <h2 className="text-3xl font-black text-gray-900">{stats?.totalStudents || 0}</h2>
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider">New Leads</h3>
+                            <div className="p-2 rounded-lg bg-purple-50 text-purple-600">
+                                <UserPlus size={24} />
+                            </div>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <h2 className="text-3xl font-black text-gray-900">{stats?.newReferrals || 0}</h2>
+                            {leadChange && (
+                                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${leadChange.isIncrease ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                    {leadChange.isIncrease ? '+' : '-'}{leadChange.value}%
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider">Admissions</h3>
+                            <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600">
+                                <CheckCircle2 size={24} />
+                            </div>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <h2 className="text-3xl font-black text-gray-900">{stats?.confirmedAdmissions || 0}</h2>
+                            {admissionChange && (
+                                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${admissionChange.isIncrease ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                    {admissionChange.isIncrease ? '+' : '-'}{admissionChange.value}%
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -407,16 +298,17 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
                     <RecentActivitySection />
                 </div>
 
-                {/* Quick Actions - Premium Style (Using PremiumCard container) */}
-                <PremiumCard className="h-full">
-                    <h2 className="text-xl font-black mb-8 text-gray-900 tracking-tight flex items-center gap-3">
+                {/* Quick Actions */}
+                {/* Quick Actions */}
+                <div className="h-full bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <h2 className="text-xl font-bold mb-8 text-gray-900 tracking-tight flex items-center gap-3">
                         <span className="w-1.5 h-6 bg-amber-500 rounded-full"></span>
                         Quick Actions
                     </h2>
                     <div className="grid grid-cols-1 gap-4">
-                        <Link href="/campus/referrals" className="group flex items-center justify-between p-5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-[24px] hover:shadow-[0_10px_30px_-10px_rgba(220,38,38,0.5)] active:scale-[0.98] transition-all duration-300">
+                        <Link href="/campus/referrals" className="group flex items-center justify-between p-5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:shadow-lg active:scale-[0.98] transition-all duration-300">
                             <div className="flex items-center gap-4">
-                                <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm border border-white/20 shadow-inner">
+                                <div className="p-2.5 bg-white/20 rounded-lg backdrop-blur-sm border border-white/20 shadow-inner">
                                     <UserPlus size={20} strokeWidth={2.5} />
                                 </div>
                                 <span className="font-bold text-lg">Process Admissions</span>
@@ -424,9 +316,9 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
                             <MoreHorizontal size={24} className="opacity-60 group-hover:opacity-100 transition-opacity" />
                         </Link>
 
-                        <Link href="/campus/students" className="group flex items-center justify-between p-5 bg-white border border-gray-100 rounded-[24px] hover:bg-gray-50 hover:border-gray-200 transition-all shadow-sm">
+                        <Link href="/campus/students" className="group flex items-center justify-between p-5 bg-white border border-gray-100 rounded-xl hover:bg-gray-50 hover:border-gray-200 transition-all shadow-sm">
                             <div className="flex items-center gap-4">
-                                <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
+                                <div className="p-2.5 bg-amber-50 text-amber-600 rounded-lg">
                                     <Users size={20} strokeWidth={2.5} />
                                 </div>
                                 <span className="font-bold text-gray-700 text-lg">Student Roster</span>
@@ -434,9 +326,9 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
                             <MoreHorizontal size={24} className="text-gray-300 group-hover:text-gray-400 transition-colors" />
                         </Link>
 
-                        <Link href="/campus?view=analytics" className="group flex items-center justify-between p-5 bg-white border border-gray-100 rounded-[24px] hover:bg-gray-50 hover:border-gray-200 transition-all shadow-sm">
+                        <Link href="/campus?view=analytics" className="group flex items-center justify-between p-5 bg-white border border-gray-100 rounded-xl hover:bg-gray-50 hover:border-gray-200 transition-all shadow-sm">
                             <div className="flex items-center gap-4">
-                                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
                                     <BarChart3 size={20} strokeWidth={2.5} />
                                 </div>
                                 <span className="font-bold text-gray-700 text-lg">Detailed Analytics</span>
@@ -444,7 +336,7 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
                             <MoreHorizontal size={24} className="text-gray-300 group-hover:text-gray-400 transition-colors" />
                         </Link>
                     </div>
-                </PremiumCard>
+                </div>
             </div>
         </div>
     )
@@ -459,13 +351,13 @@ async function RecentActivitySection() {
 
     if (!success || !activities || activities.length === 0) {
         return (
-            <PremiumCard className="min-h-[400px] flex flex-col justify-center items-center text-center">
+            <div className="min-h-[400px] flex flex-col justify-center items-center text-center bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <div className="p-6 bg-gray-50 rounded-full mb-6">
                     <Activity size={32} className="text-gray-300" strokeWidth={1.5} />
                 </div>
                 <p className="text-gray-900 font-bold text-lg mb-1">No recent activity</p>
                 <p className="text-gray-400 text-sm">New actions will appear here in real-time.</p>
-            </PremiumCard>
+            </div>
         )
     }
 
@@ -488,8 +380,8 @@ async function RecentActivitySection() {
                 {activities.map((activity: any, idx: number) => (
                     <div key={idx} className="flex items-start gap-5 group p-2 hover:bg-gray-50 rounded-2xl transition-colors">
                         <div className={`p-4 rounded-2xl shadow-sm border transition-all group-hover:scale-105 group-hover:shadow-md ${activity.type === 'confirmed'
-                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                : 'bg-blue-50 text-blue-600 border-blue-100'
+                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                            : 'bg-blue-50 text-blue-600 border-blue-100'
                             }`}>
                             {activity.type === 'confirmed' ? <CheckCircle2 size={20} strokeWidth={2.5} /> : <UserPlus size={20} strokeWidth={2.5} />}
                         </div>

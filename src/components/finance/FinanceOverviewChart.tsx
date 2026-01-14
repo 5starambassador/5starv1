@@ -1,6 +1,6 @@
 'use client'
 
-import { PremiumCard } from '@/components/premium/PremiumCard'
+
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 const data = [
@@ -16,10 +16,10 @@ const data = [
 export function FinanceOverviewChart() {
     return (
         <div className="col-span-1 md:col-span-4">
-            <PremiumCard>
+            <div className="col-span-1 md:col-span-4 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 <div className="p-6">
                     <div className="mb-6">
-                        <h3 className="text-lg font-black text-gray-900 dark:text-gray-100">Cash Flow Overview</h3>
+                        <h3 className="text-lg font-bold text-gray-900">Cash Flow Overview</h3>
                         <p className="text-sm text-gray-500">Revenue vs Payouts (Last 6 Months)</p>
                     </div>
 
@@ -83,7 +83,7 @@ export function FinanceOverviewChart() {
                         </ResponsiveContainer>
                     </div>
                 </div>
-            </PremiumCard>
+            </div>
         </div>
     )
 }

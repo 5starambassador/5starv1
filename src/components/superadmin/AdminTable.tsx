@@ -1,5 +1,5 @@
 import { ShieldCheck, Download, MoreHorizontal, CheckCircle, XCircle, Calendar, Hash, Building2, Smartphone, Shield, Trash2, Key, Edit2 } from 'lucide-react'
-import { PremiumHeader } from '@/components/premium/PremiumHeader'
+
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import { Admin } from '@/types'
@@ -206,15 +206,18 @@ export function AdminTable({
     return (
         <div className="space-y-6 animate-fade-in">
             {/* Premium Header */}
-            <PremiumHeader
-                title="System Administrators"
-                subtitle="Manage executive and operational access controls"
-                icon={ShieldCheck}
-                iconColor="text-white"
-                iconBgColor="bg-gray-900"
-                gradientFrom="from-gray-900"
-                gradientTo="to-gray-800"
-            >
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm transition-all hover:shadow-md">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-gray-900 text-white rounded-xl shadow-sm border border-gray-800">
+                        <ShieldCheck size={24} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-black text-gray-900 tracking-tight">System Administrators</h1>
+                        <p className="text-sm text-gray-500 font-bold tracking-wide">Manage executive and operational access controls</p>
+                    </div>
+                </div>
+
                 <div className="flex gap-4">
                     <button
                         onClick={() => exportToCSV(admins, 'System_Admins', [
@@ -225,20 +228,20 @@ export function AdminTable({
                             { header: 'Status', accessor: (a) => a.status },
                             { header: 'Created On', accessor: (a) => a.createdAt }
                         ])}
-                        className="px-8 py-4 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-xs hover:bg-gray-50 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-3 uppercase tracking-widest"
+                        className="px-8 py-4 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold text-xs hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3 uppercase tracking-wide"
                         suppressHydrationWarning
                     >
                         <Download size={18} /> Export List
                     </button>
                     <button
                         onClick={onAddAdmin}
-                        className="px-10 py-4 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl font-black text-xs shadow-2xl shadow-red-600/20 hover:shadow-red-600/40 hover:-translate-y-1 active:translate-y-0 transition-all flex items-center gap-3 uppercase tracking-widest border border-red-500"
+                        className="px-10 py-4 bg-red-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-red-600/20 hover:shadow-red-600/40 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-3 uppercase tracking-wide border border-red-500"
                         suppressHydrationWarning
                     >
                         <ShieldCheck size={18} /> New Administrator
                     </button>
                 </div>
-            </PremiumHeader>
+            </div>
 
             {/* Floating Bulk Action Bar */}
             {selectedAdmins.length > 0 && (

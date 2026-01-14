@@ -111,9 +111,9 @@ export function AnalyticsDashboard({ analyticsData: initialAnalytics, trendData,
                     </div>
                     <div className="h-[350px]">
                         <ConversionFunnelChart data={[
-                            { stage: 'Total Leads', count: displayedAnalytics.totalLeads },
-                            { stage: 'Pending', count: displayedAnalytics.totalLeads - displayedAnalytics.totalConfirmed },
-                            { stage: 'Admissions', count: displayedAnalytics.totalConfirmed }
+                            { stage: 'Total Leads', count: displayedAnalytics.totalLeads || 0 },
+                            { stage: 'Pending', count: (displayedAnalytics.totalLeads || 0) - (displayedAnalytics.totalConfirmed || 0) },
+                            { stage: 'Admissions', count: displayedAnalytics.totalConfirmed || 0 }
                         ]} />
                     </div>
                 </div>

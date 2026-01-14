@@ -233,10 +233,8 @@ export async function getAdminAnalytics(): Promise<{ success: boolean; error?: s
  */
 export async function confirmReferral(leadId: number, admissionNumber: string, selectedFeeType: 'OTP' | 'WOTP') {
     const admin = await getCurrentUser()
-    if (!admin || !admin.role.includes('Admin')) return { success: false, error: 'Unauthorized' }
-
-    // Strict Permission Check
-    if (!await canEdit('referralTracking')) {
+    // Permission handled by matrix Check
+    if (!admin || !await canEdit('referralTracking')) {
         return { success: false, error: 'Permission Denied: You do not have confirm rights' }
     }
 
@@ -605,10 +603,8 @@ export async function getAdminCampusPerformance() {
 
 export async function bulkRejectReferrals(leadIds: number[]) {
     const admin = await getCurrentUser()
-    if (!admin || !admin.role.includes('Admin')) return { success: false, error: 'Unauthorized' }
-
-    // Strict Permission Check
-    if (!await canEdit('referralTracking')) {
+    // Permission handled by matrix Check
+    if (!admin || !await canEdit('referralTracking')) {
         return { success: false, error: 'Permission Denied' }
     }
 
@@ -631,11 +627,8 @@ export async function bulkRejectReferrals(leadIds: number[]) {
 
 export async function bulkDeleteReferrals(leadIds: number[]) {
     const admin = await getCurrentUser()
-    if (!admin || !admin.role.includes('Admin')) return { success: false, error: 'Unauthorized' }
-
-
-    // Strict Permission Check
-    if (!await canEdit('referralTracking')) {
+    // Permission handled by matrix Check
+    if (!admin || !await canEdit('referralTracking')) {
         return { success: false, error: 'Permission Denied: Delete access required' }
     }
 

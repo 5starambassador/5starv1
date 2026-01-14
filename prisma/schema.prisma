@@ -459,6 +459,7 @@ enum AccountStatus {
   Active
   Inactive
   Pending
+  PendingVerification
   Suspended
   Deletion_Requested @map("Deletion Requested")
   Deleted

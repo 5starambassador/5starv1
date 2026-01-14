@@ -71,8 +71,29 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
     // Get view from URL params (default to 'home')
     const initialView = getString(params.view) || 'home'
 
+    // Default Empty Analytics Object
+    const defaultAnalytics = {
+        totalAmbassadors: 0,
+        totalLeads: 0,
+        totalConfirmed: 0,
+        globalConversionRate: 0,
+        totalCampuses: 0,
+        systemWideBenefits: 0,
+        totalStudents: 0,
+        staffCount: 0,
+        parentCount: 0,
+        userRoleDistribution: [],
+        avgLeadsPerAmbassador: 0,
+        totalEstimatedRevenue: 0,
+        conversionFunnel: [],
+        prevAmbassadors: 0,
+        prevLeads: 0,
+        prevConfirmed: 0,
+        prevBenefits: 0
+    }
+
     // Conditional Fetching
-    let analyticsPromise: Promise<any> = Promise.resolve({})
+    let analyticsPromise: Promise<any> = Promise.resolve(defaultAnalytics)
     let campusComparisonPromise: Promise<any> = Promise.resolve([])
     let usersPromise: Promise<any> = Promise.resolve([])
     let adminsPromise: Promise<any> = Promise.resolve([])

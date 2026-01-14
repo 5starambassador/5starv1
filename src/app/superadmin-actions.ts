@@ -8,8 +8,9 @@ import { registerSchema, mobileSchema } from "@/lib/validators"
 import { z } from "zod"
 import bcrypt from "bcryptjs"
 import { hasModuleAccess, getDataScope, getPrismaScopeFilter } from "@/lib/permissions"
+import { hasPermission } from "@/lib/permission-service"
 import { generateSmartReferralCode } from "@/lib/referral-service"
-import { UserRole, AdminRole, AccountStatus, LeadStatus } from "@prisma/client"
+import { UserRole, AdminRole, AccountStatus, LeadStatus, Prisma } from "@prisma/client"
 import { revalidatePath } from 'next/cache'
 import { toAdminRole, toLeadStatus, toUserRole, toAccountStatus } from "@/lib/enum-utils"
 
@@ -76,7 +77,8 @@ interface UserRecord {
  */
 export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'): Promise<SystemAnalytics> {
     const user = await getCurrentUser()
-    if (!user || !user.role.includes('Super Admin')) {
+    const canAccess = await hasPermission('analytics')
+    if (!user || !canAccess) {
         throw new Error('Unauthorized')
     }
 
@@ -137,39 +139,26 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
         : 0
 
     // Calculate system-wide benefits
-    const activeUsers = await prisma.user.findMany({
-        where: {
-            ...dateFilter,
-            confirmedReferralCount: { gt: 0 }
-        },
-        select: {
-            studentFee: true,
-            yearFeeBenefitPercent: true,
-            confirmedReferralCount: true
-        }
-    })
-
-    const systemWideBenefits = activeUsers.reduce((acc, u) => {
-        return acc + (u.studentFee * (u.yearFeeBenefitPercent / 100) * u.confirmedReferralCount)
-    }, 0)
+    // Optimized: Calculate system-wide benefits via DB Aggregation (O(1) memory)
+    const result: any[] = await prisma.$queryRaw`
+        SELECT SUM("studentFee" * ("yearFeeBenefitPercent" / 100.0) * "confirmedReferralCount") as total
+        FROM "User"
+        WHERE "confirmedReferralCount" > 0
+        ${dateFilter.createdAt ? Prisma.sql`AND "createdAt" >= ${dateFilter.createdAt.gte}` : Prisma.empty}
+    `
+    const systemWideBenefits = result[0]?.total ? Number(result[0].total) : 0
 
     // Previous benefits
     let prevBenefits;
-    if (prevDateFilter) {
-        const prevUsers = await prisma.user.findMany({
-            where: {
-                ...prevDateFilter,
-                confirmedReferralCount: { gt: 0 }
-            },
-            select: {
-                studentFee: true,
-                yearFeeBenefitPercent: true,
-                confirmedReferralCount: true
-            }
-        })
-        prevBenefits = prevUsers.reduce((acc, u) => {
-            return acc + (u.studentFee * (u.yearFeeBenefitPercent / 100) * u.confirmedReferralCount)
-        }, 0)
+    if (prevDateFilter && prevDateFilter.createdAt) {
+        const prevResult: any[] = await prisma.$queryRaw`
+            SELECT SUM("studentFee" * ("yearFeeBenefitPercent" / 100.0) * "confirmedReferralCount") as total
+            FROM "User"
+            WHERE "confirmedReferralCount" > 0
+            AND "createdAt" >= ${prevDateFilter.createdAt.gte}
+            AND "createdAt" < ${prevDateFilter.createdAt.lt}
+        `
+        prevBenefits = prevResult[0]?.total ? Number(prevResult[0].total) : 0
     }
 
     // User Role Distribution
@@ -227,7 +216,7 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
  */
 export async function getUserGrowthTrend(timeRange: '7d' | '30d' | 'all' = '30d') {
     const user = await getCurrentUser()
-    if (!user || !user.role.includes('Super Admin')) {
+    if (!user || !await hasPermission('analytics')) {
         throw new Error('Unauthorized')
     }
 
@@ -291,7 +280,7 @@ export async function getUserGrowthTrend(timeRange: '7d' | '30d' | 'all' = '30d'
  */
 export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all'): Promise<CampusComparison[]> {
     const user = await getCurrentUser()
-    if (!user || !user.role.includes('Super Admin')) {
+    if (!user || !await hasPermission('campusPerformance')) {
         throw new Error('Unauthorized')
     }
 

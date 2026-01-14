@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { MapPin, Edit, Trash, Plus, School, Upload, Download } from 'lucide-react'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
-import { PremiumCard } from '@/components/premium/PremiumCard'
-import { PremiumHeader } from '@/components/premium/PremiumHeader'
+
 import CSVUploader from '@/components/CSVUploader'
 import { exportToCSV } from '@/lib/export-utils'
 
@@ -160,17 +159,28 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBul
     return (
         <div className="space-y-6 animate-fade-in">
             {/* Header */}
-            <PremiumHeader
-                title={mode === 'management' ? "Campus Locations" : "Campus Management"}
-                subtitle={mode === 'management' ? "Manage physical school locations and their capacities" : "Track leads, admissions, and conversion metrics per campus"}
-                icon={School}
-            >
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-gray-50 rounded-xl">
+                        <School className="text-gray-900" size={24} strokeWidth={2} />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+                            {mode === 'management' ? "Campus Locations" : "Campus Management"}
+                        </h1>
+                        <p className="text-sm text-gray-500 font-medium">
+                            {mode === 'management' ? "Manage physical school locations and their capacities" : "Track leads, admissions, and conversion metrics per campus"}
+                        </p>
+                    </div>
+                </div>
+
                 {mode === 'management' && (
                     <div className="flex flex-wrap items-center gap-3">
                         {selectedCampuses.length > 0 && onBulkDelete && (
                             <button
                                 onClick={() => onBulkDelete(selectedCampuses.map(c => c.id))}
-                                className="px-5 py-2.5 bg-red-100/50 text-red-600 border border-red-200 rounded-xl font-bold text-xs hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-all flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200"
+                                className="px-5 py-2.5 bg-red-50 text-red-600 border border-red-100 rounded-xl font-bold text-xs hover:bg-red-100 transition-all flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200"
                             >
                                 <Trash size={16} strokeWidth={2.5} />
                                 Delete ({selectedCampuses.length})
@@ -206,7 +216,7 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBul
                         </button>
                     </div>
                 )}
-            </PremiumHeader>
+            </div>
 
             <div className="w-full xl:max-w-[calc(100vw-340px)] mx-auto overflow-hidden">
                 <div className="overflow-x-auto pb-4 custom-scrollbar">

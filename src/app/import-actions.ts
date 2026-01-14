@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth-service"
 import { generateSmartReferralCode } from "@/lib/referral-service"
 import { UserRole, Prisma } from "@prisma/client"
+import { revalidatePath } from "next/cache"
 
 // --- Helper: Simple CSV Parser ---
 // --- Helper: Simple CSV Parser ---
@@ -151,10 +152,24 @@ export async function importAmbassadors(csvData: string) {
             const email = row.email || row['email'] || null
             const assignedCampus = row.assignedcampus || row['campus name'] || row['campus'] || null
             const empId = row.empid || row['emp.id.'] || row['emp id'] || null
-            const childEprNo = row.childeprno || row['erp no'] || row['erp no.'] || null
+            const childEprNo = row.childeprno || row['erp no'] || row['erp no.'] || row['child erp no'] || null
             const academicYear = row.academicyear || row['academic year'] || '2025-2026'
             const password = row.password || row['password'] || null
             const referralCode = row.referralcode || row['referral code'] || null
+
+            // New Fields for Parent Verification logic
+            const childInAchariyaRaw = row.childinachariya || row['child in achariya (yes/no)'] || row['child in achariya']
+            const benefitStatusRaw = row.benefitstatus || row['benefit status'] || row['status']
+
+            const childInAchariya = (childInAchariyaRaw && childInAchariyaRaw.toLowerCase().startsWith('y')) || false
+
+            let benefitStatus = 'Inactive'
+            if (benefitStatusRaw) {
+                if (benefitStatusRaw.toLowerCase().includes('pending')) benefitStatus = 'PendingVerification'
+                else if (benefitStatusRaw.toLowerCase().includes('active')) benefitStatus = 'Active'
+            } else {
+                if (childInAchariya) benefitStatus = 'PendingVerification'
+            }
 
             // Basic Validation
             if (!fullName || !mobileNumber || !role) {
@@ -187,9 +202,10 @@ export async function importAmbassadors(csvData: string) {
                     referralCode: finalReferralCode,
                     empId,
                     childEprNo,
-                    childInAchariya: false, // Defaulting to false for bulk upload unless specified
+                    childInAchariya: childInAchariya,
                     childName: null,
                     grade: null,
+                    benefitStatus: benefitStatus as any, // Cast to avoid stale enum issues
                     status: 'Active',
                     password: password || null,
                     academicYear

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { DataTable } from '@/components/ui/DataTable'
-import { PremiumCard } from '@/components/premium/PremiumCard'
+
 import { BadgeCheck, CreditCard, Download, FileText } from 'lucide-react'
 
 import { format } from 'date-fns'
@@ -155,16 +155,14 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
                 </button>
             </div>
 
-            <PremiumCard>
-                <div className="p-2">
-                    <DataTable
-                        data={data}
-                        columns={columns as any}
-                        searchKey="fullName"
-                        pageSize={10}
-                    />
-                </div>
-            </PremiumCard>
+            <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <DataTable
+                    data={data}
+                    columns={columns as any}
+                    searchKey="fullName"
+                    pageSize={10}
+                />
+            </div>
         </div>
     )
 }

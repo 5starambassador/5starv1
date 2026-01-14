@@ -3,6 +3,7 @@
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
 import { canEdit, hasPermission, getPermissionScope } from '@/lib/permission-service'
+import { revalidatePath } from 'next/cache'
 
 // Create a new support ticket
 export async function createTicket(data: {
@@ -397,6 +398,7 @@ export async function escalateTicket(ticketId: number, reason: string, adminId: 
             }
         })
 
+        revalidatePath('/superadmin/support')
         return { success: true, level: newLevel }
     } catch (error: any) {
         return { success: false, error: error.message }

@@ -3,7 +3,7 @@ import { DataTable } from '@/components/ui/DataTable'
 import { PaymentModal } from './PaymentModal'
 import { CheckCircle, Clock, Download, Upload, Loader2, FileDown } from 'lucide-react'
 import { exportToCSV } from '@/lib/export-utils'
-import { PremiumCard } from '@/components/premium/PremiumCard'
+
 import { format } from 'date-fns'
 import { processBulkPayouts } from '@/app/finance-actions'
 import { toast } from 'sonner'
@@ -233,17 +233,15 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 </div>
             </div>
 
-            <PremiumCard>
-                <div className="p-2">
-                    <DataTable
-                        data={data}
-                        columns={columns as any}
-                        searchKey={"user.fullName" as any}
-                        searchPlaceholder="Search ambassador..."
-                        pageSize={10}
-                    />
-                </div>
-            </PremiumCard>
+            <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <DataTable
+                    data={data}
+                    columns={columns as any}
+                    searchKey={"user.fullName" as any}
+                    searchPlaceholder="Search ambassador..."
+                    pageSize={10}
+                />
+            </div>
 
             <PaymentModal
                 isOpen={isModalOpen}

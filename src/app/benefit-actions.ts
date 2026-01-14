@@ -1,84 +1,142 @@
 'use server'
 
 import prisma from '@/lib/prisma'
-import { cookies } from 'next/headers'
-
+import { revalidatePath } from 'next/cache'
 import { getCurrentUser } from '@/lib/auth-service'
 
-export async function getBenefitSlabs() {
-    try {
-        const slabs = await prisma.benefitSlab.findMany({
-            orderBy: { referralCount: 'asc' }
-        })
-        return { success: true, slabs }
-    } catch (error) {
-        console.error('Get benefit slabs error:', error)
-        return { success: false, error: 'Failed to fetch benefit slabs' }
-    }
-}
-
-export async function updateBenefitSlab(slabId: number, data: {
-    tierName?: string
-    referralCount?: number
-    yearFeeBenefitPercent?: number
-    longTermExtraPercent?: number
-    baseLongTermPercent?: number
-    description?: string
-}) {
-    const admin = await getCurrentUser()
-    if (!admin || admin.role !== 'Super Admin') {
-        return { success: false, error: 'Only Super Admin can update benefit tiers' }
-    }
-
-    try {
-        const slab = await prisma.benefitSlab.update({
-            where: { slabId },
-            data
-        })
-        return { success: true, slab }
-    } catch (error) {
-        console.error('Update benefit slab error:', error)
-        return { success: false, error: 'Failed to update benefit tier' }
-    }
-}
-
-export async function addBenefitSlab(data: {
-    tierName: string
+export interface BenefitSlabData {
+    slabId: number
     referralCount: number
     yearFeeBenefitPercent: number
     longTermExtraPercent: number
     baseLongTermPercent: number
-    description?: string
-}) {
-    const admin = await getCurrentUser()
-    if (!admin || admin.role !== 'Super Admin') {
-        return { success: false, error: 'Only Super Admin can add benefit tiers' }
-    }
+    tierName?: string | null
+    description?: string | null
+}
 
+// Get All Slabs
+export async function getBenefitSlabs() {
     try {
-        const slab = await prisma.benefitSlab.create({
-            data
+        const user = await getCurrentUser()
+        if (!user || user.role !== 'Super Admin') return { success: false, error: 'Unauthorized' }
+
+        const slabs = await prisma.benefitSlab.findMany({
+            orderBy: { referralCount: 'asc' }
         })
-        return { success: true, slab }
+
+        // If empty, seed defaults? Or let UI handle "No Data"?
+        // Better to return what is there. UI can offer "Reset to Default" button.
+        return { success: true, data: slabs }
     } catch (error) {
-        console.error('Add benefit slab error:', error)
-        return { success: false, error: 'Failed to add benefit tier' }
+        console.error('Error fetching benefit slabs:', error)
+        return { success: false, error: 'Failed to fetch slabs' }
     }
 }
 
-export async function deleteBenefitSlab(slabId: number) {
-    const admin = await getCurrentUser()
-    if (!admin || admin.role !== 'Super Admin') {
-        return { success: false, error: 'Only Super Admin can delete benefit tiers' }
-    }
-
+// Update a Slab
+export async function updateBenefitSlab(id: number, data: Partial<BenefitSlabData>) {
     try {
-        await prisma.benefitSlab.delete({
-            where: { slabId }
+        const user = await getCurrentUser()
+        if (!user || user.role !== 'Super Admin') return { success: false, error: 'Unauthorized' }
+
+        await prisma.benefitSlab.update({
+            where: { slabId: id },
+            data: {
+                referralCount: data.referralCount,
+                yearFeeBenefitPercent: data.yearFeeBenefitPercent,
+                tierName: data.tierName,
+                description: data.description
+            }
         })
+
+        revalidatePath('/superadmin/benefits')
         return { success: true }
     } catch (error) {
-        console.error('Delete benefit slab error:', error)
-        return { success: false, error: 'Failed to delete benefit tier' }
+        console.error('Error updating benefit slab:', error)
+        return { success: false, error: 'Failed to update slab' }
+    }
+}
+
+// Add a Slab
+export async function addBenefitSlab(data: Partial<BenefitSlabData>) {
+    try {
+        const user = await getCurrentUser()
+        if (!user || user.role !== 'Super Admin') return { success: false, error: 'Unauthorized' }
+
+        await prisma.benefitSlab.create({
+            data: {
+                referralCount: data.referralCount!,
+                yearFeeBenefitPercent: data.yearFeeBenefitPercent!,
+                tierName: data.tierName,
+                description: data.description,
+                longTermExtraPercent: 5,
+                baseLongTermPercent: 15
+            }
+        })
+
+        revalidatePath('/superadmin/benefits')
+        return { success: true }
+    } catch (error) {
+        console.error('Error adding benefit slab:', error)
+        return { success: false, error: 'Failed to add slab' }
+    }
+}
+
+// Delete a Slab
+export async function deleteBenefitSlab(id: number) {
+    try {
+        const user = await getCurrentUser()
+        if (!user || user.role !== 'Super Admin') return { success: false, error: 'Unauthorized' }
+
+        await prisma.benefitSlab.delete({
+            where: { slabId: id }
+        })
+
+        revalidatePath('/superadmin/benefits')
+        return { success: true }
+    } catch (error) {
+        console.error('Error deleting benefit slab:', error)
+        return { success: false, error: 'Failed to delete slab' }
+    }
+}
+
+
+// Reset to Default (Seed)
+export async function resetDefaultSlabs() {
+    try {
+        const user = await getCurrentUser()
+        if (!user || user.role !== 'Super Admin') return { success: false, error: 'Unauthorized' }
+
+        // Default Tiers as per Policy
+        const defaultTiers = [
+            { count: 1, percent: 5, name: 'Tier 1' },
+            { count: 2, percent: 10, name: 'Tier 2' },
+            { count: 3, percent: 25, name: 'Tier 3' },
+            { count: 4, percent: 30, name: 'Tier 4' },
+            { count: 5, percent: 50, name: 'Tier 5 (Max)' },
+        ]
+
+        // Transaction: Delete All -> Create Defaults
+        await prisma.$transaction(async (tx) => {
+            await tx.benefitSlab.deleteMany({}) // Clear existing
+
+            for (const t of defaultTiers) {
+                await tx.benefitSlab.create({
+                    data: {
+                        referralCount: t.count,
+                        yearFeeBenefitPercent: t.percent,
+                        tierName: t.name,
+                        longTermExtraPercent: 5, // Default logic
+                        baseLongTermPercent: 15  // Default logic
+                    }
+                })
+            }
+        })
+
+        revalidatePath('/superadmin/benefits')
+        return { success: true }
+    } catch (error) {
+        console.error('Error resetting slabs:', error)
+        return { success: false, error: 'Failed to reset slabs' }
     }
 }

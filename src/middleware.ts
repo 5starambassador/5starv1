@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { verifySessionToken } from '@/lib/session'
 
 // In-memory rate limiting store (Note: In a serverless/multi-instance env, this would be Redis)
 const rateLimit = new Map<string, { count: number; resetTime: number }>()
@@ -28,7 +29,7 @@ function checkRateLimit(key: string, type: keyof typeof LIMITS): boolean {
     return true
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
     // 1. Skip middleware for static assets
     if (
         request.nextUrl.pathname.startsWith('/_next') ||
@@ -62,9 +63,58 @@ export function middleware(request: NextRequest) {
         )
     }
 
+    // 3. Authentication & Routing Protection
+    const sessionToken = request.cookies.get('session')?.value
+    let user: any = null
+
+    if (sessionToken) {
+        user = await verifySessionToken(sessionToken)
+    }
+
+    const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/register')
+
+    // Protected Routes Definition
+    const isSuperAdminRoute = pathname.startsWith('/superadmin')
+    const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/campus') || pathname.startsWith('/finance')
+    const isDashboardRoute = pathname.startsWith('/dashboard')
+
+    // Is it a protected route?
+    const isProtectedRoute = isSuperAdminRoute || isAdminRoute || isDashboardRoute
+
+    // Logic:
+    // A. If Authenticated
+    if (user) {
+        // 1. If trying to access Auth pages (Login/Register), redirect to dashboard
+        if (isAuthRoute) {
+            if (user.role === 'Super Admin') return NextResponse.redirect(new URL('/superadmin', request.url))
+            if (user.userType === 'admin') return NextResponse.redirect(new URL('/admin', request.url)) // Or their specific dashboard
+            return NextResponse.redirect(new URL('/dashboard', request.url))
+        }
+
+        // 2. RBAC Checks
+        // Super Admin Only
+        if (isSuperAdminRoute && user.role !== 'Super Admin') {
+            return NextResponse.redirect(new URL('/dashboard', request.url))
+        }
+
+        // Admin Routes (Campus, Finance, etc.)
+        if (isAdminRoute && user.userType !== 'admin') {
+            return NextResponse.redirect(new URL('/dashboard', request.url))
+        }
+    } else {
+        // B. If Not Authenticated
+        // 1. If accessing protected route, redirect to login
+        if (isProtectedRoute) {
+            const redirectUrl = new URL('/login', request.url)
+            // Optional: Preserve redirect URL
+            // redirectUrl.searchParams.set('from', pathname)
+            return NextResponse.redirect(redirectUrl)
+        }
+    }
+
     const response = NextResponse.next()
 
-    // 3. Security Headers
+    // 4. Security Headers
     response.headers.set('X-Frame-Options', 'DENY')
     response.headers.set('X-Content-Type-Options', 'nosniff')
     response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')

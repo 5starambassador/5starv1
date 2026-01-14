@@ -1,5 +1,5 @@
 import { Users, UserPlus, CheckCircle, TrendingUp, Wallet, BookOpen, ArrowUpRight, ArrowDownRight, Target, IndianRupee } from 'lucide-react'
-import { PremiumStatCard } from '../premium/PremiumStatCard'
+import { CleanStatCard } from './CleanStatCard'
 import { Area, AreaChart, ResponsiveContainer } from 'recharts'
 
 interface StatsCardsProps {
@@ -105,31 +105,29 @@ export function StatsCards({ analytics, growthTrend }: StatsCardsProps) {
         },
     ]
 
+    const getIconColor = (grad: string) => {
+        switch (grad) {
+            case 'bg-grad-crimson': return 'bg-red-50 text-red-600'
+            case 'bg-grad-sapphire': return 'bg-blue-50 text-blue-600'
+            case 'bg-grad-emerald': return 'bg-green-50 text-green-600'
+            case 'bg-grad-amber': return 'bg-amber-50 text-amber-600'
+            case 'bg-grad-violet': return 'bg-violet-50 text-violet-600'
+            case 'bg-grad-rose': return 'bg-pink-50 text-pink-600'
+            default: return 'bg-gray-50 text-gray-600'
+        }
+    }
+
     return (
-        <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '24px',
-            marginBottom: '40px'
-        }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
             {stats.map((stat, i) => (
-                <PremiumStatCard
+                <CleanStatCard
                     key={i}
                     title={stat.label}
                     value={stat.value}
-                    icon={<stat.icon size={24} color="white" strokeWidth={2} />}
-                    gradient={
-                        stat.grad === 'bg-grad-crimson' ? 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)' :
-                            stat.grad === 'bg-grad-sapphire' ? 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)' :
-                                stat.grad === 'bg-grad-emerald' ? 'linear-gradient(135deg, #059669 0%, #064E3B 100%)' :
-                                    stat.grad === 'bg-grad-amber' ? 'linear-gradient(135deg, #D97706 0%, #92400E 100%)' :
-                                        stat.grad === 'bg-grad-violet' ? 'linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%)' :
-                                            'linear-gradient(135deg, #DB2777 0%, #9D174D 100%)'
-                    }
-                    shadowColor="rgba(0,0,0,0.25)"
-                    change={stat.change ? { value: Math.abs(stat.change).toFixed(1), isIncrease: stat.change >= 0 } : undefined}
+                    icon={stat.icon}
+                    iconColor={getIconColor(stat.grad)}
+                    change={stat.change ? { value: Math.abs(stat.change), isIncrease: stat.change >= 0 } : undefined}
                     subtext={stat.sub}
-                    chart={stat.chart}
                 />
             ))}
         </div>

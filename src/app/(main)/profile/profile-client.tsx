@@ -247,7 +247,6 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-white/40 ml-1">Address</label>
                                     <textarea
                                         value={address}
                                         onChange={(e) => setAddress(e.target.value)}
@@ -256,6 +255,28 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                         className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-amber-500/50 focus:outline-none transition-colors resize-none"
                                     />
                                 </div>
+
+                                {/* Staff Child Details - Only if "Child in Achariya" is true (from DB, not editable here for simplicity, or we can make it editable) */}
+                                {/* Assuming we want to allow them to fill it if it's missing but they marked it as Yes, or if they want to update it */}
+                                {/* Checking user.role to be safe */}
+                                {user.role === 'Staff' && (
+                                    <div className="pt-4 border-t border-white/10 space-y-4">
+                                        <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wide">Child Details (Achariya)</h3>
+
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-white/40 ml-1">Child ERP No</label>
+                                            <input
+                                                type="text"
+                                                value={(user as any).childEprNo || ''}
+                                                // We need distinct state for these, adding them to component state next...
+                                                disabled={true}
+                                                placeholder="Please contact admin to update"
+                                                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white/50 cursor-not-allowed"
+                                            />
+                                            <p className="text-[9px] text-white/30 ml-1">To update child details, please contact your Campus Head.</p>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <button
                                     onClick={handleSave}

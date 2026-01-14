@@ -59,7 +59,7 @@ export async function generateReferralPerformanceReport(filters?: { startDate?: 
         })
 
         // Format CSV
-        let csv = 'Ambassador Name,Role,Campus,Total Referrals,Confirmed,Pending,Conversion Rate,Benefit Tier,Year Fee Benefit,Long Term Benefit,Status,Joined Date\n'
+        let csv = 'Ambassador Name,Role,Campus,Total Referrals,Confirmed,Pending,Conversion Rate,Benefit Tier,Benefit Status,Child Code,Year Fee Benefit,Long Term Benefit,Status,Joined Date\n'
 
         users.forEach((user: any) => {
             const totalReferrals = user.referrals.length
@@ -68,7 +68,7 @@ export async function generateReferralPerformanceReport(filters?: { startDate?: 
             const conversionRate = totalReferrals > 0 ? ((confirmed / totalReferrals) * 100).toFixed(1) : '0'
             const benefitTier = confirmed >= 5 ? '5 Stars' : confirmed >= 4 ? '4 Stars' : confirmed >= 3 ? '3 Stars' : confirmed >= 2 ? '2 Stars' : confirmed >= 1 ? '1 Star' : 'None'
 
-            csv += `"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",${totalReferrals},${confirmed},${pending},${conversionRate}%,${benefitTier},${user.yearFeeBenefitPercent}%,${user.longTermBenefitPercent}%,${user.status},${new Date(user.createdAt).toLocaleDateString()}\n`
+            csv += `"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",${totalReferrals},${confirmed},${pending},${conversionRate}%,${benefitTier},${user.benefitStatus || 'Active'},"${user.childEprNo || ''}",${user.yearFeeBenefitPercent}%,${user.longTermBenefitPercent}%,${user.status},${new Date(user.createdAt).toLocaleDateString()}\n`
         })
 
         return { success: true, csv, filename: `referral-performance-${new Date().toISOString().split('T')[0]}.csv` }
@@ -403,10 +403,10 @@ export async function generateNewRegistrationsReport(filters?: { startDate?: str
             orderBy: { createdAt: 'desc' }
         })
 
-        let csv = 'Registration Date,Ambassador Name,Role,Campus,Mobile,Referrals,Status\n'
+        let csv = 'Registration Date,Ambassador Name,Role,Campus,Mobile,Referrals,Benefit Status,Child Code,Status\n'
 
         newUsers.forEach((user: any) => {
-            csv += `${new Date(user.createdAt).toLocaleDateString()},"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",${user.mobileNumber},${user.confirmedReferralCount},${user.status}\n`
+            csv += `${new Date(user.createdAt).toLocaleDateString()},"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",${user.mobileNumber},${user.confirmedReferralCount},${user.benefitStatus || 'Active'},"${user.childEprNo || ''}",${user.status}\n`
         })
 
         return { success: true, csv, filename: `new-registrations-${new Date().toISOString().split('T')[0]}.csv` }

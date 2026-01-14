@@ -1,6 +1,6 @@
 import { UserPlus, Download, CheckCircle, XCircle, Calendar, CreditCard, Smartphone, Hash, Building, Trash2, Key, Shield } from 'lucide-react'
 import Image from 'next/image'
-import { PremiumHeader } from '@/components/premium/PremiumHeader'
+
 import { ActivityHistory } from './ActivityHistory'
 import { UserAuditTimeline } from './UserAuditTimeline'
 import { User } from '@/types'
@@ -419,18 +419,22 @@ export function UserTable({
     return (
         <div className="space-y-6 animate-fade-in relative">
             {/* Premium Header */}
-            <PremiumHeader
-                title="Ambassador Network"
-                subtitle="Manage parent and staff ambassadors globally"
-                icon={UserPlus}
-                iconColor="text-white"
-                gradientFrom="from-red-600"
-                gradientTo="to-red-600"
-            >
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm transition-all hover:shadow-md">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-red-50 text-red-600 rounded-xl shadow-sm border border-red-100">
+                        <UserPlus size={24} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Ambassador Network</h1>
+                        <p className="text-sm text-gray-500 font-bold tracking-wide">Manage parent and staff ambassadors globally</p>
+                    </div>
+                </div>
+
                 <div className="flex flex-wrap gap-2">
                     <button
                         onClick={() => setShowExportModal(true)}
-                        className="px-4 py-3 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-xs hover:bg-gray-50 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-2 uppercase tracking-widest"
+                        className="px-4 py-3 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold text-xs hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-2 uppercase tracking-wide"
                         suppressHydrationWarning
                     >
                         <Download size={16} /> Export
@@ -445,27 +449,27 @@ export function UserTable({
                             a.download = 'ambassador_template.csv'
                             a.click()
                         }}
-                        className="px-4 py-3 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-xs hover:bg-gray-50 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-2 uppercase tracking-widest"
+                        className="px-4 py-3 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold text-xs hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-2 uppercase tracking-wide"
                         suppressHydrationWarning
                     >
                         <Download size={16} /> Template
                     </button>
                     <button
                         onClick={onBulkAdd}
-                        className="px-4 py-3 bg-white border border-gray-200 text-gray-600 rounded-2xl font-black text-xs hover:bg-gray-50 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-2 uppercase tracking-widest"
+                        className="px-4 py-3 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold text-xs hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-2 uppercase tracking-wide"
                         suppressHydrationWarning
                     >
                         <UserPlus size={16} /> Bulk Upload
                     </button>
                     <button
                         onClick={onAddUser}
-                        className="px-5 py-3 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-2xl font-black text-xs shadow-2xl shadow-gray-900/20 hover:shadow-gray-900/40 hover:-translate-y-1 active:translate-y-0 transition-all flex items-center gap-2 uppercase tracking-widest border border-gray-700"
+                        className="px-5 py-3 bg-gray-900 text-white rounded-xl font-bold text-xs shadow-lg shadow-gray-200 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2 uppercase tracking-wide"
                         suppressHydrationWarning
                     >
                         <UserPlus size={16} /> Add New
                     </button>
                 </div>
-            </PremiumHeader>
+            </div>
 
             {/* Bulk Action Bar (Floating) */}
             {selectedUsers.length > 0 && (

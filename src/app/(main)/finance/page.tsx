@@ -1,7 +1,6 @@
 import { getCurrentUser } from '@/lib/auth-service'
 import { redirect } from 'next/navigation'
-import { PremiumHeader } from '@/components/premium/PremiumHeader'
-import { PremiumStatCard } from '@/components/premium/PremiumStatCard'
+
 import { getSettlements, getFinanceStats, getRegistrationTransactions } from '@/app/finance-actions'
 import { Wallet, CheckCircle, Clock, CreditCard } from 'lucide-react'
 import { FinanceClientTabs } from '@/components/finance/FinanceClientTabs'
@@ -31,51 +30,73 @@ export default async function FinancePage() {
 
     return (
         <div className="space-y-8 animate-fade-in pb-10">
-            <PremiumHeader
-                title="Finance & Settlements"
-                subtitle="Manage ambassador commissions and payouts"
-                icon={Wallet}
-                gradientFrom="from-emerald-700"
-                gradientTo="to-emerald-900"
-                iconBgColor="bg-emerald-50"
-                iconColor="text-emerald-700"
-            />
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-emerald-50 text-emerald-700 rounded-xl shadow-sm border border-emerald-100">
+                        <Wallet size={24} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Finance & Settlements</h1>
+                        <p className="text-sm text-gray-500 font-bold tracking-wide">Manage ambassador commissions and payouts</p>
+                    </div>
+                </div>
+            </div>
 
             {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {/* Revenue Card (New) */}
-                <PremiumStatCard
-                    title="Total Revenue"
-                    value={`₹${(stats.totalRevenue || 0).toLocaleString()}`}
-                    icon={<CreditCard size={24} />}
-                    subtext="Incoming Fees"
-                    gradient="linear-gradient(135deg, #059669 0%, #047857 100%)" // Deep Green
-                    shadowColor="rgba(5, 150, 105, 0.3)"
-                />
+                {/* Revenue Card */}
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider">Total Revenue</h3>
+                        <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600">
+                            <CreditCard size={24} />
+                        </div>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                        <h2 className="text-3xl font-black text-gray-900">₹{(stats.totalRevenue || 0).toLocaleString()}</h2>
+                    </div>
+                    <p className="text-xs text-emerald-600 font-bold mt-2 uppercase tracking-wide">Incoming Fees</p>
+                </div>
 
-                <PremiumStatCard
-                    title="Pending Payouts"
-                    value={`₹${stats?.pending?.toLocaleString() ?? 0}`}
-                    icon={<Clock size={24} />}
-                    subtext="Requires Action"
-                    gradient="linear-gradient(135deg, #F59E0B 0%, #D97706 100%)" // Amber
-                    shadowColor="rgba(245, 158, 11, 0.3)"
-                />
-                <PremiumStatCard
-                    title="Processed (Total)"
-                    value={`₹${stats?.processed?.toLocaleString() ?? 0}`}
-                    icon={<CheckCircle size={24} />}
-                    subtext="Lifetime Disbursed"
-                    gradient="linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)"
-                    shadowColor="rgba(59, 130, 246, 0.3)"
-                />
-                <PremiumStatCard
-                    title="Transactions"
-                    value={stats?.totalCount ?? 0}
-                    icon={<Wallet size={24} />}
-                    subtext="Total Volume"
-                // Neutral
-                />
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider">Pending Payouts</h3>
+                        <div className="p-2 rounded-lg bg-amber-50 text-amber-600">
+                            <Clock size={24} />
+                        </div>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                        <h2 className="text-3xl font-black text-gray-900">₹{stats?.pending?.toLocaleString() ?? 0}</h2>
+                    </div>
+                    <p className="text-xs text-amber-600 font-bold mt-2 uppercase tracking-wide">Requires Action</p>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider">Processed (Total)</h3>
+                        <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
+                            <CheckCircle size={24} />
+                        </div>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                        <h2 className="text-3xl font-black text-gray-900">₹{stats?.processed?.toLocaleString() ?? 0}</h2>
+                    </div>
+                    <p className="text-xs text-blue-600 font-bold mt-2 uppercase tracking-wide">Lifetime Disbursed</p>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider">Transactions</h3>
+                        <div className="p-2 rounded-lg bg-purple-50 text-purple-600">
+                            <Wallet size={24} />
+                        </div>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                        <h2 className="text-3xl font-black text-gray-900">{stats?.totalCount ?? 0}</h2>
+                    </div>
+                    <p className="text-xs text-purple-600 font-bold mt-2 uppercase tracking-wide">Total Volume</p>
+                </div>
             </div>
 
             {/* Charts Section */}

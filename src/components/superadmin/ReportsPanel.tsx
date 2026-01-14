@@ -429,17 +429,15 @@ export function ReportsPanel({
             {reportMode === 'classic' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {reportGroups.map((group) => (
-                        <div key={group.id} className="group relative bg-white rounded-[24px] border border-gray-100 shadow-sm hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col h-full">
-                            <div className={`absolute top-0 inset-x-0 h-1 bg-gradient-to-r ${group.color} opacity-0 group-hover:opacity-100 transition-opacity`} />
-
+                        <div key={group.id} className="group relative bg-white rounded-xl border border-gray-200 shadow-sm hover:border-gray-300 transition-all duration-300 overflow-hidden flex flex-col h-full">
                             <div className="p-6 flex-1 flex flex-col">
                                 <div className="flex justify-between items-start mb-4">
-                                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${group.color} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                                        <group.icon size={28} className="text-white" />
+                                    <div className={`w-12 h-12 rounded-xl ${group.bg} flex items-center justify-center`}>
+                                        <group.icon size={24} className={group.text} />
                                     </div>
                                 </div>
 
-                                <h3 className="text-lg font-black text-gray-900 mb-1 leading-tight">{group.title}</h3>
+                                <h3 className="text-lg font-bold text-gray-900 mb-1 leading-tight">{group.title}</h3>
                                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{group.count}</p>
                                 <p className="text-sm text-gray-500 leading-relaxed mb-6 flex-1">{group.desc}</p>
 
@@ -472,18 +470,18 @@ export function ReportsPanel({
             ) : (
                 <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-500">
                     {isLoadingVisual ? (
-                        <div className="h-[400px] bg-white rounded-[32px] border border-gray-100 flex flex-col items-center justify-center text-center p-8">
-                            <div className="w-16 h-16 rounded-3xl bg-amber-50 flex items-center justify-center border border-amber-100 mb-4">
+                        <div className="h-[400px] bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center text-center p-8">
+                            <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center border border-amber-100 mb-4">
                                 <Loader2 className="text-amber-500 animate-spin" size={32} />
                             </div>
-                            <h3 className="text-lg font-black text-gray-900">Crunching Real-time Data...</h3>
+                            <h3 className="text-lg font-bold text-gray-900">Crunching Real-time Data...</h3>
                             <p className="text-sm text-gray-500 max-w-xs mt-2">We're aggregating campus performance and financial ROI for your selected filters.</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             {/* Funnel Insight */}
-                            <div className="lg:col-span-2 bg-white rounded-[32px] border border-gray-100 shadow-sm p-8">
-                                <div className="flex justify-between items-start mb-8 text-gray-900">
+                            <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                                <div className="flex justify-between items-start mb-6 text-gray-900">
                                     <div>
                                         <h3 className="text-xl font-black flex items-center gap-2">
                                             <TrendingUp className="text-blue-500" size={24} />
@@ -515,44 +513,41 @@ export function ReportsPanel({
                             </div>
 
                             {/* ROI Yield */}
-                            <div className="bg-gray-900 rounded-[32px] shadow-2xl p-8 text-white relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-[100px]" />
-                                <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/10 blur-[100px]" />
-
-                                <h3 className="text-xl font-black mb-6 flex items-center gap-2">
-                                    <Zap className="text-amber-400" size={24} />
+                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 relative overflow-hidden">
+                                <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-gray-900">
+                                    <Zap className="text-amber-500" size={24} />
                                     Financial ROI
                                 </h3>
 
                                 <div className="space-y-6 relative z-10">
                                     <div>
-                                        <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Gross Revenue Yield</p>
-                                        <p className="text-3xl font-black">₹{visualData.roi?.revenue?.toLocaleString()}</p>
+                                        <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Gross Revenue Yield</p>
+                                        <p className="text-3xl font-black text-gray-900">₹{visualData.roi?.revenue?.toLocaleString()}</p>
                                     </div>
                                     <div>
-                                        <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Benefit burden</p>
-                                        <p className="text-3xl font-black text-red-400">- ₹{visualData.roi?.cost?.toLocaleString()}</p>
+                                        <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Benefit burden</p>
+                                        <p className="text-3xl font-black text-red-600">- ₹{visualData.roi?.cost?.toLocaleString()}</p>
                                     </div>
-                                    <div className="h-px bg-white/10" />
+                                    <div className="h-px bg-gray-100" />
                                     <div>
-                                        <p className="text-amber-400 text-xs font-bold uppercase tracking-wider mb-1">Net Program Yield</p>
-                                        <p className="text-4xl font-black text-emerald-400">₹{visualData.roi?.netYield?.toLocaleString()}</p>
+                                        <p className="text-amber-600 text-xs font-bold uppercase tracking-wider mb-1">Net Program Yield</p>
+                                        <p className="text-4xl font-black text-emerald-600">₹{visualData.roi?.netYield?.toLocaleString()}</p>
                                     </div>
-                                    <div className="bg-white/5 border border-white/10 p-4 rounded-2xl">
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1 text-center">ROI Efficiency Ratio</p>
-                                        <p className="text-2xl font-black text-center text-amber-400">{visualData.roi?.roiRatio}x</p>
+                                    <div className="bg-gray-50 border border-gray-100 p-4 rounded-xl">
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1 text-center">ROI Efficiency Ratio</p>
+                                        <p className="text-2xl font-black text-center text-amber-600">{visualData.roi?.roiRatio}x</p>
                                     </div>
 
                                     {/* Segmented Profitability */}
-                                    <div className="space-y-4 pt-4 border-t border-white/5">
-                                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Profitability by Role</p>
+                                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                                        <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">Profitability by Role</p>
                                         {visualData.roi?.breakdown?.map((seg: any) => (
                                             <div key={seg.role} className="space-y-1.5">
                                                 <div className="flex justify-between text-[10px] font-bold">
-                                                    <span className="text-gray-300">{seg.role}</span>
-                                                    <span className="text-emerald-400">₹{(seg.net / 1000).toFixed(0)}k</span>
+                                                    <span className="text-gray-600">{seg.role}</span>
+                                                    <span className="text-emerald-600">₹{(seg.net / 1000).toFixed(0)}k</span>
                                                 </div>
-                                                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                                                <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
                                                     <div
                                                         className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
                                                         style={{ width: `${Math.min(100, (seg.net / (visualData.roi?.netYield || 1)) * 100)}%` }}
@@ -567,8 +562,8 @@ export function ReportsPanel({
                             {/* Star Distribution & Performance */}
                             <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-6">
                                 {/* Star Distribution */}
-                                <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm p-8 flex flex-col">
-                                    <h3 className="text-xl font-black mb-6 flex items-center gap-2">
+                                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col">
+                                    <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-gray-900">
                                         <Star className="text-amber-500" size={24} fill="currentColor" />
                                         Ambassador Stars
                                     </h3>
@@ -602,42 +597,41 @@ export function ReportsPanel({
                                 </div>
 
                                 {/* Rising Stars */}
-                                <div className="lg:col-span-2 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-[32px] shadow-xl p-8 text-white relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[100px] -mr-32 -mt-32" />
+                                <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6 relative overflow-hidden">
                                     <div className="relative z-10 h-full flex flex-col">
                                         <div className="flex justify-between items-center mb-6">
                                             <div>
-                                                <h3 className="text-xl font-black flex items-center gap-2">
-                                                    <Sparkles className="text-amber-300" size={24} />
+                                                <h3 className="text-xl font-bold flex items-center gap-2 text-gray-900">
+                                                    <Sparkles className="text-amber-500" size={24} />
                                                     Rising Stars
                                                 </h3>
-                                                <p className="text-indigo-100/70 text-sm font-medium">Almost at the next milestone</p>
+                                                <p className="text-gray-500 text-sm font-medium">Almost at the next milestone</p>
                                             </div>
                                         </div>
 
                                         <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
                                             {visualData.milestones.risingStars.length > 0 ? (
                                                 visualData.milestones.risingStars.map((star: any) => (
-                                                    <div key={star.name} className="bg-white/10 border border-white/10 rounded-2xl p-4 flex items-center justify-between group hover:bg-white/20 transition-all cursor-default">
+                                                    <div key={star.name} className="bg-gray-50 border border-gray-100 rounded-xl p-4 flex items-center justify-between group hover:border-gray-300 transition-all cursor-default">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-black text-xs">
+                                                            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center font-bold text-xs shadow-sm border border-gray-100 text-gray-700">
                                                                 {star.name.charAt(0)}
                                                             </div>
                                                             <div>
-                                                                <p className="font-bold text-sm leading-tight">{star.name}</p>
-                                                                <p className="text-[10px] text-indigo-200 mt-0.5 uppercase tracking-wider font-black">{star.campus}</p>
+                                                                <p className="font-bold text-sm leading-tight text-gray-900">{star.name}</p>
+                                                                <p className="text-[10px] text-gray-500 mt-0.5 uppercase tracking-wider font-bold">{star.campus}</p>
                                                             </div>
                                                         </div>
                                                         <div className="text-right">
-                                                            <p className="text-[10px] font-black text-amber-300 uppercase tracking-widest leading-none mb-1">Needs {star.needed - star.current}</p>
-                                                            <p className="text-xs font-bold text-white">for {star.nextTier}</p>
+                                                            <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest leading-none mb-1">Needs {star.needed - star.current}</p>
+                                                            <p className="text-xs font-bold text-gray-500">for {star.nextTier}</p>
                                                         </div>
                                                     </div>
                                                 ))
                                             ) : (
                                                 <div className="col-span-2 flex flex-col items-center justify-center py-8 opacity-50">
-                                                    <Target size={32} className="mb-2" />
-                                                    <p className="text-sm font-bold">All stars are currently stable.</p>
+                                                    <Target size={32} className="mb-2 text-gray-400" />
+                                                    <p className="text-sm font-bold text-gray-500">All stars are currently stable.</p>
                                                 </div>
                                             )}
                                         </div>
@@ -647,41 +641,38 @@ export function ReportsPanel({
 
                             {/* Strategic Forecast & Admission Intelligence */}
                             <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <div className="bg-slate-900 rounded-[32px] p-8 text-white relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 p-8 opacity-10">
-                                        <Compass size={120} className="rotate-12" />
-                                    </div>
+                                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 relative overflow-hidden">
                                     <div className="relative z-10">
                                         <div className="flex items-center gap-3 mb-6">
-                                            <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
-                                                <Sparkles className="text-indigo-400" size={24} />
+                                            <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center border border-indigo-100">
+                                                <Sparkles className="text-indigo-600" size={24} />
                                             </div>
                                             <div>
-                                                <h3 className="text-xl font-black">Strategic Forecast</h3>
-                                                <p className="text-indigo-300/70 text-sm font-medium">30-Day Predictive Admissions Yield</p>
+                                                <h3 className="text-xl font-bold text-gray-900">Strategic Forecast</h3>
+                                                <p className="text-gray-500 text-sm font-medium">30-Day Predictive Admissions Yield</p>
                                             </div>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-6 mb-8">
-                                            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Expected Yield</p>
-                                                <p className="text-4xl font-black text-white">+{visualData.intelligence.totalPredicted}</p>
-                                                <p className="text-xs text-indigo-200/60 mt-1">Next 30 Days Forecast</p>
+                                            <div className="bg-gray-50 border border-gray-100 rounded-xl p-6">
+                                                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">Expected Yield</p>
+                                                <p className="text-4xl font-black text-gray-900">+{visualData.intelligence.totalPredicted}</p>
+                                                <p className="text-xs text-gray-400 mt-1">Next 30 Days Forecast</p>
                                             </div>
-                                            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                                                <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Rolling Velocity</p>
-                                                <p className="text-4xl font-black text-emerald-400">{visualData.intelligence.avgVelocity}</p>
-                                                <p className="text-xs text-indigo-200/60 mt-1">Days to Confirm (Avg)</p>
+                                            <div className="bg-gray-50 border border-gray-100 rounded-xl p-6">
+                                                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Rolling Velocity</p>
+                                                <p className="text-4xl font-black text-emerald-600">{visualData.intelligence.avgVelocity}</p>
+                                                <p className="text-xs text-gray-400 mt-1">Days to Confirm (Avg)</p>
                                             </div>
                                         </div>
 
                                         <div className="space-y-3">
                                             {visualData.intelligence.campuses.slice(0, 3).map((camp: any) => (
-                                                <div key={camp.campus} className="flex items-center justify-between text-sm py-2 border-b border-white/5">
-                                                    <span className="font-bold text-indigo-100">{camp.campus}</span>
+                                                <div key={camp.campus} className="flex items-center justify-between text-sm py-2 border-b border-gray-100">
+                                                    <span className="font-bold text-gray-700">{camp.campus}</span>
                                                     <div className="flex items-center gap-4">
-                                                        <span className="text-xs text-indigo-300">Pipeline: {camp.pipelineSize}</span>
-                                                        <span className="font-black text-emerald-400">Yield: +{camp.predictedYield}</span>
+                                                        <span className="text-xs text-gray-500">Pipeline: {camp.pipelineSize}</span>
+                                                        <span className="font-black text-emerald-600">Yield: +{camp.predictedYield}</span>
                                                     </div>
                                                 </div>
                                             ))}
@@ -689,7 +680,7 @@ export function ReportsPanel({
                                     </div>
                                 </div>
 
-                                <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm p-8">
+                                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                                     <div className="flex justify-between items-center mb-8 text-gray-900">
                                         <div>
                                             <h3 className="text-xl font-black flex items-center gap-2">
@@ -723,9 +714,8 @@ export function ReportsPanel({
                                 </div>
                             </div>
 
-                            {/* Ambassador Health & Retention Analytics */}
                             <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm p-8">
+                                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                                     <div className="flex justify-between items-center mb-8 text-gray-900">
                                         <div>
                                             <h3 className="text-xl font-black flex items-center gap-2">
@@ -757,7 +747,7 @@ export function ReportsPanel({
                                     </div>
                                 </div>
 
-                                <div className="lg:col-span-2 bg-white rounded-[32px] border border-gray-100 shadow-sm p-8">
+                                <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                                     <div className="flex justify-between items-center mb-8 text-gray-900">
                                         <div>
                                             <h3 className="text-xl font-black flex items-center gap-2">

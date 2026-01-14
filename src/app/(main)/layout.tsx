@@ -1,7 +1,7 @@
 import { getCurrentUser } from '@/lib/auth-service'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, IndianRupee, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2, Zap, Lock, UserCog, Share2, Megaphone, Globe } from 'lucide-react'
+import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, IndianRupee, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2, Zap, Lock, UserCog, Share2, Megaphone, Globe, Gift } from 'lucide-react'
 import { MobileMenu } from '@/components/MobileMenu'
 import { NotificationDropdown } from '@/components/NotificationDropdown'
 import MobileSidebarWrapper from '@/components/MobileSidebarWrapper'
@@ -65,6 +65,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         if (isSuperAdmin) {
             navItems.push({ label: 'Engagement Center', href: '/superadmin?view=engagement', icon: <Zap /> })
             navItems.push({ label: 'Promo Management', href: '/superadmin?view=marketing', icon: <Megaphone /> })
+            navItems.push({ label: 'Benefit Config', href: '/superadmin/benefits', icon: <Gift /> })
+            navItems.push({ label: 'Verifications', href: '/superadmin/verification', icon: <ShieldCheck /> })
             navItems.push({ label: 'Permissions', href: '/superadmin?view=permissions', icon: <Lock /> })
         }
 

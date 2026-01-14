@@ -32,13 +32,16 @@ export async function getSession() {
     const session = cookieStore.get('session')?.value
     if (!session) return null
 
+    return await verifySessionToken(session)
+}
+
+export async function verifySessionToken(token: string) {
     try {
-        const { payload } = await jwtVerify(session, encodedKey, {
+        const { payload } = await jwtVerify(token, encodedKey, {
             algorithms: ['HS256'],
         })
         return payload
     } catch (error) {
-        // console.log('Failed to verify session')
         return null
     }
 }

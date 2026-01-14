@@ -265,3 +265,59 @@ export async function bulkDeleteFeeStructures(ids: number[]) {
         return { success: false, error: 'Failed to delete fees' }
     }
 }
+// ========= Get Staff Base Fee (Grade-1) =========
+export async function getStaffBaseFee(campusName: string): Promise<number> {
+    try {
+        if (!campusName) return 60000
+
+        // 1. Find Campus ID
+        const campus = await prisma.campus.findFirst({
+            where: {
+                campusName: { equals: campusName, mode: 'insensitive' }
+            },
+            select: { id: true }
+        })
+
+        if (!campus) {
+            console.warn(`Campus not found for Staff Fee lookup: ${campusName}`)
+            return 60000
+        }
+
+        // 2. Fetch Grade-1 Fee (Try 2026-2027 first, then 2025-2026)
+        // Adjust Grade string as needed (assuming 'Grade-1' based on requirements)
+        // Also check '1', 'Grade 1' if needed. For now sticking to 'Grade-1' as standard.
+        const gradeTarget = 'Grade-1'
+
+        const feeRecord = await prisma.gradeFee.findFirst({
+            where: {
+                campusId: campus.id,
+                grade: gradeTarget,
+                academicYear: '2026-2027' // Policy A.Y.
+            },
+            select: { annualFee_otp: true }
+        })
+
+        if (feeRecord && feeRecord.annualFee_otp) {
+            return feeRecord.annualFee_otp
+        }
+
+        // Fallback to current year if 2026-27 not defined
+        const feeFallback = await prisma.gradeFee.findFirst({
+            where: {
+                campusId: campus.id,
+                grade: gradeTarget,
+                academicYear: '2025-2026'
+            },
+            select: { annualFee_otp: true }
+        })
+
+        if (feeFallback && feeFallback.annualFee_otp) {
+            return feeFallback.annualFee_otp
+        }
+
+        return 60000 // Default fallback
+    } catch (error) {
+        console.error('Error fetching staff base fee:', error)
+        return 60000
+    }
+}

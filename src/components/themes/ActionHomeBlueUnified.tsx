@@ -7,6 +7,8 @@ import { motion, Variants } from 'framer-motion'
 import { toast } from 'sonner'
 import { useState, useEffect, ReactNode } from 'react'
 
+import { SHORT_TERM_TIERS } from '@/lib/benefit-calculator'
+
 import { PageAnimate, PageItem } from '@/components/PageAnimate'
 import { CircularProgress } from '@/components/ui/CircularProgress'
 import { GlassCard } from '@/components/ui/GlassCard'
@@ -64,13 +66,7 @@ const itemVariants: Variants = {
     }
 }
 
-const tiers = [
-    { count: 1, percent: 5 },
-    { count: 2, percent: 10 },
-    { count: 3, percent: 25 },
-    { count: 4, percent: 30 },
-    { count: 5, percent: 50 },
-]
+const tiers = SHORT_TERM_TIERS
 
 function getGreeting() {
     const hour = new Date().getHours()
