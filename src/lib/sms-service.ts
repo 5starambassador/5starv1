@@ -14,12 +14,12 @@ const PROVIDER: SMSProvider = (process.env.SMS_PROVIDER as SMSProvider) || 'mock
 export type OTPFlow = 'registration' | 'forgot-password' | 'referral'
 
 const MSG91_CONFIG = {
-    authKey: "485538AfzLQYaH69672145P1",
-    senderId: "ACHAPP",
+    authKey: process.env.MSG91_AUTH_KEY || "",
+    senderId: process.env.MSG91_SENDER_ID || "ACHAPP",
     templates: {
-        registration: "69671ce2f0f84f0363446ec4",
-        "forgot-password": "69671d580b181d4b4d18d092",
-        referral: "69671da09556fa4ffa1aaf28"
+        registration: process.env.MSG91_TEMPLATE_ID_REGISTRATION || "",
+        "forgot-password": process.env.MSG91_TEMPLATE_ID_FORGOT_PASSWORD || "",
+        referral: process.env.MSG91_TEMPLATE_ID_REFERRAL || ""
     }
 }
 
