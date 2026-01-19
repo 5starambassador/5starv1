@@ -29,6 +29,7 @@ interface DataTableProps<T> {
     rowCount?: number
     onPageChange?: (page: number) => void
     currentPage?: number
+    emptyState?: React.ReactNode
 }
 
 export function DataTable<T>({
@@ -48,7 +49,8 @@ export function DataTable<T>({
     pageCount,
     rowCount,
     onPageChange,
-    currentPage: propCurrentPage
+    currentPage: propCurrentPage,
+    emptyState
 }: DataTableProps<T>) {
     const [internalSearchTerm, setInternalSearchTerm] = useState('')
 
@@ -445,15 +447,19 @@ export function DataTable<T>({
                         ) : (
                             <tr>
                                 <td colSpan={columns.length + (enableMultiSelection ? 1 : 0)} className="p-24 text-center block md:table-cell">
-                                    <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-500">
-                                        <div className="p-6 bg-gray-50 rounded-full text-gray-300">
-                                            <Search size={48} strokeWidth={1.5} />
+                                    {emptyState ? (
+                                        emptyState
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-500">
+                                            <div className="p-6 bg-gray-50 rounded-full text-gray-300">
+                                                <Search size={48} strokeWidth={1.5} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="text-lg font-black text-gray-900 tracking-tight">No records found</p>
+                                                <p className="text-sm font-medium text-gray-400">Try adjusting your search or filters.</p>
+                                            </div>
                                         </div>
-                                        <div className="space-y-1">
-                                            <p className="text-lg font-black text-gray-900 tracking-tight">No records found</p>
-                                            <p className="text-sm font-medium text-gray-400">Try adjusting your search or filters.</p>
-                                        </div>
-                                    </div>
+                                    )}
                                 </td>
                             </tr>
                         )}
@@ -461,70 +467,100 @@ export function DataTable<T>({
                 </table>
             </div>
 
-            {
-                totalPages > 1 && (
-                    <div className="flex items-center justify-between p-4 mt-4 bg-gray-50/50 rounded-[24px] border border-gray-100">
-                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest pl-2">
-                            SHOWING <span className="text-gray-900 ml-1">
-                                {manualPagination ? ((currentPage - 1) * pageSize + 1) : ((currentPage - 1) * pageSize + 1)}
-                                TO
-                                {manualPagination ? Math.min(currentPage * pageSize, (rowCount || pageCount! * pageSize)) : Math.min(currentPage * pageSize, sortedData.length)}
-                            </span> OF <span className="text-gray-900 ml-1">{manualPagination ? (rowCount || 'MANY') : sortedData.length}</span>
-                        </p>
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => {
-                                    const next = Math.max(1, currentPage - 1)
-                                    if (!manualPagination) setInternalPage(next)
-                                    onPageChange?.(next)
-                                }}
-                                disabled={currentPage === 1}
-                                className={`p-2.5 rounded-xl border transition-all duration-200 ${currentPage === 1
-                                    ? 'bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:border-red-200 hover:text-red-600 hover:shadow-lg hover:shadow-red-500/10 active:scale-95'
-                                    }`}
-                                suppressHydrationWarning
-                            >
-                                <ChevronLeft size={18} strokeWidth={2.5} />
-                            </button>
-                            <div className="flex items-center gap-1.5">
-                                {[...Array(totalPages)].map((_, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => {
-                                            const page = i + 1
-                                            if (!manualPagination) setInternalPage(page)
-                                            onPageChange?.(page)
-                                        }}
-                                        className={`w-10 h-10 rounded-xl text-sm font-bold transition-all duration-200 ${currentPage === i + 1
-                                            ? 'bg-gradient-to-br from-red-600 to-red-700 text-white shadow-xl shadow-red-600/20 scale-105'
-                                            : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
-                                            }`}
-                                        suppressHydrationWarning
-                                    >
-                                        {i + 1}
-                                    </button>
-                                ))}
-                            </div>
-                            <button
-                                onClick={() => {
-                                    const next = Math.min(totalPages, currentPage + 1)
-                                    if (!manualPagination) setInternalPage(next)
-                                    onPageChange?.(next)
-                                }}
-                                disabled={currentPage === totalPages}
-                                className={`p-2.5 rounded-xl border transition-all duration-200 ${currentPage === totalPages
-                                    ? 'bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:border-red-200 hover:text-red-600 hover:shadow-lg hover:shadow-red-500/10 active:scale-95'
-                                    }`}
-                                suppressHydrationWarning
-                            >
-                                <ChevronRight size={18} strokeWidth={2.5} />
-                            </button>
-                        </div>
+            <div className="flex flex-col sm:flex-row items-center justify-between p-4 mt-6 bg-white/50 backdrop-blur-sm rounded-[24px] border border-gray-100 gap-4">
+                <p className="text-[10px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest pl-2">
+                    SHOWING <span className="text-gray-900 ml-1">
+                        {manualPagination ? ((currentPage - 1) * pageSize + 1) : ((currentPage - 1) * pageSize + 1)}
+                        TO
+                        {manualPagination ? Math.min(currentPage * pageSize, (rowCount || pageCount! * pageSize)) : Math.min(currentPage * pageSize, sortedData.length)}
+                    </span> OF <span className="text-gray-900 ml-1">{manualPagination ? (rowCount || 'MANY') : sortedData.length}</span>
+                </p>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => {
+                            const next = Math.max(1, currentPage - 1)
+                            if (!manualPagination) setInternalPage(next)
+                            onPageChange?.(next)
+                        }}
+                        disabled={currentPage === 1}
+                        className={`p-2.5 rounded-xl border transition-all duration-200 ${currentPage === 1
+                            ? 'bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed'
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-red-200 hover:text-red-600 hover:shadow-lg hover:shadow-red-500/10 active:scale-95'
+                            }`}
+                        suppressHydrationWarning
+                    >
+                        <ChevronLeft size={18} strokeWidth={2.5} />
+                    </button>
+
+                    {/* Mobile: Simple Page Indicator */}
+                    <div className="md:hidden px-4 py-2 bg-gray-100/50 rounded-xl border border-gray-200">
+                        <span className="text-[10px] font-black text-gray-600">PAGE {currentPage} / {totalPages}</span>
                     </div>
-                )
-            }
+
+                    {/* Desktop: Page Numbers with Ellipses logic or simple list (capped) */}
+                    <div className="hidden md:flex items-center gap-1.5">
+                        {totalPages <= 7 ? (
+                            [...Array(totalPages)].map((_, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => {
+                                        const page = i + 1
+                                        if (!manualPagination) setInternalPage(page)
+                                        onPageChange?.(page)
+                                    }}
+                                    className={`w-10 h-10 rounded-xl text-sm font-bold transition-all duration-200 ${currentPage === i + 1
+                                        ? 'bg-gradient-to-br from-red-600 to-red-700 text-white shadow-xl shadow-red-600/20 scale-105'
+                                        : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                                        }`}
+                                    suppressHydrationWarning
+                                >
+                                    {i + 1}
+                                </button>
+                            ))
+                        ) : (
+                            <>
+                                {/* Simple Ellipses Logic for Desktop if many pages */}
+                                {[1, 2, '...', totalPages - 1, totalPages].map((p, i) => (
+                                    typeof p === 'number' ? (
+                                        <button
+                                            key={i}
+                                            onClick={() => {
+                                                if (!manualPagination) setInternalPage(p)
+                                                onPageChange?.(p)
+                                            }}
+                                            className={`w-10 h-10 rounded-xl text-sm font-bold transition-all duration-200 ${currentPage === p
+                                                ? 'bg-gradient-to-br from-red-600 to-red-700 text-white shadow-xl shadow-red-600/20 scale-105'
+                                                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                                                }`}
+                                            suppressHydrationWarning
+                                        >
+                                            {p}
+                                        </button>
+                                    ) : (
+                                        <span key={i} className="text-gray-400">...</span>
+                                    )
+                                ))}
+                            </>
+                        )}
+                    </div>
+
+                    <button
+                        onClick={() => {
+                            const next = Math.min(totalPages, currentPage + 1)
+                            if (!manualPagination) setInternalPage(next)
+                            onPageChange?.(next)
+                        }}
+                        disabled={currentPage === totalPages}
+                        className={`p-2.5 rounded-xl border transition-all duration-200 ${currentPage === totalPages
+                            ? 'bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed'
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-red-200 hover:text-red-600 hover:shadow-lg hover:shadow-red-500/10 active:scale-95'
+                            }`}
+                        suppressHydrationWarning
+                    >
+                        <ChevronRight size={18} strokeWidth={2.5} />
+                    </button>
+                </div>
+            </div>
         </div>
     )
 }

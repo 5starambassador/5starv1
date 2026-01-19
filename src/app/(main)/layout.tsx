@@ -88,7 +88,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         }
 
         // Shared Tooling (Available to all who have permission, but hidden for Super Admin who has dedicated management views)
-        if (permissions.marketingKit.access) navItems.push({ label: 'Promo Kit', href: '/marketing', icon: <Share2 className="text-amber-400" /> })
+        if (permissions.marketingKit.access && !isSuperAdmin) navItems.push({ label: 'Promo Kit', href: '/marketing', icon: <Share2 className="text-amber-400" /> })
         if (permissions.supportDesk.access && !isSuperAdmin) navItems.push({ label: 'Support Desk', href: '/support', icon: <MessageSquare className="text-amber-400" /> })
 
         // Admin-specific shared modules (Hide from Ambassadors)
@@ -110,14 +110,28 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     // Always accessible
     navItems.push({ label: 'Profile', href: '/profile', icon: <User className="text-amber-400" /> })
 
+    // Theme Selection
+    const isDarkTheme = isAmbassadorRole
+    const themeBgClass = isDarkTheme
+        ? "bg-[#0f172a]"
+        : "bg-slate-50"
+    const themeGlassClass = isDarkTheme
+        ? "bg-[#0f172a]/95 backdrop-blur-[20px]"
+        : "bg-white/85 backdrop-blur-[20px]"
+
     return (
-        <div className="flex min-h-screen text-text-primary relative bg-[url('/bg-pattern.png')] bg-cover bg-fixed bg-center">
-            <div className="absolute inset-0 bg-white/85 z-0 backdrop-blur-[2px]"></div>
+        <div className={`flex min-h-screen text-text-primary relative ${isDarkTheme ? 'dark bg-[#0f172a]' : 'bg-slate-50'}`}>
+            {/* Architectural Background Stack */}
+            <div className="fixed inset-0 z-0 pointer-events-none">
+                <div className={`absolute inset-0 bg-[url('/bg-pattern.png')] bg-cover bg-fixed bg-center opacity-[0.4] ${isDarkTheme ? 'invert opacity-[0.05]' : ''}`}></div>
+                <div className={`absolute inset-0 ${themeGlassClass}`}></div>
+            </div>
 
             {/* Desktop Sidebar (Permanent) */}
-            <aside className="desktop-sidebar hidden xl:flex flex-col w-[280px] shrink-0 border-r border-white/5 p-4 fixed top-0 left-0 bottom-0 z-20 bg-gradient-to-br from-[#0f172a] to-[#1e1b4b] shadow-2xl shadow-black/50">
-                {/* Decorative Elements */}
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
+            <aside className="desktop-sidebar hidden xl:flex flex-col w-[280px] shrink-0 border-r border-white/10 p-4 fixed top-0 left-0 bottom-0 z-20 bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#1e1b4b] shadow-[20px_0_80px_rgba(0,0,0,0.8)]">
+                {/* Royal Border Highlight */}
+                <div className="absolute top-0 right-0 w-[1px] h-full bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
 
                 <div className="flex flex-col items-center pt-6 pb-6 px-2">
                     <div className="relative group cursor-pointer hover:scale-105 transition-transform duration-500 mb-5">
@@ -130,22 +144,22 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                     </div>
 
                     <div className="text-center">
-                        <h2 className="text-white text-base font-black tracking-tight drop-shadow-lg uppercase leading-tight">
+                        <h2 className="text-white text-base font-black tracking-tight drop-shadow-lg uppercase leading-tight" style={{ letterSpacing: '0.05em' }}>
                             Achariya
                         </h2>
                         <p className="text-[11px] text-indigo-200/70 font-bold uppercase tracking-widest mb-1.5">
                             Partnership Program
                         </p>
-                        <p className="text-[10px] uppercase tracking-[0.3em] font-black text-amber-500 drop-shadow-md">
+                        <p className="text-[10px] uppercase tracking-[0.3em] font-black !text-amber-400 drop-shadow-md">
                             25<sup className="text-[0.6em]">th</sup> Year Celebration
                         </p>
                     </div>
                 </div>
 
-                {/* Premium Divider */}
-                <div className="px-6 mb-8">
-                    <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent blur-sm"></div>
+                {/* Premium Divider - Sharpened */}
+                <div className="px-6 mb-10">
+                    <div className="h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent relative">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/30 to-transparent blur-md"></div>
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar -mr-2 pr-2">
@@ -154,10 +168,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             </aside>
 
             {/* Main Content Wrapper for fixed sidebar offset */}
-            <div className="flex-1 flex flex-col min-h-screen xl:ml-[280px]">
+            <div className="flex-1 flex flex-col min-h-screen xl:ml-[280px] w-full items-center overflow-x-hidden relative">
 
                 {/* Mobile Topbar */}
-                <div className="mobile-topbar xl:hidden fixed top-0 left-0 right-0 h-16 border-b border-white/10 z-50 flex items-center justify-between px-4 bg-[#0f172a]/80 backdrop-blur-xl shadow-lg">
+                <div className={`mobile-topbar xl:hidden fixed top-0 left-0 right-0 h-16 border-b z-50 flex items-center justify-between px-4 backdrop-blur-xl shadow-lg ${isDarkTheme ? 'bg-[#0f172a]/80 border-white/10 text-white' : 'bg-white/80 border-gray-100 text-gray-900'}`}>
                     <div className="flex items-center gap-3">
                         {/* Hamburger Menu Trigger */}
                         <MobileSidebarWrapper>
@@ -176,12 +190,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                             className="shadow-sm h-9 w-auto"
                         />
                     </div>
-
-
                 </div>
 
                 <main
-                    className="flex-1 min-w-0 p-4 pt-20 xl:p-8 xl:pt-8 pb-20 xl:pb-8 w-full max-w-[1600px] mx-auto relative z-10"
+                    className="flex-1 w-full max-w-[1400px] px-8 py-4 xl:p-8 pt-24 xl:pt-8 pb-20 xl:pb-8 relative z-10"
                 >
                     {/* Desktop Notification Header */}
                     <header className="hidden xl:flex justify-end mb-4 absolute top-4 right-8 z-20">
@@ -199,7 +211,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                 <OfflineAlert />
                 <CommandPalette />
             </div>
-        </div>
+        </div >
     )
 }
 

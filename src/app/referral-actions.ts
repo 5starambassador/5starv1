@@ -101,7 +101,7 @@ export async function sendReferralOtp(mobileInput: string, referralCode?: string
             success: true,
             isAmbassadorVerified,
             ambassadorName,
-            otp: process.env.NODE_ENV === 'development' ? finalOtp : undefined
+            // otp: process.env.NODE_ENV === 'development' ? finalOtp : undefined // DISABLED MOCK OTP
         }
     } catch (error) {
         logger.error('Failed to generate OTP:', error)
@@ -113,8 +113,8 @@ export async function verifyReferralOtp(mobileInput: string, otp: string) {
     const mobile = sanitizeMobile(mobileInput)
     console.log('[DEBUG] verifyReferralOtp:', { otp, mobileInput, sanitized: mobile })
 
-    // Mock OTP for testing
-    if (otp === '1234') return { success: true }
+    // Mock OTP for testing - DISABLED
+    // if (otp === '1234') return { success: true }
 
     try {
         const record = await prisma.otpVerification.findUnique({ where: { mobile } })

@@ -492,3 +492,128 @@ export async function updateLeadStatus(leadId: number, newStatus: 'New' | 'Follo
         return { error: 'Failed to update lead status' }
     }
 }
+
+// --- Ambassador Performance Report ---
+export async function getCampusAmbassadorStats() {
+    const access = await verifyCampusAccess()
+    if (access.error) return { error: access.error }
+
+    const whereClause = access.isSuperAdmin ? {} : { campusId: access.campusId }
+
+    try {
+        // Fetch all referrals for this campus to aggregate
+        const referrals = await prisma.referralLead.findMany({
+            where: whereClause,
+            include: { user: { select: { userId: true, fullName: true, role: true, mobileNumber: true } } }
+        })
+
+        // Aggregate by User
+        const statsMap = new Map<number, {
+            ambassadorName: string,
+            role: string,
+            mobile: string,
+            totalLeads: number,
+            confirmedLeads: number,
+            pendingLeads: number,
+            lastActive: Date
+        }>()
+
+        referrals.forEach(ref => {
+            const userId = ref.userId
+            if (!statsMap.has(userId)) {
+                statsMap.set(userId, {
+                    ambassadorName: ref.user?.fullName || 'Unknown',
+                    role: ref.user?.role || 'Unknown',
+                    mobile: ref.user?.mobileNumber || '-',
+                    totalLeads: 0,
+                    confirmedLeads: 0,
+                    pendingLeads: 0,
+                    lastActive: new Date(0) // Epoch
+                })
+            }
+
+            const stat = statsMap.get(userId)!
+            stat.totalLeads++
+            if (ref.leadStatus === LeadStatus.Confirmed) stat.confirmedLeads++
+            if (ref.leadStatus === LeadStatus.New || ref.leadStatus === LeadStatus.Follow_up) stat.pendingLeads++
+            if (new Date(ref.createdAt) > stat.lastActive) stat.lastActive = new Date(ref.createdAt)
+        })
+
+        // Convert to Array & Sort by Confirmed Count (Desc), then Total Leads
+        const performanceData = Array.from(statsMap.values()).sort((a, b) => {
+            if (b.confirmedLeads !== a.confirmedLeads) return b.confirmedLeads - a.confirmedLeads
+            return b.totalLeads - a.totalLeads
+        })
+
+        return { success: true, data: performanceData }
+
+    } catch (error) {
+        console.error('getCampusAmbassadorStats Error:', error)
+        return { error: 'Failed to fetch ambassador stats' }
+    }
+}
+
+// --- Dead Leads Report (Action Required) ---
+export async function getCampusDeadLeads(days: number = 7) {
+    const access = await verifyCampusAccess()
+    if (access.error) return { error: access.error }
+
+    const whereClause = access.isSuperAdmin ? {} : { campusId: access.campusId }
+
+    // Dead Lead Definition: Status is NOT 'Confirmed' or 'Closed' or 'Rejected'
+    // AND createdAt is older than X days (Schema doesn't have updatedAt for ReferralLead yet)
+    const cutoffDate = new Date(Date.now() - (days * 24 * 60 * 60 * 1000))
+
+    try {
+        const deadLeads = await prisma.referralLead.findMany({
+            where: {
+                ...whereClause,
+                leadStatus: {
+                    notIn: [LeadStatus.Confirmed, LeadStatus.Closed, LeadStatus.Rejected, LeadStatus.Admitted]
+                },
+                createdAt: { lt: cutoffDate }
+            },
+            include: { user: { select: { fullName: true, mobileNumber: true } } },
+            orderBy: { createdAt: 'asc' } // Oldest first (most urgent)
+        })
+
+        return { success: true, data: deadLeads }
+
+    } catch (error) {
+        console.error('getCampusDeadLeads Error:', error)
+        return { error: 'Failed to fetch dead leads' }
+    }
+}
+
+// --- Conversion Funnel Report ---
+export async function getCampusConversionStats() {
+    const access = await verifyCampusAccess()
+    if (access.error) return { error: access.error }
+
+    const whereClause = access.isSuperAdmin ? {} : { campusId: access.campusId }
+
+    try {
+        // Group by Status
+        const statusGroups = await prisma.referralLead.groupBy({
+            by: ['leadStatus'],
+            where: whereClause,
+            _count: { leadId: true }
+        })
+
+        // Format for UI
+        const funnelData = statusGroups.map(group => ({
+            status: group.leadStatus,
+            count: group._count.leadId
+        }))
+
+        // Sort roughly by funnel stage
+        const funnelOrder = [LeadStatus.New, LeadStatus.Interested, LeadStatus.Contacted, LeadStatus.Follow_up, LeadStatus.Confirmed, LeadStatus.Admitted, LeadStatus.Closed, LeadStatus.Rejected]
+        funnelData.sort((a, b) => funnelOrder.indexOf(a.status) - funnelOrder.indexOf(b.status))
+
+        return { success: true, data: funnelData }
+
+    } catch (error) {
+        console.error('getCampusConversionStats Error:', error)
+        return { error: 'Failed to fetch conversion stats' }
+    }
+}

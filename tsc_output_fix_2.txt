@@ -1,8 +1,0 @@
-src/app/(main)/superadmin/superadmin-client.tsx(227,36): error TS2339: Property 'slabs' does not exist on type '{ success: boolean; error: string; data?: undefined; } | { success: boolean; data: { yearFeeBenefitPercent: number; description: string | null; slabId: number; tierName: string | null; referralCount: number; longTermExtraPercent: number; baseLongTermPercent: number; }[]; error?: undefined; }'.
-  Property 'slabs' does not exist on type '{ success: boolean; error: string; data?: undefined; }'.
-src/app/(main)/superadmin/superadmin-client.tsx(227,56): error TS2339: Property 'slabs' does not exist on type '{ success: boolean; error: string; data?: undefined; } | { success: boolean; data: { yearFeeBenefitPercent: number; description: string | null; slabId: number; tierName: string | null; referralCount: number; longTermExtraPercent: number; baseLongTermPercent: number; }[]; error?: undefined; }'.
-  Property 'slabs' does not exist on type '{ success: boolean; error: string; data?: undefined; }'.
-src/components/superadmin/CampaignManager.tsx(444,17): error TS2322: Type '"default" | "danger"' is not assignable to type '"info" | "warning" | "danger" | undefined'.
-  Type '"default"' is not assignable to type '"info" | "warning" | "danger" | undefined'.
-src/components/superadmin/SettlementTable.tsx(181,33): error TS2322: Type '"user.fullName"' is not assignable to type 'keyof Settlement'.
-src/components/superadmin/SettlementTable.tsx(181,50): error TS2322: Type '"user.mobileNumber"' is not assignable to type 'keyof Settlement'.

@@ -9,6 +9,9 @@ import { useState } from 'react'
 
 import { PageAnimate, PageItem } from '@/components/PageAnimate'
 import { StatCard } from '@/components/ui/StatCard'
+import { encryptReferralCode } from '@/lib/crypto'
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://5starambassador.com'
 
 interface ActionHomeProps {
     user: {
@@ -61,7 +64,8 @@ export function ActionHome({ user, recentReferrals, whatsappUrl, monthStats }: A
     const displayCount = (user as any).currentYearCount !== undefined ? (user as any).currentYearCount : user.confirmedReferralCount
 
     // Extract referral link from whatsappUrl if possible, or construct it
-    const referralLink = `https://ambassador.achariya.in/join/${user.referralCode}`
+    const encryptedCode = user.referralCode ? encryptReferralCode(user.referralCode) : ''
+    const referralLink = encryptedCode ? `${APP_URL}/r/${encryptedCode}` : ''
 
     const handleCopy = () => {
         navigator.clipboard.writeText(referralLink)

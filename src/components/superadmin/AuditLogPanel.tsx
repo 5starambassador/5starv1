@@ -280,7 +280,7 @@ export function AuditLogPanel() {
                                                     {log.action}
                                                 </span>
                                                 {log.module && (
-                                                    <span className="ml-2 text-[10px] font-black text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                                                    <span className="ml-2 text-[10px] font-black text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 uppercase">
                                                         {log.module}
                                                     </span>
                                                 )}

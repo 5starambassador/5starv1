@@ -223,6 +223,23 @@ export function ReferralManagementTable({
     // Selection
     const [selectedIds, setSelectedIds] = useState<number[]>([])
 
+    // --- Helpers ---
+    function updateParam(key: string, value: string | string[]) {
+        const params = new URLSearchParams(searchParams)
+        // Handle array or single string
+        if (Array.isArray(value)) {
+            if (value.length > 0) params.set(key, value.join(','))
+            else params.delete(key)
+        } else {
+            if (value && value !== 'All') params.set(key, value)
+            else params.delete(key)
+        }
+        params.set('page', '1') // Reset paging
+        startTransition(() => {
+            router.push(`${pathname}?${params.toString()}`)
+        })
+    }
+
     // Debounce Search
     useEffect(() => {
         const timeout = setTimeout(() => {
@@ -313,22 +330,6 @@ export function ReferralManagementTable({
         )
     }
 
-    // --- Helpers ---
-    function updateParam(key: string, value: string | string[]) {
-        const params = new URLSearchParams(searchParams)
-        // Handle array or single string
-        if (Array.isArray(value)) {
-            if (value.length > 0) params.set(key, value.join(','))
-            else params.delete(key)
-        } else {
-            if (value && value !== 'All') params.set(key, value)
-            else params.delete(key)
-        }
-        params.set('page', '1') // Reset paging
-        startTransition(() => {
-            router.push(`${pathname}?${params.toString()}`)
-        })
-    }
 
     function handlePageChange(newPage: number) {
         const params = new URLSearchParams(searchParams)
@@ -641,6 +642,23 @@ export function ReferralManagementTable({
                 enableMultiSelection={true}
                 onSelectionChange={(selected) => setSelectedIds(selected.map((r: any) => r.leadId))}
                 uniqueKey="leadId"
+                emptyState={
+                    <div className="flex flex-col items-center justify-center p-12 text-center animate-in fade-in zoom-in-95 duration-500">
+                        <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center text-red-600 mb-6 shadow-xl shadow-red-100/50">
+                            <User size={40} strokeWidth={1.5} />
+                        </div>
+                        <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2">No Referrals Yet?</h3>
+                        <p className="text-gray-500 max-w-sm mb-8 font-medium">
+                            Your community is waiting. Share your code or open the Promo Kit to start earning benefits.
+                        </p>
+                        <button
+                            onClick={() => router.push('/marketing')}
+                            className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-black transition-all active:scale-95 shadow-2xl shadow-gray-200 flex items-center gap-3"
+                        >
+                            <Download size={18} /> Open Promo Kit
+                        </button>
+                    </div>
+                }
                 renderExpandedRow={(r: any) => (
                     <div className="p-8 bg-gradient-to-br from-gray-50/80 to-white shadow-inner">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">

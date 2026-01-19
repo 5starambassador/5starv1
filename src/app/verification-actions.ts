@@ -24,7 +24,8 @@ export async function getPendingVerifications() {
                 childName: true,
                 childEprNo: true,
                 grade: true,
-                campusId: true, // This might be working campus for Staff, need to check if we have handling for studying campus
+                campusId: true,
+                childCampusId: true, // Stores the child's studying campus
                 role: true,
                 assignedCampus: true,
                 createdAt: true
@@ -56,7 +57,7 @@ export async function approveVerification(userId: number, updatedDetails?: {
 
         // Details to use: Updated ones OR existing ones
         const grade = updatedDetails?.grade || user.grade
-        const childCampusId = updatedDetails?.childCampusId ? updatedDetails.childCampusId : (user.campusId || 0)
+        const childCampusId = updatedDetails?.childCampusId ? updatedDetails.childCampusId : (user.childCampusId || user.campusId || 0)
 
         // 1. Calculate Fee
         let newFee = 60000 // Default

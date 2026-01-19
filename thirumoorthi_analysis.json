@@ -1,0 +1,66 @@
+{
+  "user": {
+    "name": "Thirumoorthi R",
+    "role": "Parent",
+    "isFiveStarMember": true,
+    "studentFee": 60000,
+    "childInAchariya": false
+  },
+  "currentYearStart": "2025-06-01T00:00:00.000Z",
+  "referrals": [
+    {
+      "id": 223,
+      "studentName": "Current Student Fix",
+      "status": "Confirmed",
+      "admittedYear": "2025-2026",
+      "createdAt": "2026-01-19T12:09:12.801Z",
+      "createdAfterCurrentStart": true,
+      "actualFee": 60000
+    },
+    {
+      "id": 215,
+      "studentName": "AADHITHAN C",
+      "status": "Confirmed",
+      "admittedYear": "2024-2025",
+      "createdAt": "2026-01-13T12:13:35.858Z",
+      "createdAfterCurrentStart": true,
+      "actualFee": 49400
+    },
+    {
+      "id": 169,
+      "studentName": "ENIYAVARSHINI M",
+      "status": "Confirmed",
+      "admittedYear": "2024-2025",
+      "createdAt": "2026-01-13T12:13:23.867Z",
+      "createdAfterCurrentStart": true,
+      "actualFee": 37050
+    },
+    {
+      "id": 134,
+      "studentName": "KANISHK NATARAJAN N",
+      "status": "Confirmed",
+      "admittedYear": "2024-2025",
+      "createdAt": "2026-01-13T12:13:15.352Z",
+      "createdAfterCurrentStart": true,
+      "actualFee": 45600
+    },
+    {
+      "id": 44,
+      "studentName": "SASHWIN VAIBHAV M",
+      "status": "Confirmed",
+      "admittedYear": "2024-2025",
+      "createdAt": "2026-01-13T12:12:46.608Z",
+      "createdAfterCurrentStart": true,
+      "actualFee": 49875
+    },
+    {
+      "id": 38,
+      "studentName": "SHIVANI A",
+      "status": "Confirmed",
+      "admittedYear": "2024-2025",
+      "createdAt": "2026-01-13T12:12:42.864Z",
+      "createdAfterCurrentStart": true,
+      "actualFee": 49400
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+[
+  {
+    "userId": 1159,
+    "fullName": "Haji Ali A R",
+    "role": "Parent",
+    "isFiveStarMember": false,
+    "referrals": [
+      {
+        "leadId": 158,
+        "studentName": "HAKEEM",
+        "leadStatus": "Confirmed",
+        "admittedYear": "2024-2025",
+        "createdAt": "2026-01-13T12:13:21.480Z",
+        "campusId": 116
+      },
+      {
+        "leadId": 41,
+        "studentName": "SHAHANA",
+        "leadStatus": "Confirmed",
+        "admittedYear": "2024-2025",
+        "createdAt": "2026-01-13T12:12:44.691Z",
+        "campusId": 101
+      },
+      {
+        "leadId": 40,
+        "studentName": "SHAHRIN NUHA",
+        "leadStatus": "Confirmed",
+        "admittedYear": "2024-2025",
+        "createdAt": "2026-01-13T12:12:44.087Z",
+        "campusId": 101
+      }
+    ]
+  }
+]

@@ -14,6 +14,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { UserRole, AccountStatus, LeadStatus } from '@prisma/client'
 import { mapUserRole, mapAdminRole, mapAccountStatus } from '@/lib/enum-utils'
 import { logAction } from '@/lib/audit-logger'
+import { transactionIdSchema } from '@/lib/validators'
 
 export async function checkSession() {
     const user = await getCurrentUser()
@@ -141,10 +142,7 @@ export async function verifyOtpAndResetPassword(mobileInput: string, otp: string
     if (!record) return { success: false, error: 'Request expired. Please try again.' }
 
     if (record.otp !== otp || new Date() > record.expiresAt) {
-        // Backdoor check for demo
-        if (otp !== '1234') {
-            return { success: false, error: 'Invalid or expired OTP' }
-        }
+        return { success: false, error: 'Invalid or expired OTP' }
     }
 
     // 2. Hash Password
@@ -334,9 +332,14 @@ export async function registerUser(formData: any) {
         return { success: false, error: 'Password must be at least 8 chars with 1 uppercase, 1 special char, and 1 number.' }
     }
 
-    // Generate Smart Referral Code based on Role
-    // Format: ACH25-[ROLE-PREFIX][SEQUENCE] using shared service
-    const referralCode = await generateSmartReferralCode(role)
+    if (transactionId) {
+        const validation = transactionIdSchema.safeParse(transactionId)
+        if (!validation.success) {
+            return { success: false, error: validation.error.issues[0].message }
+        }
+    } else {
+        return { success: false, error: 'Transaction ID is required' }
+    }
 
     // Fetch current academic year
     const currentYearRecord = await prisma.academicYear.findFirst({
@@ -371,88 +374,107 @@ export async function registerUser(formData: any) {
         }
     }
 
-    // Create
-    try {
-        const userRole = (role === 'Parent' ? UserRole.Parent :
-            role === 'Staff' ? UserRole.Staff :
-                role === 'Alumni' ? UserRole.Alumni : UserRole.Others)
+    // RETRY LOOP for Collision Handling
+    let attempts = 0
+    const MAX_RETRIES = 3
 
-        const user = await prisma.user.create({
-            data: {
-                fullName,
-                mobileNumber,
-                password: await bcrypt.hash(password || '123456', 10), // Hash password
-                role: userRole,
-                childInAchariya: childInAchariya === 'Yes',
-                childName: childName || null,
-                grade: grade || null,
-                campusId: campusId ? parseInt(campusId) : null,
-                assignedCampus: assignedCampusName, // Save the resolved name
-                bankAccountDetails: encrypt(bankAccountDetails) || null,
-                referralCode,
-                benefitStatus: childInAchariya === 'Yes' ? ('PendingVerification' as any as AccountStatus) : AccountStatus.Inactive,
-                studentFee,
-                academicYear: currentYearRecord?.year || '2025-2026',
-                // New Role Fields
-                email: email || null,
-                childEprNo: childEprNo || null,
-                empId: empId || null,
-                aadharNo: encrypt(aadharNo) || null,
-                // Payment Info
-                paymentStatus: transactionId ? 'Completed' : 'Pending', // Dummy flow assumes completion
-                transactionId: transactionId || null,
-                paymentAmount: transactionId ? 25 : 0
+    while (attempts < MAX_RETRIES) {
+        try {
+            // Generate Smart Referral Code based on Role (with offset for retries)
+            // Attempt 0: offset 0 (Count + 1)
+            // Attempt 1: offset 1 (Count + 2) etc.
+            const referralCode = await generateSmartReferralCode(role, undefined, attempts)
+
+            const userRole = (role === 'Parent' ? UserRole.Parent :
+                role === 'Staff' ? UserRole.Staff :
+                    role === 'Alumni' ? UserRole.Alumni : UserRole.Others)
+
+            const user = await prisma.user.create({
+                data: {
+                    fullName,
+                    mobileNumber,
+                    password: await bcrypt.hash(password || '123456', 10), // Hash password
+                    role: userRole,
+                    childInAchariya: childInAchariya === 'Yes',
+                    childName: childName || null,
+                    grade: grade || null,
+                    campusId: campusId ? parseInt(campusId) : null,
+                    assignedCampus: assignedCampusName, // Save the resolved name
+                    bankAccountDetails: encrypt(bankAccountDetails) || null,
+                    referralCode,
+                    benefitStatus: childInAchariya === 'Yes' ? ('PendingVerification' as any as AccountStatus) : AccountStatus.Inactive,
+                    studentFee,
+                    academicYear: currentYearRecord?.year || '2025-2026',
+                    // New Role Fields
+                    email: email || null,
+                    childEprNo: childEprNo || null,
+                    empId: empId || null,
+                    aadharNo: encrypt(aadharNo) || null,
+                    // Payment Info
+                    paymentStatus: transactionId ? 'Completed' : 'Pending', // Dummy flow assumes completion
+                    transactionId: transactionId || null,
+                    paymentAmount: transactionId ? 25 : 0
+                }
+            })
+
+            const securitySettings = await prisma.securitySettings.findFirst() as any
+            const isSuperAdmin = role === 'Super Admin'
+            const is2faRequired = isSuperAdmin && securitySettings?.twoFactorAuthEnabled
+
+            await createSession(user.userId, 'user', mapUserRole(user.role), !is2faRequired)
+
+            // Sync: Notify Admin Verification Queue
+            if (childInAchariya === 'Yes') {
+                revalidatePath('/superadmin/verification')
             }
-        })
+            revalidatePath('/superadmin/users')
+            revalidatePath('/dashboard') // Ensure their own dashboard is fresh
 
-        const securitySettings = await prisma.securitySettings.findFirst() as any
-        const isSuperAdmin = role === 'Super Admin'
-        const is2faRequired = isSuperAdmin && securitySettings?.twoFactorAuthEnabled
+            return { success: true }
 
-        await createSession(user.userId, 'user', mapUserRole(user.role), !is2faRequired)
+        } catch (e: any) {
+            console.error(`Registration attempt ${attempts + 1} failed:`, e.message)
 
-        // Sync: Notify Admin Verification Queue
-        if (childInAchariya === 'Yes') {
-            revalidatePath('/superadmin/verification')
-        }
-        revalidatePath('/superadmin/users')
-        revalidatePath('/dashboard') // Ensure their own dashboard is fresh
-
-        return { success: true }
-    } catch (e: any) {
-        console.error('Registration error:', e)
-
-        // Handle Prisma Unique Constraint Violation
-        if (e.code === 'P2002') {
-            if (e.meta?.target?.includes('mobileNumber')) {
-                // CHECK FOR UPGRADE: If user exists but has NO referral code (Student Parent), upgrade them to Ambassador
-                const existingUser = await prisma.user.findUnique({ where: { mobileNumber } })
-                if (existingUser && !existingUser.referralCode) {
-                    // Upgrade: Generate Code & Update
-                    await prisma.user.update({
-                        where: { userId: existingUser.userId },
-                        data: {
-                            referralCode, // Use the one generated above
-                            password: await bcrypt.hash(password, 10), // Update password if they prefer
-                            // Optionally update other fields if they were missing?
-                            bankAccountDetails: bankAccountDetails ? encrypt(bankAccountDetails) : existingUser.bankAccountDetails,
-                            // Ensure they are active
-                            benefitStatus: AccountStatus.Active
-                        }
-                    })
-                    // Create session and log them in
-                    const isSuperAdmin = false // Users are never Super Admins
-                    await createSession(existingUser.userId, 'user', mapUserRole(existingUser.role), false)
-                    return { success: true }
+            // Handle Prisma Unique Constraint Violation
+            if (e.code === 'P2002') {
+                // If it's a Referral Code collision, we retry
+                if (e.meta?.target?.includes('referralCode')) {
+                    console.warn(`Referral Code Collision (Attempt ${attempts + 1}). Retrying...`)
+                    attempts++
+                    continue // Try loop again with higher offset
                 }
 
-                return { success: false, error: 'This mobile number is already registered. Please login.' }
+                // If it's Mobile Number, fail immediately (no retry)
+                if (e.meta?.target?.includes('mobileNumber')) {
+                    // CHECK FOR UPGRADE: If user exists but has NO referral code (Student Parent), upgrade them to Ambassador
+                    const existingUser = await prisma.user.findUnique({ where: { mobileNumber } })
+                    if (existingUser && !existingUser.referralCode) {
+                        try {
+                            const upgradeCode = await generateSmartReferralCode(role)
+                            // Upgrade: Generate Code & Update
+                            await prisma.user.update({
+                                where: { userId: existingUser.userId },
+                                data: {
+                                    referralCode: upgradeCode,
+                                    password: await bcrypt.hash(password, 10),
+                                    bankAccountDetails: bankAccountDetails ? encrypt(bankAccountDetails) : existingUser.bankAccountDetails,
+                                    benefitStatus: AccountStatus.Active
+                                }
+                            })
+                            // Create session and log them in
+                            await createSession(existingUser.userId, 'user', mapUserRole(existingUser.role), false)
+                            return { success: true }
+                        } catch (upgradeError) {
+                            return { success: false, error: 'Registration failed during upgrade. Please contact support.' }
+                        }
+                    }
+                    return { success: false, error: 'This mobile number is already registered. Please login.' }
+                }
             }
-            if (e.meta?.target?.includes('referralCode')) {
-                return { success: false, error: 'System busy (Ref Code collision). Please try again.' }
-            }
+            // Other errors -> Fail immediately
+            return { success: false, error: e.message || 'Registration failed due to a system error.' }
         }
-
-        return { success: false, error: e.message || 'Registration failed due to a system error.' }
     }
+
+    return { success: false, error: 'System busy (Ref Code collision). Please try again.' }
 }

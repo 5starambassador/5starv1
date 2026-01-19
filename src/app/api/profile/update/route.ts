@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { ifscSchema, accountNumberSchema } from '@/lib/validators'
 
 export async function POST(request: Request) {
     try {
@@ -16,7 +17,21 @@ export async function POST(request: Request) {
 
 
         const body = await request.json()
-        const { fullName, email, address, childEprNo, grade, childCampusId } = body
+        const { fullName, email, address, childEprNo, grade, childCampusId, bankName, accountNumber, ifscCode } = body
+
+        if (ifscCode) {
+            const result = ifscSchema.safeParse(ifscCode)
+            if (!result.success) {
+                return NextResponse.json({ error: result.error.issues[0].message }, { status: 400 })
+            }
+        }
+
+        if (accountNumber) {
+            const result = accountNumberSchema.safeParse(accountNumber)
+            if (!result.success) {
+                return NextResponse.json({ error: result.error.issues[0].message }, { status: 400 })
+            }
+        }
 
         if (!fullName || fullName.trim().length < 2) {
             return NextResponse.json({ error: 'Full name must be at least 2 characters' }, { status: 400 })
@@ -45,20 +60,25 @@ export async function POST(request: Request) {
                 address: address?.trim() || null
             }
 
+            // Allow updating Bank Details if provided
+            if (bankName !== undefined) updateData.bankName = bankName
+            if (accountNumber !== undefined) updateData.accountNumber = accountNumber
+            if (ifscCode !== undefined) updateData.ifscCode = ifscCode
+
             // Only update child details if present (Staff flow)
             if (childEprNo !== undefined) updateData.childEprNo = childEprNo
             if (grade !== undefined) updateData.grade = grade
-            if (childCampusId !== undefined) updateData.campusId = parseInt(childCampusId) // Mapping childCampusId to campusId? 
-            // WAIT: logic in actions.ts: "campusId" is Working Campus for Staff, but used as Studying Campus for fee lookup if "childInAchariya"
-            // Let's stick to the pattern:
-            // If the user updates "Studying Campus", we might need a separate field `childCampusId` in DB or reuse `campusId`?
-            // In Registration:
-            // campusId -> Working Campus
-            // childCampusId -> Studying Campus (used for fee lookup only)
-
-            // ISSUE: DB Schema `User` has `campusId`. Is it Working or Studying?
-            // For Staff: `campusId` is Working.
-            // For Parent: `campusId` is Studying.
+            // Safely handle childCampusId
+            if (childCampusId !== undefined && childCampusId !== null && childCampusId !== '') {
+                const parsedId = parseInt(childCampusId)
+                if (!isNaN(parsedId)) {
+                    updateData.childCampusId = parsedId
+                }
+            } else if (childCampusId === '') {
+                // If explicitly cleared, invoke null? Or just ignore? 
+                // schema allows Int? so null is fine.
+                updateData.childCampusId = null
+            }
 
             // If Staff wants to save Child Studying Campus, verified by Admin...
             // We probably need `childCampusId` column if we want to persist it separate from Working Campus.
@@ -97,8 +117,17 @@ export async function POST(request: Request) {
         // Sync: Notify Admin
         revalidatePath('/superadmin/verification')
         revalidatePath('/superadmin/users')
-    } catch (error) {
-        console.error('Profile update error:', error)
-        return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 })
+    } catch (error: any) {
+        console.error('Profile update error FINAL:', error)
+        console.error('Error Stack:', error.stack)
+        // detailed prisma error
+        if (error.code) {
+            console.error('Prisma Error Code:', error.code)
+            console.error('Prisma Error Meta:', error.meta)
+        }
+        return NextResponse.json({
+            error: 'Failed to update profile',
+            details: error.message
+        }, { status: 500 })
     }
 }

@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, Eye, EyeOff, Save, X, Upload, FileText, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Eye, EyeOff, Save, X, Upload, FileText, Loader2, ArrowRight, Share2, Filter, LayoutGrid } from 'lucide-react'
 import { toast } from 'sonner'
 import { createMarketingAsset, deleteMarketingAsset, toggleAssetVisibility } from '@/app/marketing-actions'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const MARKETING_CATEGORIES = ['Branding', 'WhatsApp Templates', 'Social Media', 'Videos', 'Flyers']
 
@@ -18,6 +19,7 @@ export function MarketingManager({ assets }: MarketingManagerProps) {
     const [showForm, setShowForm] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [deletingId, setDeletingId] = useState<number | null>(null)
+    const [activeCategory, setActiveCategory] = useState<string>('All')
 
     // Confirmation State
     const [confirmState, setConfirmState] = useState<{
@@ -72,22 +74,29 @@ export function MarketingManager({ assets }: MarketingManagerProps) {
         setConfirmState({ isOpen: false })
         setDeletingId(id)
 
-        // Optimistic UI or wait? The original used await.
-        // We will wait for server action
         try {
-            await deleteMarketingAsset(id)
-            toast.success('Asset deleted')
-            router.refresh()
+            const res = await deleteMarketingAsset(id)
+            if (res.success) {
+                toast.success('Asset deleted')
+                router.refresh()
+            } else {
+                toast.error(res.error || 'Failed to delete')
+            }
         } catch (e) {
-            toast.error('Failed to delete asset')
+            toast.error('Unexpected error')
         } finally {
             setDeletingId(null)
         }
     }
 
     const handleToggle = async (id: number, currentState: boolean) => {
-        await toggleAssetVisibility(id, !currentState)
-        router.refresh()
+        const res = await toggleAssetVisibility(id, !currentState)
+        if (res.success) {
+            toast.success(currentState ? 'Asset hidden' : 'Asset visible')
+            router.refresh()
+        } else {
+            toast.error(res.error || 'Operation failed')
+        }
     }
 
     const groupedAssets: Record<string, any[]> = {}
@@ -96,267 +105,265 @@ export function MarketingManager({ assets }: MarketingManagerProps) {
         groupedAssets[cat] = safeAssets.filter(a => a.category === cat)
     }
 
+    const displayCategories = activeCategory === 'All' ? MARKETING_CATEGORIES : [activeCategory]
+
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Action Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/40 backdrop-blur-md p-6 rounded-3xl border border-white/20 shadow-sm">
                 <div>
-                    <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#111827', margin: 0 }}>Marketing Assets</h2>
-                    <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px' }}>Manage branding, templates, and marketing materials</p>
+                    <h2 className="text-xl font-black text-gray-900 flex items-center gap-2 uppercase tracking-tight italic">
+                        <Share2 className="text-blue-600" />
+                        Marketing Assets
+                    </h2>
+                    <p className="text-sm text-gray-500 font-medium">Manage branding materials and promotional content</p>
                 </div>
                 <button
                     onClick={() => setShowForm(true)}
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '10px 20px',
-                        background: 'linear-gradient(135deg, #EF4444, #DC2626)',
-                        border: 'none',
-                        borderRadius: '10px',
-                        fontSize: '13px',
-                        fontWeight: '700',
-                        color: 'white',
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 10px rgba(239, 68, 68, 0.3)'
-                    }}
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 border border-white/10 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-indigo-100"
                 >
-                    <Plus size={16} /> Add Asset
+                    <Plus size={16} /> Add New Asset
                 </button>
             </div>
 
-            {/* Assets by Category */}
-            {MARKETING_CATEGORIES.map(cat => {
-                const catAssets = groupedAssets[cat] || []
+            {/* Content Filters */}
+            <div className="flex flex-wrap gap-2">
+                <button
+                    onClick={() => setActiveCategory('All')}
+                    className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${activeCategory === 'All'
+                        ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-100'
+                        : 'bg-white/60 text-gray-500 border-white/40 hover:bg-white hover:text-gray-900'
+                        }`}
+                >
+                    All Types
+                </button>
+                {MARKETING_CATEGORIES.map(cat => (
+                    <button
+                        key={cat}
+                        onClick={() => setActiveCategory(cat)}
+                        className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${activeCategory === cat
+                            ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-100'
+                            : 'bg-white/60 text-gray-500 border-white/40 hover:bg-white hover:text-gray-900'
+                            }`}
+                    >
+                        {cat}
+                    </button>
+                ))}
+            </div>
 
-                return (
-                    <div key={cat} style={{
-                        background: '#FAFAFA',
-                        borderRadius: '12px',
-                        padding: '16px',
-                        border: '1px solid #E5E7EB'
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                            <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#374151', margin: 0 }}>{cat}</h3>
-                            <span style={{ fontSize: '12px', color: '#6B7280' }}>{catAssets.length} items</span>
-                        </div>
+            {/* Assets Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {displayCategories.map(cat => {
+                    const catAssets = groupedAssets[cat] || []
+                    if (activeCategory === 'All' && catAssets.length === 0) return null
 
-                        {catAssets.length === 0 ? (
-                            <p style={{ fontSize: '12px', color: '#9CA3AF', fontStyle: 'italic', textAlign: 'center', padding: '16px' }}>
-                                No assets in this category
-                            </p>
-                        ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                {catAssets.map((asset: any) => (
-                                    <div key={asset.id} style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        padding: '12px 16px',
-                                        background: 'white',
-                                        borderRadius: '8px',
-                                        border: '1px solid #E5E7EB'
-                                    }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                            <FileText size={18} color={asset.isActive ? '#10B981' : '#9CA3AF'} />
-                                            <div>
-                                                <p style={{
-                                                    fontSize: '14px',
-                                                    fontWeight: '600',
-                                                    color: asset.isActive ? '#111827' : '#9CA3AF',
-                                                    margin: 0,
-                                                    textDecoration: asset.isActive ? 'none' : 'line-through'
-                                                }}>{asset.name}</p>
-                                                {asset.description && (
-                                                    <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0' }}>{asset.description}</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button
-                                                onClick={() => handleToggle(asset.id, asset.isActive)}
-                                                style={{
-                                                    padding: '6px',
-                                                    borderRadius: '6px',
-                                                    border: '1px solid #E5E7EB',
-                                                    background: 'white',
-                                                    cursor: 'pointer'
-                                                }}
-                                                title={asset.isActive ? 'Hide' : 'Show'}
-                                            >
-                                                {asset.isActive ? <EyeOff size={14} color="#6B7280" /> : <Eye size={14} color="#10B981" />}
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(asset.id)}
-                                                disabled={deletingId === asset.id}
-                                                style={{
-                                                    padding: '6px',
-                                                    borderRadius: '6px',
-                                                    border: '1px solid #FEE2E2',
-                                                    background: '#FEF2F2',
-                                                    cursor: 'pointer'
-                                                }}
-                                                title="Delete"
-                                            >
-                                                {deletingId === asset.id ? (
-                                                    <Loader2 size={14} className="animate-spin" color="#EF4444" />
-                                                ) : (
-                                                    <Trash2 size={14} color="#EF4444" />
-                                                )}
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
+                    return (
+                        <div key={cat} className="space-y-4">
+                            <div className="flex items-center justify-between px-2">
+                                <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] italic underline underline-offset-8 decoration-blue-500/30 font-mono">
+                                    {cat}
+                                </h3>
+                                <span className="text-[10px] font-black text-gray-400 font-mono">[{catAssets.length}]</span>
                             </div>
-                        )}
-                    </div>
-                )
-            })}
+
+                            <div className="space-y-3">
+                                {catAssets.length === 0 ? (
+                                    <div className="bg-white/20 border-2 border-dashed border-white/40 rounded-3xl p-8 text-center">
+                                        <p className="text-xs text-gray-400 font-black uppercase tracking-widest italic">No assets drafted</p>
+                                    </div>
+                                ) : (
+                                    catAssets.map((asset: any) => (
+                                        <motion.div
+                                            key={asset.id}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className={`grid grid-cols-[auto,1fr,auto] items-center gap-4 p-4 bg-white/60 backdrop-blur-sm border rounded-3xl transition-all group ${asset.isActive ? 'border-white/40 shadow-sm' : 'border-gray-100 opacity-60 grayscale'
+                                                }`}
+                                        >
+                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${asset.isActive ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'
+                                                }`}>
+                                                <FileText size={20} />
+                                            </div>
+
+                                            <div className="min-w-0">
+                                                <h4 className="text-sm font-black text-gray-900 truncate uppercase tracking-tight leading-none mb-1.5 flex items-center gap-2">
+                                                    {asset.name}
+                                                    {!asset.isActive && <span className="text-[8px] font-black bg-gray-200 px-1.5 py-0.5 rounded uppercase tracking-widest text-gray-500">Hidden</span>}
+                                                </h4>
+                                                <p className="text-[11px] text-gray-400 font-medium truncate font-mono">{asset.description || 'No description provided'}</p>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 pr-2">
+                                                <button
+                                                    onClick={() => handleToggle(asset.id, asset.isActive)}
+                                                    className={`p-2.5 rounded-xl border transition-all ${asset.isActive
+                                                        ? 'bg-white border-white shadow-sm text-gray-400 hover:text-blue-600'
+                                                        : 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-100'
+                                                        }`}
+                                                    title={asset.isActive ? 'Hide Asset' : 'Show Asset'}
+                                                >
+                                                    {asset.isActive ? <EyeOff size={16} /> : <Eye size={16} />}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(asset.id)}
+                                                    disabled={deletingId === asset.id}
+                                                    className="p-2.5 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-all disabled:opacity-50"
+                                                    title="Delete"
+                                                >
+                                                    {deletingId === asset.id ? (
+                                                        <Loader2 size={16} className="animate-spin" />
+                                                    ) : (
+                                                        <Trash2 size={16} />
+                                                    )}
+                                                </button>
+                                                <div className="w-px h-8 bg-gray-100 mx-1 hidden sm:block" />
+                                                <button
+                                                    onClick={() => window.open(asset.fileUrl, '_blank')}
+                                                    className="p-2.5 bg-gray-900 text-white rounded-xl hover:bg-black transition-all shadow-lg shadow-gray-200"
+                                                    title="View Source"
+                                                >
+                                                    <ArrowRight size={16} />
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
 
             {/* Add Asset Modal */}
-            {showForm && (
-                <div style={{
-                    position: 'fixed',
-                    inset: 0,
-                    zIndex: 9999,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '16px',
-                    backgroundColor: 'rgba(0,0,0,0.6)'
-                }}>
-                    <div style={{
-                        background: 'white',
-                        borderRadius: '20px',
-                        width: '100%',
-                        maxWidth: '480px',
-                        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-                        overflow: 'hidden'
-                    }}>
-                        <div style={{
-                            background: 'linear-gradient(135deg, #EF4444, #DC2626)',
-                            padding: '20px 24px',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <Upload size={22} color="white" />
-                                <h2 style={{ fontSize: '18px', fontWeight: '700', color: 'white', margin: 0 }}>Add Marketing Asset</h2>
+            <AnimatePresence>
+                {showForm && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowForm(false)}
+                            className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-white/95 backdrop-blur-xl border border-white/20 rounded-[40px] w-full max-w-lg shadow-2xl relative overflow-hidden"
+                        >
+                            {/* Modal Header */}
+                            <div className="bg-indigo-600 p-8 text-white relative">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
+                                <div className="flex justify-between items-center relative z-10">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 backdrop-blur-md">
+                                            <Upload size={20} className="text-white" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-lg font-black uppercase tracking-tight italic">New Asset</h2>
+                                            <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] font-mono">Marketing Kit Entry</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowForm(false)}
+                                        className="p-2.5 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-colors"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
                             </div>
-                            <button
-                                onClick={() => setShowForm(false)}
-                                style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '8px', padding: '8px', cursor: 'pointer' }}
-                            >
-                                <X size={18} color="white" />
-                            </button>
-                        </div>
-                        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#374151', marginBottom: '6px', textTransform: 'uppercase' }}>Category</label>
-                                <select
-                                    style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '2px solid #E5E7EB', fontSize: '14px', background: 'white' }}
-                                    value={category}
-                                    onChange={(e) => setCategory(e.target.value)}
-                                >
-                                    {MARKETING_CATEGORIES.map(cat => (
-                                        <option key={cat} value={cat}>{cat}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#374151', marginBottom: '6px', textTransform: 'uppercase' }}>Name *</label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. Official Logo Pack"
-                                    style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '2px solid #E5E7EB', fontSize: '14px' }}
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#374151', marginBottom: '6px', textTransform: 'uppercase' }}>Description</label>
-                                <input
-                                    type="text"
-                                    placeholder="Brief description (optional)"
-                                    style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '2px solid #E5E7EB', fontSize: '14px' }}
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#374151', marginBottom: '6px', textTransform: 'uppercase' }}>File URL *</label>
-                                <input
-                                    type="url"
-                                    placeholder="https://drive.google.com/... or direct link"
-                                    style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '2px solid #E5E7EB', fontSize: '14px' }}
-                                    value={fileUrl}
-                                    onChange={(e) => setFileUrl(e.target.value)}
-                                />
-                                <p style={{ fontSize: '11px', color: '#6B7280', marginTop: '6px' }}>
-                                    💡 Tip: Use Google Drive, Dropbox, or any public file URL
-                                </p>
-                            </div>
-                            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                                <button
-                                    onClick={() => setShowForm(false)}
-                                    style={{
-                                        flex: 1,
-                                        padding: '12px',
-                                        borderRadius: '10px',
-                                        border: '2px solid #E5E7EB',
-                                        background: 'white',
-                                        fontSize: '14px',
-                                        fontWeight: '700',
-                                        color: '#374151',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleSubmit}
-                                    disabled={isSubmitting}
-                                    style={{
-                                        flex: 1,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '8px',
-                                        padding: '12px',
-                                        borderRadius: '10px',
-                                        border: 'none',
-                                        background: 'linear-gradient(135deg, #EF4444, #DC2626)',
-                                        fontSize: '14px',
-                                        fontWeight: '700',
-                                        color: 'white',
-                                        cursor: 'pointer',
-                                        boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
-                                    }}
-                                >
-                                    {isSubmitting ? (
-                                        <><Loader2 size={16} className="animate-spin" /> Saving...</>
-                                    ) : (
-                                        <><Save size={16} /> Save Asset</>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
-            {/* Premium Confirm Dialog */}
+                            {/* Modal Form */}
+                            <div className="p-8 space-y-6">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-2">
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">Category Segment</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {MARKETING_CATEGORIES.map(cat => (
+                                                <button
+                                                    key={cat}
+                                                    onClick={() => setCategory(cat)}
+                                                    className={`px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${category === cat
+                                                        ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-100'
+                                                        : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100'
+                                                        }`}
+                                                >
+                                                    {cat}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="col-span-2 space-y-4 pt-2">
+                                        <div className="space-y-1.5">
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Asset Name</label>
+                                            <input
+                                                type="text"
+                                                placeholder="e.g. Official Logo Pack"
+                                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all placeholder:text-gray-300"
+                                                value={name}
+                                                onChange={(e) => setName(e.target.value)}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Public File URL</label>
+                                            <input
+                                                type="url"
+                                                placeholder="Direct link to file (Drive/Cloud)"
+                                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all placeholder:text-gray-300"
+                                                value={fileUrl}
+                                                onChange={(e) => setFileUrl(e.target.value)}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Contextual Description</label>
+                                            <textarea
+                                                placeholder="Brief purpose of this file..."
+                                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all placeholder:text-gray-300 min-h-[100px] resize-none"
+                                                value={description}
+                                                onChange={(e) => setDescription(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 pt-4 border-t border-gray-50">
+                                    <button
+                                        onClick={() => setShowForm(false)}
+                                        className="flex-1 py-4 bg-gray-50 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-100 transition-all"
+                                    >
+                                        Dismiss
+                                    </button>
+                                    <button
+                                        onClick={handleSubmit}
+                                        disabled={isSubmitting}
+                                        className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-blue-100 hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                    >
+                                        {isSubmitting ? (
+                                            <Loader2 size={16} className="animate-spin" />
+                                        ) : (
+                                            <><Save size={16} /> Deploy Asset</>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             <ConfirmDialog
                 isOpen={confirmState.isOpen}
-                title="Delete Marketing Asset?"
+                title="Purge Marketing Asset?"
                 description={
-                    <p>
-                        Are you sure you want to delete this asset?
-                        <br />This action cannot be undone.
+                    <p className="font-medium text-gray-500">
+                        This will permanently remove the asset from the cloud distribution.
+                        <br /><span className="text-rose-600 font-bold uppercase text-[10px] tracking-widest leading-none mt-2 block italic">Critical Action: IRREVERSIBLE</span>
                     </p>
                 }
-                confirmText="Delete Asset"
+                confirmText="Confirm Purge"
                 variant="danger"
                 onConfirm={executeDelete}
                 onCancel={() => setConfirmState({ isOpen: false })}

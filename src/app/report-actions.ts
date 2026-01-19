@@ -30,7 +30,7 @@ export async function generateReferralPerformanceReport(filters?: { startDate?: 
     }
 
     try {
-        const whereClause: any = { isFiveStarMember: true }
+        const whereClause: any = { referralCode: { not: null } }
 
         // Apply Date Filters (on User creation)
         if (filters?.startDate || filters?.endDate) {
@@ -154,7 +154,7 @@ export async function generateMonthlyTrendsReport(filters?: { startDate?: string
             }
 
             const newAmbassadors = await prisma.user.count({
-                where: { ...whereBase, isFiveStarMember: true }
+                where: { ...whereBase, referralCode: { not: null } }
             })
 
             const newLeads = await prisma.referralLead.count({
@@ -206,7 +206,7 @@ export async function generateInactiveUsersReport(filters?: { campus?: string })
 
     try {
         const whereClause: any = {
-            isFiveStarMember: true,
+            referralCode: { not: null },
             status: 'Inactive'
         }
 
@@ -247,7 +247,7 @@ export async function generateTopPerformersReport(filters?: { campus?: string })
     }
 
     try {
-        const whereClause: any = { isFiveStarMember: true }
+        const whereClause: any = { referralCode: { not: null } }
         if (filters?.campus && filters.campus !== 'All') {
             whereClause.assignedCampus = filters.campus
         }
@@ -288,7 +288,7 @@ export async function generateCampusDistributionReport() {
         const campusStats = await prisma.user.groupBy({
             by: ['assignedCampus'],
             _count: { userId: true },
-            where: { isFiveStarMember: true }
+            where: { referralCode: { not: null } }
         })
 
         let csv = 'Campus,Total Ambassadors,Total Leads,Confirmed,Conversion Rate,Parents,Staff\n'
@@ -297,11 +297,11 @@ export async function generateCampusDistributionReport() {
             const campus = stat.assignedCampus || 'Not Assigned'
 
             const parents = await prisma.user.count({
-                where: { isFiveStarMember: true, assignedCampus: stat.assignedCampus, role: 'Parent' }
+                where: { referralCode: { not: null }, assignedCampus: stat.assignedCampus, role: 'Parent' }
             })
 
             const staff = await prisma.user.count({
-                where: { isFiveStarMember: true, assignedCampus: stat.assignedCampus, role: 'Staff' }
+                where: { referralCode: { not: null }, assignedCampus: stat.assignedCampus, role: 'Staff' }
             })
 
             const totalLeads = await prisma.referralLead.count({
@@ -343,7 +343,7 @@ export async function generateBenefitTierReport(filters?: { campus?: string }) {
 
         let csv = 'Benefit Tier,User Count,Avg Year Fee Benefit,Avg Long Term Benefit,Percentage\n'
 
-        const baseWhere: any = { isFiveStarMember: true }
+        const baseWhere: any = { referralCode: { not: null } }
         if (filters?.campus && filters.campus !== 'All') {
             baseWhere.assignedCampus = filters.campus
         }
@@ -382,7 +382,7 @@ export async function generateNewRegistrationsReport(filters?: { startDate?: str
     }
 
     try {
-        const whereClause: any = { isFiveStarMember: true }
+        const whereClause: any = { referralCode: { not: null } }
 
         if (filters?.startDate || filters?.endDate) {
             whereClause.createdAt = {}
@@ -427,7 +427,7 @@ export async function generateStaffVsParentReport(filters?: { campus?: string })
         const roles = [_UserRole.Parent, _UserRole.Staff]
         let csv = 'Role,Ambassadors,Leads,Confirmed,Conversion%,Avg Referrals\n'
 
-        const baseWhere: any = { isFiveStarMember: true }
+        const baseWhere: any = { referralCode: { not: null } }
         if (filters?.campus && filters.campus !== 'All') {
             baseWhere.assignedCampus = filters.campus
         }
@@ -508,7 +508,7 @@ export async function generateStarMilestoneReport(filters?: { campus?: string })
     }
 
     try {
-        const whereClause: any = { isFiveStarMember: true }
+        const whereClause: any = { referralCode: { not: null } }
         if (filters?.campus && filters.campus !== 'All') {
             whereClause.assignedCampus = filters.campus
         }
@@ -605,7 +605,7 @@ export async function generateFinancialROIData(filters?: { startDate?: string, e
     }
 
     try {
-        const whereClause: any = { isFiveStarMember: true }
+        const whereClause: any = { referralCode: { not: null } }
         if (filters?.campus && filters.campus !== 'All') {
             whereClause.assignedCampus = filters.campus
         }
@@ -733,7 +733,7 @@ export async function generateStarMilestonesData(filters?: { campus?: string }) 
     }
 
     try {
-        const whereClause: any = { isFiveStarMember: true }
+        const whereClause: any = { referralCode: { not: null } }
         if (filters?.campus && filters.campus !== 'All') {
             whereClause.assignedCampus = filters.campus
         }

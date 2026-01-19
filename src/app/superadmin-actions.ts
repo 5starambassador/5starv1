@@ -481,14 +481,14 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
                 }
             }
 
-            entry.systemWideBenefits = (entry.systemWideBenefits || 0) + (u.studentFee * (u.yearFeeBenefitPercent / 100) * u.confirmedReferralCount);
+            entry.systemWideBenefits = (entry.systemWideBenefits || 0) + ((u.studentFee || 0) * (u.yearFeeBenefitPercent / 100) * u.confirmedReferralCount);
         }
     });
 
     prevBenefitsData.forEach(u => {
         if (u.assignedCampus) {
             const entry = getEntry(u.assignedCampus);
-            entry.prevBenefits = (entry.prevBenefits || 0) + (u.studentFee * (u.yearFeeBenefitPercent / 100) * u.confirmedReferralCount);
+            entry.prevBenefits = (entry.prevBenefits || 0) + ((u.studentFee || 0) * (u.yearFeeBenefitPercent / 100) * u.confirmedReferralCount);
         }
     });
 
@@ -578,7 +578,8 @@ export async function getAllUsers(): Promise<UserRecord[]> {
     return users.map(u => ({
         ...u,
         assignedCampus: u.assignedCampus || (u.campusId ? campusMap.get(u.campusId) || null : null),
-        referralCount: u.confirmedReferralCount
+        referralCount: u.confirmedReferralCount,
+        studentFee: u.studentFee || 0
     }))
 }
 

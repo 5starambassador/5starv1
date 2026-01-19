@@ -16,7 +16,10 @@ model User {
   childName              String?
   grade                  String?
   campusId               Int?
-  bankAccountDetails     String?
+  bankAccountDetails     String?         // Legacy/Encrypted blob (Keep for backward compat)
+  bankName               String?
+  accountNumber          String?
+  ifscCode               String?
   referralCode           String?         @unique
   confirmedReferralCount Int             @default(0)
   yearFeeBenefitPercent  Float           @default(0)
@@ -24,7 +27,7 @@ model User {
   lastActiveYear         Int?
   isFiveStarMember       Boolean         @default(false)
   assignedCampus         String?
-  studentFee             Int             @default(60000)
+  studentFee             Float?          @default(60000) // Changed from original: Int
   academicYear           String          @default("2025-2026")
   createdAt              DateTime        @default(now())
   profileImage           String?
@@ -35,6 +38,7 @@ model User {
   transactionId          String?
   aadharNo               String?
   childEprNo             String?
+  childCampusId          Int?            // Stores 'Studying Campus' ID for Staff
   empId                  String?
   password               String?
   deletionRequestedAt    DateTime?
@@ -110,6 +114,7 @@ model ReferralLead {
   user            User       @relation(fields: [userId], references: [userId])
   student         Student?
 
+  @@index([userId, leadStatus])
   @@index([userId])
   @@index([campus])
   @@index([leadStatus])

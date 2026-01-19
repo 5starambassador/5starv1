@@ -43,7 +43,7 @@ export const BrandSidebar = () => {
                         <p className="text-[11px] text-amber-100/70 font-bold uppercase tracking-[0.2em] mb-1.5">
                             Partnership Program
                         </p>
-                        <span className="text-[10px] font-black text-amber-400 tracking-[0.2em] uppercase drop-shadow-lg opacity-90">
+                        <span className="text-[10px] font-black !text-amber-400 tracking-[0.2em] uppercase drop-shadow-lg opacity-90">
                             25<sup className="text-[0.6em]">th</sup> <span className="ml-1.5">Year Celebration</span>
                         </span>
                     </div>

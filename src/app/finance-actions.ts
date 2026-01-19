@@ -98,6 +98,9 @@ export async function getSettlements(status: string = 'Pending') {
                         role: true,
                         mobileNumber: true,
                         bankAccountDetails: true,
+                        bankName: true,
+                        accountNumber: true,
+                        ifscCode: true,
                         referralCode: true
                     }
                 }
@@ -106,13 +109,30 @@ export async function getSettlements(status: string = 'Pending') {
         })
 
         // Decrypt bank details before returning
-        const decryptedSettlements = settlements.map(s => ({
-            ...s,
-            user: {
-                ...s.user,
-                bankAccountDetails: s.user.bankAccountDetails ? decrypt(s.user.bankAccountDetails) : null
+        // Prefer the new individual fields if fully present, otherwise fallback to legacy encrypted blob
+        const decryptedSettlements = settlements.map(s => {
+            const hasNewDetails = s.user.bankName && s.user.accountNumber && s.user.ifscCode
+
+            // Construct a display string for backward compatibility or ease of use in UI
+            let bankDetailsStr = ''
+            if (hasNewDetails) {
+                bankDetailsStr = `${s.user.bankName} - ${s.user.accountNumber} (${s.user.ifscCode})`
+            } else if (s.user.bankAccountDetails) {
+                bankDetailsStr = decrypt(s.user.bankAccountDetails) || ''
             }
-        }))
+
+            return {
+                ...s,
+                user: {
+                    ...s.user,
+                    bankAccountDetails: bankDetailsStr, // Keep compatibility with UI that expects this string
+                    // Also pass raw fields if needed by new UI logic
+                    bankName: s.user.bankName,
+                    accountNumber: s.user.accountNumber,
+                    ifscCode: s.user.ifscCode
+                }
+            }
+        })
 
         return { success: true, data: decryptedSettlements }
     } catch (error) {

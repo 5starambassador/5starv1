@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "postinstall": "prisma generate",
-    "dev": "next dev -H 0.0.0.0 -p 3001",
-    "build": "prisma generate && next build",
+    "dev": "set NODE_OPTIONS=--dns-result-order=ipv4first && next dev -H 0.0.0.0 -p 3001",
+    "build": "prisma generate && set NODE_OPTIONS=--dns-result-order=ipv4first && next build",
     "start": "next start",
     "lint": "eslint"
   },
@@ -36,6 +36,7 @@
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.561.0",
     "next": "16.0.10",
+    "pg": "^8.17.1",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "recharts": "^3.6.0",

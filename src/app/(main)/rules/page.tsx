@@ -7,7 +7,7 @@ export default async function RulesPage() {
     const benefits = [
         { count: 1, percent: 5, label: 'Starter' },
         { count: 2, percent: 10, label: 'Bronze' },
-        { count: 3, percent: 25, label: 'Silver' }, // Jump
+        { count: 3, percent: 20, label: 'Silver' }, // Corrected to 20%
         { count: 4, percent: 30, label: 'Gold' },
         { count: 5, percent: 50, label: 'Platinum' },
     ]
@@ -82,40 +82,40 @@ export default async function RulesPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {benefits.map((b, i) => {
-                            const isHighTier = b.percent >= 25
+                            // Define color themes based on tier
+                            const getTheme = (tier: string) => {
+                                switch (tier) {
+                                    case 'Starter': return 'from-slate-800/80 to-slate-900/80 border-slate-700/50 text-slate-300'
+                                    case 'Bronze': return 'from-orange-900/40 to-amber-900/40 border-amber-800/50 text-amber-500'
+                                    case 'Silver': return 'from-slate-800/60 to-slate-900/60 border-slate-400/30 text-slate-300'
+                                    case 'Gold': return 'from-amber-900/40 to-yellow-900/40 border-amber-500/40 text-amber-400'
+                                    case 'Platinum': return 'from-indigo-900/60 to-purple-900/60 border-indigo-500/40 text-indigo-400'
+                                    default: return 'from-slate-800/80 to-slate-900/80 border-slate-700/50 text-slate-300'
+                                }
+                            }
+
+                            const theme = getTheme(b.label)
+                            const isPremium = b.percent >= 30 // Only Gold/Platinum get extra glow
 
                             return (
                                 <div
                                     key={b.count}
-                                    className={`relative p-6 rounded-[24px] border transition-all duration-300 group overflow-hidden ${isHighTier
-                                        ? 'bg-gradient-to-br from-indigo-900/40 to-purple-900/40 border-indigo-500/30 hover:border-indigo-400/50'
-                                        : 'bg-white/5 border-white/10 hover:border-white/20'
-                                        }`}
+                                    className={`relative p-6 rounded-[24px] border transition-all duration-300 group overflow-hidden bg-gradient-to-br ${theme} hover:border-white/20 hover:shadow-xl hover:-translate-y-1`}
                                 >
-                                    {isHighTier && (
-                                        <div className="absolute -right-10 -top-10 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-colors" />
+                                    {isPremium && (
+                                        <div className="absolute -right-10 -top-10 w-32 h-32 bg-white/5 rounded-full blur-3xl group-hover:bg-white/10 transition-colors" />
                                     )}
 
-                                    <div className="flex justify-between items-start mb-4">
-                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${isHighTier ? 'bg-amber-500/20 text-amber-300' : 'bg-white/10 text-white/60'
-                                            }`}>
-                                            {b.label}
-                                        </span>
-                                    </div>
-
-                                    <div className="flex items-baseline gap-1 mb-2">
-                                        <span className={`text-5xl font-black tracking-tighter ${isHighTier
-                                            ? 'text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 to-emerald-500'
-                                            : 'text-white'
-                                            }`}>
+                                    <div className="flex items-baseline gap-1 mb-2 mt-2">
+                                        <span className={`text-5xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70`}>
                                             {b.percent}%
                                         </span>
                                     </div>
-                                    <p className="text-xs font-medium text-emerald-400/80 uppercase tracking-widest">Fee Benefit</p>
+                                    <p className="text-xs font-medium text-white/50 uppercase tracking-widest">Fee Benefit</p>
 
-                                    <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between text-xs font-medium text-white/40">
-                                        <span className="uppercase tracking-wider">Requirement</span>
-                                        <span className="text-white group-hover:text-amber-300 transition-colors">
+                                    <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-xs font-medium text-white/80">
+                                        <span className="uppercase tracking-wider opacity-60">Requirement</span>
+                                        <span className="text-white group-hover:text-amber-300 transition-colors font-bold text-sm">
                                             {b.count} Referral{b.count > 1 ? 's' : ''}
                                         </span>
                                     </div>
@@ -126,39 +126,39 @@ export default async function RulesPage() {
                 </PageItem>
 
                 {/* Elite Status Section */}
-                <PageItem className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 backdrop-blur-xl border border-indigo-500/30 rounded-[32px] p-8 md:p-10 relative overflow-hidden group">
+                <PageItem className="bg-gradient-to-br from-indigo-900/80 to-purple-900/80 backdrop-blur-xl border border-indigo-500/40 rounded-[32px] p-8 md:p-10 relative overflow-hidden group shadow-2xl shadow-indigo-900/30">
                     <div className="absolute inset-0 bg-[url('/noise.png')] opacity-20 mix-blend-overlay"></div>
                     <div className="absolute -right-20 -bottom-20 opacity-10 rotate-12 transition-transform duration-700 group-hover:rotate-[20deg] group-hover:scale-110">
                         <Star size={240} fill="white" />
                     </div>
 
-                    <div className="relative z-10">
+                    <div className="relative z-10 w-full">
                         <h2 className="text-2xl font-black mb-2 text-white uppercase tracking-tight flex items-center gap-3">
                             <Star className="text-amber-400 fill-amber-400" size={24} />
                             Elite Status (Long Term)
                         </h2>
-                        <p className="text-indigo-200 text-sm font-medium mb-8 max-w-xl leading-relaxed">
+                        <p className="text-indigo-100/80 text-sm font-medium mb-8 max-w-xl leading-relaxed">
                             Qualify for Long Term Benefits next year by completing 5 Referrals this year. Unlock the prestigious Partner status.
                         </p>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="flex justify-between items-center p-5 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                            <div className="flex justify-between items-center p-5 bg-white/10 rounded-2xl border border-white/20 hover:bg-white/15 transition-colors">
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Base Benefit</span>
-                                    <span className="text-xs text-indigo-200/60 font-medium">Guaranteed every year</span>
+                                    <span className="text-xs text-indigo-100/70 font-medium">Guaranteed every year</span>
                                 </div>
                                 <span className="font-black text-3xl text-white">15%</span>
                             </div>
-                            <div className="flex justify-between items-center p-5 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
+                            <div className="flex justify-between items-center p-5 bg-emerald-500/20 rounded-2xl border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors">
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-black text-emerald-300 uppercase tracking-widest mb-1">New Referral Bonus</span>
-                                    <span className="text-xs text-emerald-200/60 font-medium">On top of base benefit</span>
+                                    <span className="text-xs text-emerald-100/70 font-medium">On top of base benefit</span>
                                 </div>
                                 <span className="font-black text-3xl text-emerald-400">+5% <span className="text-sm align-top opacity-80">Extra</span></span>
                             </div>
                         </div>
 
-                        <p className="text-[10px] text-indigo-300/60 mt-6 font-bold uppercase tracking-[0.1em] text-center">
+                        <p className="text-[10px] text-indigo-300/80 mt-6 font-bold uppercase tracking-[0.1em] text-center w-full">
                             * Required: 1 referral in new year to unlock
                         </p>
                     </div>

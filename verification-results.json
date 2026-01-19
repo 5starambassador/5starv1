@@ -1,0 +1,24 @@
+{
+  "user": {
+    "name": "Thirumoorthi R",
+    "isFiveStar": true
+  },
+  "referralCounts": {
+    "current": 1,
+    "previous": 5
+  },
+  "result": {
+    "totalAmount": 9939.75,
+    "breakdown": [
+      "Long Term Base: 3% of 49400 = 1482",
+      "Long Term Base: 3% of 49875 = 1496.25",
+      "Long Term Base: 3% of 45600 = 1368",
+      "Long Term Base: 3% of 37050 = 1111.5",
+      "Long Term Base: 3% of 49400 = 1482",
+      "Current Year (Long Term Slab - 5%): 5% of 60000 = 3000"
+    ],
+    "isLongActive": true,
+    "longTermBaseAmount": 6939.75,
+    "currentYearAmount": 3000
+  }
+}

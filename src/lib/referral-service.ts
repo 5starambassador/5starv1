@@ -13,7 +13,7 @@ import prisma from '@/lib/prisma'
  * @param role - The user's role (e.g., 'Parent', 'Staff', 'Alumni')
  * @returns A string like 'ACH25-P00042'
  */
-export async function generateSmartReferralCode(role: string, academicYear?: string): Promise<string> {
+export async function generateSmartReferralCode(role: string, academicYear?: string, offset: number = 0): Promise<string> {
     const normalizedRole = role.toUpperCase()
     let rolePrefix = 'M' // Default for general members
 
@@ -29,7 +29,8 @@ export async function generateSmartReferralCode(role: string, academicYear?: str
     })
 
     // Format: ACH25-P00001
-    const sequenceNumber = (roleCount + 1).toString().padStart(5, '0')
+    // Add offset to handle collision retries
+    const sequenceNumber = (roleCount + 1 + offset).toString().padStart(5, '0')
 
     // Determine Year Suffix
     // If academicYear is "2025-2026", we want "25"

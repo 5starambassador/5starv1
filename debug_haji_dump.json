@@ -1,0 +1,62 @@
+{
+  "user": {
+    "id": 1159,
+    "name": "Haji Ali A R",
+    "isFiveStar": false
+  },
+  "referrals": [
+    {
+      "id": 40,
+      "studentName": "SHAHRIN NUHA",
+      "status": "Confirmed",
+      "admittedYear": "2024-2025",
+      "createdAt": "2026-01-13T12:12:44.087Z"
+    },
+    {
+      "id": 41,
+      "studentName": "SHAHANA",
+      "status": "Confirmed",
+      "admittedYear": "2024-2025",
+      "createdAt": "2026-01-13T12:12:44.691Z"
+    },
+    {
+      "id": 158,
+      "studentName": "HAKEEM",
+      "status": "Confirmed",
+      "admittedYear": "2024-2025",
+      "createdAt": "2026-01-13T12:13:21.480Z"
+    }
+  ],
+  "activeYears": [
+    {
+      "id": 2,
+      "year": "2024-2025",
+      "startDate": "2024-06-01T00:00:00.000Z",
+      "endDate": "2025-05-31T00:00:00.000Z",
+      "isActive": true,
+      "isCurrent": false,
+      "createdAt": "2026-01-05T07:25:26.502Z",
+      "updatedAt": "2026-01-10T06:54:49.469Z"
+    },
+    {
+      "id": 4,
+      "year": "2026-2027",
+      "startDate": "2026-04-01T00:00:00.000Z",
+      "endDate": "2027-03-31T00:00:00.000Z",
+      "isActive": true,
+      "isCurrent": false,
+      "createdAt": "2026-01-05T08:06:54.798Z",
+      "updatedAt": "2026-01-10T06:54:49.469Z"
+    },
+    {
+      "id": 1,
+      "year": "2025-2026",
+      "startDate": "2025-06-01T00:00:00.000Z",
+      "endDate": "2026-05-31T00:00:00.000Z",
+      "isActive": true,
+      "isCurrent": true,
+      "createdAt": "2026-01-05T07:23:26.592Z",
+      "updatedAt": "2026-01-10T06:54:49.473Z"
+    }
+  ]
+}

@@ -7,29 +7,29 @@ interface ReferralCardClientProps {
     referral: any
 }
 
+const COLORS: Record<string, string> = {
+    'Confirmed': 'var(--success)',
+    'Follow-up': 'var(--primary-red)',
+    'New': 'var(--text-secondary)'
+}
+
+function StatusBadge({ status }: { status: string }) {
+    const color = COLORS[status] || 'gray'
+    let icon = <Clock size={14} />
+    if (status === 'Confirmed') icon = <CheckCircle size={14} />
+    else if (status === 'Follow-up') icon = <UserCheck size={14} />
+
+    return (
+        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium"
+            style={{ color: color, backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)` }}>
+            {icon}
+            {status}
+        </span>
+    )
+}
+
 export function ReferralCardClient({ referral }: ReferralCardClientProps) {
     const [isExpanded, setIsExpanded] = useState(false)
-
-    const colors: Record<string, string> = {
-        'Confirmed': 'var(--success)',
-        'Follow-up': 'var(--primary-red)',
-        'New': 'var(--text-secondary)'
-    }
-    const color = colors[referral.leadStatus] || 'gray'
-
-    const StatusBadge = ({ status }: { status: string }) => {
-        let icon = <Clock size={14} />
-        if (status === 'Confirmed') icon = <CheckCircle size={14} />
-        else if (status === 'Follow-up') icon = <UserCheck size={14} />
-
-        return (
-            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium"
-                style={{ color: color, backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)` }}>
-                {icon}
-                {status}
-            </span>
-        )
-    }
 
     return (
         <div className="glass-panel rounded-[24px] border border-white/20 shadow-xl overflow-hidden transition-all hover:scale-[1.01] hover:shadow-2xl group">

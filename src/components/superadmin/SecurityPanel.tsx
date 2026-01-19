@@ -23,10 +23,6 @@ export function SecurityPanel() {
         type: null
     })
 
-    useEffect(() => {
-        loadSettings()
-    }, [])
-
     const loadSettings = async () => {
         setLoading(true)
         const res = await getSecuritySettings() as any
@@ -35,6 +31,10 @@ export function SecurityPanel() {
         }
         setLoading(false)
     }
+
+    useEffect(() => {
+        loadSettings()
+    }, [])
 
     const handleAddIP = async () => {
         if (!ipInput.trim()) {

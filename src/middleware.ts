@@ -105,7 +105,7 @@ export async function middleware(request: NextRequest) {
         // B. If Not Authenticated
         // 1. If accessing protected route, redirect to login
         if (isProtectedRoute) {
-            const redirectUrl = new URL('/login', request.url)
+            const redirectUrl = new URL('/', request.url)
             // Optional: Preserve redirect URL
             // redirectUrl.searchParams.set('from', pathname)
             return NextResponse.redirect(redirectUrl)
@@ -151,6 +151,6 @@ export const config = {
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
          */
-        '/((?!_next/static|_next/image|favicon.ico).*)',
+        '/((?!_next/static|_next/image|favicon.ico|policies).*)',
     ],
 }

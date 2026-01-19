@@ -53,16 +53,16 @@ export const MobileEntry = ({ mobile, setMobile, onNext, loading }: MobileEntryP
 
             <div className="space-y-5">
                 <div className="group relative">
-                    <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-2 z-20 pointer-events-none">
-                        <span className="text-white/60 font-bold text-xl tracking-[0.1em]">+91</span>
-                        <div className="w-px h-6 bg-white/20"></div>
+                    <div className="absolute left-6 top-[48%] -translate-y-1/2 flex items-center gap-3 z-20 pointer-events-none">
+                        <span className="text-white/40 font-black text-lg tracking-widest tabular-nums">+91</span>
+                        <div className="w-px h-5 bg-white/10"></div>
                     </div>
                     <input
                         type="tel"
                         autoFocus
                         autoComplete="tel"
                         disabled={loading}
-                        className={`relative z-10 block w-full bg-white/5 border border-white/10 rounded-2xl pl-24 pr-6 h-14 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-xl transition-all text-xl font-bold tracking-[0.2em] text-left ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`relative z-10 block w-full bg-white/5 border border-white/10 rounded-2xl pl-24 pr-6 h-14 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-xl transition-all text-xl font-black tracking-[0.3em] tabular-nums text-left ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         placeholder="00000 00000"
                         value={mobile}
                         onChange={(e) => {

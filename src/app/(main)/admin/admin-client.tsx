@@ -5,6 +5,7 @@ import { Users, TrendingUp, Award, BarChart3, IndianRupee, CheckCircle, RefreshC
 import { ReferralManagementTable } from './referral-table-advanced'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
+import { GRADES } from '@/lib/constants'
 import { CleanStatCard } from '@/components/superadmin/CleanStatCard'
 import { ReportsPanel } from '@/components/superadmin/ReportsPanel'
 import {
@@ -920,7 +921,7 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                                             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 cursor-pointer transition-all appearance-none"
                                         >
                                             <option value="">Select</option>
-                                            {['Pre-KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => (
+                                            {GRADES.map(g => (
                                                 <option key={g} value={g}>{g}</option>
                                             ))}
                                         </select>

@@ -1,0 +1,12 @@
+Server:  dns.google
+Address:  8.8.8.8
+
+Name:    ap-southeast-1.aws.neon.tech
+Addresses:  2406:da18:94d:820a:7802:44a:8047:9bf2
+	  2406:da18:94d:8228:7b54:c070:e7bc:3e13
+	  2406:da18:94d:821b:df69:86d1:da7a:84f1
+	  13.228.184.177
+	  13.228.46.236
+	  52.220.170.93
+Aliases:  ep-patient-art-a1v3932a-pooler.ap-southeast-1.aws.neon.tech
+

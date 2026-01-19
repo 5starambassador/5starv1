@@ -6,6 +6,7 @@ import { Check, X, Edit2, Search, Database, Globe, Loader2, Save } from 'lucide-
 import { toast } from 'sonner'
 import { getPendingVerifications, approveVerification, rejectVerification, bulkVerifyAgainstDatabase } from '@/app/verification-actions'
 import { getCampuses } from '@/app/campus-actions'
+import { GRADES } from '@/lib/constants'
 
 interface VerificationQueueProps {
     initialData?: any[]
@@ -27,11 +28,6 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
         childName: ''
     })
 
-    useEffect(() => {
-        loadData()
-        loadCampuses()
-    }, [])
-
     const loadData = async () => {
         setLoading(true)
         const res = await getPendingVerifications()
@@ -45,6 +41,11 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
         const res = await getCampuses()
         if (res.success) setCampuses(res.campuses || [])
     }
+
+    useEffect(() => {
+        loadData()
+        loadCampuses()
+    }, [])
 
     const handleApprove = async (userId: number, withEdits = false) => {
         setProcessing(userId)
@@ -100,7 +101,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
         setEditForm({
             childEprNo: user.childEprNo || '',
             grade: user.grade || '',
-            childCampusId: '', // We don't have Studying Campus on User object easily, user has to select
+            childCampusId: user.childCampusId ? user.childCampusId.toString() : '',
             childName: user.childName || ''
         })
     }
@@ -109,9 +110,29 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
         setEditingId(null)
     }
 
+    // Filter State
+    const [searchTerm, setSearchTerm] = useState('')
+    const [filterCampus, setFilterCampus] = useState('')
+    const [filterRole, setFilterRole] = useState('')
+
+    // Derived Filtered Data
+    const filteredUsers = users.filter(user => {
+        const matchesSearch = (
+            user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            user.mobileNumber?.includes(searchTerm) ||
+            user.childEprNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            ('ERP-' + user.userId)?.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        const matchesCampus = filterCampus ? (user.assignedCampus === filterCampus || user.campusId?.toString() === filterCampus) : true
+        const matchesRole = filterRole ? user.role === filterRole : true
+
+        return matchesSearch && matchesCampus && matchesRole
+    })
+
+    const uniqueCampuses = Array.from(new Set(users.map(u => u.assignedCampus).filter(Boolean)))
+
     return (
         <div className="space-y-6">
-            {/* Header / Actions */}
             {/* Header / Actions */}
             <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-gray-50 p-6 rounded-xl border border-gray-200">
                 <div>
@@ -129,21 +150,63 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                 </button>
             </div>
 
+            {/* Dynamic Filters */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Search */}
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                        type="text"
+                        placeholder="Search Name, ERP, Mobile..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                    />
+                </div>
+
+                {/* Campus Filter */}
+                <select
+                    value={filterCampus}
+                    onChange={(e) => setFilterCampus(e.target.value)}
+                    className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm text-gray-700"
+                >
+                    <option value="">All Campuses</option>
+                    {uniqueCampuses.map((c: any) => (
+                        <option key={c} value={c}>{c}</option>
+                    ))}
+                </select>
+
+                {/* Role Filter */}
+                <select
+                    value={filterRole}
+                    onChange={(e) => setFilterRole(e.target.value)}
+                    className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm text-gray-700"
+                >
+                    <option value="">All Roles</option>
+                    <option value="Staff">Staff</option>
+                    <option value="Parent">Parent</option>
+                </select>
+            </div>
+
             {/* List */}
             {loading ? (
                 <div className="py-20 flex justify-center text-gray-300">
                     <Loader2 className="animate-spin" size={32} />
                 </div>
-            ) : users.length === 0 ? (
+            ) : filteredUsers.length === 0 ? (
                 <div className="bg-gray-50 rounded-xl p-12 text-center border border-gray-200">
                     <Check className="mx-auto text-emerald-500 mb-4" size={48} />
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">All Caught Up!</h3>
-                    <p className="text-gray-500">No pending verification requests found.</p>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                        {searchTerm || filterCampus || filterRole ? 'No matches found' : 'All Caught Up!'}
+                    </h3>
+                    <p className="text-gray-500">
+                        {searchTerm || filterCampus || filterRole ? 'Try adjusting your filters.' : 'No pending verification requests found.'}
+                    </p>
                 </div>
             ) : (
                 <div className="grid gap-4">
                     <AnimatePresence>
-                        {users.map(user => (
+                        {filteredUsers.map(user => (
                             <motion.div
                                 key={user.userId}
                                 layout
@@ -188,7 +251,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                                     className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                                 >
                                                     <option value="" className="text-gray-500">Select Grade</option>
-                                                    {['Pre-KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => (
+                                                    {GRADES.map(g => (
                                                         <option key={g} value={g} className="text-gray-900">{g}</option>
                                                     ))}
                                                 </select>

@@ -28,21 +28,6 @@ export default function LoginPage() {
     verify()
   }, [router])
 
-  // Skip Welcome screen on Desktop (Large Screens)
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 1024) {
-        setStep(prev => prev === 0 ? 1 : prev)
-      }
-    }
-
-    // Initial check
-    handleResize()
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
   // Steps: 0: Welcome, 1: Mobile, 1.5: Password (Existing), 2: OTP (New/Forgot), 3: Register Details, 4: Payment, 5: Reset Password
   const [step, setStep] = useState(0)
   const [mobile, setMobile] = useState('')
@@ -71,6 +56,21 @@ export default function LoginPage() {
     passoutYear: ''
   })
   const [campuses, setCampuses] = useState<any[]>([])
+
+  // Skip Welcome screen on Desktop (Large Screens)
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setStep(prev => prev === 0 ? 1 : prev)
+      }
+    }
+
+    // Initial check
+    handleResize()
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const handleSendOtp = async () => {
     if (mobile.length < 10) return toast.error('Enter valid mobile')

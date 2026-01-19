@@ -1,5 +1,6 @@
 import { ChevronLeft, Star, Timer, RefreshCw } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { useWebOTP } from '@/hooks/useWebOTP'
 
 interface OtpVerificationProps {
     mobile: string
@@ -14,6 +15,7 @@ interface OtpVerificationProps {
 }
 
 export const OtpVerification = ({ mobile, otp, setOtp, onVerify, onBack, onResend, loading, isNewUser, isForgotMode }: OtpVerificationProps) => {
+    useWebOTP(setOtp)
     const [timeLeft, setTimeLeft] = useState(180) // 3 minutes
     const [canResend, setCanResend] = useState(false)
 

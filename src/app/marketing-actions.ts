@@ -1,6 +1,16 @@
 'use server'
 
 import prisma from '@/lib/prisma'
+import { getCurrentUser } from '@/lib/auth-service'
+
+// Helper to check if user is admin
+async function checkAdmin() {
+    const user = await getCurrentUser()
+    if (!user || user.role === 'Parent' || user.role === 'Staff' || user.role === 'Alumni' || user.role === 'Others') {
+        throw new Error('Unauthorized: Admin access required')
+    }
+    return user
+}
 
 // Categories for marketing assets - exposed as async function for 'use server' compatibility
 export async function getMarketingCategories(): Promise<string[]> {
@@ -52,6 +62,7 @@ export async function getMarketingAssets() {
 // Get all assets for admin (including inactive)
 export async function getAdminMarketingAssets() {
     try {
+        await checkAdmin()
         const assets = await prisma.marketingAsset.findMany({
             orderBy: [
                 { category: 'asc' },
@@ -78,6 +89,8 @@ export async function createMarketingAsset(data: {
     uploadedById?: number
 }) {
     try {
+        await checkAdmin()
+
         // Get max sort order for category
         const maxSort = await prisma.marketingAsset.aggregate({
             where: { category: data.category },
@@ -109,6 +122,7 @@ export async function updateMarketingAsset(id: number, data: {
     sortOrder?: number
 }) {
     try {
+        await checkAdmin()
         const asset = await prisma.marketingAsset.update({
             where: { id },
             data
@@ -124,6 +138,7 @@ export async function updateMarketingAsset(id: number, data: {
 // Delete a marketing asset
 export async function deleteMarketingAsset(id: number) {
     try {
+        await checkAdmin()
         await prisma.marketingAsset.delete({
             where: { id }
         })
@@ -138,6 +153,7 @@ export async function deleteMarketingAsset(id: number) {
 // Toggle asset visibility
 export async function toggleAssetVisibility(id: number, isActive: boolean) {
     try {
+        await checkAdmin()
         const asset = await prisma.marketingAsset.update({
             where: { id },
             data: { isActive }

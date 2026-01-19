@@ -9,6 +9,19 @@ export function InstallPrompt() {
     const [showPrompt, setShowPrompt] = useState(false)
     const [isIOS, setIsIOS] = useState(false)
 
+    const handleInstallClick = async () => {
+        if (!deferredPrompt && !isIOS) return
+
+        if (deferredPrompt) {
+            deferredPrompt.prompt()
+            const { outcome } = await deferredPrompt.userChoice
+            if (outcome === 'accepted') {
+                setShowPrompt(false)
+            }
+            setDeferredPrompt(null)
+        }
+    }
+
     useEffect(() => {
         // 1. Don't show if already running as native app
         if (Capacitor.isNativePlatform()) return
@@ -37,30 +50,32 @@ export function InstallPrompt() {
             setShowPrompt(true)
         }
 
+        const handleTriggerInstall = () => {
+            if (deferredPrompt) {
+                handleInstallClick()
+            } else if (isIosDevice) {
+                setShowPrompt(true)
+            }
+        }
+
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+        window.addEventListener('trigger-PWA-install', handleTriggerInstall)
 
         // 6. For iOS, show instructions if not in standalone
         if (isIosDevice && !isStandalone) {
             // Delay showing iOS prompt by 3 seconds for better UX
             const timer = setTimeout(() => setShowPrompt(true), 3000)
-            return () => clearTimeout(timer)
-        }
-
-        return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    }, [])
-
-    const handleInstallClick = async () => {
-        if (!deferredPrompt && !isIOS) return
-
-        if (deferredPrompt) {
-            deferredPrompt.prompt()
-            const { outcome } = await deferredPrompt.userChoice
-            if (outcome === 'accepted') {
-                setShowPrompt(false)
+            return () => {
+                clearTimeout(timer)
+                window.removeEventListener('trigger-PWA-install', handleTriggerInstall)
             }
-            setDeferredPrompt(null)
         }
-    }
+
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+            window.removeEventListener('trigger-PWA-install', handleTriggerInstall)
+        }
+    }, [deferredPrompt, isIOS])
 
     const handleDismiss = () => {
         setShowPrompt(false)
@@ -70,7 +85,7 @@ export function InstallPrompt() {
     if (!showPrompt) return null
 
     return (
-        <div className="fixed bottom-6 left-6 right-6 md:left-auto md:right-6 md:max-w-md z-50 animate-in slide-in-from-bottom duration-500">
+        <div className="fixed bottom-6 left-6 right-6 md:left-auto md:right-6 md:max-w-md z-[100] animate-in slide-in-from-bottom duration-500">
             <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl shadow-2xl shadow-blue-900/50 p-6 text-white relative overflow-hidden border border-white/10">
                 {/* Background Pattern */}
                 <div className="absolute inset-0 opacity-10">
@@ -80,10 +95,14 @@ export function InstallPrompt() {
 
                 {/* Close Button */}
                 <button
-                    onClick={handleDismiss}
-                    className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all z-10"
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        handleDismiss()
+                    }}
+                    className="absolute top-2 right-2 p-2 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 transition-all z-50 cursor-pointer"
+                    aria-label="Close install prompt"
                 >
-                    <X size={16} />
+                    <X size={20} />
                 </button>
 
                 {/* Content */}
@@ -113,7 +132,7 @@ export function InstallPrompt() {
                     )}
 
                     {/* Features Grid */}
-                    <div className="grid grid-cols-3 gap-3 text-center pt-4 border-t border-white/10">
+                    <div className="grid grid-cols-3 gap-3 text-center pt-4 border-t border-white/20">
                         <div>
                             <Zap size={16} className="mx-auto mb-1 text-amber-300" />
                             <p className="text-xs font-black text-blue-200">Fast</p>

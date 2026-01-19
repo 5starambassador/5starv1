@@ -6,6 +6,15 @@ import { calculateStars } from '@/lib/gamification'
 import { logger } from '@/lib/logger'
 import { getCurrentUser } from '@/lib/auth-service'
 
+// Helper to check if user is admin
+async function checkAdmin() {
+    const user = await getCurrentUser()
+    if (!user || user.role === 'Parent' || user.role === 'Staff' || user.role === 'Alumni' || user.role === 'Others') {
+        throw new Error('Unauthorized: Admin access required')
+    }
+    return user
+}
+
 /**
  * Triggers a re-engagement campaign for ambassadors inactive for 14+ days.
  * Only callable by Super Admins.
@@ -13,7 +22,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 export async function triggerReengagementCampaign() {
     const admin = await getCurrentUser()
     if (!admin || admin.role !== 'Super Admin') {
-        return { success: false, error: 'Unauthorized' }
+        return { success: false, error: 'Unauthorized: Super Admin access required' }
     }
 
     const fourteenDaysAgo = new Date()
@@ -84,6 +93,8 @@ export async function triggerReengagementCampaign() {
 
 export async function getEngagementStats() {
     try {
+        await checkAdmin()
+
         const [campaignCount, totalSentResult, dormantCount] = await Promise.all([
             prisma.campaign.count(),
             prisma.campaignLog.aggregate({ _sum: { sentCount: true } }),

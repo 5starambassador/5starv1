@@ -24,8 +24,20 @@ export async function getAuditLogs(params: {
             ]
         }
 
+        // Logic Mappings for UI groups
         if (params.module && params.module !== 'All') {
-            where.module = params.module
+            const mod = params.module.toUpperCase()
+            let moduleTags: string[] = [mod, mod.toLowerCase()]
+
+            if (mod === 'ADMIN') moduleTags = ['user', 'admin', 'system', 'ADMIN', 'USER']
+            else if (mod === 'AUTH') moduleTags = ['auth', 'AUTH', 'login', 'SECURITY']
+            else if (mod === 'LEADS') moduleTags = ['referral', 'lead-mgmt', 'leads', 'LEADS', 'REFERRAL']
+            else if (mod === 'FINANCE') moduleTags = ['finance', 'settlement', 'payout', 'FINANCE', 'SETTLEMENT']
+            else if (mod === 'REPORTS') moduleTags = ['reports', 'reporting', 'REPORTS']
+            else if (mod === 'SETTINGS') moduleTags = ['settings', 'SETTINGS']
+            else if (mod === 'SECURITY') moduleTags = ['security', 'permissions', 'verification', 'SECURITY', 'PERMISSIONS']
+
+            where.module = { in: moduleTags }
         }
 
         if (params.startDate && params.endDate) {
@@ -85,19 +97,31 @@ export async function getAuditStats() {
         const securityAlerts = await prisma.activityLog.count({
             where: {
                 createdAt: { gte: startOfDay },
-                module: { in: ['SECURITY', 'AUTH'] },
+                module: { in: ['SECURITY', 'AUTH', 'security', 'auth'] },
                 action: { in: ['BAN', 'DELETE', 'FAILED_LOGIN'] }
             }
         })
 
-        // 3. Module Health (Group by module)
+        // 3. Module Health (Group by module with normalization)
         const logs = await prisma.activityLog.findMany({
             where: { createdAt: { gte: startOfDay } },
             select: { module: true }
         })
         const moduleCounts: Record<string, number> = {}
+
+        const normalize = (m: string) => {
+            const up = m.toUpperCase()
+            if (['USER', 'ADMIN', 'SYSTEM'].includes(up)) return 'ADMIN'
+            if (['REFERRAL', 'LEAD-MGMT', 'LEADS'].includes(up)) return 'LEADS'
+            if (['SECURITY', 'PERMISSIONS', 'VERIFICATION'].includes(up)) return 'SECURITY'
+            if (['FINANCE', 'SETTLEMENT', 'PAYOUT'].includes(up)) return 'FINANCE'
+            if (['REPORTS', 'REPORTING'].includes(up)) return 'REPORTS'
+            return up // Fallback to uppercase name
+        }
+
         logs.forEach(l => {
-            moduleCounts[l.module] = (moduleCounts[l.module] || 0) + 1
+            const norm = normalize(l.module)
+            moduleCounts[norm] = (moduleCounts[norm] || 0) + 1
         })
         const moduleHealth = Object.entries(moduleCounts)
             .map(([name, count]) => ({ name, count }))

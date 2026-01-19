@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react'
 import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, runCampaign, getAudienceCount } from '@/app/campaign-actions'
 import { getCampuses } from '@/app/campus-actions'
 import { toast } from 'sonner'
-import { Plus, Play, Edit, Trash2, Mail, Clock, CheckCircle2, AlertTriangle, Loader2, Users, Building2, Eye, Filter } from 'lucide-react'
-
+import { Plus, Play, Edit, Trash2, Mail, Clock, CheckCircle2, AlertTriangle, Loader2, Users, Building2, Eye, Filter, Sparkles, Send, Target, ChevronRight, Activity, X, Save } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export function CampaignManager() {
     const [campaigns, setCampaigns] = useState<any[]>([])
@@ -112,16 +112,15 @@ export function CampaignManager() {
         const { id, name } = confirmState.data
         if (!id) return
 
-        const tid = toast.loading('Starting campaign...')
-        // Close dialog immediately
+        const tid = toast.loading('Dispatching campaign...')
         setConfirmState({ isOpen: false, type: null })
 
         const res = await runCampaign(id)
         if (res.success) {
-            toast.success(`Campaign finished. Sent: ${res.sent}, Failed: ${res.failed || 0}`, { id: tid })
+            toast.success(`Deployment finished. Success: ${res.sent}, Failed: ${res.failed || 0}`, { id: tid })
             loadCampaigns()
         } else {
-            toast.error(res.error || 'Failed to run', { id: tid })
+            toast.error(res.error || 'Failed to deploy', { id: tid })
         }
     }
 
@@ -135,11 +134,11 @@ export function CampaignManager() {
 
         const res = await deleteCampaign(id)
         if (res.success) {
-            toast.success('Campaign deleted')
+            toast.success('Campaign purged')
             loadCampaigns()
             setConfirmState({ isOpen: false, type: null })
         } else {
-            toast.error(res.error || 'Failed to delete')
+            toast.error(res.error || 'Failed to purge')
             setConfirmState({ isOpen: false, type: null })
         }
     }
@@ -161,23 +160,25 @@ export function CampaignManager() {
     }
 
     const getAudienceDescription = (audience: any) => {
-        if (!audience) return 'All Users'
+        if (!audience) return 'Global Audience'
         const parts = []
         if (audience.role !== 'All') parts.push(audience.role)
         if (audience.campus !== 'All') parts.push(audience.campus)
         if (audience.activityStatus !== 'All') parts.push(audience.activityStatus)
-        return parts.length > 0 ? parts.join(' | ') : 'All Users'
+        return parts.length > 0 ? parts.join(' • ') : 'Global Audience'
     }
 
     return (
-        <div className="space-y-8">
-            <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-gray-200 shadow-sm relative z-20">
-                <div>
-                    <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900">
-                        <Mail className="text-gray-900" size={24} />
-                        Campaign Manager
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header Control Panel */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/40 backdrop-blur-md p-6 rounded-[32px] border border-white/20 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full translate-x-1/2 -translate-y-1/2 blur-3xl opacity-50" />
+                <div className="relative z-10">
+                    <h2 className="text-xl font-black text-gray-900 flex items-center gap-2 uppercase tracking-tight italic">
+                        <Mail className="text-indigo-600" />
+                        Campaign Control
                     </h2>
-                    <p className="text-gray-500 text-sm mt-1">Design and automate targeted email workflows</p>
+                    <p className="text-sm text-gray-500 font-medium">Design and automate high-conversion email workflows</p>
                 </div>
                 <button
                     onClick={() => {
@@ -190,257 +191,346 @@ export function CampaignManager() {
                         })
                         setShowModal(true)
                     }}
-                    className="bg-gray-900 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-black transition-colors flex items-center gap-2 shadow-sm text-sm"
+                    className="relative z-10 flex items-center justify-center gap-2 px-6 py-3 bg-gray-900 border border-white/10 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-gray-200"
                 >
-                    <Plus size={16} /> New Campaign
+                    <Plus size={16} /> Create Workflow
                 </button>
             </div>
 
             {loading ? (
-                <div className="flex justify-center p-12"><Loader2 className="animate-spin text-gray-400" /></div>
+                <div className="flex flex-col items-center justify-center p-20 bg-white/40 backdrop-blur-md rounded-[40px] border border-white/20">
+                    <Loader2 className="animate-spin text-indigo-400 mb-4" size={32} />
+                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest animate-pulse">Synchronizing Data...</p>
+                </div>
             ) : campaigns.length === 0 ? (
-                <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
-                    <Mail size={48} className="mx-auto text-gray-300 mb-4" />
-                    <p className="text-gray-500 font-medium">No campaigns found. Create your first one!</p>
+                <div className="text-center py-24 bg-white/40 backdrop-blur-md rounded-[40px] border-2 border-dashed border-white/60">
+                    <div className="w-20 h-20 bg-white/60 rounded-3xl flex items-center justify-center mx-auto mb-6 text-gray-300 shadow-inner">
+                        <Mail size={40} />
+                    </div>
+                    <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight mb-2 italic">No Active Workflows</h3>
+                    <p className="text-sm text-gray-500 font-medium max-w-xs mx-auto mb-8">Ready to boost your engagement? Create your first automated campaign.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {campaigns.map(c => (
-                        <div key={c.id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow relative group">
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="p-3 bg-gray-50 text-gray-900 rounded-xl">
-                                    <Mail size={24} />
+                        <motion.div
+                            key={c.id}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="group bg-white/60 backdrop-blur-sm rounded-[32px] border border-white/40 p-6 shadow-sm hover:shadow-2xl hover:bg-white/80 hover:-translate-y-1.5 transition-all relative overflow-hidden"
+                        >
+                            {/* Status Glow */}
+                            <div className={`absolute -top-12 -right-12 w-24 h-24 blur-3xl rounded-full opacity-20 transition-colors ${c.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+
+                            <div className="flex justify-between items-start mb-6">
+                                <div className={`p-4 rounded-2xl shadow-sm transition-colors ${c.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}>
+                                    <Send size={24} />
                                 </div>
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => openPreview(c)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"><Eye size={16} /></button>
-                                    <button onClick={() => openEdit(c)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"><Edit size={16} /></button>
-                                    <button onClick={() => handleDelete(c.id)} className="p-2 hover:bg-red-50 text-red-500 rounded-lg"><Trash2 size={16} /></button>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                                    <button onClick={() => openPreview(c)} className="p-2.5 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-indigo-600 hover:shadow-sm transition-all"><Eye size={16} /></button>
+                                    <button onClick={() => openEdit(c)} className="p-2.5 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-indigo-600 hover:shadow-sm transition-all"><Edit size={16} /></button>
+                                    <button onClick={() => handleDelete(c.id)} className="p-2.5 bg-rose-50 border border-rose-100 rounded-xl text-rose-400 hover:bg-rose-600 hover:text-white hover:shadow-sm transition-all"><Trash2 size={16} /></button>
                                 </div>
                             </div>
 
-                            <h3 className="font-bold text-gray-900 text-lg mb-1">{c.name}</h3>
-                            <p className="text-sm text-gray-500 mb-2 line-clamp-1">Subject: {c.subject}</p>
-
-                            {/* Audience Filter Display */}
-                            <div className="flex items-center gap-1.5 mb-4">
-                                <Filter size={12} className="text-gray-400" />
-                                <span className="text-xs font-bold text-gray-600">{getAudienceDescription(c.targetAudience)}</span>
+                            <div className="mb-6">
+                                <h3 className="font-black text-gray-900 text-lg uppercase tracking-tight truncate group-hover:text-indigo-600 transition-colors">{c.name}</h3>
+                                <p className="text-[11px] text-gray-400 font-bold font-mono tracking-wider truncate mb-2">{c.subject}</p>
+                                <div className="flex items-center gap-2 inline-flex border border-gray-100 bg-gray-50/50 px-2.5 py-1 rounded-full">
+                                    <Target size={12} className="text-indigo-400" />
+                                    <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">{getAudienceDescription(c.targetAudience)}</span>
+                                </div>
                             </div>
 
-                            {/* Recent Execution Logs */}
-                            {c.logs && c.logs.length > 0 && (
-                                <div className="bg-gray-50 rounded-lg p-3 mb-4 border border-gray-100">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Last Run</p>
-                                    {c.logs.slice(0, 2).map((log: any, idx: number) => (
-                                        <div key={idx} className="flex items-center justify-between text-xs mb-1 last:mb-0">
-                                            <span className="text-gray-600">{new Date(log.runAt).toLocaleDateString()}</span>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-emerald-600 font-bold">{log.sentCount} sent</span>
-                                                {log.failedCount > 0 && <span className="text-red-600 font-bold">{log.failedCount} failed</span>}
+                            {/* Recent Metrics */}
+                            <div className="bg-white/40 border border-white/60 rounded-3xl p-4 mb-6 relative overflow-hidden group-hover:bg-white/60 transition-colors shadow-inner">
+                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                                    <Activity size={10} className="text-gray-400" />
+                                    Latest Metrics
+                                </p>
+                                {c.logs && c.logs.length > 0 ? (
+                                    c.logs.slice(0, 1).map((log: any, idx: number) => (
+                                        <div key={idx} className="space-y-3">
+                                            <div className="flex items-end justify-between">
+                                                <div className="flex-1">
+                                                    <p className="text-[20px] font-black text-gray-900 leading-none">{log.sentCount}</p>
+                                                    <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mt-1">Confirmed Delivery</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className={`text-[20px] font-black leading-none ${log.failedCount > 0 ? 'text-rose-500' : 'text-gray-200'}`}>{log.failedCount}</p>
+                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Failed</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-[9px] font-black text-gray-400 uppercase tracking-widest pt-2 border-t border-gray-100/50">
+                                                <Clock size={10} />
+                                                <span>{new Date(log.runAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            <div className="border-t border-gray-100 pt-4 mt-4">
-                                <div className="flex justify-between items-center text-xs text-gray-500 mb-4">
-                                    <span className="flex items-center gap-1">
-                                        <Clock size={12} />
-                                        {c.lastRunAt ? `Ran ${new Date(c.lastRunAt).toLocaleDateString()}` : 'Never ran'}
-                                    </span>
-                                    <span className={`px-2 py-1 rounded-full font-bold text-[10px] uppercase tracking-wide border ${c.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>
-                                        {c.status}
-                                    </span>
-                                </div>
-
-                                <button
-                                    onClick={() => handleRun(c.id, c.name)}
-                                    className="w-full py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-900 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-colors"
-                                >
-                                    <Play size={14} /> Run Now
-                                </button>
+                                    ))
+                                ) : (
+                                    <div className="py-4 text-center">
+                                        <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest italic">Awaiting Initiation</p>
+                                    </div>
+                                )}
                             </div>
-                        </div>
+
+                            <button
+                                onClick={() => handleRun(c.id, c.name)}
+                                className="w-full py-4 bg-gray-900 text-white rounded-[20px] font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-black active:scale-[0.98] transition-all shadow-xl shadow-gray-100"
+                            >
+                                <Play size={12} fill="currentColor" /> Initiate Dispatch
+                            </button>
+                        </motion.div>
                     ))}
                 </div>
             )}
 
-            {/* Create/Edit Modal */}
-            {showModal && (
-                <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-8 w-full max-w-2xl shadow-xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto border border-gray-100">
-                        <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                            {editingCampaign ? <Edit size={20} /> : <Plus size={20} />}
-                            {editingCampaign ? 'Edit Campaign' : 'New Campaign'}
-                        </h3>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">Campaign Name</label>
-                                <input
-                                    className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
-                                    placeholder="e.g., Monthly Newsletter"
-                                    value={form.name}
-                                    onChange={e => setForm({ ...form, name: e.target.value })}
-                                />
-                            </div>
-
-                            {/* Audience Filters */}
-                            <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-                                <p className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                    <Users size={16} /> Audience Targeting
-                                </p>
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">Role</label>
-                                        <select
-                                            value={form.targetAudience.role}
-                                            onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, role: e.target.value } })}
-                                            className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                                        >
-                                            <option value="All">All Roles</option>
-                                            <option value="Staff">Staff</option>
-                                            <option value="Parent">Parent</option>
-                                            <option value="Alumni">Alumni</option>
-                                        </select>
+            {/* Modal Layer UI (Glassmorphism Modal) */}
+            <AnimatePresence>
+                {showModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowModal(false)}
+                            className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 30 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 30 }}
+                            className="bg-white/95 backdrop-blur-xl border border-white/20 rounded-[40px] w-full max-w-3xl shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
+                        >
+                            {/* Modal Header */}
+                            <div className="bg-indigo-600 p-8 text-white relative">
+                                <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/20 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+                                <div className="flex justify-between items-center relative z-10">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 backdrop-blur-md">
+                                            {editingCampaign ? <Edit size={24} /> : <Sparkles size={24} />}
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-black uppercase tracking-tight italic">{editingCampaign ? 'Config Workflow' : 'Ignite Workflow'}</h2>
+                                            <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] font-mono">Precision Marketing Automation</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">Campus</label>
-                                        <select
-                                            value={form.targetAudience.campus}
-                                            onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, campus: e.target.value } })}
-                                            className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                                        >
-                                            <option value="All">All Campuses</option>
-                                            {campuses.map((c: any) => (
-                                                <option key={c.id} value={c.campusName}>{c.campusName}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">Activity</label>
-                                        <select
-                                            value={form.targetAudience.activityStatus}
-                                            onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, activityStatus: e.target.value } })}
-                                            className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                                        >
-                                            <option value="All">All Users</option>
-                                            <option value="Active">Active</option>
-                                            <option value="Dormant">Dormant (14+ days)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="mt-4 pt-3 border-t border-gray-200 flex justify-between items-center">
-                                    <p className="text-xs font-semibold text-gray-500">Estimated Reach:</p>
-                                    <p className="text-sm font-bold text-gray-900">{estimatedReach !== null ? `${estimatedReach} Users` : 'Calculating...'}</p>
+                                    <button
+                                        onClick={() => setShowModal(false)}
+                                        className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-colors"
+                                    >
+                                        <X size={24} />
+                                    </button>
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">Email Subject</label>
-                                <input
-                                    className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
-                                    placeholder="Subject line..."
-                                    value={form.subject}
-                                    onChange={e => setForm({ ...form, subject: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1">Content Template</label>
-                                <textarea
-                                    className="w-full p-3 bg-white border border-gray-200 rounded-lg h-40 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all font-mono text-sm"
-                                    placeholder="HTML or Text content..."
-                                    value={form.templateBody}
-                                    onChange={e => setForm({ ...form, templateBody: e.target.value })}
-                                />
-                                <p className="text-xs text-gray-400 mt-2 font-mono">Supports variables: {'{userName}'}, {'{referralCode}'}</p>
-                            </div>
-                        </div>
+                            {/* Scrollable Form Body */}
+                            <div className="p-8 overflow-y-auto space-y-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2 col-span-2 md:col-span-1">
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Campaign Label</label>
+                                        <input
+                                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 transition-all placeholder:text-gray-300"
+                                            placeholder="e.g. Phase 2 Retargeting"
+                                            value={form.name}
+                                            onChange={e => setForm({ ...form, name: e.target.value })}
+                                        />
+                                    </div>
 
-                        <div className="flex gap-3 mt-8 pt-4 border-t border-gray-100">
-                            <button
-                                onClick={() => setShowModal(false)}
-                                className="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold rounded-xl transition-colors text-sm"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSubmit}
-                                disabled={isProcessing}
-                                className="px-5 py-2.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl transition-colors disabled:opacity-50 text-sm ml-auto"
-                            >
-                                {isProcessing ? 'Saving...' : 'Save Campaign'}
-                            </button>
-                        </div>
+                                    <div className="space-y-2 col-span-2 md:col-span-1">
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Subject Signature</label>
+                                        <input
+                                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 transition-all placeholder:text-gray-300"
+                                            placeholder="Headline for the recipient..."
+                                            value={form.subject}
+                                            onChange={e => setForm({ ...form, subject: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Advanced Audience Partitioning */}
+                                <div className="bg-indigo-50/50 border border-indigo-100/50 rounded-[32px] p-6 space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Target size={16} className="text-indigo-600" />
+                                            <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-widest">Audience Segmentation</h4>
+                                        </div>
+                                        <div className="flex items-center gap-2 bg-indigo-600 px-3 py-1 rounded-full shadow-lg shadow-indigo-100">
+                                            <span className="text-[9px] font-black text-white/60 uppercase tracking-widest">Est. Impact:</span>
+                                            <span className="text-[10px] font-black text-white uppercase tracking-widest">{estimatedReach !== null ? `${estimatedReach} Profiles` : '...'}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="space-y-1.5">
+                                            <label className="block text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] px-1">Structural Role</label>
+                                            <select
+                                                value={form.targetAudience.role}
+                                                onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, role: e.target.value } })}
+                                                className="w-full bg-white border border-indigo-100 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                                            >
+                                                <option value="All">Global (All Roles)</option>
+                                                <option value="Staff">Internal Staff</option>
+                                                <option value="Parent">Parent Network</option>
+                                                <option value="Alumni">Alumni Circle</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="block text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] px-1">Institutional Node</label>
+                                            <select
+                                                value={form.targetAudience.campus}
+                                                onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, campus: e.target.value } })}
+                                                className="w-full bg-white border border-indigo-100 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                                            >
+                                                <option value="All">Global (All Nodes)</option>
+                                                {campuses.map((c: any) => (
+                                                    <option key={c.id} value={c.campusName}>{c.campusName}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="block text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] px-1">Vitals Status</label>
+                                            <select
+                                                value={form.targetAudience.activityStatus}
+                                                onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, activityStatus: e.target.value } })}
+                                                className="w-full bg-white border border-indigo-100 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                                            >
+                                                <option value="All">Full Population</option>
+                                                <option value="Active">Pulse Observed (Active)</option>
+                                                <option value="Dormant">Dormant (14+ days)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="flex justify-between px-1">
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Payload Content</label>
+                                        <div className="flex gap-4">
+                                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest font-mono">{"{userName}"}</span>
+                                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest font-mono">{"{referralCode}"}</span>
+                                        </div>
+                                    </div>
+                                    <textarea
+                                        className="w-full bg-gray-50 border border-gray-100 rounded-3xl px-6 py-5 text-sm font-bold text-gray-900 h-48 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 transition-all font-mono leading-relaxed"
+                                        placeholder="Inject HTML or standard text template here..."
+                                        value={form.templateBody}
+                                        onChange={e => setForm({ ...form, templateBody: e.target.value })}
+                                    />
+                                    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
+                                        <AlertTriangle size={18} className="text-amber-600 shrink-0" />
+                                        <p className="text-[10px] font-bold text-amber-700 leading-normal">Precision Dispatch ensures variables are merged server-side. Validate syntax before deploying.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="p-8 bg-gray-50 flex gap-3 border-t border-gray-100">
+                                <button
+                                    onClick={() => setShowModal(false)}
+                                    className="flex-1 py-4 bg-white border border-gray-200 text-gray-400 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-100 transition-all"
+                                >
+                                    Dismiss
+                                </button>
+                                <button
+                                    onClick={handleSubmit}
+                                    disabled={isProcessing}
+                                    className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {isProcessing ? (
+                                        <Loader2 size={16} className="animate-spin" />
+                                    ) : (
+                                        <><Save size={16} /> Finalize Workflow</>
+                                    )}
+                                </button>
+                            </div>
+                        </motion.div>
                     </div>
-                </div>
-            )}
+                )}
+            </AnimatePresence>
 
-            {/* Preview Modal */}
-            {showPreviewModal && previewCampaign && (
-                <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-8 w-full max-w-2xl shadow-xl animate-in zoom-in-95 duration-200 border border-gray-100">
-                        <div className="flex justify-between items-start mb-6">
-                            <h3 className="text-xl font-bold text-gray-900">Campaign Preview</h3>
-                            <button onClick={() => setShowPreviewModal(false)} className="text-gray-400 hover:text-gray-600">
-                                <span className="sr-only">Close</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                                <p className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">Subject</p>
-                                <p className="font-medium text-gray-900">{previewCampaign.subject.replace('{userName}', 'John Doe')}</p>
+            {/* Preview Modal Layer */}
+            <AnimatePresence>
+                {showPreviewModal && previewCampaign && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowPreviewModal(false)}
+                            className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white rounded-[40px] w-full max-w-2xl shadow-2xl relative overflow-hidden"
+                        >
+                            <div className="p-8 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                                <h3 className="text-md font-black text-gray-900 uppercase tracking-tighter italic">Workflow Output Preview</h3>
+                                <button onClick={() => setShowPreviewModal(false)} className="p-2 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-black transition-colors">
+                                    <X size={20} />
+                                </button>
                             </div>
 
-                            <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm min-h-[200px]">
-                                <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                                    {previewCampaign.templateBody
-                                        .replace(/{userName}/g, 'John Doe')
-                                        .replace(/{referralCode}/g, 'AMB12345')}
+                            <div className="p-8 space-y-6">
+                                <div className="space-y-1.5">
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest font-mono">Simulated Inbox View</p>
+                                    <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-inner">
+                                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1 italic">Subject:</p>
+                                        <p className="text-sm font-black text-gray-900">{previewCampaign.subject.replace('{userName}', 'Prof. John Doe')}</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest font-mono">Payload Execution</p>
+                                    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm min-h-[250px] overflow-y-auto font-mono text-sm leading-relaxed text-gray-700 scrollbar-hide">
+                                        {previewCampaign.templateBody
+                                            .replace(/{userName}/g, 'Prof. John Doe')
+                                            .replace(/{referralCode}/g, 'AMB_X99P')}
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3 bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                                        <Users size={20} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-indigo-900 uppercase tracking-tight italic">Confirmed Segmentation</p>
+                                        <p className="text-[11px] font-bold text-indigo-600 tracking-wide">{getAudienceDescription(previewCampaign.targetAudience)}</p>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                <Users size={14} />
-                                <span className="font-semibold">Target Audience:</span>
-                                <span>{getAudienceDescription(previewCampaign.targetAudience)}</span>
+                            <div className="p-8 pt-0 flex">
+                                <button
+                                    onClick={() => setShowPreviewModal(false)}
+                                    className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-gray-200 hover:bg-black transition-all"
+                                >
+                                    Dismiss Sandbox
+                                </button>
                             </div>
-                        </div>
-
-                        <div className="mt-6 flex justify-end">
-                            <button
-                                onClick={() => setShowPreviewModal(false)}
-                                className="px-5 py-2.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl transition-colors text-sm"
-                            >
-                                Close Preview
-                            </button>
-                        </div>
+                        </motion.div>
                     </div>
-                </div>
-            )}
-            {/* Premium Confirm Dialog */}
+                )}
+            </AnimatePresence>
+
             <ConfirmDialog
                 isOpen={confirmState.isOpen}
-                title={confirmState.type === 'run' ? 'Run Campaign?' : 'Delete Campaign?'}
+                title={confirmState.type === 'run' ? 'Fire Workflow Dispatch?' : 'Purge Campaign Artifact?'}
                 description={
                     confirmState.type === 'run' ? (
-                        <p>
-                            Are you sure you want to run <strong>{confirmState.data?.name}</strong>?
-                            <br />This will immediately send emails to all matching users.
+                        <p className="font-medium text-gray-500 italic">
+                            Final warning: Initiating dispatch for <strong className="text-gray-900 underline decoration-indigo-200">{confirmState.data?.name}</strong> will push emails to the prioritized audience instantly.
                         </p>
                     ) : (
-                        <p>
-                            Are you sure you want to permanently delete this campaign?
-                            <br />This action cannot be undone.
+                        <p className="font-medium text-gray-500 italic">
+                            Terminating the campaign archive for <strong className="text-gray-900 underline decoration-rose-200 whitespace-nowrap">{confirmState.data?.name || 'this workflow'}</strong>.
+                            <br /><span className="text-rose-600 font-black uppercase text-[10px] tracking-widest mt-2 block not-italic">CRITICAL: DATA LOSS DETECTED</span>
                         </p>
                     )
                 }
-                confirmText={confirmState.type === 'run' ? 'Yes, Run Campaign' : 'Delete Campaign'}
+                confirmText={confirmState.type === 'run' ? 'Commence Dispatch' : 'Confirm Purge'}
                 variant={confirmState.type === 'run' ? 'info' : 'danger'}
                 onConfirm={() => {
                     if (confirmState.type === 'run') executeRun()

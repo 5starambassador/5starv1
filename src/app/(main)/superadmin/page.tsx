@@ -10,6 +10,8 @@ import { getSystemSettings, getSecuritySettings } from '@/app/settings-actions'
 import SuperadminClient from './superadmin-client' // Client component
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
+export const dynamic = 'force-dynamic'
+
 interface PageProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
@@ -158,19 +160,37 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
     // Superadmin loads ALL users? getAllUsers() returns distinct fields.
 
     // Await all
-    const [analytics, campusComparison, users, admins, students, marketingAssets, growthTrend, deepTrends, referralData, urgentTicketCount, campusesResult] = await Promise.all([
-        analyticsPromise,
-        campusComparisonPromise,
-        usersPromise,
-        adminsPromise,
-        studentsPromise,
-        marketingAssetsPromise,
-        growthTrendPromise,
-        deepTrendsPromise,
-        referralDataPromise,
-        urgentTicketCountPromise,
-        campusesPromise
-    ])
+    // Await all with explicit try-catch to prevent page crash
+    let analytics = defaultAnalytics
+    let campusComparison = []
+    let users = []
+    let admins = []
+    let students = []
+    let marketingAssets = { assets: [] }
+    let growthTrend = []
+    let deepTrends = { success: true, trends: null }
+    let referralData = { referrals: [], meta: { page: 1, limit: 50, total: 0, totalPages: 1 } }
+    let urgentTicketCount = 0
+    let campusesResult = { success: true, campuses: [] }
+
+    try {
+        [analytics, campusComparison, users, admins, students, marketingAssets, growthTrend, deepTrends, referralData, urgentTicketCount, campusesResult] = await Promise.all([
+            analyticsPromise.catch(e => { console.error('Analytics Fetch Error:', e); return defaultAnalytics }),
+            campusComparisonPromise.catch(e => { console.error('Comp Fetch Error:', e); return [] }),
+            usersPromise.catch(e => { console.error('Users Fetch Error:', e); return [] }),
+            adminsPromise.catch(e => { console.error('Admins Fetch Error:', e); return [] }),
+            studentsPromise.catch(e => { console.error('Students Fetch Error:', e); return [] }),
+            marketingAssetsPromise.catch(e => { console.error('Marketing Fetch Error:', e); return { assets: [] } }),
+            growthTrendPromise.catch(e => { console.error('Growth Fetch Error:', e); return [] }),
+            deepTrendsPromise.catch(e => { console.error('Trends Fetch Error:', e); return { success: false } }),
+            referralDataPromise.catch(e => { console.error('Referral Fetch Error:', e); return { referrals: [], meta: { page: 1, limit: 50, total: 0, totalPages: 1 } } }),
+            urgentTicketCountPromise.catch(e => { console.error('Tickets Fetch Error:', e); return 0 }),
+            campusesPromise.catch(e => { console.error('Campus Fetch Error:', e); return { success: false, campuses: [] } })
+        ])
+    } catch (error) {
+        console.error('CRITICAL SUPERADMIN LOAD ERROR:', error)
+        // Fallback to defaults (already set)
+    }
 
     return (
         <ErrorBoundary>

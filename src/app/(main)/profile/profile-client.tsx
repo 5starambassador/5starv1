@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Star, Phone, Award, Calendar, Shield, Edit2, Check, X, Upload, Mail, MapPin, Trash2, ArrowRight, User, Camera, Settings, LogOut, ChevronRight, HelpCircle, CreditCard, Lock } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Star, Phone, Award, Calendar, Shield, Edit2, Check, X, Upload, Mail, MapPin, Trash2, ArrowRight, User, Camera, Settings, LogOut, ChevronRight, HelpCircle, CreditCard, Lock, Smartphone, Download, GraduationCap } from 'lucide-react'
 import { toast } from 'sonner'
 import { PrivacyModal } from '@/components/PrivacyModal'
 import { requestAccountDeletion } from '@/app/deletion-actions'
@@ -9,6 +9,9 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PageAnimate, PageItem } from '@/components/PageAnimate'
 import { ScrollLock } from '@/components/ui/ScrollLock'
+import { GRADES } from '@/lib/constants'
+import { getCampuses } from '@/app/campus-actions'
+import { ifscSchema, accountNumberSchema } from '@/lib/validators'
 
 interface ProfileClientProps {
     user: {
@@ -26,24 +29,60 @@ interface ProfileClientProps {
         email?: string
         address?: string
         createdAt: string
-        confirmedReferralCount?: number // Optional if generic user type doesn't strictly enforce it yet
+        confirmedReferralCount?: number
         studentFee?: number
+        // New fields
+        childName?: string
+        grade?: string
+        childEprNo?: string
+        childCampusId?: number
+        empId?: string
+        transactionId?: string
+        status?: string
+        benefitStatus?: string
+        bankName?: string
+        accountNumber?: string
+        ifscCode?: string
     }
 }
 
+import { useRouter } from 'next/navigation'
+
 export default function ProfileClient({ user }: ProfileClientProps) {
-    const [isEditing, setIsEditing] = useState(false)
+    const router = useRouter()
+    const [isEditingProfile, setIsEditingProfile] = useState(false)
+    const [isEditingBank, setIsEditingBank] = useState(false)
     const [fullName, setFullName] = useState(user.fullName)
     const [email, setEmail] = useState(user.email || '')
     const [address, setAddress] = useState(user.address || '')
+    const [bankName, setBankName] = useState(user.bankName || '')
+    const [accountNumber, setAccountNumber] = useState(user.accountNumber || '')
+    const [ifscCode, setIfscCode] = useState(user.ifscCode || '')
+
+    const [childEprNo, setChildEprNo] = useState(user.childEprNo || '')
+    const [grade, setGrade] = useState(user.grade || '')
     const [profileImage, setProfileImage] = useState(user.profileImage)
     const [saving, setSaving] = useState(false)
     const [uploading, setUploading] = useState(false)
     const [showPrivacyModal, setShowPrivacyModal] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [campuses, setCampuses] = useState<any[]>([])
+    const [childCampusId, setChildCampusId] = useState<string>(
+        user.childCampusId ? user.childCampusId.toString() : ''
+    )
+
+    useEffect(() => {
+        const fetchCampuses = async () => {
+            const res = await getCampuses()
+            if (res.success && res.campuses) {
+                setCampuses(res.campuses)
+            }
+        }
+        if (user.role === 'Staff') fetchCampuses()
+    }, [user.role])
 
     // Derived or safe default stats
-    const referralCount = (user as any).confirmedReferralCount || 0
+    const referralCount = user.confirmedReferralCount || 0
     // Use projectedValue passed from server side calculations (Matches Dashboard Projected Growth)
     const totalEarned = (user as any).projectedValue !== undefined ? (user as any).projectedValue : 0
 
@@ -79,17 +118,56 @@ export default function ProfileClient({ user }: ProfileClientProps) {
     const handleSave = async () => {
         setSaving(true)
         try {
+            const body = {
+                fullName,
+                email,
+                address,
+                ...(isEditingProfile && user.role === 'Staff' && {
+                    childEprNo,
+                    grade,
+                    childCampusId: childCampusId ? parseInt(childCampusId) : undefined
+                }),
+                ...(isEditingBank && {
+                    bankName,
+                    accountNumber,
+                    ifscCode,
+                })
+            }
+
+            if (isEditingBank) {
+                if (ifscCode) {
+                    const result = ifscSchema.safeParse(ifscCode)
+                    if (!result.success) {
+                        toast.error(result.error.issues[0].message)
+                        setSaving(false)
+                        return
+                    }
+                }
+                if (accountNumber) {
+                    const result = accountNumberSchema.safeParse(accountNumber)
+                    if (!result.success) {
+                        toast.error(result.error.issues[0].message)
+                        setSaving(false)
+                        return
+                    }
+                }
+            }
+
             const response = await fetch('/api/profile/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fullName, email, address })
+                body: JSON.stringify(body)
             })
             if (response.ok) {
-                setIsEditing(false)
                 toast.success('Profile updated successfully')
-                window.location.reload()
+                setIsEditingProfile(false)
+                setIsEditingBank(false)
+                router.refresh()
             } else {
-                toast.error('Failed to update profile')
+                const data = await response.json()
+                // Show specific functionality error if available
+                toast.error(data.details || data.error || 'Failed to update profile')
+                console.error('Update failed:', data)
             }
         } catch {
             toast.error('Error updating profile')
@@ -102,7 +180,13 @@ export default function ProfileClient({ user }: ProfileClientProps) {
         setFullName(user.fullName)
         setEmail(user.email || '')
         setAddress(user.address || '')
-        setIsEditing(false)
+        setBankName((user as any).bankName || '')
+        setAccountNumber((user as any).accountNumber || '')
+        setIfscCode((user as any).ifscCode || '')
+        setChildEprNo((user as any).childEprNo || '')
+        setGrade((user as any).grade || '')
+        setIsEditingProfile(false)
+        setIsEditingBank(false)
     }
 
     const handleDeleteRequest = async () => {
@@ -139,9 +223,9 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                 <header className="py-6 flex items-center justify-between pl-2 relative">
                     <h1 className="text-xl font-black text-white tracking-tight uppercase">My Profile</h1>
 
-                    {!isEditing && (
+                    {!isEditingProfile && !isEditingBank && (
                         <button
-                            onClick={() => setIsEditing(true)}
+                            onClick={() => setIsEditingProfile(true)}
                             className="absolute top-6 right-0 w-10 h-10 rounded-full bg-white/20 border border-white/50 flex items-center justify-center z-[9999] shadow-md active:scale-95"
                             aria-label="Edit Profile"
                         >
@@ -218,12 +302,87 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                     </div>
                 </div>
 
+                {/* Student Details Card (For Parents & Staff with Linked Children) */}
+                {((user as any).childName || (user as any).childEprNo) && (
+                    <div className="w-full mb-6">
+                        <div className="bg-gradient-to-br from-indigo-900/40 to-slate-900/40 border border-indigo-500/20 rounded-2xl p-5 relative overflow-hidden group">
+                            {/* Decorative Glow */}
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-colors" />
+
+                            <div className="flex items-start justify-between mb-4 relative z-10">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-300 font-bold text-lg border border-indigo-500/30">
+                                        <GraduationCap size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-bold text-white uppercase tracking-wide">Student Details</h3>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${(user as any).benefitStatus === 'Active' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${(user as any).benefitStatus === 'Active' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                                {(user as any).benefitStatus === 'Active' ? 'Verified Benefit' : 'Pending Verification'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-y-3 gap-x-2 relative z-10">
+                                <div>
+                                    <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest mb-0.5">Student Name</p>
+                                    <p className="text-sm font-bold text-white tracking-tight truncate">{(user as any).childName || 'Pending...'}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest mb-0.5">Grade</p>
+                                    <p className="text-sm font-bold text-white tracking-tight">{(user as any).grade || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest mb-0.5">ERP Number</p>
+                                    <p className="text-xs font-mono text-indigo-300 font-bold tracking-wider">{(user as any).childEprNo || 'N/A'}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest mb-0.5">Campus</p>
+                                    {/* Assuming assignedCampus or we might need mapped campus name if we saved it differently? Usually assignedCampus is good enough for display */}
+                                    <p className="text-xs font-bold text-white tracking-tight truncate">{(user as any).assignedCampus || 'Achariya'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Staff: Prompt to Link Child if Missing */}
+                {user.role === 'Staff' && !(user as any).childName && !(user as any).childEprNo && (
+                    <button
+                        onClick={() => setIsEditingProfile(true)}
+                        className="w-full mb-6 group relative overflow-hidden rounded-2xl p-[1px] focus:outline-none"
+                    >
+                        <span className="absolute inset-0 bg-gradient-to-r from-amber-400/50 via-amber-200/50 to-amber-400/50 opacity-100 group-hover:opacity-100 animate-gradient-xy transition-opacity" />
+                        <div className="relative bg-slate-900 rounded-2xl p-5 flex items-center gap-4 transition-transform group-active:scale-[0.98]">
+                            <div className="w-12 h-12 rounded-full bg-amber-400/10 text-amber-400 flex items-center justify-center shrink-0 border border-amber-400/20 group-hover:bg-amber-400 group-hover:text-black transition-colors">
+                                <Shield size={24} strokeWidth={2.5} />
+                            </div>
+                            <div className="flex-1 text-left">
+                                <h3 className="text-sm font-black text-amber-400 uppercase tracking-wide group-hover:text-white transition-colors">Link Child Details</h3>
+                                <p className="text-[10px] text-white/50 font-medium leading-tight mt-0.5">
+                                    Claim your <strong>School Fee Discount</strong> by linking your child's ERP details.
+                                </p>
+                            </div>
+                            < ChevronRight size={18} className="text-amber-400/50 group-hover:text-white transition-colors" />
+                        </div>
+                    </button>
+                )}
+
                 {/* Edit Form or Menu List */}
                 <div className="space-y-4">
-                    {isEditing ? (
+                    {/* PROFILE EDIT MODE */}
+                    {isEditingProfile ? (
                         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
                             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
-                                <h3 className="text-sm font-bold text-white/60 uppercase tracking-wide mb-2">Edit Details</h3>
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-bold text-white/60 uppercase tracking-wide">Edit Personal Details</h3>
+                                    <button onClick={handleCancel} className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors">
+                                        <X size={14} className="text-white/60" />
+                                    </button>
+                                </div>
 
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-white/40 ml-1">Full Name</label>
@@ -247,6 +406,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                 </div>
 
                                 <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-white/40 ml-1">Address</label>
                                     <textarea
                                         value={address}
                                         onChange={(e) => setAddress(e.target.value)}
@@ -256,25 +416,105 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                     />
                                 </div>
 
-                                {/* Staff Child Details - Only if "Child in Achariya" is true (from DB, not editable here for simplicity, or we can make it editable) */}
-                                {/* Assuming we want to allow them to fill it if it's missing but they marked it as Yes, or if they want to update it */}
-                                {/* Checking user.role to be safe */}
+                                {/* Child Details Section for Staff */}
                                 {user.role === 'Staff' && (
                                     <div className="pt-4 border-t border-white/10 space-y-4">
-                                        <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wide">Child Details (Achariya)</h3>
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wide">Child Details (Achariya)</h3>
+                                            {(user as any).benefitStatus === 'Active' && (
+                                                <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                                                    <Lock size={10} className="text-emerald-400" />
+                                                    <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Verified & Locked</span>
+                                                </div>
+                                            )}
+                                        </div>
 
                                         <div className="space-y-1.5">
                                             <label className="text-xs font-bold text-white/40 ml-1">Child ERP No</label>
                                             <input
                                                 type="text"
-                                                value={(user as any).childEprNo || ''}
-                                                // We need distinct state for these, adding them to component state next...
-                                                disabled={true}
-                                                placeholder="Please contact admin to update"
-                                                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white/50 cursor-not-allowed"
+                                                value={childEprNo}
+                                                onChange={(e) => setChildEprNo(e.target.value)}
+                                                placeholder="Enter ERP Number"
+                                                disabled={(user as any).benefitStatus === 'Active'}
+                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors focus:outline-none ${(user as any).benefitStatus === 'Active' ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50'}`}
                                             />
-                                            <p className="text-[9px] text-white/30 ml-1">To update child details, please contact your Campus Head.</p>
                                         </div>
+
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-white/40 ml-1">Campus</label>
+                                            <select
+                                                value={childCampusId}
+                                                onChange={(e) => {
+                                                    setChildCampusId(e.target.value)
+                                                    setGrade('') // Reset grade on campus change
+                                                }}
+                                                disabled={(user as any).benefitStatus === 'Active'}
+                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors appearance-none ${(user as any).benefitStatus === 'Active' ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50 cursor-pointer'}`}
+                                            >
+                                                <option value="" className="bg-slate-900 text-white/50">Select Campus</option>
+                                                {campuses.map(c => (
+                                                    <option key={c.id} value={c.id} className="bg-slate-900 text-white">{c.campusName}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-white/40 ml-1">Grade</label>
+                                            <select
+                                                value={grade}
+                                                onChange={(e) => setGrade(e.target.value)}
+                                                disabled={(user as any).benefitStatus === 'Active' || !childCampusId}
+                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors appearance-none ${(user as any).benefitStatus === 'Active' || !childCampusId ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50 cursor-pointer'}`}
+                                            >
+                                                {/* Copied from previous logic, simplified for brevity here, reused same logic */}
+                                                <option value="" className="bg-slate-900 text-white/50">
+                                                    {!childCampusId ? 'Select Campus First' : 'Select Grade'}
+                                                </option>
+                                                {(() => {
+                                                    const selectedCampus = campuses.find(c => c.id.toString() === childCampusId)
+
+                                                    // If no campus found or no grades defined, show all GRADES (Fail Open)
+                                                    if (!selectedCampus || !selectedCampus.grades) {
+                                                        return GRADES.map(g => (
+                                                            <option key={g} value={g} className="bg-slate-900 text-white">{g}</option>
+                                                        ))
+                                                    }
+
+                                                    // Normalize helper: Standardize to lowercase alphanumeric only (Grade-1 == Grade 1 == grade1)
+                                                    const normalize = (s: string) => s.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
+
+                                                    const campusGradesRaw = selectedCampus.grades.split(',').map((g: string) => normalize(g))
+
+                                                    // Filter GRADES constant
+                                                    const filtered = GRADES.filter(g => campusGradesRaw.includes(normalize(g)))
+
+                                                    // Fallback: If strict matching returns nothing, show all GRADES to avoid blocking user
+                                                    // This handles huge data mismatches
+                                                    if (filtered.length === 0) {
+                                                        return GRADES.map(g => (
+                                                            <option key={g} value={g} className="bg-slate-900 text-white">{g}</option>
+                                                        ))
+                                                    }
+
+                                                    return filtered.map(g => (
+                                                        <option key={g} value={g} className="bg-slate-900 text-white">{g}</option>
+                                                    ))
+                                                })()}
+                                            </select>
+                                        </div>
+
+                                        {(user as any).benefitStatus !== 'Active' ? (
+                                            <p className="text-[9px] text-amber-200/60 ml-1 flex items-center gap-1.5 bg-amber-500/5 p-2 rounded-lg border border-amber-500/10">
+                                                <Shield size={10} />
+                                                Updating these details will reset your benefit status to <strong>Pending Verification</strong> until approved by Admin.
+                                            </p>
+                                        ) : (
+                                            <p className="text-[9px] text-emerald-200/60 ml-1 flex items-center gap-1.5 bg-emerald-500/5 p-2 rounded-lg border border-emerald-500/10">
+                                                <Shield size={10} />
+                                                These details are verified. Contact Admin to request changes.
+                                            </p>
+                                        )}
                                     </div>
                                 )}
 
@@ -283,12 +523,74 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                     disabled={saving}
                                     className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-700 text-white font-bold uppercase tracking-widest shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 mt-4"
                                 >
-                                    {saving ? 'Saving...' : 'Save Changes'}
+                                    {saving ? 'Saving...' : 'Save Profile Only'}
+                                    {!saving && <Check size={18} />}
+                                </button>
+                            </div>
+                        </div>
+                    ) : isEditingBank ? (
+                        /* BANK EDIT MODE */
+                        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-wide">Edit Bank Details</h3>
+                                    <button onClick={handleCancel} className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors">
+                                        <X size={14} className="text-white/60" />
+                                    </button>
+                                </div>
+
+                                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-start gap-3">
+                                    <Shield size={16} className="text-emerald-400 mt-0.5 shrink-0" />
+                                    <p className="text-[10px] text-emerald-200/80 leading-relaxed">
+                                        These details are Encrypted & Secure. They will be used for your payout processing.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-white/40 ml-1">Bank Name</label>
+                                    <input
+                                        type="text"
+                                        value={bankName}
+                                        onChange={(e) => setBankName(e.target.value)}
+                                        placeholder="e.g. HDFC Bank"
+                                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-amber-500/50 focus:outline-none transition-colors"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-white/40 ml-1">Account Number</label>
+                                    <input
+                                        type="text"
+                                        value={accountNumber}
+                                        onChange={(e) => setAccountNumber(e.target.value)}
+                                        placeholder="Enter Account No."
+                                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-amber-500/50 focus:outline-none transition-colors"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-white/40 ml-1">IFSC Code</label>
+                                    <input
+                                        type="text"
+                                        value={ifscCode}
+                                        onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+                                        placeholder="e.g. HDFC0001234"
+                                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-amber-500/50 focus:outline-none transition-colors uppercase"
+                                    />
+                                </div>
+
+                                <button
+                                    onClick={handleSave}
+                                    disabled={saving}
+                                    className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-700 text-white font-bold uppercase tracking-widest shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 mt-4"
+                                >
+                                    {saving ? 'Saving...' : 'Update Bank Details'}
                                     {!saving && <Check size={18} />}
                                 </button>
                             </div>
                         </div>
                     ) : (
+                        /* READ ONLY MODE */
                         <>
                             {/* Read-Only Menu Links - Separated Cards for Premium Feel */}
                             <div className="flex flex-col gap-4">
@@ -322,13 +624,39 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                     </div>
                                 </div>
 
-                                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4 hover:bg-white/10 transition-colors group">
-                                    <div className="w-10 h-10 rounded-full bg-teal-500/10 text-teal-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                        <Calendar size={18} />
+                                {/* Bank Details Read-Only Card */}
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-4 hover:bg-white/10 transition-colors group relative">
+                                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <CreditCard size={18} />
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-0.5">Member Since</p>
-                                        <p className="text-sm font-bold text-white tracking-tight">{new Date(user.createdAt).getFullYear()}</p>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mb-0.5">Bank Details</p>
+                                            <button
+                                                onClick={() => setIsEditingBank(true)}
+                                                className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/40 hover:text-emerald-400 transition-colors"
+                                                title="Edit Bank Details"
+                                            >
+                                                <Edit2 size={12} />
+                                            </button>
+                                        </div>
+                                        {bankName || accountNumber ? (
+                                            <div className="text-xs text-white/80 font-mono tracking-tight">
+                                                <p>{bankName}</p>
+                                                <p>{accountNumber}</p>
+                                                <p className="text-white/40 text-[10px]">{ifscCode}</p>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-sm font-bold text-white/50 tracking-tight">Not Provided</p>
+                                                <button
+                                                    onClick={() => setIsEditingBank(true)}
+                                                    className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider hover:underline"
+                                                >
+                                                    Add Now
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -370,7 +698,40 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                     )}
                 </div>
 
-                {/* Sign Out (Visual Only - Logic handled by sidebar usually, but good to have) */}
+                {/* App Download / PWA Section */}
+                <div className="pt-8 space-y-4">
+                    <div className="bg-gradient-to-br from-blue-600/20 to-indigo-600/20 backdrop-blur-xl border border-blue-500/20 rounded-3xl p-6 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-blue-500/20 transition-colors" />
+
+                        <div className="flex items-start gap-4 mb-6">
+                            <div className="w-12 h-12 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                                <Smartphone size={24} />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-sm font-black text-white uppercase tracking-tight mb-1">Achariya Mobile App</h3>
+                                <p className="text-[10px] text-white/50 leading-relaxed font-medium">
+                                    Install our official app for a faster experience, offline access, and instant notifications.
+                                </p>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                // Dispatch custom event to trigger global install prompt if available
+                                window.dispatchEvent(new CustomEvent('trigger-PWA-install'));
+                                toast.info('Click "Install" in the browser prompt or add to Home Screen', {
+                                    description: 'iOS users: Tap Share (□↑) and "Add to Home Screen"'
+                                });
+                            }}
+                            className="w-full bg-blue-600 hover:bg-blue-500 text-white h-12 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+                        >
+                            <Download size={16} />
+                            Download App
+                        </button>
+                    </div>
+                </div>
+
+                {/* Sign Out */}
                 <div className="pt-8 pb-4">
                     <form action="/auth/signout" method="post">
                         <button className="w-full h-14 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center gap-2 font-bold transition-all active:scale-95 text-xs uppercase tracking-widest">
@@ -383,7 +744,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                     </p>
                 </div>
 
-            </PageAnimate>
+            </PageAnimate >
 
             <PrivacyModal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
 

@@ -6,19 +6,19 @@ import { TicketsClient } from './tickets-client'
 export default async function TicketsPage() {
     const user = await getCurrentUser()
 
-    // Only admins can access this page
-    if (!user || !['Super Admin', 'Admission Admin', 'Campus Head', 'Finance Admin', 'Campus Admin'].includes(user.role)) {
+    // Access control based on permission service is now handled inside the action
+    const result = await getAdminTickets()
+
+    if (!result.success) {
         redirect('/dashboard')
     }
-
-    const result = await getAdminTickets(user.role, user.assignedCampus || undefined)
 
     return (
         <TicketsClient
             tickets={result.tickets}
             counts={result.counts}
-            role={user.role}
-            adminId={(user as any).adminId}
+            role={user!.role}
+            adminId={(user as any).adminId || (user as any).userId}
         />
     )
 }

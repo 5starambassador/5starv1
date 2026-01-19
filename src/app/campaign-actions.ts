@@ -3,9 +3,20 @@
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { logAction } from '@/lib/audit-logger'
+import { getCurrentUser } from '@/lib/auth-service'
+
+// Helper to check if user is admin
+async function checkAdmin() {
+    const user = await getCurrentUser()
+    if (!user || user.role === 'Parent' || user.role === 'Staff' || user.role === 'Alumni' || user.role === 'Others') {
+        throw new Error('Unauthorized: Admin access required')
+    }
+    return user
+}
 
 export async function getCampaigns() {
     try {
+        await checkAdmin()
         const campaigns = await prisma.campaign.findMany({
             orderBy: { createdAt: 'desc' },
             include: {
@@ -30,6 +41,7 @@ export async function createCampaign(data: {
     targetAudience?: any
 }) {
     try {
+        await checkAdmin()
         const campaign = await prisma.campaign.create({
             data: {
                 name: data.name,
@@ -58,6 +70,7 @@ export async function updateCampaign(id: number, data: Partial<{
     targetAudience: any
 }>) {
     try {
+        await checkAdmin()
         const campaign = await prisma.campaign.update({
             where: { id },
             data
@@ -74,6 +87,7 @@ export async function updateCampaign(id: number, data: Partial<{
 
 export async function deleteCampaign(id: number) {
     try {
+        await checkAdmin()
         await prisma.campaign.delete({
             where: { id }
         })
@@ -92,6 +106,7 @@ import { UserRole } from '@prisma/client'
 
 export async function getAudienceCount(audience: { role: string, campus: string, activityStatus: string }) {
     try {
+        await checkAdmin()
         const users = await getFilteredUsers(audience)
         return { success: true, count: users.length }
     } catch (error) {
@@ -137,6 +152,7 @@ async function getFilteredUsers(audience: { role: string, campus: string, activi
 
 export async function runCampaign(id: number) {
     try {
+        await checkAdmin()
         const campaign = await prisma.campaign.findUnique({ where: { id } })
         if (!campaign) return { success: false, error: 'Campaign not found' }
 

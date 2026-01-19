@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Send, User, Shield, Loader2, Clock } from 'lucide-react'
+import { X, Send, User, Shield, Loader2, Clock, AlertTriangle, CheckCircle2, MessageSquare } from 'lucide-react'
 import { addTicketMessage, getTicketMessages, escalateTicket } from '@/app/ticket-actions'
 import { toast } from 'sonner'
 
 interface Message {
     id: number
-    senderType: string // 'User' | 'Admin'
+    senderType: string
     senderId: number
     message: string
     createdAt: Date | string
@@ -31,26 +31,26 @@ interface TicketChatModalProps {
 }
 
 export function TicketChatModal({ ticket, currentUserType, currentUserId, onClose, onStatusChange }: TicketChatModalProps) {
+    const [mounted, setMounted] = useState(false)
     const [newMessage, setNewMessage] = useState('')
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
     const [isSending, setIsSending] = useState(false)
     const [messages, setMessages] = useState<Message[]>(ticket.messages || [])
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
-    // Scroll to bottom on load and new message
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
 
-    // Poll for new messages
     useEffect(() => {
         const pollMessages = async () => {
             if (ticket.status === 'Resolved' || ticket.status === 'Closed') return
 
             const result = await getTicketMessages(ticket.id)
             if (result.success && result.messages) {
-                // If there are more messages than we have, update
-                // Simple length check might miss edits, but good enough for chat
-                // Better: check if last message ID is different
                 setMessages(prev => {
                     if (result.messages && result.messages.length > prev.length) {
                         return result.messages
@@ -58,7 +58,6 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
                     return prev
                 })
 
-                // Update status if changed (e.g. Admin replied -> In-Progress)
                 if (result.status && result.status !== ticket.status && onStatusChange) {
                     onStatusChange(result.status)
                 }
@@ -70,40 +69,29 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
     }, [ticket.id, ticket.status, onStatusChange])
 
     const handleSend = async () => {
-        if (!newMessage.trim()) return
+        if (!newMessage.trim() || isSending) return
 
         setIsSending(true)
-        // Optimistic UI update
-        const tempId = Date.now()
-        const tempMsg: Message = {
-            id: tempId,
+        const optimisticMsg: Message = {
+            id: Date.now(),
             senderType: currentUserType,
             senderId: currentUserId,
             message: newMessage,
-            createdAt: new Date()
+            createdAt: new Date().toISOString()
         }
 
-        setMessages(prev => [...prev, tempMsg])
-        setNewMessage('') // Clear input immediately
+        setMessages(prev => [...prev, optimisticMsg])
+        setNewMessage('')
 
-        const result = await addTicketMessage(
-            ticket.id,
-            tempMsg.message,
-            currentUserType,
-            currentUserId
-        )
+        const result = await addTicketMessage(ticket.id, optimisticMsg.message)
 
         if (!result.success) {
-            toast.error('Failed to send message')
-            // Revert optimistic update if needed, but for now just alert
-        } else {
-            // Update the real message from server if needed, mostly for ID
-            // For simplicity, we keep the optimistic one or replace it
+            toast.error(result.error || 'Failed to send message')
+            setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id))
         }
         setIsSending(false)
     }
 
-    // Enter key to send
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
@@ -113,189 +101,101 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
 
     const handleEscalate = async () => {
         if (currentUserType !== 'Admin') return
-        const reason = prompt('Enter reason for escalation:')
+        const reason = prompt('Escalation Reason:')
         if (!reason) return
 
-        try {
-            const result = await escalateTicket(ticket.id, reason, currentUserId)
-            if (result.success) {
-                toast.success(`Ticket escalated to Level ${result.level}`)
-                // Polling will update the UI
-            } else {
-                toast.error(result.error || 'Failed to escalate ticket')
-            }
-        } catch (error) {
-            toast.error('Failed to escalate ticket')
+        const result = await escalateTicket(ticket.id, reason)
+        if (result.success) {
+            toast.success(`Ticket escalated to Level ${result.level}`)
+        } else {
+            toast.error(result.error || 'Escalation failed')
         }
     }
 
     return (
-        <div style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(4px)'
-        }}>
-            <div style={{
-                background: 'white',
-                borderRadius: '24px',
-                width: '100%',
-                maxWidth: '600px',
-                height: '80vh',
-                display: 'flex',
-                flexDirection: 'column',
-                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-                overflow: 'hidden'
-            }}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={onClose} />
+
+            <div className="relative w-full max-w-2xl h-[85vh] bg-white rounded-[3rem] shadow-2xl shadow-black/20 flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
                 {/* Header */}
-                <div style={{
-                    background: 'linear-gradient(135deg, #111827, #374151)',
-                    padding: '20px 24px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    borderBottom: '1px solid #374151'
-                }}>
-                    <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{
-                                fontSize: '11px',
-                                fontWeight: '700',
-                                textTransform: 'uppercase',
-                                padding: '2px 8px',
-                                borderRadius: '4px',
-                                background: ticket.status === 'Open' ? '#2563EB' : ticket.status === 'Resolved' ? '#059669' : '#D97706',
-                                color: 'white'
-                            }}>
+                <div className="bg-gray-900 px-8 py-6 flex items-center justify-between border-b border-white/10">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                            <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${ticket.status === 'Open' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                ticket.status === 'Resolved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                    'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                }`}>
                                 {ticket.status}
                             </span>
-                            <span style={{ color: '#9CA3AF', fontSize: '12px' }}>#{ticket.id}</span>
+                            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Case #{ticket.id}</span>
                         </div>
-                        <h2 style={{ fontSize: '18px', fontWeight: '700', color: 'white', margin: '4px 0 0' }}>
-                            {ticket.subject}
-                        </h2>
+                        <h2 className="text-xl font-black italic text-white uppercase tracking-tight line-clamp-1">{ticket.subject}</h2>
                         {ticket.escalationLevel && ticket.escalationLevel > 1 && (
-                            <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span style={{ fontSize: '10px', background: '#DC2626', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                                    🔥 Level {ticket.escalationLevel}
+                            <div className="flex items-center gap-2">
+                                <span className="bg-red-500 text-[9px] font-black italic text-white px-2 py-0.5 rounded-full uppercase tracking-widest animate-pulse">
+                                    🔥 Priority Level {ticket.escalationLevel}
                                 </span>
                             </div>
                         )}
                     </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+
+                    <div className="flex gap-3">
                         {currentUserType === 'Admin' && (!ticket.escalationLevel || ticket.escalationLevel < 4) && (
                             <button
                                 onClick={handleEscalate}
-                                style={{
-                                    background: '#DC2626',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '6px',
-                                    padding: '4px 8px',
-                                    fontSize: '11px',
-                                    fontWeight: '600',
-                                    cursor: 'pointer'
-                                }}
+                                suppressHydrationWarning
+                                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-[10px] font-black uppercase italic tracking-widest text-white rounded-2xl transition-all hover:scale-105"
                             >
                                 Escalate
                             </button>
                         )}
-                        <button
-                            onClick={onClose}
-                            style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '8px', padding: '8px', cursor: 'pointer' }}
-                        >
-                            <X size={20} color="white" />
+                        <button onClick={onClose} suppressHydrationWarning className="p-3 bg-white/10 hover:bg-white/20 rounded-2xl text-white transition-all">
+                            <X size={20} />
                         </button>
                     </div>
                 </div>
 
-                {/* Messages Area */}
-                <div style={{
-                    flex: 1,
-                    background: '#F9FAFB',
-                    padding: '24px',
-                    overflowY: 'auto',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '16px'
-                }}>
-                    {/* Security Notice */}
-                    <div style={{
-                        textAlign: 'center',
-                        fontSize: '12px',
-                        color: '#6B7280',
-                        marginBottom: '10px',
-                        background: '#E5E7EB',
-                        padding: '8px',
-                        borderRadius: '8px',
-                        alignSelf: 'center'
-                    }}>
-                        🔒 This conversation is secure and visible only to you and the admin team.
+                {/* Messages */}
+                <div className="flex-1 bg-gray-50/50 overflow-y-auto p-8 space-y-6">
+                    <div className="flex justify-center mb-8">
+                        <div className="bg-indigo-100/50 backdrop-blur-sm border border-indigo-200 px-6 py-2 rounded-2xl flex items-center gap-3">
+                            <Shield size={14} className="text-indigo-600" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700">Encrypted Communication Protocol Active</span>
+                        </div>
                     </div>
 
                     {messages.length === 0 && (
-                        <div style={{ textAlign: 'center', color: '#9CA3AF', marginTop: '40px' }}>
-                            <p>No messages yet. Start the conversation!</p>
+                        <div className="flex flex-col items-center justify-center h-48 text-gray-400 space-y-4">
+                            <MessageSquare size={48} className="opacity-20 translate-y-2" />
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] italic">Awaiting Initiation</p>
                         </div>
                     )}
 
                     {messages.map((msg, idx) => {
                         const isMe = msg.senderType === currentUserType
-                        // Admin messages usually have a different look if I'm a User
                         const isAdmin = msg.senderType === 'Admin'
 
                         return (
-                            <div key={idx} style={{
-                                display: 'flex',
-                                justifyContent: isMe ? 'flex-end' : 'flex-start',
-                                marginBottom: '4px'
-                            }}>
-                                <div style={{
-                                    maxWidth: '80%',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: isMe ? 'flex-end' : 'flex-start'
-                                }}>
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px',
-                                        marginBottom: '4px',
-                                        marginLeft: '4px',
-                                        marginRight: '4px'
-                                    }}>
-                                        {isMe ? (
-                                            <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: '600' }}>You</span>
-                                        ) : (
-                                            <>
-                                                {isAdmin ? <Shield size={12} color="#DC2626" /> : <User size={12} color="#6B7280" />}
-                                                <span style={{ fontSize: '11px', color: isAdmin ? '#DC2626' : '#6B7280', fontWeight: '600' }}>
-                                                    {isAdmin ? 'Support Team' : 'User'}
-                                                </span>
-                                            </>
+                            <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'} w-full group animate-in slide-in-from-bottom-2 duration-300`}>
+                                <div className={`flex flex-col max-w-[85%] ${isMe ? 'items-end' : 'items-start'}`}>
+                                    <div className="flex items-center gap-2 mb-1.5 px-2">
+                                        {!isMe && (
+                                            <div className={`p-1 rounded-lg ${isAdmin ? 'bg-red-100 text-red-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                                                {isAdmin ? <Shield size={10} strokeWidth={3} /> : <User size={10} strokeWidth={3} />}
+                                            </div>
                                         )}
-                                        <span style={{ fontSize: '10px', color: '#9CA3AF' }}>
-                                            {typeof msg.createdAt === 'string' ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : msg.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        <span className={`text-[10px] font-black uppercase tracking-tighter ${isMe ? 'text-gray-400' : isAdmin ? 'text-red-600' : 'text-indigo-600'}`}>
+                                            {isMe ? 'Authorized Agent' : isAdmin ? 'Support Executive' : 'Originator'}
+                                        </span>
+                                        <span className="text-[9px] font-bold text-gray-300">
+                                            {mounted ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                                         </span>
                                     </div>
 
-                                    <div style={{
-                                        background: isMe
-                                            ? 'linear-gradient(135deg, #EF4444, #DC2626)'
-                                            : 'white',
-                                        color: isMe ? 'white' : '#1F2937',
-                                        padding: '12px 16px',
-                                        borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                                        border: isMe ? 'none' : '1px solid #E5E7EB',
-                                        fontSize: '14px',
-                                        lineHeight: '1.5',
-                                        wordBreak: 'break-word'
-                                    }}>
+                                    <div className={`px-6 py-4 rounded-[2rem] text-sm font-bold leading-relaxed shadow-sm border ${isMe
+                                        ? 'bg-gray-900 text-white border-transparent rounded-tr-none'
+                                        : 'bg-white text-gray-900 border-gray-100 rounded-tl-none shadow-blue-500/5'
+                                        }`}>
                                         {msg.message}
                                     </div>
                                 </div>
@@ -305,60 +205,37 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
                     <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input Area */}
-                <div style={{
-                    padding: '20px',
-                    background: 'white',
-                    borderTop: '1px solid #E5E7EB'
-                }}>
-                    <div style={{
-                        display: 'flex',
-                        gap: '12px',
-                        alignItems: 'flex-end'
-                    }}>
+                {/* Footer/Input */}
+                <div className="p-8 bg-white border-t border-gray-100">
+                    <div className="relative flex items-end gap-4">
                         <textarea
                             value={newMessage}
                             onChange={(e) => setNewMessage(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="Type your message..."
-                            disabled={ticket.status === 'Resolved' || ticket.status === 'Closed'}
-                            style={{
-                                flex: 1,
-                                padding: '12px 16px',
-                                borderRadius: '12px',
-                                border: '2px solid #E5E7EB',
-                                resize: 'none',
-                                height: '50px',
-                                minHeight: '50px',
-                                maxHeight: '120px',
-                                fontSize: '14px',
-                                fontFamily: 'inherit'
-                            }}
+                            suppressHydrationWarning
+                            placeholder={ticket.status === 'Resolved' ? "Case is closed." : "Protocol update..."}
+                            disabled={ticket.status === 'Resolved' || ticket.status === 'Closed' || isSending}
+                            className="flex-1 bg-gray-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-[2rem] px-8 py-5 text-sm font-bold text-gray-900 outline-none transition-all resize-none shadow-inner min-h-[70px] max-h-[150px]"
                         />
                         <button
                             onClick={handleSend}
-                            disabled={!newMessage.trim() || isSending || ticket.status === 'Resolved' || ticket.status === 'Closed'}
-                            style={{
-                                height: '50px',
-                                width: '50px',
-                                borderRadius: '12px',
-                                border: 'none',
-                                background: !newMessage.trim() ? '#E5E7EB' : 'linear-gradient(135deg, #EF4444, #DC2626)',
-                                color: 'white',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: !newMessage.trim() ? 'not-allowed' : 'pointer',
-                                transition: 'all 0.2s'
-                            }}
+                            disabled={!newMessage.trim() || isSending || ticket.status === 'Resolved'}
+                            suppressHydrationWarning
+                            className={`w-[70px] h-[70px] rounded-[2rem] flex items-center justify-center transition-all shadow-lg active:scale-90 ${!newMessage.trim() || isSending || ticket.status === 'Resolved'
+                                ? 'bg-gray-100 text-gray-300 pointer-events-none shadow-none'
+                                : 'bg-gray-900 text-white hover:bg-black hover:shadow-indigo-500/20'
+                                }`}
                         >
-                            {isSending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                            {isSending ? <Loader2 size={24} className="animate-spin" /> : <Send size={24} className="translate-x-0.5 -translate-y-0.5" />}
                         </button>
                     </div>
                     {ticket.status === 'Resolved' && (
-                        <p style={{ fontSize: '12px', color: '#059669', textAlign: 'center', marginTop: '10px', fontWeight: '600' }}>
-                            ✨ This ticket is resolved. Re-open it by sending a message? (Logic TBD)
-                        </p>
+                        <div className="mt-6 flex items-center justify-center gap-3 py-3 bg-emerald-50 rounded-2xl border border-emerald-100">
+                            <CheckCircle2 size={16} className="text-emerald-600" />
+                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 italic">
+                                Case successfully closed. Protocol finalized.
+                            </p>
+                        </div>
                     )}
                 </div>
             </div>

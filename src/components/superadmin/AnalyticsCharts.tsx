@@ -34,7 +34,19 @@ export interface AnalyticsChartsProps {
     referrerDistribution: { name: string, value: number }[]
 }
 
-export function AnalyticsCharts({ admissionTrend, referrerDistribution }: AnalyticsChartsProps) {
+export function AnalyticsCharts({ admissionTrend = [], referrerDistribution = [] }: AnalyticsChartsProps) {
+    if (!admissionTrend?.length && !referrerDistribution?.length) {
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <div className="bg-white rounded-[32px] border border-gray-100 p-6 h-[300px] flex items-center justify-center">
+                    <p className="text-gray-400 font-medium">No admission data available</p>
+                </div>
+                <div className="bg-white rounded-[32px] border border-gray-100 p-6 h-[300px] flex items-center justify-center">
+                    <p className="text-gray-400 font-medium">No referral data available</p>
+                </div>
+            </div>
+        )
+    }
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             {/* 1. Admission Trends (Leads vs Admissions) */}

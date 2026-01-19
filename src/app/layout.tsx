@@ -56,10 +56,13 @@ export const metadata: Metadata = {
     description: "Join the Achariya Partnership Program (APP). Refer students, earn rewards, and be part of our 25th Year Celebration journey.",
     images: ["/achariya_25_logo.jpg"],
   },
+  /* icons handled by file convention (src/app/icon.jpg) */
+  /*
   icons: {
     icon: "/favicon.ico",
     apple: "/icon-192x192.png",
   },
+  */
   manifest: "/manifest.json",
 };
 

@@ -1,10 +1,57 @@
+   Γû▓ Next.js 16.0.10 (Turbopack)
+   - Environments: .env.local, .env.production, .env
+   - Experiments (use with caution):
+     ┬╖ serverActions
 
-> achariya-ambassador@0.1.0 build
-> prisma generate && next build
+ ΓÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully in 17.9s
+   Skipping validation of types
+   Collecting page data using 15 workers ...
+   Generating static pages using 15 workers (0/13) ...
+ ΓÜá metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+   Generating static pages using 15 workers (3/13) 
+   Generating static pages using 15 workers (6/13) 
+   Generating static pages using 15 workers (9/13) 
+ Γ£ô Generating static pages using 15 workers (13/13) in 1536.9ms
+   Finalizing page optimization ...
 
-Environment variables loaded from .env
-Prisma schema loaded from prisma\schema.prisma
-Error: 
-EPERM: operation not permitted, rename 'F:\5 star\node_modules\.prisma\client\query_engine-windows.dll.node.tmp36996' -> 'F:\5 star\node_modules\.prisma\client\query_engine-windows.dll.node'
+Route (app)
+Γöî Γùï /
+Γö£ Γùï /_not-found
+Γö£ ╞Æ /admin
+Γö£ ╞Æ /analytics
+Γö£ ╞Æ /analytics/design
+Γö£ ╞Æ /api/profile/update
+Γö£ ╞Æ /api/profile/upload
+Γö£ Γùï /auth/verify-2fa
+Γö£ ╞Æ /campus
+Γö£ ╞Æ /campus/referrals
+Γö£ ╞Æ /campus/students
+Γö£ ╞Æ /campus/users
+Γö£ ╞Æ /dashboard
+Γö£ ╞Æ /finance
+Γö£ Γùï /manifest.webmanifest
+Γö£ ╞Æ /marketing
+Γö£ ╞Æ /notifications
+Γö£ ╞Æ /profile
+Γö£ ╞Æ /r/[code]
+Γö£ Γùï /refer
+Γö£ ╞Æ /referrals
+Γö£ Γùï /robots.txt
+Γö£ ╞Æ /rules
+Γö£ Γùï /sitemap.xml
+Γö£ ╞Æ /superadmin
+Γö£ ╞Æ /superadmin/benefits
+Γö£ ╞Æ /superadmin/verification
+Γö£ ╞Æ /support
+Γö£ Γùï /test-sms
+Γö£ ╞Æ /tickets
+Γöö Γùï /unauthorized-ip
 
+
+╞Æ Proxy (Middleware)
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand
 

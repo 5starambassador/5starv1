@@ -1,10 +1,9 @@
-
-> achariya-ambassador@0.1.0 build
-> prisma generate && next build
-
-Environment variables loaded from .env
-Prisma schema loaded from prisma\schema.prisma
-Error: 
-EPERM: operation not permitted, rename 'F:\5 star\node_modules\.prisma\client\query_engine-windows.dll.node.tmp37008' -> 'F:\5 star\node_modules\.prisma\client\query_engine-windows.dll.node'
-
-
+src/app/finance-actions.ts(121,17): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/app/superadmin-actions.ts(484,75): error TS18047: 'u.studentFee' is possibly 'null'.
+src/app/superadmin-actions.ts(491,63): error TS18047: 'u.studentFee' is possibly 'null'.
+src/app/superadmin-actions.ts(578,5): error TS2322: Type '{ assignedCampus: string | null; referralCount: number; mobileNumber: string; transactionId: string | null; fullName: string; role: UserRole; campusId: number | null; empId: string | null; ... 8 more ...; paymentAmount: number; }[]' is not assignable to type 'UserRecord[]'.
+  Type '{ assignedCampus: string | null; referralCount: number; mobileNumber: string; transactionId: string | null; fullName: string; role: $Enums.UserRole; campusId: number | null; ... 9 more ...; paymentAmount: number; }' is not assignable to type 'UserRecord'.
+    Types of property 'studentFee' are incompatible.
+      Type 'number | null' is not assignable to type 'number'.
+        Type 'null' is not assignable to type 'number'.

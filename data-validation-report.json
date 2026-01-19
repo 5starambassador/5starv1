@@ -1,0 +1,336 @@
+{
+  "invalidParents": [
+    {
+      "userId": 1161,
+      "fullName": "Sangeetha. S",
+      "mobileNumber": "9976223700",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1171,
+      "fullName": "VISHAL.S",
+      "mobileNumber": "9994714149",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1172,
+      "fullName": "RAJESH",
+      "mobileNumber": "7904604718",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1157,
+      "fullName": "SENTHILKUMAR S",
+      "mobileNumber": "9842335384",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1174,
+      "fullName": "Sushma.R",
+      "mobileNumber": "9487545462",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1163,
+      "fullName": "DELHIRAJ R",
+      "mobileNumber": "9940055560",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1159,
+      "fullName": "Haji Ali A R",
+      "mobileNumber": "9789466648",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1170,
+      "fullName": "Selvakumar",
+      "mobileNumber": "9786666533",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1160,
+      "fullName": "AGILA BALASUBRAMANIAN",
+      "mobileNumber": "9786910443",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1158,
+      "fullName": "Suganya",
+      "mobileNumber": "7299582566",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1164,
+      "fullName": "SADIQ BACHA",
+      "mobileNumber": "9790530426",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1180,
+      "fullName": "KRISHNAVENI V",
+      "mobileNumber": "9500399147",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1165,
+      "fullName": "VENGADESAN",
+      "mobileNumber": "9092674276",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1167,
+      "fullName": "PINANK SHAH",
+      "mobileNumber": "7573981681",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1175,
+      "fullName": "SURESH BABU",
+      "mobileNumber": "9688157111",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1168,
+      "fullName": "Hari Raman B",
+      "mobileNumber": "9443957240",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1181,
+      "fullName": "Anitha.G",
+      "mobileNumber": "9962692411",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1169,
+      "fullName": "Gauthami .V",
+      "mobileNumber": "8610969997",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1173,
+      "fullName": "VIDHYA P",
+      "mobileNumber": "9842622543",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1176,
+      "fullName": "T. Ambiga",
+      "mobileNumber": "9585105931",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1225,
+      "fullName": "MUNIAMMAL",
+      "mobileNumber": "9952528878",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1179,
+      "fullName": "SUHASINI",
+      "mobileNumber": "7598622810",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1234,
+      "fullName": "GUNASEKARAN R",
+      "mobileNumber": "9789335596",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1228,
+      "fullName": "Parthiban",
+      "mobileNumber": "9894317761",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1220,
+      "fullName": "Karthikeyan",
+      "mobileNumber": "9751600216",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1236,
+      "fullName": "ANAND RAJENDRAN",
+      "mobileNumber": "9600153513",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1218,
+      "fullName": "Aruneya",
+      "mobileNumber": "9344477355",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1229,
+      "fullName": "RAMESH.A",
+      "mobileNumber": "9488473214",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1213,
+      "fullName": "SELVARAJ",
+      "mobileNumber": "8610264395",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1224,
+      "fullName": "SUBASHREE K",
+      "mobileNumber": "9597350850",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1227,
+      "fullName": "Selvendiran",
+      "mobileNumber": "9944320157",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1226,
+      "fullName": "RAMESH",
+      "mobileNumber": "9944744497",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1214,
+      "fullName": "Rajesh",
+      "mobileNumber": "8122069365",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1235,
+      "fullName": "KALIA PERUMAL",
+      "mobileNumber": "6381170369",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1216,
+      "fullName": "SAI KRISHNAA",
+      "mobileNumber": "9629502952",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1217,
+      "fullName": "Sridhar Kannan",
+      "mobileNumber": "6369839545",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1221,
+      "fullName": "Theepa",
+      "mobileNumber": "8675863622",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1222,
+      "fullName": "Syed Abuthahir.M",
+      "mobileNumber": "9976230382",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1254,
+      "fullName": "SUNDARAMOORTHY",
+      "mobileNumber": "9688276880",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1258,
+      "fullName": "THIRUMURUGAN",
+      "mobileNumber": "9345152721",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1166,
+      "fullName": "Manimegalai.R",
+      "mobileNumber": "9361649955",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1265,
+      "fullName": "DHANSHIKA S R9047585092 MS.Ranjani",
+      "mobileNumber": "9047585092",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1262,
+      "fullName": "ASHA",
+      "mobileNumber": "7695982293",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1249,
+      "fullName": "MUTHUKUMAR.T",
+      "mobileNumber": "9626066501",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1156,
+      "fullName": "Divya. S",
+      "mobileNumber": "9095598614",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1266,
+      "fullName": "NEHAA M.S.",
+      "mobileNumber": "9745243300",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1162,
+      "fullName": "JOSEPHINE DIANA",
+      "mobileNumber": "7708490447",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1230,
+      "fullName": "AJRAN ALIMA",
+      "mobileNumber": "9994466424",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1246,
+      "fullName": "DINESH KUMAR",
+      "mobileNumber": "9789442015",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1178,
+      "fullName": "S Sivakumar",
+      "mobileNumber": "8270609859",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1223,
+      "fullName": "Ananya Shree R",
+      "mobileNumber": "8526752115",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1215,
+      "fullName": "Anbarasan. K",
+      "mobileNumber": "9500509395",
+      "childInAchariya": false
+    },
+    {
+      "userId": 1219,
+      "fullName": "Rosemary Subramanian",
+      "mobileNumber": "8608240724",
+      "childInAchariya": false
+    }
+  ],
+  "invalidAlumni": [],
+  "invalidOthers": [
+    {
+      "userId": 1670,
+      "fullName": "ANITHARAJ N",
+      "mobileNumber": "8681994124",
+      "childInAchariya": true
+    }
+  ],
+  "validStaff": {
+    "withChild": 225,
+    "withoutChild": 318
+  },
+  "summary": {}
+}

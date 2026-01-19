@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { PageAnimate } from '@/components/PageAnimate'
 
 import { getRegistrationCampuses } from '@/app/actions'
+import { useWebOTP } from '@/hooks/useWebOTP'
 
 export default function ReferPage() {
     return (
@@ -37,6 +38,8 @@ function ReferralFormContent() {
     const [ambassadorName, setAmbassadorName] = useState<string | null>(null)
     const [otpDestination, setOtpDestination] = useState<{ isAmbassador: boolean, name: string } | null>(null)
     const [isOffline, setIsOffline] = useState(false)
+
+    useWebOTP(setOtp)
 
     useEffect(() => {
         setIsOffline(!navigator.onLine)
@@ -218,7 +221,7 @@ function ReferralFormContent() {
 
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col items-center justify-center p-6 relative z-10 w-full max-w-lg mx-auto">
+            <div className="flex-1 flex flex-col items-center p-6 pt-4 relative z-10 w-full max-w-lg mx-auto">
 
                 <PageAnimate className="w-full">
 
@@ -383,6 +386,9 @@ function ReferralFormContent() {
                                                 }}
                                                 placeholder="••••"
                                                 maxLength={4}
+                                                autoComplete="one-time-code"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
                                                 className="relative w-full h-16 bg-black/20 border border-white/10 rounded-2xl text-center text-3xl font-bold tracking-[0.5em] text-white outline-none focus:border-pink-500/50 focus:bg-black/40 transition-all placeholder-white/10"
                                             />
                                         </div>

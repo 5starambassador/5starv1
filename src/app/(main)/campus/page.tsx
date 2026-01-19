@@ -1,5 +1,5 @@
 import { getCurrentUser } from '@/lib/auth-service'
-import { getCampusStats, getCampusStudents, getCampusReferrals, getCampusFinance, getCampusRecentActivity, getCampusTargets } from '@/app/actions/campus-dashboard-actions'
+import { getCampusStats, getCampusStudents, getCampusReferrals, getCampusFinance, getCampusRecentActivity, getCampusTargets, getCampusAmbassadorStats, getCampusDeadLeads, getCampusConversionStats } from '@/app/actions/campus-dashboard-actions'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Users, GraduationCap, TrendingUp, Search, Filter, MoreHorizontal, MapPin, CheckCircle2, XCircle, Clock, UserPlus, AlertCircle, BarChart3, ArrowLeft, Activity, ArrowUpRight, ArrowDownRight, Target, Building2 } from 'lucide-react'
@@ -63,15 +63,21 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
     }
 
     if (view === 'reports') {
-        const [studentsResult, referralsResult, financeResult] = await Promise.all([
+        const [studentsResult, referralsResult, financeResult, ambassadorResult, deadResult, funnelResult] = await Promise.all([
             getCampusStudents(),
             getCampusReferrals(),
-            getCampusFinance()
+            getCampusFinance(),
+            getCampusAmbassadorStats(),
+            getCampusDeadLeads(),
+            getCampusConversionStats()
         ])
         const students = studentsResult.success ? studentsResult.data || [] : []
         const referrals = referralsResult.success ? referralsResult.data || [] : []
         const financeData = financeResult.success ? financeResult.data || [] : []
         const financeSummary = financeResult.success ? financeResult.summary || { totalConfirmed: 0, totalBenefits: 0 } : { totalConfirmed: 0, totalBenefits: 0 }
+        const ambassadorStats = ambassadorResult.success ? ambassadorResult.data || [] : []
+        const deadLeads = deadResult.success ? deadResult.data || [] : []
+        const conversionStats = funnelResult.success ? funnelResult.data || [] : []
         return (
             <div className="space-y-6 animate-fade-in">
                 <Link href="/campus" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium">
@@ -87,6 +93,9 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
                     referrals={referrals}
                     financeData={financeData}
                     financeSummary={financeSummary}
+                    ambassadorStats={ambassadorStats}
+                    deadLeads={deadLeads}
+                    conversionStats={conversionStats}
                 />
             </div>
         )

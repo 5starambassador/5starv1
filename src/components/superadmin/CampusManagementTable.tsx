@@ -157,7 +157,7 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBul
     ]
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-6 animate-fade-in" suppressHydrationWarning>
             {/* Header */}
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">

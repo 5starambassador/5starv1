@@ -1,51 +1,125 @@
-// Source: "ACHARIYA PARTNERSHIP PROGRAM (APP) - 25th Year Pongal Special Offer"
-// Table: "HEAVY GAIN BENEFITS – REFERRAL BASED"
-// Matches the "Aggressive" marketing promise.
-export const SHORT_TERM_TIERS = [
-    { count: 1, percent: 5 },
-    { count: 2, percent: 10 },
-    { count: 3, percent: 25 },
-    { count: 4, percent: 30 },
-    { count: 5, percent: 50 },
-]
-
-export interface BenefitTier {
-    count: number
-    percent: number
+// Benefit Constants
+// Short Term Slab (Aggressive)
+export const SHORT_TERM_TIERS = {
+    1: 5,
+    2: 10,
+    3: 20,
+    4: 30,
+    5: 50
 }
 
-export function calculateBenefitPercent(count: number, customTiers?: BenefitTier[]): number {
-    const tiers = customTiers && customTiers.length > 0 ? customTiers : SHORT_TERM_TIERS
-    // Sort logic just in case customTiers is unsorted
-    const sorted = [...tiers].sort((a, b) => a.count - b.count)
-
-    // Logic: Find highest tier where count >= t.count
-    // Example: Count 5. Tiers: 1,2,3,4,5. 
-    // .reverse changes to 5,4,3,2,1. 
-    // find 5 >= 5 (True) -> Returns 50%. Correct.
-    const tier = sorted.reverse().find(t => count >= t.count)
-    return tier ? tier.percent : 0
+// Long Term Slab (Linear)
+export const LONG_TERM_TIERS = {
+    1: 5,
+    2: 10,
+    3: 15,
+    4: 20,
+    5: 25
 }
 
-// Source: Implied Long Term Logic
-// Base 15% + Bonus
-export function calculateLongTermBenefit(count: number): { base: number, bonus: number, total: number } {
-    if (count < 1) return { base: 0, bonus: 0, total: 0 }
-
-    // Hardcoded per UI "15% Base" + "5% per Ref" implication? 
-    // Or Seed logic? 
-    // We will align with the UI's "15% Base" text and Seed's "Bonus" structure (placeholder).
-    // For now, let's map Seed Logic (0,0,2,3,5) relative to count?
-    // Actually, user wants "check".
-    // I'll implement a clean structure: 15% Base for everyone > 0.
-    const base = 15
-    // Bonus: 5% per referral? or fixed? using 5% * count for 'Per Ref' text accuracy.
-    const bonus = count * 5
-
-    return { base, bonus, total: base + bonus }
+export interface ReferralData {
+    id: number
+    campusId: number
+    grade: string
+    actualFee?: number
+    campusGrade1Fee?: number
 }
 
-export function calculateBenefitAmount(volume: number, percent: number): number {
-    if (!volume || !percent) return 0
-    return (volume * percent) / 100
+export interface UserContext {
+    role: 'Parent' | 'Staff' | 'Alumni' | 'Others'
+    childInAchariya?: boolean
+    studentFee?: number
+    isFiveStarLastYear?: boolean
+    previousYearReferrals?: ReferralData[]
+}
+
+/**
+ * Calculates the Total Benefit Amount.
+ */
+export function calculateTotalBenefit(
+    currentReferrals: ReferralData[],
+    user: UserContext
+): {
+    totalAmount: number,
+    breakdown: string[],
+    isLongActive: boolean,
+    longTermBaseAmount: number,
+    currentYearAmount: number
+} {
+    const referralCount = currentReferrals.length
+    const isFiveStar = user.isFiveStarLastYear || false
+    const isActive = referralCount >= 1
+
+    let breakdown: string[] = []
+    let currentYearAmount = 0
+    let longTermBaseAmount = 0
+
+    // 1. Calculate Long Term Base Value (Fixed Cash calculated from Previous Year)
+    if (isFiveStar && isActive && user.previousYearReferrals) {
+        // Sum 3% of Actual Fee for top 5 previous referrals
+        const relevantReferrals = user.previousYearReferrals.slice(0, 5)
+        longTermBaseAmount = relevantReferrals.reduce((sum, r) => {
+            const feeBase = r.actualFee || 60000
+            const amount = feeBase * 0.03
+            breakdown.push(`Long Term Base: 3% of ${feeBase} = ${amount}`)
+            return sum + amount
+        }, 0)
+    }
+
+    // 2. Calculate Current Year Benefit
+    if (referralCount > 0) {
+        // Determine Slab
+        // If 5-Star Partner (Active) -> Use Long Term Slab (Linear)
+        // Else -> Use Short Term Slab (Aggressive)
+        const currentSlab = (isFiveStar) ? LONG_TERM_TIERS : SHORT_TERM_TIERS
+        const slabName = isFiveStar ? 'Long Term Slab' : 'Standard Slab'
+
+        // A. Fee Discount Logic (Staff+Child, Parent)
+        if (user.role === 'Parent' || (user.role === 'Staff' && user.childInAchariya)) {
+            const myChildFee = user.studentFee || 60000
+            const tierPercent = (currentSlab as any)[Math.min(referralCount, 5)] || 0
+
+            const currentDiscount = (myChildFee * tierPercent) / 100
+            currentYearAmount = currentDiscount
+            breakdown.push(`Current Year (${slabName} - ${tierPercent}%): ${tierPercent}% of ${myChildFee} = ${currentDiscount}`)
+
+            // App Enrollment Bonus (Flat 5%) - Only for Short Term (Standard) Partners
+            // "if (!isFiveStar)" -> Assumes 5-Star partners DON'T get this. 
+            // User Correction: "(5% App Bonus) is not for long term".
+            if (!isFiveStar) {
+                const appBonus = (myChildFee * 0.05)
+                currentYearAmount += appBonus
+                breakdown.push(`App Enrollment Bonus: 5% of ${myChildFee} = ${appBonus}`)
+            }
+
+        } else {
+            // B. Cash Benefit Logic (Alumni, Others, Staff-NoChild)
+            // Step-wise Marginal Calculation based on selected slab
+
+            const getMarginalPercent = (n: number, slab: any) => {
+                if (n > 5) return 0 // Cap at 5?
+                const currentTotal = slab[n] || 0
+                const prevTotal = slab[n - 1] || 0
+                return currentTotal - prevTotal
+            }
+
+            currentReferrals.forEach((ref, index) => {
+                const count = index + 1
+                const slicePercent = getMarginalPercent(count, currentSlab)
+
+                const g1Fee = ref.campusGrade1Fee || 60000
+                const amount = (g1Fee * slicePercent) / 100
+                currentYearAmount += amount
+                breakdown.push(`Ref #${count} (${slabName}): ${slicePercent}% of ${g1Fee} (G1) = ${amount}`)
+            })
+        }
+    }
+
+    return {
+        totalAmount: currentYearAmount + longTermBaseAmount,
+        breakdown,
+        isLongActive: isActive && isFiveStar,
+        longTermBaseAmount,
+        currentYearAmount
+    }
 }

@@ -76,6 +76,14 @@
   --grad-violet: linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%);
   --grad-rose: linear-gradient(135deg, #BE123C 0%, #FB7185 100%);
   --grad-dark: linear-gradient(135deg, #0F172A 0%, #334155 100%);
+
+  /* Safe Areas & Rhythm */
+  --header-height: 4rem;
+  /* h-16 = 64px */
+  --safe-top: calc(var(--header-height) + 1rem);
+  /* 64px + 16px buffer */
+  --safe-top-deep: calc(var(--header-height) + 2rem);
+  /* 64px + 32px buffer */
 }
 
 /* Dark Mode Theme Variables */
@@ -317,11 +325,9 @@ body {
   overflow-x: hidden;
   width: 100%;
   max-width: 100vw;
-  /* Support for edge-to-edge displays (notches/home indicators) */
-  /* Safe area padding removed to allow full-bleed backgrounds. Handle safe-areas in containers. */
-
+  position: relative;
   overscroll-behavior-y: none;
-  /* Prevent pull-to-refresh/bounce revealing background */
+  scroll-padding-top: var(--header-height);
 }
 
 /* Layout Utilities */

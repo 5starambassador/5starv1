@@ -9,6 +9,8 @@ import { format } from 'date-fns'
 // PDF logic moved to dynamic import inside generateReceipt to fix Turbopack chunk errors
 import { exportToCSV } from '@/lib/export-utils'
 import { toast } from 'sonner'
+import { ExportDateRangeModal } from './ExportDateRangeModal'
+import { exportRegistrations } from '@/app/export-actions'
 
 interface Registration {
     id: number
@@ -30,6 +32,7 @@ interface RegistrationTableProps {
 
 export function RegistrationTable({ data }: RegistrationTableProps) {
     const [filter, setFilter] = useState('All')
+    const [showExportModal, setShowExportModal] = useState(false)
 
     // Optional client-side filtering if needed in future
     // currently 'data' is already filtered by backend action to include only completed/process payments
@@ -109,6 +112,9 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
                     title="Download Receipt"
                 >
                     <FileText size={16} />
+                    {/* [x] Implement download API/Action for Registration Data <!-- id: 2 -->
+                    - [/] Implement download API/Action for Payout Data <!-- id: 3 -->
+                    - [/] Implement UI for Download Buttons <!-- id: 4 --> */}
                 </button>
             )
         }
@@ -138,6 +144,47 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
         ])
     }
 
+    const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
+        const res = await exportRegistrations(start, end, selectedColumns)
+        if (res.success && res.csv) {
+            // Trigger Download
+            const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
+            const link = document.createElement('a')
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob)
+                link.setAttribute('href', url)
+                link.setAttribute('download', res.filename || 'export.csv')
+                link.style.visibility = 'hidden'
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+            }
+            toast.success('Export downloaded successfully')
+        } else {
+            toast.error(res.error || 'Failed to export')
+        }
+    }
+
+    const exportColumns = [
+        { id: 'date', label: 'Registration Date', defaultChecked: true },
+        { id: 'fullName', label: 'Full Name', defaultChecked: true },
+        { id: 'mobile', label: 'Mobile Number', defaultChecked: true },
+        { id: 'email', label: 'Email', defaultChecked: true },
+        { id: 'role', label: 'Role', defaultChecked: true },
+        { id: 'bankDetails', label: 'Bank Details', defaultChecked: false },
+        { id: 'referralCode', label: 'Referral Code', defaultChecked: true },
+        { id: 'campus', label: 'Campus', defaultChecked: true },
+        { id: 'childName', label: 'Child Name', defaultChecked: false },
+        { id: 'grade', label: 'Grade', defaultChecked: false },
+        { id: 'childEpr', label: 'Child EPR No', defaultChecked: false },
+        { id: 'empId', label: 'Employee ID', defaultChecked: false },
+        { id: 'paymentStatus', label: 'Payment Status', defaultChecked: true },
+        { id: 'txnId', label: 'Transaction ID', defaultChecked: true },
+        { id: 'amount', label: 'Payment Amount', defaultChecked: true },
+        { id: 'status', label: 'Account Status', defaultChecked: true },
+        { id: 'benefitStatus', label: 'Benefit Status', defaultChecked: false }
+    ]
+
     return (
         <div className="space-y-6">
             {/* Header / Actions */}
@@ -147,11 +194,11 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
                 </div>
 
                 <button
-                    onClick={handleExport}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm"
+                    onClick={() => setShowExportModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-all shadow-lg shadow-gray-900/20"
                 >
                     <Download size={14} />
-                    Export CSV
+                    Export Report
                 </button>
             </div>
 
@@ -163,6 +210,13 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
                     pageSize={10}
                 />
             </div>
+            <ExportDateRangeModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                onExport={handleServerExport}
+                title="Export Registrations"
+                columns={exportColumns}
+            />
         </div>
     )
 }

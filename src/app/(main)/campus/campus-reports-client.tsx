@@ -1,6 +1,6 @@
 'use client'
 
-import { Download, FileText, Users, IndianRupee, ArrowRight } from 'lucide-react'
+import { Download, FileText, Users, IndianRupee, ArrowRight, TrendingUp, AlertCircle, Filter } from 'lucide-react'
 import { generatePDFReport } from '@/lib/pdf-export'
 import { toast } from 'sonner'
 
@@ -13,6 +13,9 @@ interface CampusReportsClientProps {
         totalConfirmed: number
         totalBenefits: number
     }
+    ambassadorStats: any[]
+    deadLeads: any[]
+    conversionStats: any[]
 }
 
 export function CampusReportsClient({
@@ -20,7 +23,10 @@ export function CampusReportsClient({
     students,
     referrals,
     financeData,
-    financeSummary
+    financeSummary,
+    ambassadorStats,
+    deadLeads,
+    conversionStats
 }: CampusReportsClientProps) {
 
     const handleDownloadStudents = () => {
@@ -111,6 +117,95 @@ export function CampusReportsClient({
         toast.success('Finance report downloaded!')
     }
 
+    const handleDownloadAmbassadors = () => {
+        if (ambassadorStats.length === 0) {
+            toast.error('No ambassador data to export')
+            return
+        }
+
+        generatePDFReport({
+            title: 'Ambassador Performance Report',
+            subtitle: `Campus: ${campusName}`,
+            fileName: `ambassador_performance_${campusName.replace(/\s/g, '_').toLowerCase()}`,
+            columns: [
+                { header: 'Ambassador Name', dataKey: 'ambassadorName' },
+                { header: 'Role', dataKey: 'role' },
+                { header: 'Mobile', dataKey: 'mobile' },
+                { header: 'Total Leads', dataKey: 'totalLeads' },
+                { header: 'Confirmed', dataKey: 'confirmedLeads' },
+                { header: 'Pending', dataKey: 'pendingLeads' },
+                { header: 'Conversion Rate', dataKey: 'conversionRate' }
+            ],
+            data: ambassadorStats.map(s => ({
+                ambassadorName: s.ambassadorName,
+                role: s.role,
+                mobile: s.mobile,
+                totalLeads: s.totalLeads,
+                confirmedLeads: s.confirmedLeads,
+                pendingLeads: s.pendingLeads,
+                conversionRate: s.totalLeads > 0 ? `${Math.round((s.confirmedLeads / s.totalLeads) * 100)}%` : '0%'
+            }))
+        })
+        toast.success('Ambassador report downloaded!')
+    }
+
+    const handleDownloadDeadLeads = () => {
+        if (deadLeads.length === 0) {
+            toast.error('No dead leads requiring action')
+            return
+        }
+
+        generatePDFReport({
+            title: 'Action Required: Dead Leads (7+ Days Inactive)',
+            subtitle: `Campus: ${campusName}`,
+            fileName: `dead_leads_${campusName.replace(/\s/g, '_').toLowerCase()}`,
+            columns: [
+                { header: 'Student Name', dataKey: 'studentName' },
+                { header: 'Parent Name', dataKey: 'parentName' },
+                { header: 'Mobile', dataKey: 'parentMobile' },
+                { header: 'Current Status', dataKey: 'status' },
+                { header: 'Last Updated', dataKey: 'updatedAt' },
+                { header: 'Days Inactive', dataKey: 'daysInactive' }
+            ],
+            data: deadLeads.map(l => ({
+                studentName: l.studentName || '-',
+                parentName: l.parentName,
+                parentMobile: l.parentMobile,
+                status: l.leadStatus,
+                updatedAt: new Date(l.updatedAt).toLocaleDateString('en-IN'),
+                daysInactive: Math.floor((Date.now() - new Date(l.updatedAt).getTime()) / (1000 * 60 * 60 * 24))
+            }))
+        })
+        toast.success('Dead leads report downloaded!')
+    }
+
+    const handleDownloadFunnel = () => {
+        if (conversionStats.length === 0) {
+            toast.error('No funnel data to export')
+            return
+        }
+
+        generatePDFReport({
+            title: 'Conversion Funnel Analysis',
+            subtitle: `Campus: ${campusName}`,
+            fileName: `funnel_${campusName.replace(/\s/g, '_').toLowerCase()}`,
+            columns: [
+                { header: 'Stage', dataKey: 'stage' },
+                { header: 'Count', dataKey: 'count' },
+                { header: 'Percentage', dataKey: 'percentage' }
+            ],
+            data: conversionStats.map(s => {
+                const total = conversionStats.reduce((sum: number, i: any) => sum + i.count, 0)
+                return {
+                    stage: s.status,
+                    count: s.count,
+                    percentage: total > 0 ? `${Math.round((s.count / total) * 100)}%` : '0%'
+                }
+            })
+        })
+        toast.success('Funnel report downloaded!')
+    }
+
     const reportCards = [
         {
             title: "Student Roster",
@@ -133,6 +228,37 @@ export function CampusReportsClient({
             isPrimary: false
         },
         {
+            title: "Ambassador Performance",
+            count: `${ambassadorStats.length} Active`,
+            desc: "Track top performing ambassadors, conversion rates, and total lead contributions.",
+            icon: TrendingUp,
+            color: "from-amber-500 to-amber-600",
+            bg: "bg-amber-50",
+            action: handleDownloadAmbassadors,
+            isPrimary: true
+        },
+        {
+            title: "Action Required (Dead Leads)",
+            count: `${deadLeads.length} Stale`,
+            desc: "Leads not updated for 7+ days. Requires immediate follow-up action.",
+            icon: AlertCircle,
+            color: "from-red-500 to-red-600",
+            bg: "bg-red-50",
+            action: handleDownloadDeadLeads,
+            isPrimary: false
+        },
+        {
+            title: "Conversion Funnel",
+            count: `${conversionStats.reduce((acc: number, curr: any) => acc + curr.count, 0)} Total`,
+            subCount: `${referrals.length > 0 ? Math.round((financeSummary.totalConfirmed / referrals.length) * 100) : 0}% Conv`,
+            desc: "Visual breakdown of lead stages to identify bottlenecks in the admission process.",
+            icon: Filter,
+            color: "from-indigo-500 to-indigo-600",
+            bg: "bg-indigo-50",
+            action: handleDownloadFunnel,
+            isPrimary: false
+        },
+        {
             title: "Finance & Incentives",
             count: `₹${financeSummary.totalBenefits.toLocaleString()}`,
             subCount: `${financeSummary.totalConfirmed} Confirmed`,
@@ -141,13 +267,13 @@ export function CampusReportsClient({
             color: "from-emerald-500 to-emerald-600",
             bg: "bg-emerald-50",
             action: handleDownloadFinance,
-            isPrimary: true
+            isPrimary: false
         }
     ]
 
     return (
         <div className="space-y-6 animate-fade-in">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {reportCards.map((card, idx) => (
                     <div
                         key={idx}
@@ -161,8 +287,8 @@ export function CampusReportsClient({
                                     <card.icon size={28} className="text-white" />
                                 </div>
                                 {card.isPrimary && (
-                                    <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-widest border border-emerald-200">
-                                        Premium
+                                    <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-widest border border-amber-200">
+                                        Popular
                                     </span>
                                 )}
                             </div>
@@ -183,8 +309,8 @@ export function CampusReportsClient({
                             <button
                                 onClick={card.action}
                                 className={`w-full px-4 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md ${card.isPrimary
-                                        ? 'bg-gray-900 hover:bg-black text-white'
-                                        : 'bg-gray-50 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 hover:border-gray-300'
+                                    ? 'bg-gray-900 hover:bg-black text-white'
+                                    : 'bg-gray-50 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 hover:border-gray-300'
                                     }`}
                             >
                                 <Download size={14} />

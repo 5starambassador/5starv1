@@ -18,10 +18,6 @@ export default function SupportPage() {
     const [category, setCategory] = useState('Technical Issue')
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    useEffect(() => {
-        loadTickets()
-    }, [])
-
     const loadTickets = async () => {
         const res = await getUserTickets()
         if (res.success) {
@@ -29,6 +25,10 @@ export default function SupportPage() {
         }
         setIsLoading(false)
     }
+
+    useEffect(() => {
+        loadTickets()
+    }, [])
 
     const handleSubmit = async () => {
         if (!subject.trim() || !message.trim()) {
@@ -77,7 +77,7 @@ export default function SupportPage() {
     }
 
     return (
-        <div className="fixed inset-0 w-full h-full overflow-y-auto bg-[#0f172a] z-[100] font-[family-name:var(--font-outfit)] overscroll-y-contain">
+        <div className="fixed inset-0 w-full h-[100dvh] overflow-y-auto bg-[#0f172a] z-[100] font-[family-name:var(--font-outfit)] overscroll-y-contain">
             <ScrollLock />
             {/* Force Dark Background Overlay */}
             {/* Force Dark Background Overlay */}
@@ -92,7 +92,7 @@ export default function SupportPage() {
             </div>
 
             {/* Main Content Container - Aggressively Centered for Visible Gaps (Matching Profile) */}
-            <PageAnimate className="w-[90%] max-w-lg mx-auto flex flex-col gap-4 pb-64 relative z-10 top-0">
+            <PageAnimate className="w-[90%] max-w-lg mx-auto flex flex-col gap-4 relative z-10 top-0">
                 {/* SAFE SPACER - Forces content down below fixed headers */}
                 <div className="w-full h-14 shrink-0" />
 
@@ -147,7 +147,7 @@ export default function SupportPage() {
                 </PageItem>
 
                 {/* Tickets List - Glass Theme */}
-                <PageItem className="bg-white/5 backdrop-blur-xl p-8 rounded-[32px] border border-white/10 shadow-xl overflow-hidden relative">
+                <PageItem className="bg-white/5 backdrop-blur-xl p-6 md:p-8 rounded-[32px] border border-white/10 shadow-xl relative">
                     <div className="flex justify-between items-center mb-8 border-b border-white/10 pb-6">
                         <div>
                             <h2 className="text-xl font-black text-white tracking-tight uppercase">Support Queue</h2>
@@ -320,6 +320,8 @@ export default function SupportPage() {
                         }}
                     />
                 )}
+                {/* Explicit Bottom Spacer for Mobile Scroll */}
+                <div className="h-40 md:h-10 w-full shrink-0" />
             </PageAnimate>
         </div>
     )

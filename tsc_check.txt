@@ -1,5 +1,0 @@
-src/app/(main)/superadmin/superadmin-client.tsx(545,13): error TS2552: Cannot find name 'setSystemSettings'. Did you mean 'systemSettings'?
-src/app/(main)/superadmin/superadmin-client.tsx(2441,58): error TS2552: Cannot find name 'setSystemSettings'. Did you mean 'systemSettings'?
-src/app/(main)/superadmin/superadmin-client.tsx(2466,62): error TS2552: Cannot find name 'setSystemSettings'. Did you mean 'systemSettings'?
-src/app/(main)/superadmin/superadmin-client.tsx(3077,49): error TS2552: Cannot find name 'setSystemSettings'. Did you mean 'systemSettings'?
-src/app/(main)/superadmin/superadmin-client.tsx(3091,49): error TS2552: Cannot find name 'setSystemSettings'. Did you mean 'systemSettings'?

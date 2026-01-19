@@ -99,6 +99,23 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     const [campusDetails, setCampusDetails] = useState<{ topAmbassadors: any[], recentLeads: any[] } | null>(null)
     const [showCalcModal, setShowCalcModal] = useState(false)
 
+    // Sync State with Server Props (Next.js Soft Navigation Fix)
+    useEffect(() => {
+        setAnalyticsData(analytics)
+    }, [analytics])
+
+    useEffect(() => {
+        setTrendData(growthTrend)
+    }, [growthTrend])
+
+    useEffect(() => {
+        setCampusCompData(campusComparison)
+    }, [campusComparison])
+
+    useEffect(() => {
+        setCampuses(initialCampuses)
+    }, [initialCampuses])
+
     const loadSettlements = async () => {
         const res = await getSettlements()
         if (res.success && res.settlements) setSettlements(res.settlements)

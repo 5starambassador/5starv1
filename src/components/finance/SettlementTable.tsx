@@ -7,6 +7,8 @@ import { exportToCSV } from '@/lib/export-utils'
 import { format } from 'date-fns'
 import { processBulkPayouts } from '@/app/finance-actions'
 import { toast } from 'sonner'
+import { exportPayouts } from '@/app/export-actions'
+import { ExportDateRangeModal } from './ExportDateRangeModal'
 
 interface Settlement {
     id: number
@@ -19,6 +21,9 @@ interface Settlement {
         mobileNumber: string
         role: string
         bankAccountDetails: string | null
+        bankName?: string | null
+        accountNumber?: string | null
+        ifscCode?: string | null
     }
 }
 
@@ -29,6 +34,7 @@ interface SettlementTableProps {
 export function SettlementTable({ data }: SettlementTableProps) {
     const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [showExportModal, setShowExportModal] = useState(false)
     const [isUploading, setIsUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -40,12 +46,26 @@ export function SettlementTable({ data }: SettlementTableProps) {
             return
         }
 
-        const headers = ['Beneficiary Name,Mobile,Bank Details,Amount,Ref ID,Date,Bank Transaction Ref']
+        // Expanded Headers for better bank processing compatibility
+        const headers = ['Beneficiary Name,Mobile,Bank Name,Account Number,IFSC Code,Amount,Ref ID,Date,Bank Transaction Ref']
         const rows = pendingPayouts.map(s => {
             // Clean strings for CSV
             const name = s.user.fullName.replace(/,/g, ' ')
-            const bank = (s.user.bankAccountDetails || 'N/A').replace(/,/g, ' ; ')
-            return `${name},${s.user.mobileNumber},"${bank}",${s.amount},${s.id},${format(new Date(s.createdAt), 'yyyy-MM-dd')},`
+
+            // Prefer structured data
+            let bankName = (s.user.bankName || 'N/A').replace(/,/g, ' ')
+            let accNo = (s.user.accountNumber || 'N/A').replace(/,/g, ' ')
+            let ifsc = (s.user.ifscCode || 'N/A').replace(/,/g, ' ')
+
+            // Fallback: If structured data missing but legacy string exists, try to use it or just dump it in bankName
+            if ((!s.user.bankName || !s.user.accountNumber) && s.user.bankAccountDetails && s.user.bankAccountDetails !== 'N/A') {
+                // If we only have the blob string, put it in Bank Name for awareness, or leave split fields empty
+                bankName = s.user.bankAccountDetails.replace(/,/g, ';')
+                accNo = ''
+                ifsc = ''
+            }
+
+            return `${name},${s.user.mobileNumber},${bankName},${accNo},${ifsc},${s.amount},${s.id},${format(new Date(s.createdAt), 'yyyy-MM-dd')},`
         })
 
         const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n")
@@ -53,6 +73,21 @@ export function SettlementTable({ data }: SettlementTableProps) {
         const link = document.createElement("a")
         link.setAttribute("href", encodedUri)
         link.setAttribute("download", `Payout_Batch_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
+    const handleDownloadTemplate = () => {
+        const headers = ['Beneficiary Name,Mobile,Bank Details,Amount,Ref ID,Date,Bank Transaction Ref']
+        // Add a sample row to guide the user
+        const sampleRow = 'John Doe,9876543210,"Bank Name; Acc: 123456789; IFSC: ABCD0001234",1500,101,2026-01-01,'
+
+        const csvContent = "data:text/csv;charset=utf-8," + [headers, sampleRow].join("\n")
+        const encodedUri = encodeURI(csvContent)
+        const link = document.createElement("a")
+        link.setAttribute("href", encodedUri)
+        link.setAttribute("download", "Payout_Upload_Template.csv")
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
@@ -137,6 +172,25 @@ export function SettlementTable({ data }: SettlementTableProps) {
             )
         },
         {
+            header: 'Bank Details',
+            accessorKey: 'user.bankName', // loose accessor for sort, mostly visual
+            cell: (row: Settlement) => (
+                <div className="max-w-[150px] text-xs">
+                    {(row.user.bankName && row.user.accountNumber) ? (
+                        <div className="flex flex-col">
+                            <span className="font-bold text-gray-700 dark:text-gray-300 truncate" title={row.user.bankName}>{row.user.bankName}</span>
+                            <span className="font-mono text-gray-500 dark:text-gray-400 select-all">{row.user.accountNumber}</span>
+                            <span className="text-[10px] text-gray-400 font-mono">{row.user.ifscCode}</span>
+                        </div>
+                    ) : (
+                        <span className="text-gray-400 italic" title={row.user.bankAccountDetails || ''}>
+                            {row.user.bankAccountDetails || 'Not Provided'}
+                        </span>
+                    )}
+                </div>
+            )
+        },
+        {
             header: 'Amount',
             accessorKey: 'amount',
             sortable: true,
@@ -189,6 +243,40 @@ export function SettlementTable({ data }: SettlementTableProps) {
         }
     ]
 
+    const handleServerExport = async (start: Date, end: Date, status?: string) => {
+        const res = await exportPayouts(start, end, status)
+        if (res.success && res.csv) {
+            const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
+            const link = document.createElement('a')
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob)
+                link.setAttribute('href', url)
+                link.setAttribute('download', res.filename || 'payouts.csv')
+                link.style.visibility = 'hidden'
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+            }
+            toast.success('Payout Report downloaded')
+        } else {
+            toast.error(res.error || 'Failed to export')
+        }
+    }
+
+    const exportColumns = [
+        { id: 'date', label: 'Request Date', defaultChecked: true },
+        { id: 'id', label: 'Settlement ID', defaultChecked: true },
+        { id: 'name', label: 'Ambassador Name', defaultChecked: true },
+        { id: 'mobile', label: 'Mobile', defaultChecked: true },
+        { id: 'role', label: 'Role', defaultChecked: true },
+        { id: 'amount', label: 'Amount', defaultChecked: true },
+        { id: 'status', label: 'Status', defaultChecked: true },
+        { id: 'payoutDate', label: 'Payout Date', defaultChecked: true },
+        { id: 'bankRef', label: 'Bank Reference', defaultChecked: true },
+        { id: 'bankDetails', label: 'Bank Details', defaultChecked: true },
+        { id: 'remarks', label: 'Remarks', defaultChecked: true }
+    ]
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center px-1">
@@ -197,31 +285,29 @@ export function SettlementTable({ data }: SettlementTableProps) {
                     <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isUploading}
+                        suppressHydrationWarning={true}
                         className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-900/20 disabled:opacity-50"
                     >
                         {isUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
                         Import Payouts
                     </button>
+                    {/* Template Download (Small icon button or text) */}
                     <button
-                        onClick={() => exportToCSV(data, 'All_Settlements', [
-                            { header: 'Beneficiary Name', accessor: (s) => s.user.fullName },
-                            { header: 'Mobile', accessor: (s) => s.user.mobileNumber },
-                            { header: 'Amount', accessor: (s) => s.amount },
-                            { header: 'Status', accessor: (s) => s.status },
-                            { header: 'Date', accessor: (s) => format(new Date(s.createdAt), 'yyyy-MM-dd') },
-                            { header: 'Bank Details', accessor: (s) => s.user.bankAccountDetails || 'N/A' }
-                        ])}
+                        onClick={handleDownloadTemplate}
+                        suppressHydrationWarning={true}
+                        className="p-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all border border-gray-200"
+                        title="Download CSV Template"
+                    >
+                        <FileDown size={14} />
+                    </button>
+
+                    <button
+                        onClick={() => setShowExportModal(true)}
+                        suppressHydrationWarning={true}
                         className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-xl text-xs font-bold hover:bg-gray-50 transition-all shadow-sm"
                     >
                         <FileDown size={14} />
                         Export All
-                    </button>
-                    <button
-                        onClick={handleBankExport}
-                        className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-all shadow-lg shadow-gray-900/20"
-                    >
-                        <Download size={14} />
-                        Export Batch
                     </button>
                     <input
                         type="file"
@@ -250,6 +336,15 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 onSuccess={() => {
                     // Server action revalidates the path
                 }}
+            />
+
+            <ExportDateRangeModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                onExport={handleServerExport}
+                title="Export Payouts"
+                showStatusFilter={true}
+                columns={exportColumns}
             />
         </div>
     )

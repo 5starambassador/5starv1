@@ -60,12 +60,13 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         engagementCentre: { access: true, scope: 'all' }
     },
     'Campus Head': {
+        // MANAGER ROLE: Strategy & Oversight (View Only for Operations, Full Analytics)
         analytics: { access: true, scope: 'campus' },
-        userManagement: { access: true, scope: 'campus', canCreate: true, canEdit: true, canDelete: false },
-        studentManagement: { access: true, scope: 'campus', canCreate: true, canEdit: true, canDelete: false },
+        userManagement: { access: true, scope: 'campus', canCreate: false, canEdit: false, canDelete: false }, // View Only
+        studentManagement: { access: true, scope: 'campus', canCreate: false, canEdit: false, canDelete: false }, // View Only
         adminManagement: { access: false, scope: 'none' },
         campusPerformance: { access: false, scope: 'none' },
-        reports: { access: true, scope: 'campus', allowedReports: ['users', 'campus', 'performance', 'new-registrations', 'financial-roi'] },
+        reports: { access: true, scope: 'campus', allowedReports: ['users', 'campus', 'performance', 'new-registrations', 'financial-roi', 'monitor-trends'] },
         settlements: { access: true, scope: 'campus' },
         marketingKit: { access: true, scope: 'campus' },
         auditLog: { access: false, scope: 'none' },
@@ -77,16 +78,16 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         referralTracking: { access: true, scope: 'campus' },
         savingsCalculator: { access: true, scope: 'campus' },
         rulesAccess: { access: true, scope: 'campus' },
-        feeManagement: { access: true, scope: 'campus', canCreate: true, canEdit: true },
+        feeManagement: { access: true, scope: 'campus', canCreate: false, canEdit: false }, // View Only
         engagementCentre: { access: false, scope: 'none' }
     },
     'Finance Admin': {
         analytics: { access: true, scope: 'all' },
-        userManagement: { access: false, scope: 'none' },
-        studentManagement: { access: false, scope: 'none' },
+        userManagement: { access: true, scope: 'view-only' }, // Changed from false/none
+        studentManagement: { access: true, scope: 'all', canCreate: false, canEdit: false }, // Changed from false/none (View Only)
         adminManagement: { access: false, scope: 'none' },
         campusPerformance: { access: false, scope: 'none' },
-        reports: { access: true, scope: 'all', allowedReports: ['settlements', 'payments'] },
+        reports: { access: true, scope: 'all', allowedReports: ['settlements', 'payments', 'financial-roi'] }, // Added financial-roi
         settlements: { access: true, scope: 'all' },
         marketingKit: { access: false, scope: 'none' },
         auditLog: { access: false, scope: 'none' },
@@ -123,12 +124,13 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         engagementCentre: { access: false, scope: 'none' }
     },
     'Campus Admin': {
+        // OPERATOR ROLE: Execution & Data Entry (Full Edit Access, Basic Reports)
         analytics: { access: true, scope: 'campus' },
         userManagement: { access: true, scope: 'campus', canCreate: true, canEdit: true },
         studentManagement: { access: true, scope: 'campus', canCreate: true, canEdit: true },
         adminManagement: { access: false, scope: 'none' },
         campusPerformance: { access: false, scope: 'none' },
-        reports: { access: true, scope: 'campus', allowedReports: ['users', 'campus', 'performance'] },
+        reports: { access: true, scope: 'campus', allowedReports: ['users', 'campus', 'performance', 'new-registrations', 'pending-leads', 'lead-pipeline'] }, // No Financial ROI
         settlements: { access: false, scope: 'none' },
         marketingKit: { access: false, scope: 'none' },
         auditLog: { access: false, scope: 'none' },

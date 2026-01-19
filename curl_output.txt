@@ -1,0 +1,13 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0* Host ep-patient-art-a1v3932a-pooler.ap-southeast-1.aws.neon.tech:5432 was resolved.
+* IPv6: (none)
+* IPv4: 13.228.46.236, 52.220.170.93, 13.228.184.177
+*   Trying 13.228.46.236:5432...
+*   Trying 52.220.170.93:5432...
+*   Trying 13.228.184.177:5432...
+
+  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0* Established connection to ep-patient-art-a1v3932a-pooler.ap-southeast-1.aws.neon.tech (13.228.46.236 port 5432) from 192.168.0.160 port 56760 
+
+  0     0    0     0    0     0      0      0 --:--:--  0:00:02 --:--:--     0

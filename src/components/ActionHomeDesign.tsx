@@ -65,6 +65,10 @@ function Badge({ label, value }: { label: string; value: string }) {
     )
 }
 
+import { encryptReferralCode } from '@/lib/crypto'
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://5starambassador.com'
+
 export function ActionHomeDesign({ user, recentReferrals, whatsappUrl, monthStats }: ActionHomeDesignProps) {
     const firstName = user.fullName.split(' ')[0]
     const greeting = getGreeting()
@@ -73,7 +77,8 @@ export function ActionHomeDesign({ user, recentReferrals, whatsappUrl, monthStat
     const displayCount = user.confirmedReferralCount
 
     // Extract referral link from whatsappUrl if possible, or construct it
-    const referralLink = `https://ambassador.achariya.in/join/${user.referralCode}`
+    const encryptedCode = user.referralCode ? encryptReferralCode(user.referralCode) : ''
+    const referralLink = encryptedCode ? `${APP_URL}/r/${encryptedCode}` : ''
 
     const handleCopy = () => {
         navigator.clipboard.writeText(referralLink)

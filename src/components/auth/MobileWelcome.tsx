@@ -77,6 +77,14 @@ export function MobileWelcome({ onGetStarted }: MobileWelcomeProps) {
                     </button>
                 </motion.div>
             </div>
+
+            <div className="p-4 flex justify-center gap-4 text-[9px] uppercase tracking-widest text-blue-200/50 font-bold relative z-10 bg-gradient-to-t from-[#0f172a] to-transparent">
+                <a href="/policies/terms" className="hover:text-amber-400 transition-colors">Terms</a>
+                <span>•</span>
+                <a href="/policies/refund" className="hover:text-amber-400 transition-colors">Refunds</a>
+                <span>•</span>
+                <a href="/policies/contact" className="hover:text-amber-400 transition-colors">Contact</a>
+            </div>
         </div>
     )
 }
