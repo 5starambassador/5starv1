@@ -273,7 +273,9 @@ export function SettlementTable({ data }: SettlementTableProps) {
         { id: 'status', label: 'Status', defaultChecked: true },
         { id: 'payoutDate', label: 'Payout Date', defaultChecked: true },
         { id: 'bankRef', label: 'Bank Reference', defaultChecked: true },
-        { id: 'bankDetails', label: 'Bank Details', defaultChecked: true },
+        { id: 'bankName', label: 'Bank Name', defaultChecked: true },
+        { id: 'accountNumber', label: 'Account Number', defaultChecked: true },
+        { id: 'ifscCode', label: 'IFSC Code', defaultChecked: true },
         { id: 'remarks', label: 'Remarks', defaultChecked: true }
     ]
 

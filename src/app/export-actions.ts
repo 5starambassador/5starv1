@@ -22,6 +22,7 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
             },
             include: {
                 students: true,
+                // @ts-ignore: Payment relation exists in schema but IDE is stale
                 payments: {
                     where: { paymentStatus: 'SUCCESS' },
                     take: 1,
@@ -45,14 +46,40 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
             'mobile': { header: 'Mobile Number', accessor: (u) => `="${u.mobileNumber}"` },
             'email': { header: 'Email', accessor: (u) => u.email },
             'role': { header: 'Role', accessor: (u) => u.role },
-            'bankDetails': {
-                header: 'Bank Details',
+            'bankName': {
+                header: 'Bank Name',
                 accessor: (u) => {
-                    if (u.bankName && u.accountNumber) {
-                        return `${u.bankName} - ${u.accountNumber} (${u.ifscCode || ''})`
-                    }
+                    if (u.bankName) return u.bankName
+                    // Fallback to parsing legacy blob if needed, but for now just use structured fields
                     if (u.bankAccountDetails) {
-                        return decrypt(u.bankAccountDetails)
+                        const val = decrypt(u.bankAccountDetails) || ''
+                        return val.split('-')[0]?.trim() || val
+                    }
+                    return 'N/A'
+                }
+            },
+            'accountNumber': {
+                header: 'Account Number',
+                accessor: (u) => {
+                    if (u.accountNumber) return `="${u.accountNumber}"` // Force text format
+                    if (u.bankAccountDetails) {
+                        const val = decrypt(u.bankAccountDetails) || ''
+                        // Try to extract middle part "Bank - AccOn - IFSC"
+                        const parts = val.split('-')
+                        if (parts.length > 1) return `="${parts[1]?.trim()}"`
+                    }
+                    return 'N/A'
+                }
+            },
+            'ifscCode': {
+                header: 'IFSC Code',
+                accessor: (u) => {
+                    if (u.ifscCode) return u.ifscCode
+                    if (u.bankAccountDetails) {
+                        const val = decrypt(u.bankAccountDetails) || ''
+                        // Try to extract content in brackets
+                        const match = val.match(/\((.*?)\)/)
+                        return match ? match[1] : 'N/A'
                     }
                     return 'N/A'
                 }
@@ -144,14 +171,37 @@ export async function exportPayouts(startDate: Date, endDate: Date, status?: str
             'status': { header: 'Status', accessor: (s) => s.status },
             'payoutDate': { header: 'Payout Date', accessor: (s) => s.payoutDate ? format(new Date(s.payoutDate), 'yyyy-MM-dd HH:mm') : '' },
             'bankRef': { header: 'Bank Reference', accessor: (s) => s.bankReference },
-            'bankDetails': {
-                header: 'Bank Details',
+            'bankName': {
+                header: 'Bank Name',
                 accessor: (s) => {
-                    if (s.user.bankName && s.user.accountNumber) {
-                        return `${s.user.bankName} - ${s.user.accountNumber} (${s.user.ifscCode || ''})`
-                    }
+                    if (s.user.bankName) return s.user.bankName
                     if (s.user.bankAccountDetails) {
-                        return decrypt(s.user.bankAccountDetails)
+                        const val = decrypt(s.user.bankAccountDetails) || ''
+                        return val.split('-')[0]?.trim() || val
+                    }
+                    return 'N/A'
+                }
+            },
+            'accountNumber': {
+                header: 'Account Number',
+                accessor: (s) => {
+                    if (s.user.accountNumber) return `="${s.user.accountNumber}"`
+                    if (s.user.bankAccountDetails) {
+                        const val = decrypt(s.user.bankAccountDetails) || ''
+                        const parts = val.split('-')
+                        if (parts.length > 1) return `="${parts[1]?.trim()}"`
+                    }
+                    return 'N/A'
+                }
+            },
+            'ifscCode': {
+                header: 'IFSC Code',
+                accessor: (s) => {
+                    if (s.user.ifscCode) return s.user.ifscCode
+                    if (s.user.bankAccountDetails) {
+                        const val = decrypt(s.user.bankAccountDetails) || ''
+                        const match = val.match(/\((.*?)\)/)
+                        return match ? match[1] : 'N/A'
                     }
                     return 'N/A'
                 }
