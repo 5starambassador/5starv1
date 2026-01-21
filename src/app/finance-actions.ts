@@ -102,7 +102,11 @@ export async function syncMissingPayments() {
             where: {
                 orderId: { not: '' },
                 OR: [
-                    { paymentStatus: { in: ['PENDING', 'Pending', null as any] } },
+                    // Case 1: Status is explicitly PENDING/Pending
+                    { paymentStatus: { in: ['PENDING', 'Pending'] } },
+                    // Case 2: Status is NULL
+                    { paymentStatus: null },
+                    // Case 3: Status is Success but missing details
                     {
                         paymentStatus: { in: ['Success', 'SUCCESS'] },
                         OR: [
