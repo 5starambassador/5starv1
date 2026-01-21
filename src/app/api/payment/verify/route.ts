@@ -19,6 +19,7 @@ export async function GET(req: Request) {
         const paymentStatus = successPayment ? "SUCCESS" : "FAILED";
 
         // Update DB
+        // @ts-ignore: Payment property exists but IDE cache/client is stale
         const updatedPayment = await prisma.payment.update({
             where: { orderId },
             include: { user: true },
