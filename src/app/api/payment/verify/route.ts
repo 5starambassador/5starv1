@@ -47,8 +47,12 @@ export async function GET(req: Request) {
             })
         }
 
-        // Redirect to frontend status page
-        return NextResponse.redirect(new URL(`/payment/status?order_id=${orderId}&status=${paymentStatus}`, req.url));
+        // Redirect directly to dashboard on success, or back to payment on failure
+        if (paymentStatus === 'SUCCESS') {
+            return NextResponse.redirect(new URL('/dashboard', req.url));
+        } else {
+            return NextResponse.redirect(new URL(`/complete-payment?status=${paymentStatus}`, req.url));
+        }
 
     } catch (error: any) {
         console.error("Payment Verification Error:", error);
