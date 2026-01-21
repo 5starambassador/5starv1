@@ -89,6 +89,11 @@ export async function syncMissingPayments() {
         return { success: false, error: 'Unauthorized' }
     }
 
+    if (!cashfree) {
+        console.error('Sync Error: Cashfree SDK not initialized')
+        return { success: false, error: 'Cashfree SDK not initialized. Check server environment variables.' }
+    }
+
     try {
         // 1. Find all payments that are NOT yet fully successful in our DB
         // We only target those with an orderId (Cashfree orders)
@@ -128,7 +133,7 @@ export async function syncMissingPayments() {
                     const method = successPayment.payment_group
                     const bankRef = successPayment.bank_reference
                     const paidAt = successPayment.payment_completion_time ? new Date(successPayment.payment_completion_time) : new Date()
-                    const amount = successPayment.payment_amount || payment.orderAmount
+                    const amount = Number(successPayment.payment_amount || payment.orderAmount || 0)
 
                     // 3. Update Payment record
                     // @ts-ignore: Payment property exists but IDE cache is stale
@@ -156,8 +161,11 @@ export async function syncMissingPayments() {
 
                     updatedCount++
                 }
-            } catch (err) {
-                console.error(`Failed to sync order ${payment.orderId}:`, err)
+
+                // Add a small delay to avoid Cashfree rate limiting
+                await new Promise(resolve => setTimeout(resolve, 100))
+            } catch (err: any) {
+                console.error(`Failed to sync order ${payment.orderId}:`, err?.message || err)
             }
         }
 
@@ -167,9 +175,9 @@ export async function syncMissingPayments() {
             count: updatedCount,
             message: `Successfully synced ${updatedCount} payments from Cashfree.`
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error('Master Sync Error:', error)
-        return { success: false, error: 'Failed to complete synchronization' }
+        return { success: false, error: `Synchronization failed: ${error?.message || 'Unknown error'}` }
     }
 }
 
