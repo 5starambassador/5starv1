@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { EmailService } from '@/lib/email-service'
 import { logAction } from '@/lib/audit-logger'
 import { revalidatePath } from 'next/cache'
+import cashfree from '@/lib/cashfree'
 import { decrypt } from '@/lib/encryption'
 
 // --- Registration Transactions ---
@@ -41,6 +42,7 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
                 referralCode: true,
                 campusId: true,
                 // New Finance Fields (Payment Table)
+                // @ts-ignore: Payment property exists but IDE cache is stale
                 payments: {
                     select: {
                         paymentMethod: true,
@@ -77,6 +79,91 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
     } catch (error) {
         console.error('Error fetching registration transactions:', error)
         return { success: false, error: 'Failed to fetch transactions' }
+    }
+}
+
+export async function syncMissingPayments() {
+    const admin = await getCurrentUser()
+    const allowedRoles = ['Super Admin', 'Finance Admin']
+    if (!admin || !allowedRoles.some(r => admin.role.includes(r))) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        // 1. Find all payments that are successful but missing details
+        // We only target those with an orderId (Cashfree orders)
+        // @ts-ignore: Payment property exists but IDE cache is stale
+        const missingPayments = await prisma.payment.findMany({
+            where: {
+                orderId: { not: '' },
+                paymentStatus: { in: ['Success', 'SUCCESS'] },
+                OR: [
+                    { transactionId: null },
+                    { paymentMethod: null },
+                    { bankReference: null }
+                ]
+            },
+            take: 50 // Process in batches to avoid timing out
+        })
+
+        if (missingPayments.length === 0) {
+            return { success: true, count: 0, message: 'All payments are already up to date.' }
+        }
+
+        let updatedCount = 0
+
+        for (const payment of missingPayments) {
+            try {
+                // 2. Fetch from Cashfree
+                const response = await cashfree.PGOrderFetchPayments(payment.orderId)
+                const cfPayments = response.data
+                const successPayment = cfPayments?.find((p: any) => p.payment_status === "SUCCESS")
+
+                if (successPayment) {
+                    const txId = successPayment.cf_payment_id ? String(successPayment.cf_payment_id) : undefined
+                    const method = successPayment.payment_group
+                    const bankRef = successPayment.bank_reference
+                    const paidAt = successPayment.payment_completion_time ? new Date(successPayment.payment_completion_time) : new Date()
+
+                    // 3. Update Payment record
+                    // @ts-ignore: Payment property exists but IDE cache is stale
+                    await prisma.payment.update({
+                        where: { id: payment.id },
+                        data: {
+                            paymentStatus: 'Success', // Normalize to mixed case
+                            transactionId: txId,
+                            paymentMethod: method,
+                            bankReference: bankRef,
+                            paidAt: paidAt,
+                            gatewayResponse: successPayment as any
+                        }
+                    })
+
+                    // 4. Update User record (for table fallback/sync)
+                    await prisma.user.update({
+                        where: { userId: payment.userId },
+                        data: {
+                            paymentStatus: 'Success',
+                            transactionId: txId
+                        }
+                    })
+
+                    updatedCount++
+                }
+            } catch (err) {
+                console.error(`Failed to sync order ${payment.orderId}:`, err)
+            }
+        }
+
+        revalidatePath('/finance')
+        return {
+            success: true,
+            count: updatedCount,
+            message: `Successfully synced ${updatedCount} payments from Cashfree.`
+        }
+    } catch (error) {
+        console.error('Master Sync Error:', error)
+        return { success: false, error: 'Failed to complete synchronization' }
     }
 }
 

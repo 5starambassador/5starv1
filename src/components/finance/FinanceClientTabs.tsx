@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { SettlementTable } from '@/components/finance/SettlementTable'
 import { RegistrationTable } from '@/components/finance/RegistrationTable'
 import { generatePDFReport } from '@/lib/pdf-export'
+import { syncMissingPayments } from '@/app/finance-actions'
 import { toast } from 'sonner'
-import { Download } from 'lucide-react'
+import { Download, RefreshCw } from 'lucide-react'
 
 interface FinanceClientTabsProps {
     settlements: any[]
@@ -14,6 +15,7 @@ interface FinanceClientTabsProps {
 
 export function FinanceClientTabs({ settlements, registrations }: FinanceClientTabsProps) {
     const [activeTab, setActiveTab] = useState<'payouts' | 'registrations'>('payouts')
+    const [isSyncing, setIsSyncing] = useState(false)
 
     const handleDownloadReport = () => {
         if (activeTab === 'payouts') {
@@ -92,13 +94,43 @@ export function FinanceClientTabs({ settlements, registrations }: FinanceClientT
                     </button>
                 </div>
 
-                <button
-                    onClick={handleDownloadReport}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
-                >
-                    <Download size={14} />
-                    <span>Download {activeTab === 'payouts' ? 'Payouts' : 'Registrations'} PDF</span>
-                </button>
+                <div className="flex items-center gap-3">
+                    {activeTab === 'registrations' && (
+                        <button
+                            onClick={async () => {
+                                setIsSyncing(true)
+                                const tid = toast.loading('Syncing missing details from Cashfree...')
+                                try {
+                                    const res = await syncMissingPayments()
+                                    if (res.success) {
+                                        toast.success(res.message, { id: tid })
+                                        // Slight delay before reload for toast visibility
+                                        setTimeout(() => window.location.reload(), 1500)
+                                    } else {
+                                        toast.error(res.error || 'Sync failed', { id: tid })
+                                    }
+                                } catch (error) {
+                                    toast.error('Sync failed', { id: tid })
+                                } finally {
+                                    setIsSyncing(false)
+                                }
+                            }}
+                            disabled={isSyncing}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-all border border-emerald-200/50 disabled:opacity-50"
+                        >
+                            <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+                            <span>{isSyncing ? 'Syncing...' : 'Sync with Cashfree'}</span>
+                        </button>
+                    )}
+
+                    <button
+                        onClick={handleDownloadReport}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
+                    >
+                        <Download size={14} />
+                        <span>Download {activeTab === 'payouts' ? 'Payouts' : 'Registrations'} PDF</span>
+                    </button>
+                </div>
             </div>
 
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
