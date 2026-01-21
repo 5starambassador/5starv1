@@ -34,23 +34,29 @@ export default function PaymentButton({ amount, onSuccess, userId }: PaymentButt
                 throw new Error(data.error || 'Failed to create order')
             }
 
-            // 2. Load Cashfree SDK
-            const cashfree = await load({
-                mode: (process.env.NEXT_PUBLIC_CASHFREE_MODE as "sandbox" | "production") || "sandbox"
-            });
+            // 2. Load Cashfree SDK with intelligent mode detection
+            const isProd = process.env.NEXT_PUBLIC_CASHFREE_MODE === 'production' ||
+                window.location.hostname.includes('5starambassador.com') ||
+                window.location.hostname.includes('achariya.in');
+
+            const mode = isProd ? "production" : "sandbox";
+            console.log(`[DEBUG] Initializing Cashfree in ${mode} mode`);
+
+            const cashfree = await load({ mode });
 
             // 3. Checkout
-            await cashfree.checkout({
-                paymentSessionId: data.payment_session_id,
-                redirectTarget: "_self" // or "_blank", or container
-            });
-
-            // Cashfree redirect takes over, so we might not reach here unless logic is popup
-            // If redirect, the user comes back to return_url (verify API)
+            if (data.payment_session_id) {
+                await cashfree.checkout({
+                    paymentSessionId: data.payment_session_id,
+                    redirectTarget: "_self"
+                });
+            } else {
+                throw new Error("No payment session ID received");
+            }
 
         } catch (error: any) {
-            console.error(error)
-            toast.error(error.message || 'Payment failed')
+            console.error("Payment SDK Error:", error)
+            toast.error(error.message || 'Payment failed to initialize')
             setLoading(false)
         }
     }
