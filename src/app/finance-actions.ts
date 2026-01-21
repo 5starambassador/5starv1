@@ -101,22 +101,14 @@ export async function syncMissingPayments() {
         const missingPayments = await prisma.payment.findMany({
             where: {
                 orderId: { not: '' },
-                OR: [
-                    // Case 1: Status is explicitly PENDING/Pending
-                    { paymentStatus: { in: ['PENDING', 'Pending'] } },
-                    // Case 2: Status is NULL
-                    { paymentStatus: null },
-                    // Case 3: Status is Success but missing details
-                    {
-                        paymentStatus: { in: ['Success', 'SUCCESS'] },
-                        OR: [
-                            { transactionId: null },
-                            { paymentMethod: null }
-                        ]
-                    }
-                ]
+                // Just get all recent Cashfree orders to ensure data integrity (Amount, Method, UTR)
+                // We'll exclude explicit 'FAILED' ones, but check everything else including Pending/Success
+                NOT: {
+                    paymentStatus: 'FAILED'
+                }
             },
-            take: 100 // Process in larger batches
+            take: 50, // Re-check the last 50 orders
+            orderBy: { createdAt: 'desc' }
         })
 
         if (missingPayments.length === 0) {
