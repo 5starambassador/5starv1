@@ -16,7 +16,7 @@ export async function GET(req: Request) {
 
         // Usually checking the first payment or the one with SUCCESS status
         const successPayment = payments?.find((p: any) => p.payment_status === "SUCCESS");
-        const paymentStatus = successPayment ? "SUCCESS" : "FAILED";
+        const paymentStatusFormatted = successPayment ? "Success" : "Failed";
 
         // Update DB
         // @ts-ignore: Payment property exists but IDE cache/client is stale
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
             where: { orderId },
             include: { user: true },
             data: {
-                paymentStatus: paymentStatus,
+                paymentStatus: paymentStatusFormatted,
                 orderStatus: successPayment ? "PAID" : "ACTIVE",
                 // Capture new Finance Fields if success
                 ...(successPayment && {
@@ -37,22 +37,25 @@ export async function GET(req: Request) {
             }
         });
 
-        // 2. If success, activate user
+        // 2. If success, activate user and sync fields
         if (successPayment && updatedPayment.userId) {
             await prisma.user.update({
                 where: { userId: updatedPayment.userId },
                 data: {
                     status: 'Active',
-                    paymentStatus: 'Success'
+                    paymentStatus: 'Success',
+                    transactionId: successPayment.cf_payment_id ? String(successPayment.cf_payment_id) : undefined,
+                    // If we want to store payment method in User too
+                    // bankAccountDetails: successPayment.payment_group || undefined 
                 }
             })
         }
 
         // Redirect directly to dashboard on success, or back to payment on failure
-        if (paymentStatus === 'SUCCESS') {
+        if (paymentStatusFormatted === 'Success') {
             return NextResponse.redirect(new URL('/dashboard', req.url));
         } else {
-            return NextResponse.redirect(new URL(`/complete-payment?status=${paymentStatus}`, req.url));
+            return NextResponse.redirect(new URL(`/complete-payment?status=${paymentStatusFormatted}`, req.url));
         }
 
     } catch (error: any) {
