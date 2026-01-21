@@ -22,26 +22,40 @@ export async function generateSmartReferralCode(role: string, academicYear?: str
     else if (normalizedRole.includes('ALUMNI')) rolePrefix = 'A'
     else if (normalizedRole.includes('OTHERS')) rolePrefix = 'O'
 
-    // Count existing users with this role to determine the next number
-    // We use a transaction or optimistic locking in a real strict env
-    const roleCount = await prisma.user.count({
-        where: { role: role as any } // Cast to any to bypass strict Enum check if needed, or import UserRole
+    const yearSuffix = new Date().getFullYear().toString().slice(-2)
+    const basePrefix = `ACH${yearSuffix}-${rolePrefix}`
+
+    // Find the latest user with this prefix to determine the next number
+    const lastUser = await prisma.user.findFirst({
+        where: {
+            referralCode: {
+                startsWith: basePrefix
+            }
+        },
+        orderBy: {
+            referralCode: 'desc'
+        },
+        select: {
+            referralCode: true
+        }
     })
 
-    // Format: ACH25-P00001
-    // Add offset to handle collision retries
-    const sequenceNumber = (roleCount + 1 + offset).toString().padStart(5, '0')
+    let nextNumber = 1
 
-    // Determine Year Suffix
-    // If academicYear is "2025-2026", we want "25"
-    let yearSuffix = new Date().getFullYear().toString().slice(-2)
-    if (academicYear) {
-        // Extract first 4 digits
-        const startYear = academicYear.split('-')[0] // "2025"
-        if (startYear && startYear.length === 4) {
-            yearSuffix = startYear.slice(-2) // "25"
+    if (lastUser && lastUser.referralCode) {
+        // Extract the number part: ACH25-P00042 -> 42
+        const parts = lastUser.referralCode.split(rolePrefix)
+        const lastNumStr = parts[parts.length - 1] // Get the last part
+        const lastNum = parseInt(lastNumStr, 10)
+
+        if (!isNaN(lastNum)) {
+            nextNumber = lastNum + 1
         }
     }
 
-    return `ACH${yearSuffix}-${rolePrefix}${sequenceNumber}`
+    // Add offset for retries
+    nextNumber += offset
+
+    const sequenceNumber = nextNumber.toString().padStart(5, '0')
+    return `${basePrefix}${sequenceNumber}`
 }
