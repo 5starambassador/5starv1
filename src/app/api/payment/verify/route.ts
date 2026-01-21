@@ -19,8 +19,9 @@ export async function GET(req: Request) {
         const paymentStatus = successPayment ? "SUCCESS" : "FAILED";
 
         // Update DB
-        await prisma.payment.update({
+        const updatedPayment = await prisma.payment.update({
             where: { orderId },
+            include: { user: true },
             data: {
                 paymentStatus: paymentStatus,
                 orderStatus: successPayment ? "PAID" : "ACTIVE",
@@ -34,6 +35,17 @@ export async function GET(req: Request) {
                 })
             }
         });
+
+        // 2. If success, activate user
+        if (successPayment && updatedPayment.userId) {
+            await prisma.user.update({
+                where: { userId: updatedPayment.userId },
+                data: {
+                    status: 'Active',
+                    paymentStatus: 'Success'
+                }
+            })
+        }
 
         // Redirect to frontend status page
         return NextResponse.redirect(new URL(`/payment/status?order_id=${orderId}&status=${paymentStatus}`, req.url));

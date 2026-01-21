@@ -29,8 +29,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         redirect('/')
     }
 
-    // Check Payment Status (Skip for Super Admin)
-    if (user.role !== 'Super Admin' && (user as any).paymentStatus === 'Pending') {
+    // Check Payment Status (Skip for Admins and Active legacy users)
+    const isSpecialRole = user.role === 'Super Admin' || user.role === 'Finance Admin' || user.role.includes('Admin') || user.role.includes('Campus')
+
+    if (!isSpecialRole && (user as any).status === 'Pending') {
         redirect('/complete-payment')
     }
 
