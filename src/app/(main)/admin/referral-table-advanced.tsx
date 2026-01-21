@@ -1110,8 +1110,9 @@ export function ReferralManagementTable({
                                     className="w-full px-3 py-2 border rounded-lg text-sm font-bold bg-white"
                                 >
                                     <option value="">Select Campus...</option>
-                                    <option value="Main Campus">Main Campus</option>
-                                    <option value="JIPMER Campus">JIPMER Campus</option>
+                                    {campusList.map(c => (
+                                        <option key={c.id} value={c.campusName}>{c.campusName}</option>
+                                    ))}
                                 </select>
                             </div>
 
