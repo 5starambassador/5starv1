@@ -35,8 +35,12 @@ export default function PaymentButton({ amount, onSuccess, userId }: PaymentButt
             }
 
             // 2. Load Cashfree SDK
+            // Auto-detect production mode if NEXT_PUBLIC_CASHFREE_MODE is not set
+            const isProdEnv = process.env.NODE_ENV === 'production' ||
+                (typeof window !== 'undefined' && window.location.hostname.includes('5starambassador.com'));
+
             const cashfree = await load({
-                mode: (process.env.NEXT_PUBLIC_CASHFREE_MODE as "sandbox" | "production") || "sandbox"
+                mode: (process.env.NEXT_PUBLIC_CASHFREE_MODE as "sandbox" | "production") || (isProdEnv ? "production" : "sandbox")
             });
 
             // 3. Checkout
