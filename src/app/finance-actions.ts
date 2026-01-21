@@ -90,20 +90,24 @@ export async function syncMissingPayments() {
     }
 
     try {
-        // 1. Find all payments that are successful but missing details
+        // 1. Find all payments that are NOT yet fully successful in our DB
         // We only target those with an orderId (Cashfree orders)
         // @ts-ignore: Payment property exists but IDE cache is stale
         const missingPayments = await prisma.payment.findMany({
             where: {
                 orderId: { not: '' },
-                paymentStatus: { in: ['Success', 'SUCCESS'] },
                 OR: [
-                    { transactionId: null },
-                    { paymentMethod: null },
-                    { bankReference: null }
+                    { paymentStatus: { in: ['PENDING', 'Pending', null as any] } },
+                    {
+                        paymentStatus: { in: ['Success', 'SUCCESS'] },
+                        OR: [
+                            { transactionId: null },
+                            { paymentMethod: null }
+                        ]
+                    }
                 ]
             },
-            take: 50 // Process in batches to avoid timing out
+            take: 100 // Process in larger batches
         })
 
         if (missingPayments.length === 0) {
@@ -124,6 +128,7 @@ export async function syncMissingPayments() {
                     const method = successPayment.payment_group
                     const bankRef = successPayment.bank_reference
                     const paidAt = successPayment.payment_completion_time ? new Date(successPayment.payment_completion_time) : new Date()
+                    const amount = successPayment.payment_amount || payment.orderAmount
 
                     // 3. Update Payment record
                     // @ts-ignore: Payment property exists but IDE cache is stale
@@ -144,7 +149,8 @@ export async function syncMissingPayments() {
                         where: { userId: payment.userId },
                         data: {
                             paymentStatus: 'Success',
-                            transactionId: txId
+                            transactionId: txId,
+                            paymentAmount: amount
                         }
                     })
 

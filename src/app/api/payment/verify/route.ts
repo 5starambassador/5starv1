@@ -45,8 +45,7 @@ export async function GET(req: Request) {
                     status: 'Active',
                     paymentStatus: 'Success',
                     transactionId: successPayment.cf_payment_id ? String(successPayment.cf_payment_id) : undefined,
-                    // If we want to store payment method in User too
-                    // bankAccountDetails: successPayment.payment_group || undefined 
+                    paymentAmount: successPayment.payment_amount || undefined
                 }
             })
         }
