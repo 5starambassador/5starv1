@@ -414,7 +414,8 @@ export async function registerUser(formData: any) {
                     empId: empId || null,
                     aadharNo: encrypt(aadharNo) || null,
                     // Payment Info
-                    paymentStatus: transactionId ? 'Completed' : 'Pending', // Dummy flow assumes completion
+                    status: transactionId ? AccountStatus.Active : AccountStatus.Pending,
+                    paymentStatus: transactionId ? 'Success' : 'Pending',
                     transactionId: transactionId || null,
                     paymentAmount: transactionId ? 25 : 0
                 }

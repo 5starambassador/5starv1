@@ -1,4 +1,5 @@
 import { getCurrentUser } from '@/lib/auth-service'
+import { AccountStatus } from '@prisma/client'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, IndianRupee, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2, Zap, Lock, UserCog, Share2, Megaphone, Globe, Gift } from 'lucide-react'
@@ -32,7 +33,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     // Check Payment Status (Skip for Admins and Active legacy users)
     const isSpecialRole = user.role === 'Super Admin' || user.role === 'Finance Admin' || user.role.includes('Admin') || user.role.includes('Campus')
 
-    if (!isSpecialRole && (user as any).status === 'Pending') {
+    if (!isSpecialRole && (user as any).status === AccountStatus.Pending) {
         redirect('/complete-payment')
     }
 

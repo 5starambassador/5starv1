@@ -43,8 +43,8 @@ model User {
   password               String?
   deletionRequestedAt    DateTime?
   role                   UserRole        @default(Parent)
-  status                 AccountStatus   @default(Active)
-  benefitStatus          AccountStatus   @default(Active)
+  status                 AccountStatus   @default(Pending)
+  benefitStatus          AccountStatus   @default(Pending)
   notifications          Notification[]
   referrals              ReferralLead[]
   settlements            Settlement[]

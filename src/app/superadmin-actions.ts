@@ -739,7 +739,6 @@ export async function addUser(data: {
                 childInAchariya: data.childInAchariya === 'Yes',
                 childName: data.childName || null,
                 assignedCampus: data.assignedCampus || null,
-                status: 'Active',
                 yearFeeBenefitPercent: 0,
                 longTermBenefitPercent: 0,
                 confirmedReferralCount: 0,

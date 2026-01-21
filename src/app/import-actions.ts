@@ -206,7 +206,6 @@ export async function importAmbassadors(csvData: string) {
                     childName: null,
                     grade: null,
                     benefitStatus: benefitStatus as any, // Cast to avoid stale enum issues
-                    status: 'Active',
                     password: password || null,
                     academicYear
                 }
@@ -278,7 +277,6 @@ export async function importStudents(csvData: string) {
                             mobileNumber: parentMobile,
                             role: 'Parent',
                             referralCode: newCode,
-                            status: 'Active',
                             assignedCampus: campusName, // Assign to student's campus
                             childEprNo: admissionNumber || null, // Link ERP if available
                             academicYear: row.academicYear || '2025-2026',
