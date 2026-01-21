@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { SettlementTable } from '@/components/finance/SettlementTable'
 import { RegistrationTable } from '@/components/finance/RegistrationTable'
 import { generatePDFReport } from '@/lib/pdf-export'
@@ -16,6 +16,28 @@ interface FinanceClientTabsProps {
 export function FinanceClientTabs({ settlements, registrations }: FinanceClientTabsProps) {
     const [activeTab, setActiveTab] = useState<'payouts' | 'registrations'>('payouts')
     const [isSyncing, setIsSyncing] = useState(false)
+    const [isAutoSyncing, setIsAutoSyncing] = useState(false)
+
+    // Auto-Sync on Mount (Smart Mode)
+    useEffect(() => {
+        const runAutoSync = async () => {
+            setIsAutoSyncing(true)
+            try {
+                // Pass false for "Smart Mode"
+                const res = await syncMissingPayments(false)
+                if (res.success && res.count && res.count > 0) {
+                    // Only toast if we actually fixed something to avoid noise
+                    toast.success(`Auto-sync: Fixed ${res.count} records`)
+                    setTimeout(() => window.location.reload(), 1000)
+                }
+            } catch (err) {
+                console.error("Auto-sync failed", err)
+            } finally {
+                setIsAutoSyncing(false)
+            }
+        }
+        runAutoSync()
+    }, [])
 
     const handleDownloadReport = () => {
         if (activeTab === 'payouts') {
@@ -99,9 +121,10 @@ export function FinanceClientTabs({ settlements, registrations }: FinanceClientT
                         <button
                             onClick={async () => {
                                 setIsSyncing(true)
-                                const tid = toast.loading('Syncing missing details from Cashfree...')
+                                const tid = toast.loading('Force syncing recent payments...')
                                 try {
-                                    const res = await syncMissingPayments()
+                                    // Pass true for "Force Mode"
+                                    const res = await syncMissingPayments(true)
                                     if (res.success) {
                                         toast.success(res.message, { id: tid })
                                         // Slight delay before reload for toast visibility

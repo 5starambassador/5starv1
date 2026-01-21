@@ -82,7 +82,8 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
     }
 }
 
-export async function syncMissingPayments() {
+// AUTO-SYNC UPDATE: 'force' param allows lightweight check on load vs heavy check on button click
+export async function syncMissingPayments(force: boolean = false) {
     const admin = await getCurrentUser()
     const allowedRoles = ['Super Admin', 'Finance Admin']
     if (!admin || !allowedRoles.some(r => admin.role.includes(r))) {
@@ -95,29 +96,41 @@ export async function syncMissingPayments() {
     }
 
     try {
-        // 1. Find all payments that are NOT yet fully successful in our DB
-        // We only target those with an orderId (Cashfree orders)
+        let whereClause: any = { orderId: { not: '' } }
+
+        if (force) {
+            // FORCE MODE: Last 50 relevant orders, ignore status, just excluding explicitly failed ones to be safe
+            whereClause.NOT = { paymentStatus: 'FAILED' }
+        } else {
+            // SMART MODE: Only target records that look "broken"
+            whereClause.OR = [
+                // Case 1: Amount is zero or missing
+                { paymentAmount: { equals: 0 } },
+                { paymentAmount: null },
+                // Case 2: Transaction ID is missing
+                { transactionId: null },
+                // Case 3: Stuck in "Pending" despite having an orderId
+                { paymentStatus: { in: ['PENDING', 'Pending'] } },
+                { paymentStatus: null }
+            ]
+            // We still exclude explicitly failed ones
+            whereClause.NOT = { paymentStatus: 'FAILED' }
+        }
+
         // @ts-ignore: Payment property exists but IDE cache is stale
-        const missingPayments = await prisma.payment.findMany({
-            where: {
-                orderId: { not: '' },
-                // Just get all recent Cashfree orders to ensure data integrity (Amount, Method, UTR)
-                // We'll exclude explicit 'FAILED' ones, but check everything else including Pending/Success
-                NOT: {
-                    paymentStatus: 'FAILED'
-                }
-            },
-            take: 50, // Re-check the last 50 orders
+        const targetPayments = await prisma.payment.findMany({
+            where: whereClause,
+            take: force ? 50 : 20, // Smart sync takes fewer to be lighter
             orderBy: { createdAt: 'desc' }
         })
 
-        if (missingPayments.length === 0) {
-            return { success: true, count: 0, message: 'All payments are already up to date.' }
+        if (targetPayments.length === 0) {
+            return { success: true, count: 0, message: 'All payments are up to date.' }
         }
 
         let updatedCount = 0
 
-        for (const payment of missingPayments) {
+        for (const payment of targetPayments) {
             try {
                 // 2. Fetch from Cashfree
                 const response = await cashfree.PGOrderFetchPayments(payment.orderId)
