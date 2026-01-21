@@ -549,7 +549,8 @@ export async function createPendingUser(formData: any) {
                     assignedCampus: assignedCampusName,
                     bankAccountDetails: bankAccountDetails ? encrypt(bankAccountDetails) : null,
                     referralCode,
-                    benefitStatus: AccountStatus.Pending, // Pending until payment
+                    status: AccountStatus.Pending, // Brand new user, needs payment
+                    benefitStatus: AccountStatus.Pending,
                     studentFee,
                     academicYear: currentYear,
                     email: email || null,
