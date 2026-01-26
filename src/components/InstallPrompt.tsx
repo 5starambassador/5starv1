@@ -50,18 +50,7 @@ export function InstallPrompt() {
             setShowPrompt(true)
         }
 
-        const handleTriggerInstall = () => {
-            if (deferredPrompt) {
-                handleInstallClick()
-            } else {
-                // If no native prompt available (e.g. dismissed or not supported),
-                // show our internal beautiful guide card instead of just doing nothing.
-                setShowPrompt(true)
-            }
-        }
-
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-        window.addEventListener('trigger-PWA-install', handleTriggerInstall)
 
         // 6. For iOS, show instructions if not in standalone
         if (isIosDevice && !isStandalone) {
@@ -69,14 +58,27 @@ export function InstallPrompt() {
             const timer = setTimeout(() => setShowPrompt(true), 3000)
             return () => {
                 clearTimeout(timer)
-                window.removeEventListener('trigger-PWA-install', handleTriggerInstall)
             }
         }
 
         return () => {
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-            window.removeEventListener('trigger-PWA-install', handleTriggerInstall)
         }
+    }, [deferredPrompt, isIOS])
+
+    // Manual Trigger Effect (Always active even if dismissed)
+    useEffect(() => {
+        const handleTriggerInstall = () => {
+            console.log('[PWA] Manual trigger received');
+            if (deferredPrompt) {
+                handleInstallClick()
+            } else {
+                setShowPrompt(true)
+            }
+        }
+
+        window.addEventListener('trigger-PWA-install', handleTriggerInstall)
+        return () => window.removeEventListener('trigger-PWA-install', handleTriggerInstall)
     }, [deferredPrompt, isIOS])
 
     const handleDismiss = () => {
