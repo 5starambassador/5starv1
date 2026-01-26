@@ -37,7 +37,6 @@ export async function approveManualPayment(orderId: string) {
                 orderStatus: 'SUCCESS', // Standard Cashfree Success Status
                 paymentStatus: 'Success',
                 paidAt: new Date(),
-                settlementDate: new Date() // Mark as settled for simplicity
             }
         })
 
