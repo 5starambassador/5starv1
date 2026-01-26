@@ -87,7 +87,7 @@ export function InstallPrompt() {
     if (!showPrompt) return null
 
     return (
-        <div className="fixed bottom-6 left-6 right-6 md:left-auto md:right-6 md:max-w-md z-[200] animate-in slide-in-from-bottom duration-500">
+        <div className="fixed top-20 left-6 right-6 md:left-auto md:right-6 md:max-w-md z-[200] animate-in slide-in-from-top duration-500">
             <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl shadow-2xl shadow-blue-900/50 p-6 text-white relative overflow-hidden border border-white/10">
                 {/* Background Pattern */}
                 <div className="absolute inset-0 opacity-10">
