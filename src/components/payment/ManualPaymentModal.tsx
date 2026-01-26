@@ -21,11 +21,11 @@ export default function ManualPaymentModal({ isOpen, onClose, amount, userId, on
 
     // Bank Details Config
     const bankDetails = {
-        name: "ACHARIYA EDUCATIONAL PUBLIC TRUST",
-        bank: "HDFC BANK",
-        acNo: "50200021678235",
-        ifsc: "HDFC0001614",
-        upiId: "achariya@hdfcbank"
+        name: "ACHARIYA EDUCATIONAL PUBLIC TRUST - CORPORATE",
+        bank: "FEDERAL BANK",
+        acNo: "25140100003941",
+        ifsc: "FDRL0002514",
+        upiId: "25140100003941@federal"
     }
 
     const handleCopy = (text: string) => {
