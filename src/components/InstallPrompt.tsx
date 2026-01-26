@@ -7,79 +7,54 @@ import { Capacitor } from '@capacitor/core'
 export function InstallPrompt() {
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
     const [showPrompt, setShowPrompt] = useState(false)
-    const [isIOS, setIsIOS] = useState(false)
+    const [activeTab, setActiveTab] = useState<'android' | 'ios'>('android')
+    const [detectedIOS, setDetectedIOS] = useState(false)
 
     const handleInstallClick = async () => {
-        if (!deferredPrompt && !isIOS) return
-
-        if (deferredPrompt) {
-            deferredPrompt.prompt()
-            const { outcome } = await deferredPrompt.userChoice
-            if (outcome === 'accepted') {
-                setShowPrompt(false)
-            }
-            setDeferredPrompt(null)
-        }
+        if (!deferredPrompt) return
+        deferredPrompt.prompt()
+        const { outcome } = await deferredPrompt.userChoice
+        if (outcome === 'accepted') setShowPrompt(false)
+        setDeferredPrompt(null)
     }
 
     useEffect(() => {
-        // 1. Don't show if already running as native app
         if (Capacitor.isNativePlatform()) return
-
-        // 2. Check for iOS
         const userAgent = window.navigator.userAgent.toLowerCase()
         const isIosDevice = /iphone|ipad|ipod/.test(userAgent)
-        setIsIOS(isIosDevice)
+        setDetectedIOS(isIosDevice)
+        setActiveTab(isIosDevice ? 'ios' : 'android')
 
-        // 3. Check if already installed (standalone mode)
-        // @ts-ignore
-        const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches
+        const isStandalone = (window.navigator as any).standalone || window.matchMedia('(display-mode: standalone)').matches
         if (isStandalone) return
 
-        // 4. Check if dismissed recently (show again after 3 days for better conversion)
-        const dismissedAt = localStorage.getItem('installPromptDismissedAt')
-        if (dismissedAt) {
-            const daysSinceDismiss = (Date.now() - parseInt(dismissedAt)) / (1000 * 60 * 60 * 24)
-            if (daysSinceDismiss < 3) return
-        }
-
-        // 5. Listen for Android/Chrome install prompt
         const handleBeforeInstallPrompt = (e: any) => {
             e.preventDefault()
             setDeferredPrompt(e)
-            setShowPrompt(true)
-        }
-
-        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-
-        // 6. For iOS, show instructions if not in standalone
-        if (isIosDevice && !isStandalone) {
-            // Delay showing iOS prompt by 3 seconds for better UX
-            const timer = setTimeout(() => setShowPrompt(true), 3000)
-            return () => {
-                clearTimeout(timer)
-            }
-        }
-
-        return () => {
-            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-        }
-    }, [deferredPrompt, isIOS])
-
-    // Manual Trigger Effect (Always active even if dismissed)
-    useEffect(() => {
-        const handleTriggerInstall = () => {
-            console.log('[PWA] Manual trigger received');
-            if (deferredPrompt) {
-                handleInstallClick()
-            } else {
+            if (!localStorage.getItem('installPromptDismissedAt')) {
                 setShowPrompt(true)
             }
         }
 
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+
+        if (isIosDevice && !isStandalone && !localStorage.getItem('installPromptDismissedAt')) {
+            const timer = setTimeout(() => setShowPrompt(true), 3000)
+            return () => clearTimeout(timer)
+        }
+
+        return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    }, [])
+
+    useEffect(() => {
+        const handleTriggerInstall = () => {
+            setShowPrompt(true)
+            // Force correct tab on manual trigger if detected
+            if (detectedIOS) setActiveTab('ios')
+        }
         window.addEventListener('trigger-PWA-install', handleTriggerInstall)
         return () => window.removeEventListener('trigger-PWA-install', handleTriggerInstall)
-    }, [deferredPrompt, isIOS])
+    }, [detectedIOS])
 
     const handleDismiss = () => {
         setShowPrompt(false)
@@ -90,69 +65,89 @@ export function InstallPrompt() {
 
     return (
         <div className="fixed top-20 left-6 right-6 md:left-auto md:right-6 md:max-w-md z-[200] animate-in slide-in-from-top duration-500">
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl shadow-2xl shadow-blue-900/50 p-6 text-white relative overflow-hidden border border-white/10">
-                {/* Background Pattern */}
-                <div className="absolute inset-0 opacity-10">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white blur-3xl" />
-                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-white blur-3xl" />
-                </div>
+            <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 p-6 text-white relative overflow-hidden backdrop-blur-xl">
+                {/* Visual Accent */}
+                <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-600/20 blur-[80px] rounded-full" />
 
-                {/* Close Button */}
                 <button
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        handleDismiss()
-                    }}
-                    className="absolute top-2 right-2 p-2 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 transition-all z-50 cursor-pointer"
-                    aria-label="Close install prompt"
+                    onClick={handleDismiss}
+                    className="absolute top-4 right-4 p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors z-50"
                 >
-                    <X size={20} />
+                    <X size={18} />
                 </button>
 
-                {/* Content */}
                 <div className="relative z-10">
-                    <div className="flex items-start gap-4 mb-4">
-                        <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/20 shrink-0">
-                            <Smartphone size={28} className="text-white" />
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
+                            <Smartphone size={24} />
                         </div>
-                        <div className="flex-1">
-                            <h3 className="text-lg font-black mb-1">Install Achariya App</h3>
-                            <p className="text-sm text-blue-100 leading-relaxed">
-                                {isIOS
-                                    ? "Tap the Share button (□↑) below and select 'Add to Home Screen' for instant access!"
-                                    : deferredPrompt
-                                        ? "Get instant access with one tap. Works offline and launches like a native app!"
-                                        : "Tap the three dots (⋮) in your browser menu and select 'Install app' or 'Add to home screen'."}
-                            </p>
+                        <div>
+                            <h3 className="text-lg font-black tracking-tight">Install Official App</h3>
+                            <p className="text-[10px] uppercase tracking-widest text-blue-400 font-bold">Fast • Offline • Secure</p>
                         </div>
                     </div>
 
-                    {deferredPrompt && !isIOS && (
+                    {/* Platform Selector Tabs */}
+                    <div className="flex bg-white/5 p-1 rounded-2xl mb-6 border border-white/5">
                         <button
-                            onClick={handleInstallClick}
-                            className="w-full bg-white text-blue-600 px-6 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-blue-50 transition-all shadow-lg mb-4"
+                            onClick={() => setActiveTab('android')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black transition-all ${activeTab === 'android' ? 'bg-white text-slate-950 shadow-lg' : 'text-white/40 hover:text-white/60'}`}
                         >
-                            <Download size={18} />
-                            Install Now
+                            ANDROID
                         </button>
-                    )}
+                        <button
+                            onClick={() => setActiveTab('ios')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black transition-all ${activeTab === 'ios' ? 'bg-white text-slate-950 shadow-lg' : 'text-white/40 hover:text-white/60'}`}
+                        >
+                            APPLE (iOS)
+                        </button>
+                    </div>
 
-                    {/* Features Grid */}
-                    <div className="grid grid-cols-3 gap-3 text-center pt-4 border-t border-white/20">
-                        <div>
-                            <Zap size={16} className="mx-auto mb-1 text-amber-300" />
-                            <p className="text-xs font-black text-blue-200">Fast</p>
-                            <p className="text-[10px] text-blue-100/70">Lightning speed</p>
+                    {/* Content Section */}
+                    <div className="min-h-[140px] animate-in fade-in transition-all duration-300">
+                        {activeTab === 'android' ? (
+                            <div className="space-y-4">
+                                <div className="p-4 bg-white/5 rounded-2xl border border-white/5 border-l-4 border-l-blue-500">
+                                    <p className="text-sm font-medium leading-relaxed text-blue-100">
+                                        Tap the <span className="text-white font-black">three dots (⋮)</span> in Chrome and select <span className="text-amber-400 font-black">"Install App"</span> or "Add to Home Screen".
+                                    </p>
+                                </div>
+                                {deferredPrompt && (
+                                    <button
+                                        onClick={handleInstallClick}
+                                        className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-3 shadow-xl shadow-blue-900/40 transition-all active:scale-95"
+                                    >
+                                        <Download size={20} />
+                                        ONE-TAP INSTALL
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="p-4 bg-white/5 rounded-2xl border border-white/5 border-l-4 border-l-amber-500">
+                                    <p className="text-sm font-medium leading-relaxed text-blue-100">
+                                        1. Tap the <span className="text-white font-black">Share button</span> (square icon with arrow <span className="inline-block p-1 bg-white/10 rounded ml-1">↑]</span>) at the bottom.
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-white/5 rounded-2xl border border-white/5 border-l-4 border-l-amber-500">
+                                    <p className="text-sm font-medium leading-relaxed text-blue-100">
+                                        2. Scroll down and tap <span className="text-amber-400 font-black">"Add to Home Screen"</span>.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Features Footer */}
+                    <div className="mt-6 pt-5 border-t border-white/5 grid grid-cols-3 gap-2 opacity-50">
+                        <div className="text-center">
+                            <p className="text-[10px] font-black uppercase text-blue-400">Offline</p>
                         </div>
-                        <div>
-                            <Wifi size={16} className="mx-auto mb-1 text-emerald-300" />
-                            <p className="text-xs font-black text-blue-200">Offline</p>
-                            <p className="text-[10px] text-blue-100/70">Works anywhere</p>
+                        <div className="text-center">
+                            <p className="text-[10px] font-black uppercase text-blue-400">Secure</p>
                         </div>
-                        <div>
-                            <Lock size={16} className="mx-auto mb-1 text-purple-300" />
-                            <p className="text-xs font-black text-blue-200">Secure</p>
-                            <p className="text-[10px] text-blue-100/70">Protected</p>
+                        <div className="text-center">
+                            <p className="text-[10px] font-black uppercase text-blue-400">PWA v2.5</p>
                         </div>
                     </div>
                 </div>
