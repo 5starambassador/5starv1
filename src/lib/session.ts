@@ -1,5 +1,13 @@
 import 'server-only'
-import { SignJWT, jwtVerify } from 'jose'
+import { SignJWT, jwtVerify, type JWTPayload } from 'jose'
+
+export interface SessionPayload extends JWTPayload {
+    userId: number
+    userType: 'user' | 'admin'
+    role?: string
+    ip?: string
+    is2faVerified?: boolean
+}
 import { cookies, headers } from 'next/headers'
 
 const secretKey = process.env.JWT_SECRET || 'secret-key-achariya'
@@ -40,7 +48,7 @@ export async function verifySessionToken(token: string) {
         const { payload } = await jwtVerify(token, encodedKey, {
             algorithms: ['HS256'],
         })
-        return payload
+        return payload as SessionPayload
     } catch (error) {
         return null
     }

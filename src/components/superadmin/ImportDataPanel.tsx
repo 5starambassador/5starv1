@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { Upload, FileText, AlertTriangle, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
-import { importAmbassadors, importFees, importStudents, importCampuses, importReferrals } from '@/app/import-actions'
+import { importAmbassadors, importFees, importStudents, importCampuses, importReferrals, importCrmLeads } from '@/app/import-actions'
 
 interface ImportDataPanelProps {
-    type: 'fees' | 'ambassadors' | 'students' | 'campuses' | 'referrals'
+    type: 'fees' | 'ambassadors' | 'students' | 'campuses' | 'referrals' | 'crm-leads'
     onSuccess?: () => void
     userRole?: string
 }
@@ -36,6 +36,7 @@ export function ImportDataPanel({ type, onSuccess }: ImportDataPanelProps) {
             else if (type === 'students') result = await importStudents(text)
             else if (type === 'campuses') result = await importCampuses(text)
             else if (type === 'referrals') result = await importReferrals(text)
+            else if (type === 'crm-leads') result = await importCrmLeads(text)
 
             if (result?.success) {
                 toast.success(`Processed ${result?.processed || 0} records`)
@@ -70,7 +71,6 @@ export function ImportDataPanel({ type, onSuccess }: ImportDataPanelProps) {
             case 'ambassadors':
                 headers = 'Full Name,Mobile Number,Role,Email,Campus Name,Emp ID,Child ERP No,Child In Achariya (Yes/No),Benefit Status,Academic Year,Password,Referral Code\n' +
                     'John Doe,9876543210,Parent,john@example.com,ASM - KARAIKAL,,24ABS001,Yes,PendingVerification,,pass123,'
-
                 filename = 'ambassador_import_template.csv'
                 break
             case 'students':
@@ -87,6 +87,11 @@ export function ImportDataPanel({ type, onSuccess }: ImportDataPanelProps) {
                 headers = 'Parent Name,Parent Mobile,Grade,Section,Campus Name,Ambassador Mobile,Ambassador Name,Admission Number,Student Name,Academic Year,Status,Fee Type\n' +
                     'Jane Parent,9876543210,Grade-1,A,ABSM - THENGAITHITTU,9998887776,Referrer Name,24ABS001,Baby Jane,2025-2026,Confirmed,OTP'
                 filename = 'referral_import_template.csv'
+                break
+            case 'crm-leads':
+                headers = 'Mobile Number,Parent Name,Student Name,Grade,Campus,Visit Date,Source\n' +
+                    '9876543210,Parent Name,Student Name,Grade 5,Main Campus,2024-01-20,Walk-in'
+                filename = 'crm_leads_blacklist_template.csv'
                 break
         }
 
@@ -120,7 +125,7 @@ export function ImportDataPanel({ type, onSuccess }: ImportDataPanelProps) {
                 <div className="p-6 border-b border-gray-100">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                         <Upload className="w-5 h-5 text-gray-500" />
-                        Bulk Import {type === 'fees' ? 'Fees' : type === 'ambassadors' ? 'Ambassadors' : type === 'referrals' ? 'Referrals' : type === 'campuses' ? 'Campuses' : 'Students'}
+                        Bulk Import {type === 'fees' ? 'Fees' : type === 'ambassadors' ? 'Ambassadors' : type === 'referrals' ? 'Referrals' : type === 'campuses' ? 'Campuses' : type === 'crm-leads' ? 'CRM Leads (Blacklist)' : 'Students'}
                     </h3>
                     <p className="text-sm text-gray-500 mt-1">Upload CSV file to bulk import data</p>
                     <div className="mt-3 bg-amber-50 border border-amber-100 p-3 rounded-lg flex gap-2">
@@ -129,7 +134,8 @@ export function ImportDataPanel({ type, onSuccess }: ImportDataPanelProps) {
                             {type === 'fees' && "Ensure both 'annualFee_otp' and 'annualFee_wotp' columns are Present."}
                             {type === 'students' && "For Student imports, 'feeType' (OTP/WOTP) is mandatory for linked referrals."}
                             {type === 'referrals' && "For 'Confirmed' status referrals, 'admissionNumber' (ERP) and 'feeType' (OTP/WOTP) are mandatory."}
-                            {!['fees', 'students', 'referrals'].includes(type) && "Verify all required columns match the template exactly."}
+                            {type === 'crm-leads' && "Mobile numbers imported here will be BLOCKED from being added as referrals in the App."}
+                            {!['fees', 'students', 'referrals', 'crm-leads'].includes(type) && "Verify all required columns match the template exactly."}
                         </div>
                     </div>
                 </div>

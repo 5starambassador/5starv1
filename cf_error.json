@@ -1,0 +1,6 @@
+{
+  "code": "request_failed",
+  "help": "Check latest errors and resolution from Merchant Dashboard API logs: https://bit.ly/4glEd0W Help Document: https://bit.ly/4eeZYO9",
+  "message": "transactions are not enabled for your payment gateway account",
+  "type": "invalid_request_error"
+}

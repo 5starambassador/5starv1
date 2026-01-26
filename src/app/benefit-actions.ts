@@ -9,6 +9,8 @@ export interface BenefitSlabData {
     referralCount: number
     yearFeeBenefitPercent: number
     longTermExtraPercent: number
+    appBonusPercent: number
+    appBonusEligibility: string
     baseLongTermPercent: number
     tierName?: string | null
     description?: string | null
@@ -44,6 +46,10 @@ export async function updateBenefitSlab(id: number, data: Partial<BenefitSlabDat
             data: {
                 referralCount: data.referralCount,
                 yearFeeBenefitPercent: data.yearFeeBenefitPercent,
+                baseLongTermPercent: data.baseLongTermPercent,
+                longTermExtraPercent: data.longTermExtraPercent,
+                appBonusPercent: data.appBonusPercent,
+                appBonusEligibility: data.appBonusEligibility,
                 tierName: data.tierName,
                 description: data.description
             }
@@ -69,8 +75,9 @@ export async function addBenefitSlab(data: Partial<BenefitSlabData>) {
                 yearFeeBenefitPercent: data.yearFeeBenefitPercent!,
                 tierName: data.tierName,
                 description: data.description,
-                longTermExtraPercent: 5,
-                baseLongTermPercent: 15
+                longTermExtraPercent: 0,
+                appBonusPercent: 5,
+                baseLongTermPercent: 0 // Default to 0, let user calibrate
             }
         })
 
@@ -109,11 +116,11 @@ export async function resetDefaultSlabs() {
 
         // Default Tiers as per Policy
         const defaultTiers = [
-            { count: 1, percent: 5, name: 'Tier 1' },
-            { count: 2, percent: 10, name: 'Tier 2' },
-            { count: 3, percent: 25, name: 'Tier 3' },
-            { count: 4, percent: 30, name: 'Tier 4' },
-            { count: 5, percent: 50, name: 'Tier 5 (Max)' },
+            { count: 1, short: 5, long: 5, name: 'Tier 1' },
+            { count: 2, short: 10, long: 10, name: 'Tier 2' },
+            { count: 3, short: 20, long: 15, name: 'Tier 3' },
+            { count: 4, short: 30, long: 20, name: 'Tier 4' },
+            { count: 5, short: 50, long: 25, name: 'Tier 5 (Max)' },
         ]
 
         // Transaction: Delete All -> Create Defaults
@@ -124,10 +131,12 @@ export async function resetDefaultSlabs() {
                 await tx.benefitSlab.create({
                     data: {
                         referralCount: t.count,
-                        yearFeeBenefitPercent: t.percent,
+                        yearFeeBenefitPercent: t.short,
+                        baseLongTermPercent: t.long,
                         tierName: t.name,
-                        longTermExtraPercent: 5, // Default logic
-                        baseLongTermPercent: 15  // Default logic
+                        longTermExtraPercent: 0,
+                        appBonusPercent: 5, // Default 5% App Bonus
+                        appBonusEligibility: "PARENT,STAFF_CHILD", // Default eligibility targets
                     }
                 })
             }

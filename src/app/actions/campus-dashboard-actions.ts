@@ -221,7 +221,7 @@ export async function getCampusStudents(query?: string) {
                 parent: { select: { fullName: true, mobileNumber: true } }
             },
             orderBy: { createdAt: 'desc' },
-            take: 50 // Limit for now
+            take: 100 // Increased from 50 to show more history
         })
         return { success: true, data: students }
     } catch (error) {
@@ -269,7 +269,7 @@ export async function getCampusRecentActivity() {
         const recentLeads = await prisma.referralLead.findMany({
             where: whereClause,
             orderBy: { createdAt: 'desc' },
-            take: 10,
+            take: 50, // Increased from 10 to show more history
             include: { user: { select: { fullName: true } } }
         })
 
@@ -300,7 +300,7 @@ export async function getCampusRecentActivity() {
         // Sort by time and take top 10
         activities.sort((a, b) => new Date(b.time!).getTime() - new Date(a.time!).getTime())
 
-        return { success: true, data: activities.slice(0, 10) }
+        return { success: true, data: activities.slice(0, 50) }
     } catch (error) {
         console.error('getCampusRecentActivity Error:', error)
         return { error: 'Failed to fetch recent activity' }
@@ -335,7 +335,7 @@ export async function getCampusUsers(query?: string) {
         const users = await prisma.user.findMany({
             where: whereClause,
             orderBy: { createdAt: 'desc' },
-            take: 50 // Limit for now
+            take: 1000 // Increased from 50 to ensure diverse roles (Staff, etc.) are included
         })
         return { success: true, data: users }
     } catch (error) {

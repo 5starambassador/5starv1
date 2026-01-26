@@ -1,0 +1,130 @@
+--- STARTING AUDIT ---
+Total 'confirmedReferralCount' stored on Users: 213
+Total 'ReferralLead' rows in DB: 10
+
+Analyzing 113 users with referral counts...
+[MISMATCH] User: VIJAYANAND. R (ID: 1196) -> Profile Says: 4, Actual Rows: 0
+[MISMATCH] User: ANURADHA (ID: 1189) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Priyadharshini (ID: 1237) -> Profile Says: 3, Actual Rows: 0
+[MISMATCH] User: GANESAN (ID: 1192) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: SENTHIL KUMAR (ID: 1182) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: JAYALAKSHMI (ID: 1186) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: P.Oudaya Kumar (ID: 1188) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: V.P. RAJASEKAR (ID: 1191) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: SELVI (ID: 1185) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: ADILATCHIMI. D (ID: 1194) -> Profile Says: 5, Actual Rows: 0
+[MISMATCH] User: RAJESH (ID: 1172) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Hemalatha (ID: 1193) -> Profile Says: 5, Actual Rows: 0
+[MISMATCH] User: BALAMOUROUGANE K (ID: 1183) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: VISHAL.S (ID: 1171) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: KANIMOZHI (ID: 1240) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: THIRUMURUGAN (ID: 1258) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Lakshmy.K (ID: 1210) -> Profile Says: 4, Actual Rows: 0
+[MISMATCH] User: BALAJI B (ID: 1212) -> Profile Says: 4, Actual Rows: 0
+[MISMATCH] User: Ranganathan A (ID: 1198) -> Profile Says: 3, Actual Rows: 0
+[MISMATCH] User: MOHAN. T (ID: 1208) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: CHITRA (ID: 1207) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: MUNISAMY (ID: 1253) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: SEKAR L (ID: 1201) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: Selvam (ID: 1211) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Sivasankari. S (ID: 1206) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: SAMRAJ S (ID: 1200) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Vainavi @ Ilakkiya . R (ID: 1233) -> Profile Says: 3, Actual Rows: 0
+[MISMATCH] User: AJRAN ALIMA (ID: 1230) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: M. Ashokumar (ID: 1205) -> Profile Says: 7, Actual Rows: 0
+[MISMATCH] User: SIVAKUMAR. V (ID: 1204) -> Profile Says: 7, Actual Rows: 0
+[MISMATCH] User: KANIMOZHI K (ID: 1268) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: SHALINI T (ID: 1264) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: MAHALAKSHMI R (ID: 1261) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: SUBULAXMI V (ID: 1260) -> Profile Says: 4, Actual Rows: 0
+[MISMATCH] User: VASANTHAN R (ID: 1245) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: LALITHA.M (ID: 1242) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: Thirisangu (ID: 1255) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: NASRIN (ID: 1241) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: VINODHA S (ID: 1263) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: SEKAR L (ID: 1248) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: GAYATHRI J (ID: 1269) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: SHALINI T (ID: 1252) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: KAYALVIZHI S (ID: 1256) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Ms PAVITHRA M (ID: 1244) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: MANIKANDAN (ID: 1250) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: D SHARMILA ARPOUDAME (ID: 1251) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: SUNDIRARASU P (ID: 1247) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: RAJASTHRI. M (ID: 1203) -> Profile Says: 5, Actual Rows: 0
+[MISMATCH] User: JAYALAKSHMI G (ID: 1187) -> Profile Says: 5, Actual Rows: 0
+[MISMATCH] User: Sushma.R (ID: 1174) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: DELHIRAJ R (ID: 1163) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Haji Ali A R (ID: 1159) -> Profile Says: 3, Actual Rows: 0
+[MISMATCH] User: Selvakumar (ID: 1170) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: AGILA BALASUBRAMANIAN (ID: 1160) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Suganya (ID: 1158) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: SADIQ BACHA (ID: 1164) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: KRISHNAVENI V (ID: 1180) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: VENGADESAN (ID: 1165) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: PINANK SHAH (ID: 1167) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: SURESH BABU (ID: 1175) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: Hari Raman B (ID: 1168) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Anitha.G (ID: 1181) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Gauthami .V (ID: 1169) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: VIDHYA P (ID: 1173) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: T. Ambiga (ID: 1176) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: MUNIAMMAL (ID: 1225) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: GUNASEKARAN R (ID: 1234) -> Profile Says: 4, Actual Rows: 0
+[MISMATCH] User: Parthiban (ID: 1228) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: Karthikeyan (ID: 1220) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: ANAND RAJENDRAN (ID: 1236) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Aruneya (ID: 1218) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: SUHASINI (ID: 1179) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: SELVARAJ (ID: 1213) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: SUBASHREE K (ID: 1224) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Selvendiran (ID: 1227) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: RAMESH (ID: 1226) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Rajesh (ID: 1214) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: KALIA PERUMAL (ID: 1235) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: SAI KRISHNAA (ID: 1216) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Sridhar Kannan (ID: 1217) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Theepa (ID: 1221) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: Syed Abuthahir.M (ID: 1222) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: SUNDARAMOORTHY (ID: 1254) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Manimegalai.R (ID: 1166) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: DHANSHIKA S R9047585092 MS.Ranjani (ID: 1265) -> Profile Says: 3, Actual Rows: 0
+[MISMATCH] User: ASHA (ID: 1262) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Divya. S (ID: 1156) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: NEHAA M.S. (ID: 1266) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: DINESH KUMAR (ID: 1246) -> Profile Says: 3, Actual Rows: 0
+[MISMATCH] User: S Sivakumar (ID: 1178) -> Profile Says: 4, Actual Rows: 0
+[MISMATCH] User: Ananya Shree R (ID: 1223) -> Profile Says: 5, Actual Rows: 0
+[MISMATCH] User: Anbarasan. K (ID: 1215) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: JOSEPHINE DIANA (ID: 1162) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: MUTHUKUMAR.T (ID: 1249) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: SHAMSHATH BEGUM (ID: 1209) -> Profile Says: 4, Actual Rows: 0
+[MISMATCH] User: ANANDA BADMANABAN (ID: 1190) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Mary Metilda S (ID: 1238) -> Profile Says: 3, Actual Rows: 0
+[MISMATCH] User: Sundirarasu (ID: 1195) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: RAMESH.A (ID: 1229) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Rosemary Subramanian (ID: 1219) -> Profile Says: 5, Actual Rows: 0
+[MISMATCH] User: JAYANTHI K (ID: 1259) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: PRADEEPA S (ID: 1267) -> Profile Says: 4, Actual Rows: 0
+[MISMATCH] User: Ms AKILA P (ID: 1243) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: CHITRA (ID: 1232) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: N.SIVAGAMI (ID: 1202) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: DURGA DEVI (ID: 1231) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: Srikanth M (ID: 1199) -> Profile Says: 2, Actual Rows: 0
+[MISMATCH] User: SENTHILKUMAR S (ID: 1157) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: RANIPADMAVATHI.S (ID: 1257) -> Profile Says: 3, Actual Rows: 0
+[MISMATCH] User: MEENAKSHI. V (ID: 1239) -> Profile Says: 1, Actual Rows: 0
+[MISMATCH] User: S SELVANADAN (ID: 1197) -> Profile Says: 2, Actual Rows: 0
+
+--- CHECKING ACTIVITY LOGS FOR DELETIONS ---
+[LOG] 2026-01-21T10:27:37.216Z - DELETE - Deleted admin: 22
+[LOG] 2026-01-21T09:08:37.845Z - DELETE - Archived user: 3635 (Number recycled)
+[LOG] 2026-01-21T06:06:21.763Z - DELETE - Archived user: 3426 (Number recycled)
+[LOG] 2026-01-21T06:06:04.041Z - DELETE - Archived user: 3429 (Number recycled)
+[LOG] 2026-01-21T04:45:53.065Z - DELETE - Archived user: 3421 (Number recycled)
+[LOG] 2026-01-21T01:22:05.865Z - DELETE - Soft Deleted user: 3396
+[LOG] 2026-01-21T01:21:38.851Z - DELETE - Soft Deleted user: 3393
+[LOG] 2026-01-21T01:20:52.633Z - DELETE - Soft Deleted user: 3393
+[LOG] 2026-01-21T01:20:32.972Z - DELETE - Soft Deleted user: 3393
+[LOG] 2026-01-21T01:20:00.318Z - DELETE - Soft Deleted user: 3393
+
+--- AUDIT COMPLETE ---

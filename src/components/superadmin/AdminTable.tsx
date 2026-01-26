@@ -1,4 +1,4 @@
-import { ShieldCheck, Download, MoreHorizontal, CheckCircle, XCircle, Calendar, Hash, Building2, Smartphone, Shield, Trash2, Key, Edit2 } from 'lucide-react'
+import { ShieldCheck, Download, MoreHorizontal, CheckCircle, XCircle, Calendar, Hash, Building2, Smartphone, Shield, Trash2, Key, Edit } from 'lucide-react'
 
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
@@ -130,24 +130,24 @@ export function AdminTable({
                 <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                     <button
                         onClick={() => onEdit?.(admin)}
-                        className="p-2 rounded-xl text-blue-600 hover:text-white hover:bg-blue-600 transition-all border border-blue-50 shadow-sm bg-white hover:scale-110 active:scale-95 group"
+                        className="p-2.5 rounded-2xl text-blue-600 hover:text-white hover:bg-blue-600 transition-all border border-blue-50 shadow-sm bg-white hover:scale-110 active:scale-95 transition-all"
                         suppressHydrationWarning
                     >
-                        <Edit2 size={16} strokeWidth={2.5} />
+                        <Edit size={16} strokeWidth={2.5} />
                     </button>
                     <button
                         onClick={() => onToggleStatus(admin.adminId, admin.status)}
-                        className={`p-2 rounded-xl transition-all shadow-sm bg-white border border-gray-100 flex items-center justify-center hover:scale-110 active:scale-95 ${admin.status === 'Active' ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-50' : 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50'}`}
+                        className={`p-2.5 rounded-2xl transition-all shadow-sm bg-white border border-gray-100 flex items-center justify-center hover:scale-110 active:scale-95 ${admin.status === 'Active' ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-50' : 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50'}`}
                         suppressHydrationWarning
                     >
                         {admin.status === 'Active' ? <XCircle size={16} strokeWidth={2.5} /> : <CheckCircle size={16} strokeWidth={2.5} />}
                     </button>
                     <button
                         onClick={() => onDelete(admin.adminId, admin.adminName)}
-                        className="p-2 rounded-xl text-red-500 hover:text-white hover:bg-red-500 transition-all border border-red-50 shadow-sm bg-white hover:scale-110 active:scale-95 group"
+                        className="p-2.5 rounded-2xl text-red-500 hover:text-white hover:bg-red-500 transition-all border border-red-50 shadow-sm bg-white hover:scale-110 active:scale-95 transition-all group"
                         suppressHydrationWarning
                     >
-                        <Trash2 size={16} strokeWidth={2.5} className="group-hover:animate-pulse" />
+                        <Trash2 size={16} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform" />
                     </button>
                 </div>
             )
@@ -155,14 +155,14 @@ export function AdminTable({
     ]
 
     const renderExpandedRow = (admin: Admin) => (
-        <div className="p-8 bg-gradient-to-br from-gray-50/50 to-white border-x border-b border-gray-100">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="space-y-1.5">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <Calendar size={12} className="text-red-500" />
-                        Account Created
+        <div className="p-10 bg-gradient-to-br from-gray-50/50 to-white/30 border-x border-b border-gray-100/50">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+                <div className="space-y-2">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2 font-mono">
+                        <Calendar size={14} className="text-red-500" />
+                        Temporal Entry
                     </p>
-                    <p className="text-sm font-bold text-gray-900">
+                    <p className="text-sm font-black text-gray-900 italic tracking-tight">
                         {new Date(admin.createdAt).toLocaleDateString('en-US', {
                             month: 'long',
                             day: 'numeric',
@@ -170,34 +170,34 @@ export function AdminTable({
                         })}
                     </p>
                 </div>
-                <div className="space-y-1.5">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <Shield size={12} className="text-blue-500" />
-                        Privilege Level
+                <div className="space-y-2">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2 font-mono">
+                        <Shield size={14} className="text-blue-500" />
+                        Auth Protocol
                     </p>
-                    <p className="text-sm font-black text-blue-600 uppercase">
+                    <p className="text-sm font-black text-blue-600 uppercase tracking-widest italic">
                         {mapAdminRole(admin.role as any)}
                     </p>
                 </div>
-                <div className="space-y-1.5">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <Hash size={12} className="text-purple-500" />
-                        Administrator ID
+                <div className="space-y-2">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2 font-mono">
+                        <Hash size={14} className="text-purple-500" />
+                        Unique Signature
                     </p>
-                    <p className="text-sm font-bold text-gray-900">
+                    <p className="text-sm font-black text-gray-900 font-mono">
                         #ADM-{admin.adminId.toString().padStart(4, '0')}
                     </p>
                 </div>
             </div>
-            <div className="mt-8 pt-6 border-t border-gray-100 flex gap-4">
+            <div className="mt-10 pt-8 border-t border-gray-100 flex gap-4">
                 <button
                     onClick={() => onResetPassword?.(admin.adminId, admin.adminName, 'admin')}
-                    className="text-[10px] font-black text-amber-600 hover:bg-amber-50 px-4 py-2 rounded-xl border border-amber-100 transition-all uppercase tracking-widest flex items-center gap-2"
+                    className="px-6 py-3.5 bg-white border border-amber-100 text-amber-600 rounded-2xl font-black text-[9px] uppercase tracking-[0.2em] hover:bg-amber-50 transition-all flex items-center gap-2 shadow-sm"
                 >
-                    <Key size={14} /> Reset Password
+                    <Key size={14} /> Reset Passphrase
                 </button>
-                <button className="text-[10px] font-black text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-xl border border-gray-200 transition-all uppercase tracking-widest">
-                    Audit Activity
+                <button className="px-6 py-3.5 bg-gray-900 text-white rounded-2xl font-black text-[9px] uppercase tracking-[0.2em] hover:bg-black transition-all flex items-center gap-2 shadow-lg shadow-gray-200">
+                    Audit Activity Log
                 </button>
             </div>
         </div>
@@ -206,19 +206,18 @@ export function AdminTable({
     return (
         <div className="space-y-6 animate-fade-in">
             {/* Premium Header */}
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm transition-all hover:shadow-md">
-                <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gray-900 text-white rounded-xl shadow-sm border border-gray-800">
-                        <ShieldCheck size={24} strokeWidth={2.5} />
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white/80 backdrop-blur-md p-8 rounded-[40px] border border-white/50 shadow-xl shadow-gray-200/50">
+                <div className="flex items-center gap-5">
+                    <div className="p-4 bg-gray-900 text-white rounded-[20px] shadow-lg shadow-gray-200 border border-gray-800">
+                        <ShieldCheck size={28} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-black text-gray-900 tracking-tight">System Administrators</h1>
-                        <p className="text-sm text-gray-500 font-bold tracking-wide">Manage executive and operational access controls</p>
+                        <h1 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic">Executive Control</h1>
+                        <p className="text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] font-mono mt-0.5">Administrative Permission Layer</p>
                     </div>
                 </div>
 
-                <div className="flex gap-4">
+                <div className="flex items-center gap-3">
                     <button
                         onClick={() => exportToCSV(admins, 'System_Admins', [
                             { header: 'Name', accessor: (a) => a.adminName },
@@ -228,17 +227,17 @@ export function AdminTable({
                             { header: 'Status', accessor: (a) => a.status },
                             { header: 'Created On', accessor: (a) => a.createdAt }
                         ])}
-                        className="px-8 py-4 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold text-xs hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3 uppercase tracking-wide"
+                        className="px-6 py-4 bg-white border border-gray-100 text-gray-500 rounded-2xl font-black text-[10px] hover:bg-gray-50 hover:text-black transition-all flex items-center gap-2 uppercase tracking-widest"
                         suppressHydrationWarning
                     >
-                        <Download size={18} /> Export List
+                        <Download size={16} /> Export Intelligence
                     </button>
                     <button
                         onClick={onAddAdmin}
-                        className="px-10 py-4 bg-red-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-red-600/20 hover:shadow-red-600/40 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-3 uppercase tracking-wide border border-red-500"
+                        className="px-8 py-4 bg-red-600 text-white rounded-2xl font-black text-[10px] shadow-xl shadow-red-100 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 uppercase tracking-[0.2em] border border-red-500"
                         suppressHydrationWarning
                     >
-                        <ShieldCheck size={18} /> New Administrator
+                        <ShieldCheck size={16} /> Ignite Executive
                     </button>
                 </div>
             </div>

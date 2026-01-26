@@ -12,29 +12,29 @@ interface CleanStatCardProps {
 
 export function CleanStatCard({ title, value, icon: Icon, subtext, change, iconColor = "text-gray-500", trend }: CleanStatCardProps) {
     return (
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-white/80 backdrop-blur-md p-6 rounded-[32px] border border-white/50 shadow-xl shadow-gray-200/50 hover:shadow-2xl hover:shadow-gray-200/80 transition-all duration-300 group">
             <div className="flex items-start justify-between">
-                <div>
-                    <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">{title}</p>
-                    <div className="mt-2 flex items-baseline gap-2">
-                        <h3 className="text-2xl font-bold text-gray-900">
+                <div className="space-y-1">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">{title}</p>
+                    <div className="flex items-baseline gap-2">
+                        <h3 className="text-3xl font-black text-gray-900 tracking-tighter italic">
                             {typeof value === 'number' ? value.toLocaleString() : value}
                         </h3>
                     </div>
                 </div>
-                <div className={`p-2 rounded-lg bg-gray-50 ${iconColor}`}>
-                    <Icon size={20} />
+                <div className={`p-3 rounded-2xl bg-white shadow-inner border border-gray-50 ${iconColor} group-hover:scale-110 transition-transform duration-500`}>
+                    <Icon size={22} strokeWidth={2.5} />
                 </div>
             </div>
             {(subtext || change) && (
-                <div className="mt-4 flex items-center text-sm">
+                <div className="mt-6 flex items-center justify-between">
                     {change && (
-                        <span className={`font-medium ${change.isIncrease ? 'text-green-600' : 'text-red-600'} flex items-center gap-1`}>
-                            {change.isIncrease ? '+' : '-'}{change.value}%
-                        </span>
+                        <div className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 ${change.isIncrease ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                            {change.isIncrease ? '↑' : '↓'} {change.value}%
+                        </div>
                     )}
                     {subtext && (
-                        <span className="text-gray-500 ml-2">{subtext}</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{subtext}</span>
                     )}
                 </div>
             )}

@@ -1,0 +1,16 @@
+≡ƒöì Inspecting backup: 5star-backup-2026-01-21T00_34_13.252Z.json
+--- Backup Contents ---
+Users: 831
+Students: 0
+ReferralLeads: 233
+Sample Referral Date: 2026-01-13T12:12:21.540Z
+Last Referral Date: 2026-01-20T16:49:16.575Z
+Keys in data: [
+  'users',
+  'students',
+  'leads',
+  'admins',
+  'campuses',
+  'feeStructures',
+  'settings'
+]

@@ -7,6 +7,7 @@ export interface ReferralFilterParams {
     feeType?: string
     search?: string
     dateRange?: { from: string; to: string }
+    grade?: string
 }
 
 /**
@@ -40,9 +41,13 @@ export function buildReferralWhereClause(
         where.campus = { in: filters.campus.split(',') }
     }
 
-    // Fee Type Filter
     if (filters.feeType && filters.feeType !== 'All') {
         where.selectedFeeType = { in: filters.feeType.split(',') }
+    }
+
+    // Grade Filter
+    if (filters.grade && filters.grade !== 'All') {
+        where.gradeInterested = { in: filters.grade.split(',') }
     }
 
     // Search Filter (Multi-field)

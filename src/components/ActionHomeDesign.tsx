@@ -200,7 +200,13 @@ export function ActionHomeDesign({ user, recentReferrals, whatsappUrl, monthStat
                         className="flex-1 group relative flex items-center justify-center gap-3 bg-white text-pink-700 h-14 rounded-[20px] font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:shadow-2xl transition-all overflow-hidden border border-white"
                     >
                         <div className="absolute inset-0 bg-pink-50/50 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                        <Share2 size={16} className="relative z-10" />
+                        <img
+                            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23be185d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='18' cy='5' r='3'/%3E%3Ccircle cx='6' cy='12' r='3'/%3E%3Ccircle cx='18' cy='19' r='3'/%3E%3Cline x1='8.59' x2='15.42' y1='13.51' y2='17.49'/%3E%3Cline x1='15.41' x2='8.59' y1='6.51' y2='10.49'/%3E%3C/svg%3E"
+                            alt="Share"
+                            width={16}
+                            height={16}
+                            className="relative z-10 block"
+                        />
                         <span className="relative z-10">Share on WhatsApp</span>
                     </motion.a>
 
@@ -208,7 +214,23 @@ export function ActionHomeDesign({ user, recentReferrals, whatsappUrl, monthStat
                         onClick={handleCopy}
                         className="h-14 w-14 bg-white/20 hover:bg-white/30 backdrop-blur-xl text-white border border-white/20 rounded-[20px] flex items-center justify-center transition-all shrink-0 active:scale-95 shadow-lg"
                     >
-                        {copied ? <Check size={20} className="text-emerald-300" /> : <Copy size={20} />}
+                        {copied ? (
+                            <img
+                                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236ee7b7' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E"
+                                alt="Copied"
+                                width={20}
+                                height={20}
+                                className="block"
+                            />
+                        ) : (
+                            <img
+                                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='14' height='14' x='8' y='8' rx='2' ry='2'/%3E%3Cpath d='M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2'/%3E%3C/svg%3E"
+                                alt="Copy"
+                                width={20}
+                                height={20}
+                                className="block"
+                            />
+                        )}
                     </button>
                 </div>
                 <div className="text-center mt-3">

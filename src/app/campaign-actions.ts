@@ -38,7 +38,8 @@ export async function createCampaign(data: {
     subject: string,
     templateBody: string,
     type?: string,
-    targetAudience?: any
+    targetAudience?: any,
+    channels?: string[]
 }) {
     try {
         await checkAdmin()
@@ -49,6 +50,7 @@ export async function createCampaign(data: {
                 templateBody: data.templateBody,
                 type: data.type || 'EMAIL',
                 targetAudience: data.targetAudience ?? {},
+                channels: data.channels || ['EMAIL'],
                 status: 'DRAFT'
             }
         })
@@ -67,7 +69,8 @@ export async function updateCampaign(id: number, data: Partial<{
     subject: string,
     templateBody: string,
     status: string,
-    targetAudience: any
+    targetAudience: any,
+    channels: string[]
 }>) {
     try {
         await checkAdmin()

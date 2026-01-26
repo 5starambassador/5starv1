@@ -394,7 +394,13 @@ export function ReferralTable({
                             onClick={() => setSelectedIds([])}
                             className="ml-4 p-2 hover:bg-white/20 rounded-full transition-colors"
                         >
-                            <X size={16} />
+                            <img
+                                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18'/%3E%3Cpath d='m6 6 18 12'/%3E%3C/svg%3E"
+                                alt="Clear"
+                                width={16}
+                                height={16}
+                                className="block"
+                            />
                         </button>
                     </div>
                 </div>

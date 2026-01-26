@@ -304,11 +304,18 @@ export async function convertLeadToStudent(leadId: number, studentDetails: {
                 data: { leadStatus: 'Confirmed' } // Or 'Admitted' if you prefer, but UI usually expects 'Confirmed'
             })
 
-            // 6. Increment Ambassador's count
-            await tx.user.update({
+            // 6. Increment Ambassador's count and promote to 5-Star if threshold reached
+            const updatedUser = await tx.user.update({
                 where: { userId: lead.userId },
                 data: { confirmedReferralCount: { increment: 1 } }
             })
+
+            if (updatedUser.confirmedReferralCount >= 5 && !updatedUser.isFiveStarMember) {
+                await tx.user.update({
+                    where: { userId: updatedUser.userId },
+                    data: { isFiveStarMember: true }
+                })
+            }
 
             return student
         })
@@ -498,6 +505,21 @@ export async function bulkAddStudents(students: Array<{
                     }
                 })
             })
+
+            // Increment Ambassador's count and promote to 5-Star if threshold reached
+            if (ambassadorId) {
+                const updatedAmbassador = await prisma.user.update({
+                    where: { userId: ambassadorId },
+                    data: { confirmedReferralCount: { increment: 1 } }
+                })
+
+                if (updatedAmbassador.confirmedReferralCount >= 5 && !updatedAmbassador.isFiveStarMember) {
+                    await prisma.user.update({
+                        where: { userId: ambassadorId },
+                        data: { isFiveStarMember: true }
+                    })
+                }
+            }
             added++
         } catch (error) {
             console.error(`Error adding student ${s.fullName}:`, error)

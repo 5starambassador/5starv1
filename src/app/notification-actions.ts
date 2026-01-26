@@ -160,3 +160,50 @@ export async function updateNotificationSettings(data: any) {
         return { success: false, error: 'Failed to update settings' }
     }
 }
+
+
+// ===================== PUSH NOTIFICATION ACTIONS =====================
+
+/**
+ * Registers a device token for Push Notifications.
+ * Handles "Upsert" logic and ensuring 1:N relationship.
+ */
+export async function registerDevice(token: string, platform: 'WEB' | 'ANDROID' | 'IOS' = 'WEB') {
+    const session = await getSession()
+    if (!session?.userId) return { success: false, error: 'Unauthorized' }
+
+    try {
+        // Upsert: If token exists, update user & timestamp. If not, create.
+        await prisma.deviceToken.upsert({
+            where: { token },
+            create: {
+                userId: session.userId,
+                token,
+                platform
+            },
+            update: {
+                userId: session.userId, // In case user switched accounts on same device
+                lastUsedAt: new Date()
+            }
+        })
+        return { success: true }
+    } catch (error) {
+        console.error('Register Device Error:', error)
+        return { success: false, error: 'Failed to register device' }
+    }
+}
+
+/**
+ * Removes a device token (e.g., on Logout).
+ */
+export async function unregisterDevice(token: string) {
+    try {
+        await prisma.deviceToken.delete({
+            where: { token }
+        })
+        return { success: true }
+    } catch (error) {
+        // Ignore if already deleted
+        return { success: true }
+    }
+}

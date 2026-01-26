@@ -2,7 +2,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { AccountStatus } from '@prisma/client'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, IndianRupee, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2, Zap, Lock, UserCog, Share2, Megaphone, Globe, Gift } from 'lucide-react'
+import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, IndianRupee, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2, Zap, Lock, UserCog, Share2, Megaphone, Globe, Gift, CheckCircle } from 'lucide-react'
 import { MobileMenu } from '@/components/MobileMenu'
 import { NotificationDropdown } from '@/components/NotificationDropdown'
 import MobileSidebarWrapper from '@/components/MobileSidebarWrapper'
@@ -18,7 +18,6 @@ import { CommandPalette } from '@/components/superadmin/CommandPalette'
 async function logout() {
     'use server'
     await deleteSession()
-    redirect('/')
 }
 
 export const dynamic = 'force-dynamic'
@@ -77,6 +76,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             navItems.push({ label: 'Promo Management', href: '/superadmin?view=marketing', icon: <Megaphone /> })
             navItems.push({ label: 'Benefit Config', href: '/superadmin/benefits', icon: <Gift /> })
             navItems.push({ label: 'Verifications', href: '/superadmin/verification', icon: <ShieldCheck /> })
+            navItems.push({ label: 'Payment Approvals', href: '/superadmin/approvals', icon: <CheckCircle /> })
             navItems.push({ label: 'Permissions', href: '/superadmin?view=permissions', icon: <Lock /> })
         }
 
@@ -200,15 +200,19 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                             className="shadow-sm h-9 w-auto"
                         />
                     </div>
+
+                    <div className="flex items-center gap-2">
+                        <NotificationDropdown userName={user.fullName} referralCode={(user as any).referralCode || ''} />
+                    </div>
                 </div>
 
                 <main
-                    className="flex-1 w-full max-w-[1400px] px-8 py-4 xl:p-8 pt-24 xl:pt-8 pb-20 xl:pb-8 relative z-10"
+                    className="flex-1 w-full max-w-[1400px] px-4 py-4 xl:p-8 pt-20 xl:pt-8 pb-20 xl:pb-8 relative z-10"
                 >
                     {/* Desktop Notification Header */}
                     <header className="hidden xl:flex justify-end mb-4 absolute top-4 right-8 z-20">
                         <div className="bg-white/80 backdrop-blur-md p-1.5 rounded-full shadow-sm border border-white/50">
-                            <NotificationDropdown />
+                            <NotificationDropdown userName={user.fullName} referralCode={(user as any).referralCode || ''} />
                         </div>
                     </header>
                     {children}

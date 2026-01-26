@@ -1,0 +1,195 @@
+≡ƒöì Starting Campus Head Audit...
+Total Admins found: 56
+Roles found in DB: [
+  'Super_Admin',
+  'Admission_Admin',
+  'Finance_Admin',
+  'Campus_Head',
+  'Campus_Admin'
+]
+found 44 Campus Head(s).
+
+Checking Admin: Campus Head (8888888888)
+Γ£à Assigned Campus 'ASM - VILLIANUR' exists (ID: 100)
+
+Checking Admin: ABSM TRICHY (9363494747)
+Γ£à Assigned Campus 'ABSM - TRICHY' exists (ID: 120)
+
+Checking Admin: Campus Head - Adyar (9100000002)
+Γ£à Assigned Campus 'ABSM - ADYAR' exists (ID: 124)
+
+Checking Admin: ASM - VL (Mont to 8) (9994413058)
+Γ£à Assigned Campus 'ASM - VILLIANUR' exists (ID: 100)
+
+Checking Admin: ABSM TT (9442266597)
+Γ£à Assigned Campus 'ABSM - THENGAITHITTU' exists (ID: 101)
+
+Checking Admin: Aklavya - TT (9489514680)
+Γ£à Assigned Campus 'AKLAVYA - THENGAITHITTU' exists (ID: 102)
+
+Checking Admin: SSV - VL (8300316366)
+Γ£à Assigned Campus 'SSV - VILLIANUR' exists (ID: 103)
+
+Checking Admin: SSV HSC - VL (9442255275)
+Γ£à Assigned Campus 'SSV HSC- VILLIANUR' exists (ID: 137)
+
+Checking Admin: ASM TKM  (9445445641)
+Γ£à Assigned Campus 'ASM - THAVALAKUPPAM' exists (ID: 104)
+
+Checking Admin: ASM MKM (9487256009)
+Γ£à Assigned Campus 'ASM - MOOLAKULAM' exists (ID: 105)
+
+Checking Admin: ASM KARAIKAL (9442255369)
+Γ£à Assigned Campus 'ASM - KARAIKAL' exists (ID: 106)
+
+Checking Admin: AWGI (9524170707)
+Γ£à Assigned Campus 'AWGI - ETTIMADAI' exists (ID: 107)
+
+Checking Admin: ASM TRICHY (9345916966)
+Γ£à Assigned Campus 'ASM - TRICHY' exists (ID: 109)
+
+Checking Admin: ABSM TDM (8300645414)
+Γ£à Assigned Campus 'ABSM - TINDIVANAM' exists (ID: 110)
+
+Checking Admin: ASM VPM (9442266217)
+Γ£à Assigned Campus 'ASM - VILLUPURAM' exists (ID: 111)
+
+Checking Admin: AKLAVYA RP (9344497461)
+Γ£à Assigned Campus 'AKLAVYA - REDDIYARPALAYAM' exists (ID: 112)
+
+Checking Admin: ASM MP (9344497455)
+Γ£à Assigned Campus 'ASM - MUTHIRAPALAYAM' exists (ID: 113)
+
+Checking Admin: ABSM GM (9442244189)
+Γ£à Assigned Campus 'ABSM - GORIMEDU' exists (ID: 114)
+
+Checking Admin: ABSM LP (9489514685)
+Γ£à Assigned Campus 'ABSM - LAWSPET' exists (ID: 115)
+
+Checking Admin: ABSM MLP (9994708887)
+Γ£à Assigned Campus 'ABSM - MUTHIYALPET' exists (ID: 116)
+
+Checking Admin: ABSM KP (9344497460)
+Γ£à Assigned Campus 'ABSM - KALAPET' exists (ID: 117)
+
+Checking Admin: ABSM VN (9025224889)
+Γ£à Assigned Campus 'ABSM - VENKATA NAGAR' exists (ID: 118)
+
+Checking Admin: ASM CC - ERODE (9361189299)
+Γ£à Assigned Campus 'ASM CC -  ERODE' exists (ID: 121)
+
+Checking Admin: ASM - ALAPAKKAM (9486732991)
+Γ£à Assigned Campus 'ASM - ALAPAKKAM' exists (ID: 123)
+
+Checking Admin: ASM - PERUNDURAI (9361189311)
+Γ£à Assigned Campus 'ASM - PERUNDURAI' exists (ID: 122)
+
+Checking Admin: ABSM ADYAR (9488206009)
+Γ£à Assigned Campus 'ABSM - ADYAR' exists (ID: 124)
+
+Checking Admin: ABSM KK NAGAR (9486546009)
+Γ£à Assigned Campus 'ABSM - KK NAGAR' exists (ID: 125)
+
+Checking Admin: ABSM VVK (9486976009)
+Γ£à Assigned Campus 'ABSM - VARASALAVAKAM' exists (ID: 126)
+
+Checking Admin: ABSM PBN (9487626009)
+Γ£à Assigned Campus 'ABSM - PADMANABHANAGAR' exists (ID: 127)
+
+Checking Admin: ABSM DASARATHAPURAM (9487526009)
+Γ£à Assigned Campus 'ABSM - DASARATHAPURAM' exists (ID: 128)
+
+Checking Admin: ABSM SALIGRAMAM (9360293687)
+Γ£à Assigned Campus 'ABSM - SALIGRAMAM' exists (ID: 129)
+
+Checking Admin: ABSM RK NAGAR (9487676009)
+Γ£à Assigned Campus 'ABSM - RK NAGAR' exists (ID: 130)
+
+Checking Admin: ABSM ALAPAKKAM (9442386430)
+Γ£à Assigned Campus 'ABSM - ALAPAKKAM' exists (ID: 131)
+
+Checking Admin: ABSM THIRU NAGAR (9445445649)
+Γ£à Assigned Campus 'ABSM - THIRU NAGAR' exists (ID: 132)
+
+Checking Admin: ABSM MADURAVOYAL (9442255346)
+Γ£à Assigned Campus 'ABSM - MADURAVOYAL' exists (ID: 133)
+
+Checking Admin: ABSM NOLAMBUR (9345917296)
+Γ£à Assigned Campus 'ABSM - NOLAMBUR' exists (ID: 134)
+
+Checking Admin: ACET (9442277107)
+Γ£à Assigned Campus 'ACET' exists (ID: 139)
+
+Checking Admin: ACCHM (9442277028)
+Γ£à Assigned Campus 'ACCHM' exists (ID: 141)
+
+Checking Admin: AIIS - ERODE (7338816930)
+Γ£à Assigned Campus 'AIIS - ERODE' exists (ID: 108)
+
+Checking Admin: AASC (9442244168)
+Γ£à Assigned Campus 'AASC' exists (ID: 142)
+
+Checking Admin: ABSM PP - TT (9677938284)
+Γ£à Assigned Campus 'ABSM PP - THENGAITHITTU' exists (ID: 136)
+
+Checking Admin: AKLAVYA ANUGRAHA (9442244178)
+Γ£à Assigned Campus 'AKLAVYA - ANUGRAHA' exists (ID: 119)
+
+Checking Admin: Campus Head - Villianur (9100000001)
+Γ£à Assigned Campus 'ASM HSC - VILLIANUR' exists (ID: 138)
+
+Checking Admin: ASM VL (9-12) (9488376009)
+Γ£à Assigned Campus 'ASM HSC - VILLIANUR' exists (ID: 138)
+
+≡ƒöì Check Campuses...
+
+≡ƒôè Audit Summary:
+Γ¥î Found 44 issues:
+ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+Γöé (index) Γöé type                   Γöé adminId Γöé name                      Γöé campus                      Γöé currentHeadId Γöé
+Γö£ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöñ
+Γöé 0       Γöé 'CampusHeadIdMismatch' Γöé 10      Γöé 'Campus Head'             Γöé 'ASM - VILLIANUR'           Γöé null          Γöé
+Γöé 1       Γöé 'CampusHeadIdMismatch' Γöé 37      Γöé 'ABSM TRICHY'             Γöé 'ABSM - TRICHY'             Γöé null          Γöé
+Γöé 2       Γöé 'CampusHeadIdMismatch' Γöé 4       Γöé 'Campus Head - Adyar'     Γöé 'ABSM - ADYAR'              Γöé null          Γöé
+Γöé 3       Γöé 'CampusHeadIdMismatch' Γöé 15      Γöé 'ASM - VL (Mont to 8)'    Γöé 'ASM - VILLIANUR'           Γöé null          Γöé
+Γöé 4       Γöé 'CampusHeadIdMismatch' Γöé 17      Γöé 'ABSM TT'                 Γöé 'ABSM - THENGAITHITTU'      Γöé null          Γöé
+Γöé 5       Γöé 'CampusHeadIdMismatch' Γöé 18      Γöé 'Aklavya - TT'            Γöé 'AKLAVYA - THENGAITHITTU'   Γöé null          Γöé
+Γöé 6       Γöé 'CampusHeadIdMismatch' Γöé 19      Γöé 'SSV - VL'                Γöé 'SSV - VILLIANUR'           Γöé null          Γöé
+Γöé 7       Γöé 'CampusHeadIdMismatch' Γöé 20      Γöé 'SSV HSC - VL'            Γöé 'SSV HSC- VILLIANUR'        Γöé null          Γöé
+Γöé 8       Γöé 'CampusHeadIdMismatch' Γöé 22      Γöé 'ASM TKM '                Γöé 'ASM - THAVALAKUPPAM'       Γöé null          Γöé
+Γöé 9       Γöé 'CampusHeadIdMismatch' Γöé 23      Γöé 'ASM MKM'                 Γöé 'ASM - MOOLAKULAM'          Γöé null          Γöé
+Γöé 10      Γöé 'CampusHeadIdMismatch' Γöé 24      Γöé 'ASM KARAIKAL'            Γöé 'ASM - KARAIKAL'            Γöé null          Γöé
+Γöé 11      Γöé 'CampusHeadIdMismatch' Γöé 25      Γöé 'AWGI'                    Γöé 'AWGI - ETTIMADAI'          Γöé null          Γöé
+Γöé 12      Γöé 'CampusHeadIdMismatch' Γöé 27      Γöé 'ASM TRICHY'              Γöé 'ASM - TRICHY'              Γöé null          Γöé
+Γöé 13      Γöé 'CampusHeadIdMismatch' Γöé 28      Γöé 'ABSM TDM'                Γöé 'ABSM - TINDIVANAM'         Γöé null          Γöé
+Γöé 14      Γöé 'CampusHeadIdMismatch' Γöé 29      Γöé 'ASM VPM'                 Γöé 'ASM - VILLUPURAM'          Γöé null          Γöé
+Γöé 15      Γöé 'CampusHeadIdMismatch' Γöé 30      Γöé 'AKLAVYA RP'              Γöé 'AKLAVYA - REDDIYARPALAYAM' Γöé null          Γöé
+Γöé 16      Γöé 'CampusHeadIdMismatch' Γöé 31      Γöé 'ASM MP'                  Γöé 'ASM - MUTHIRAPALAYAM'      Γöé null          Γöé
+Γöé 17      Γöé 'CampusHeadIdMismatch' Γöé 32      Γöé 'ABSM GM'                 Γöé 'ABSM - GORIMEDU'           Γöé null          Γöé
+Γöé 18      Γöé 'CampusHeadIdMismatch' Γöé 33      Γöé 'ABSM LP'                 Γöé 'ABSM - LAWSPET'            Γöé null          Γöé
+Γöé 19      Γöé 'CampusHeadIdMismatch' Γöé 34      Γöé 'ABSM MLP'                Γöé 'ABSM - MUTHIYALPET'        Γöé null          Γöé
+Γöé 20      Γöé 'CampusHeadIdMismatch' Γöé 35      Γöé 'ABSM KP'                 Γöé 'ABSM - KALAPET'            Γöé null          Γöé
+Γöé 21      Γöé 'CampusHeadIdMismatch' Γöé 36      Γöé 'ABSM VN'                 Γöé 'ABSM - VENKATA NAGAR'      Γöé null          Γöé
+Γöé 22      Γöé 'CampusHeadIdMismatch' Γöé 38      Γöé 'ASM CC - ERODE'          Γöé 'ASM CC -  ERODE'           Γöé null          Γöé
+Γöé 23      Γöé 'CampusHeadIdMismatch' Γöé 40      Γöé 'ASM - ALAPAKKAM'         Γöé 'ASM - ALAPAKKAM'           Γöé null          Γöé
+Γöé 24      Γöé 'CampusHeadIdMismatch' Γöé 39      Γöé 'ASM - PERUNDURAI'        Γöé 'ASM - PERUNDURAI'          Γöé null          Γöé
+Γöé 25      Γöé 'CampusHeadIdMismatch' Γöé 41      Γöé 'ABSM ADYAR'              Γöé 'ABSM - ADYAR'              Γöé null          Γöé
+Γöé 26      Γöé 'CampusHeadIdMismatch' Γöé 42      Γöé 'ABSM KK NAGAR'           Γöé 'ABSM - KK NAGAR'           Γöé null          Γöé
+Γöé 27      Γöé 'CampusHeadIdMismatch' Γöé 43      Γöé 'ABSM VVK'                Γöé 'ABSM - VARASALAVAKAM'      Γöé null          Γöé
+Γöé 28      Γöé 'CampusHeadIdMismatch' Γöé 44      Γöé 'ABSM PBN'                Γöé 'ABSM - PADMANABHANAGAR'    Γöé null          Γöé
+Γöé 29      Γöé 'CampusHeadIdMismatch' Γöé 45      Γöé 'ABSM DASARATHAPURAM'     Γöé 'ABSM - DASARATHAPURAM'     Γöé null          Γöé
+Γöé 30      Γöé 'CampusHeadIdMismatch' Γöé 46      Γöé 'ABSM SALIGRAMAM'         Γöé 'ABSM - SALIGRAMAM'         Γöé null          Γöé
+Γöé 31      Γöé 'CampusHeadIdMismatch' Γöé 47      Γöé 'ABSM RK NAGAR'           Γöé 'ABSM - RK NAGAR'           Γöé null          Γöé
+Γöé 32      Γöé 'CampusHeadIdMismatch' Γöé 48      Γöé 'ABSM ALAPAKKAM'          Γöé 'ABSM - ALAPAKKAM'          Γöé null          Γöé
+Γöé 33      Γöé 'CampusHeadIdMismatch' Γöé 49      Γöé 'ABSM THIRU NAGAR'        Γöé 'ABSM - THIRU NAGAR'        Γöé null          Γöé
+Γöé 34      Γöé 'CampusHeadIdMismatch' Γöé 50      Γöé 'ABSM MADURAVOYAL'        Γöé 'ABSM - MADURAVOYAL'        Γöé null          Γöé
+Γöé 35      Γöé 'CampusHeadIdMismatch' Γöé 51      Γöé 'ABSM NOLAMBUR'           Γöé 'ABSM - NOLAMBUR'           Γöé null          Γöé
+Γöé 36      Γöé 'CampusHeadIdMismatch' Γöé 52      Γöé 'ACET'                    Γöé 'ACET'                      Γöé null          Γöé
+Γöé 37      Γöé 'CampusHeadIdMismatch' Γöé 53      Γöé 'ACCHM'                   Γöé 'ACCHM'                     Γöé null          Γöé
+Γöé 38      Γöé 'CampusHeadIdMismatch' Γöé 26      Γöé 'AIIS - ERODE'            Γöé 'AIIS - ERODE'              Γöé null          Γöé
+Γöé 39      Γöé 'CampusHeadIdMismatch' Γöé 54      Γöé 'AASC'                    Γöé 'AASC'                      Γöé null          Γöé
+Γöé 40      Γöé 'CampusHeadIdMismatch' Γöé 56      Γöé 'ABSM PP - TT'            Γöé 'ABSM PP - THENGAITHITTU'   Γöé null          Γöé
+Γöé 41      Γöé 'CampusHeadIdMismatch' Γöé 57      Γöé 'AKLAVYA ANUGRAHA'        Γöé 'AKLAVYA - ANUGRAHA'        Γöé null          Γöé
+Γöé 42      Γöé 'CampusHeadIdMismatch' Γöé 3       Γöé 'Campus Head - Villianur' Γöé 'ASM HSC - VILLIANUR'       Γöé null          Γöé
+Γöé 43      Γöé 'CampusHeadIdMismatch' Γöé 16      Γöé 'ASM VL (9-12)'           Γöé 'ASM HSC - VILLIANUR'       Γöé null          Γöé
+ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö┤ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ

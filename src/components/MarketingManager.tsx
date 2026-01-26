@@ -268,7 +268,13 @@ export function MarketingManager({ assets }: MarketingManagerProps) {
                                         onClick={() => setShowForm(false)}
                                         className="p-2.5 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-colors"
                                     >
-                                        <X size={20} />
+                                        <img
+                                            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18'/%3E%3Cpath d='m6 6 18 12'/%3E%3C/svg%3E"
+                                            alt="Close"
+                                            width={20}
+                                            height={20}
+                                            className="block"
+                                        />
                                     </button>
                                 </div>
                             </div>

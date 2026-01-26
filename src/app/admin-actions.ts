@@ -34,21 +34,40 @@ export async function getAllReferrals(
         search?: string
         feeType?: string
         dateRange?: { from: string; to: string } // ISO strings
+        grade?: string
     },
     sort?: { field: string; order: 'asc' | 'desc' }
 ) {
+    const fs = require('fs')
+    const path = require('path')
+    const logFile = path.join(process.cwd(), 'debug_referrals.log')
+    const log = (msg: string) => { try { fs.appendFileSync(logFile, new Date().toISOString() + ': ' + msg + '\\n') } catch (e) { } }
+
+    log(`getAllReferrals called. Page: ${page}, Limit: ${limit}, Filters: ${JSON.stringify(filters || {})}`)
+
     const user = await getCurrentUser()
-    if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus'))) return { success: false, error: 'Unauthorized' }
+    log(`User: ${user?.role} (${user?.userId || 'No ID'})`)
+    if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus'))) {
+        log('Unauthorized: Role check failed')
+        return { success: false, error: 'Unauthorized' }
+    }
 
     const { filter: scopeFilter, isReadOnly } = await getScopeFilter('referralTracking', {
         campusField: 'campus',
         useCampusName: true
     })
 
-    if (scopeFilter === null) return { success: false, error: 'No access to referral data' }
+    log(`Scope Filter Result: ${JSON.stringify(scopeFilter)}`)
+
+    if (scopeFilter === null) {
+        log('DEBUG: No access to referral data (scopeFilter is null)')
+        return { success: false, error: 'No access to referral data' }
+    }
 
     // Build Dynamic Where Clause (Refactored)
     const where = buildReferralWhereClause(filters, scopeFilter)
+
+    log(`DEBUG: getAllReferrals WHERE: ${JSON.stringify(where)}`)
 
     // Build Order By
     let orderBy: any = { createdAt: 'desc' }
@@ -65,12 +84,36 @@ export async function getAllReferrals(
             prisma.referralLead.count({ where }),
             prisma.referralLead.findMany({
                 where,
-                include: { user: true, student: true },
+                include: {
+                    user: {
+                        select: {
+                            userId: true,
+                            fullName: true,
+                            role: true,
+                            referralCode: true,
+                            mobileNumber: true,
+                            assignedCampus: true,
+                            // Only select safe fields to avoid serialization issues with passwords etc
+                        }
+                    },
+                    student: true
+                },
                 orderBy,
                 skip: (page - 1) * limit,
                 take: limit
             })
         ])
+
+        log(`DEBUG: Fetched ${referrals.length} referrals. Total: ${total}`)
+        if (referrals.length > 0) {
+            const sample = referrals[0]
+            log(`Sample Lead: ${sample.leadId} - ${sample.user?.fullName} - ${sample.campus}`)
+        } else {
+            log('No referrals found.')
+        }
+        if (referrals.length > 0) {
+            console.log('DEBUG: Sample Lead:', JSON.stringify(referrals[0].user, null, 2))
+        }
 
         return {
             success: true,
@@ -271,7 +314,7 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
                 where: {
                     campusId: leadRecord.campusId,
                     grade: leadRecord.gradeInterested,
-                    academicYear: '2025-2026' // Default for now
+                    academicYear: '2026-2027' // Default for now
                 }
             })
 
@@ -658,6 +701,7 @@ export async function getReferralStats(filters?: {
     feeType?: string
     search?: string
     dateRange?: { from: string; to: string }
+    grade?: string
 }) {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus'))) return { success: false, error: 'Unauthorized' }
@@ -709,6 +753,8 @@ export async function exportReferrals(filters?: {
     feeType?: string
     search?: string
     dateRange?: { from: string; to: string }
+    grade?: string
+    columns?: string[] // [NEW] User selected columns
 }) {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus'))) return { success: false, error: 'Unauthorized' }
@@ -738,22 +784,43 @@ export async function exportReferrals(filters?: {
             }
         })
 
-        // Manual CSV Generation
-        const headers = ['Lead ID', 'Parent Name', 'Parent Mobile', 'Student Name', 'Grade', 'Campus', 'Status', 'Referrer', 'Referrer Role', 'Referrer Mobile', 'Date Created', 'ERP Number']
-        const rows = referrals.map(r => [
-            r.leadId,
-            `"${r.parentName.replace(/"/g, '""')}"`,
-            r.parentMobile,
-            `"${(r.studentName || '').replace(/"/g, '""')}"`,
-            r.gradeInterested || '',
-            r.campus || '',
-            r.leadStatus,
-            `"${r.user.fullName.replace(/"/g, '""')}"`,
-            r.user.role,
-            r.user.mobileNumber,
-            new Date(r.createdAt).toLocaleDateString(),
-            r.admissionNumber || ''
-        ])
+        // Dynamic Column Mapping
+        // Define available columns and their data extractors
+        const FIELD_MAP: Record<string, (r: any) => string | number> = {
+            'Lead ID': r => r.leadId,
+            'Parent Name': r => `"${r.parentName.replace(/"/g, '""')}"`,
+            'Parent Mobile': r => r.parentMobile,
+            'Student Name': r => `"${(r.studentName || '').replace(/"/g, '""')}"`,
+            'Grade': r => r.gradeInterested || '',
+            'Section': r => r.section || '',
+            'Campus': r => r.campus || '',
+            'Status': r => r.leadStatus,
+            'Referrer': r => `"${r.user.fullName.replace(/"/g, '""')}"`,
+            'Referrer Role': r => r.user.role,
+            'Referrer Mobile': r => r.user.mobileNumber,
+            'Date Created': r => new Date(r.createdAt).toLocaleDateString(),
+            'ERP Number': r => r.admissionNumber || '',
+            'Academic Year': r => r.admittedYear || '', // [NEW] As requested
+            'Fee Plan': r => r.selectedFeeType || '',
+            'Annual Fee': r => r.annualFee || '',
+            'Rejection Reason': r => `"${(r.rejectionReason || '').replace(/"/g, '""')}"`
+        }
+
+        // Default columns if none provided (Legacy behavior or default)
+        const DEFAULT_COLUMNS = ['Lead ID', 'Parent Name', 'Parent Mobile', 'Student Name', 'Grade', 'Campus', 'Status', 'Referrer', 'Referrer Role', 'Date Created', 'ERP Number']
+
+        // Use provided columns or default
+        const targetColumns = (filters?.columns && filters.columns.length > 0) ? filters.columns : DEFAULT_COLUMNS
+
+        // Filter out any invalid column names requested by client
+        const headers = targetColumns.filter(c => FIELD_MAP[c])
+
+        const rows = referrals.map(r => {
+            return headers.map(header => {
+                const extractor = FIELD_MAP[header]
+                return extractor ? extractor(r) : ''
+            })
+        })
 
         const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n')
         return { success: true, csv: csvContent }
@@ -985,35 +1052,117 @@ export async function rejectReferral(leadId: number) {
     }
 }
 
+
 /**
- * Updates referral lead details.
+ * Updates an existing referral lead with new details.
+ * Supports editing Student Info, Status, Fee Plan, and Admission Details.
  */
 export async function updateReferral(leadId: number, data: {
-    parentName: string,
-    parentMobile: string,
-    studentName?: string,
-    gradeInterested?: string,
+    studentName?: string
+    parentName?: string
+    parentMobile?: string
+    gradeInterested?: string
     campus?: string
+    admissionNumber?: string
+    section?: string
+    leadStatus?: string
+    annualFee?: number | null
+    selectedFeeType?: 'OTP' | 'WOTP' | null
+    admittedYear?: string
 }) {
     const user = await getCurrentUser()
-    if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus'))) return { success: false, error: 'Unauthorized' }
+    if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus'))) {
+        return { success: false, error: 'Unauthorized' }
+    }
 
-    if (!await canEdit('referralTracking')) return { success: false, error: 'Permission Denied' }
+    if (!await canEdit('referralTracking')) {
+        return { success: false, error: 'Permission Denied' }
+    }
 
     try {
+        // Resolve Campus ID if name provided
+        let campusId = undefined
+        if (data.campus) {
+            const c = await prisma.campus.findUnique({ where: { campusName: data.campus } })
+            if (c) campusId = c.id
+        }
+
         await prisma.referralLead.update({
             where: { leadId },
             data: {
+                studentName: data.studentName,
                 parentName: data.parentName,
                 parentMobile: data.parentMobile,
-                studentName: data.studentName,
                 gradeInterested: data.gradeInterested,
-                campus: data.campus
+                campus: data.campus,
+                campusId: campusId,
+                admissionNumber: data.admissionNumber,
+                section: data.section,
+                leadStatus: data.leadStatus as any, // Cast to enum
+                annualFee: data.annualFee ? Number(data.annualFee) : null,
+                selectedFeeType: data.selectedFeeType,
+                admittedYear: data.admittedYear
             }
         })
+
         revalidatePath('/admin')
+        revalidatePath('/referrals')
+
+        await logAction('UPDATE', 'referral', `Updated lead ${leadId} details`, leadId.toString(), null, { updates: data })
+
         return { success: true }
     } catch (e: any) {
-        return { success: false, error: e.message }
+        console.error('Update Referral Error:', e)
+        return { success: false, error: e.message || 'Failed to update referral' }
+    }
+}
+
+/**
+ * Fetches the annual fee for a given campus, grade, and academic year.
+ * Used for auto-calculating fees in the UI.
+ */
+export async function getGradeFee(campusName: string, grade: string, academicYear: string = '2026-2027') {
+    const user = await getCurrentUser()
+    if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus') && !user.role.includes('Head'))) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        const campus = await prisma.campus.findUnique({ where: { campusName } })
+        if (!campus) return { success: false, error: 'Campus not found' }
+
+        // Normalize matching (handle "Grade-8" vs "Grade - 8" vs "Grade 8")
+        // Database seems to use "Grade - 8" format
+        // We will try finding exact match first, then normalized
+
+        let feeRecord = await prisma.gradeFee.findFirst({
+            where: {
+                campusId: campus.id,
+                grade: grade,
+                academicYear: academicYear
+            }
+        })
+
+        if (!feeRecord) {
+            // Try formatting: "Grade-8" -> "Grade - 8"
+            const spacedGrade = grade.replace('Grade-', 'Grade - ').replace('Grade8', 'Grade - 8') // Basic heuristics
+            // Better: Search all fees for this campus/year and find fuzzy match
+            const allFees = await prisma.gradeFee.findMany({
+                where: { campusId: campus.id, academicYear: academicYear }
+            })
+
+            // Fuzzy finder: Ignore spaces and case
+            const targetSimple = grade.toLowerCase().replace(/[^a-z0-9]/g, '')
+            feeRecord = allFees.find(f =>
+                f.grade.toLowerCase().replace(/[^a-z0-9]/g, '') === targetSimple
+            ) || null
+        }
+
+        if (!feeRecord) return { success: false, error: 'Fee record not found' }
+
+        return { success: true, fees: { otp: feeRecord.annualFee_otp, wotp: feeRecord.annualFee_wotp } }
+    } catch (e) {
+        console.error('Error fetching grade fee:', e)
+        return { success: false, error: 'Failed to fetch fee' }
     }
 }

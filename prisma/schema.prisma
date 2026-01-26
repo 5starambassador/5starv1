@@ -16,10 +16,7 @@ model User {
   childName              String?
   grade                  String?
   campusId               Int?
-  bankAccountDetails     String?         // Legacy/Encrypted blob (Keep for backward compat)
-  bankName               String?
-  accountNumber          String?
-  ifscCode               String?
+  bankAccountDetails     String?
   referralCode           String?         @unique
   confirmedReferralCount Int             @default(0)
   yearFeeBenefitPercent  Float           @default(0)
@@ -27,7 +24,7 @@ model User {
   lastActiveYear         Int?
   isFiveStarMember       Boolean         @default(false)
   assignedCampus         String?
-  studentFee             Float?          @default(60000) // Changed from original: Int
+  studentFee             Float?          @default(60000)
   academicYear           String          @default("2025-2026")
   createdAt              DateTime        @default(now())
   profileImage           String?
@@ -38,20 +35,25 @@ model User {
   transactionId          String?
   aadharNo               String?
   childEprNo             String?
-  childCampusId          Int?            // Stores 'Studying Campus' ID for Staff
   empId                  String?
   password               String?
   deletionRequestedAt    DateTime?
   role                   UserRole        @default(Parent)
   status                 AccountStatus   @default(Pending)
   benefitStatus          AccountStatus   @default(Pending)
+  childCampusId          Int?
+  accountNumber          String?
+  bankName               String?
+  ifscCode               String?
+  fcmToken               String?
+  DeviceToken            DeviceToken[]
   notifications          Notification[]
+  payments               Payment[]
   referrals              ReferralLead[]
   settlements            Settlement[]
   referredStudents       Student[]       @relation("StudentAmbassador")
   students               Student[]       @relation("StudentParent")
   supportTickets         SupportTicket[]
-  payments               Payment[]
 
   @@index([role])
   @@index([assignedCampus])
@@ -90,11 +92,6 @@ model Student {
   @@index([createdAt])
 }
 
-enum FeeType {
-  OTP
-  WOTP
-}
-
 model ReferralLead {
   leadId          Int        @id @default(autoincrement())
   userId          Int
@@ -108,10 +105,11 @@ model ReferralLead {
   createdAt       DateTime   @default(now())
   studentName     String?
   leadStatus      LeadStatus @default(New)
-  admissionNumber String?
+  admissionNumber String? // [New] - Final link to student
   section         String?
   selectedFeeType FeeType?
   annualFee       Int?
+  rejectionReason String?
   user            User       @relation(fields: [userId], references: [userId])
   student         Student?
 
@@ -127,9 +125,11 @@ model BenefitSlab {
   tierName              String?
   referralCount         Int     @unique
   yearFeeBenefitPercent Float
-  longTermExtraPercent  Float
+  longTermExtraPercent  Float   @default(3)
   baseLongTermPercent   Float   @default(15)
   description           String?
+  appBonusPercent       Float   @default(5)
+  appBonusEligibility   String  @default("PARENT,STAFF_CHILD") // PARENT, STAFF_CHILD, STAFF_PAYOUT, ALUMNI_OTHERS
 }
 
 model Admin {
@@ -436,11 +436,26 @@ model Campaign {
   type           String        @default("EMAIL")
   status         String        @default("DRAFT")
   targetAudience Json?
-  schedule       String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   lastRunAt      DateTime?
+  schedule       String?
+  batchSize      Int           @default(500)
+  channels       String[]      @default(["EMAIL"])
   logs           CampaignLog[]
+}
+
+model DeviceToken {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  token      String   @unique
+  platform   String   @default("WEB")
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
 }
 
 model CampaignLog {
@@ -461,14 +476,43 @@ model RateLimit {
   resetAt DateTime
 }
 
+model Payment {
+  id               String    @id @default(uuid())
+  orderId          String    @unique
+  paymentSessionId String?
+  orderAmount      Float
+  orderCurrency    String    @default("INR")
+  orderStatus      String    @default("PENDING")
+  paymentStatus    String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  userId           Int
+  bankReference    String?
+  gatewayResponse  Json?
+  paidAt           DateTime?
+  paymentMethod    String?
+  settlementDate   DateTime?
+  settlementId     String?
+  transactionId    String?
+  user             User      @relation(fields: [userId], references: [userId])
+
+  @@index([orderId])
+  @@index([userId])
+}
+
+enum FeeType {
+  OTP
+  WOTP
+}
+
 enum AccountStatus {
   Active
   Inactive
   Pending
-  PendingVerification
   Suspended
-  Deletion_Requested @map("Deletion Requested")
+  Deletion_Requested  @map("Deletion Requested")
   Deleted
+  PendingVerification
 }
 
 enum AdminRole {
@@ -497,30 +541,17 @@ enum UserRole {
   Others
 }
 
-model Payment {
-  id               String   @id @default(uuid())
-  orderId          String   @unique
-  paymentSessionId String?
-  orderAmount      Float
-  orderCurrency    String   @default("INR")
-  orderStatus      String   @default("PENDING")
-  paymentStatus    String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  user             User     @relation(fields: [userId], references: [userId])
-  userId           Int
-  
-  // Finance & Reconciliation Fields
-  paymentMethod    String?  // e.g., "UPI", "CARD", "NETBANKING"
-  transactionId    String?  // Gateway Transaction ID or UTR
-  bankReference    String?  // Bank RRN / Reference Number
-  paidAt           DateTime? // Exact time of payment success
-  gatewayResponse  Json?    // Full raw response for debugging
-  
-  // Reconciliation (When PG pays Merchant)
-  settlementId     String?  // Cashfree Settlement ID
-  settlementDate   DateTime? // Date money hits Merchant Bank
+model CrmLead {
+  id           Int      @id @default(autoincrement())
+  mobileNumber String   @unique
+  parentName   String?
+  studentName  String?  // [NEW] For context matching
+  grade        String?  // [NEW]
+  campus       String?  // [NEW]
+  source       String   @default("Walk-in")
+  visitDate    DateTime @default(now()) // [NEW] For "First Source Wins" logic
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  @@index([orderId])
-  @@index([userId])
+  @@index([mobileNumber])
 }

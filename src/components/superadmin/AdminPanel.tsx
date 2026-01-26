@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { X } from 'lucide-react'
 import { Admin, Campus } from '@/types'
 import { AdminTable } from '@/components/superadmin/AdminTable'
 import { ResetPasswordModal } from '@/components/superadmin/ResetPasswordModal'
 import { addAdmin, deleteAdmin, updateAdminStatus, updateAdmin } from '@/app/superadmin-actions'
 import { mapAdminRole } from '@/lib/enum-utils'
+import { Modal } from '@/components/ui/Modal'
+import { ShieldCheck, Plus, Save, Loader2, Smartphone, Building2, User, Key, Edit, X } from 'lucide-react'
 
 interface AdminPanelProps {
     admins: Admin[]
@@ -141,97 +142,118 @@ export function AdminPanel({ admins, campuses }: AdminPanelProps) {
                 onBulkAdd={() => { }} // Add placeholder for missing prop
             />
 
-            {/* Add/Edit Admin Modal */}
-            {
-                showAddAdminModal && (
-                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{ background: 'white', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>{editingAdmin ? 'Edit Administrator' : 'Add New Admin'}</h3>
-                                <button onClick={() => setShowAddAdminModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                <div>
-                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Admin Name *</label>
-                                    <input
-                                        type="text"
-                                        value={adminForm.adminName}
-                                        onChange={(e) => setAdminForm({ ...adminForm, adminName: e.target.value })}
-                                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                        placeholder="Enter admin name"
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Mobile Number *</label>
-                                    <input
-                                        type="tel"
-                                        value={adminForm.adminMobile}
-                                        onChange={(e) => setAdminForm({ ...adminForm, adminMobile: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-                                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                        placeholder="10 digit mobile number"
-                                    />
-                                </div>
-                                {!editingAdmin && (
-                                    <div>
-                                        <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Password (Optional)</label>
-                                        <input
-                                            type="password"
-                                            value={adminForm.password}
-                                            onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
-                                            style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                            placeholder="Defaults to Mobile Number"
-                                        />
-                                    </div>
-                                )}
-                                <div>
-                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Role *</label>
-                                    <select
-                                        value={adminForm.role}
-                                        onChange={(e) => setAdminForm({ ...adminForm, role: e.target.value as any })}
-                                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                    >
-                                        <option value="Campus Head">Campus Head</option>
-                                        <option value="Campus Admin">Campus Admin</option>
-                                        <option value="Admission Admin">Admission Admin</option>
-                                        <option value="Finance Admin">Finance Admin</option>
-                                        <option value="Super Admin">Super Admin</option>
-                                    </select>
-                                </div>
-                                {(adminForm.role === 'Campus Head' || adminForm.role === 'Campus Admin') && (
-                                    <div>
-                                        <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Assigned Campus *</label>
-                                        <select
-                                            value={adminForm.assignedCampus}
-                                            onChange={(e) => setAdminForm({ ...adminForm, assignedCampus: e.target.value })}
-                                            style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                        >
-                                            <option value="">Select Campus</option>
-                                            {campuses.map(c => <option key={c.id} value={c.campusName}>{c.campusName}</option>)}
-                                        </select>
-                                    </div>
-                                )}
-                                <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                                    <button
-                                        onClick={() => setShowAddAdminModal(false)}
-                                        style={{ flex: 1, padding: '10px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={handleSaveAdmin}
-                                        disabled={modalLoading}
-                                        style={{ flex: 1, padding: '10px', background: '#DC2626', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}
-                                    >
-                                        {modalLoading ? 'Saving...' : (editingAdmin ? 'Update Administrator' : 'Add Admin')}
-                                    </button>
-                                </div>
-                            </div>
+            {/* Standardized Add/Edit Admin Modal */}
+            <Modal
+                isOpen={showAddAdminModal}
+                onClose={() => setShowAddAdminModal(false)}
+                variant="danger"
+                title={editingAdmin ? 'Refine Credentials' : 'Onboard Executive'}
+                subtitle="High-Level Access Provisioning"
+                icon={editingAdmin ? <Edit size={20} /> : <ShieldCheck size={20} />}
+                footer={
+                    <div className="flex gap-4">
+                        <button
+                            onClick={() => setShowAddAdminModal(false)}
+                            className="flex-1 py-4 bg-gray-100 text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-200 transition-all"
+                        >
+                            Abort
+                        </button>
+                        <button
+                            onClick={handleSaveAdmin}
+                            disabled={modalLoading}
+                            className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-red-200 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                        >
+                            {modalLoading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                            {editingAdmin ? 'Update Core' : 'Ignite Access'}
+                        </button>
+                    </div>
+                }
+            >
+                <div className="space-y-6">
+                    <div className="space-y-2">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Full Designation</label>
+                        <div className="relative">
+                            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                            <input
+                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-5 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-red-50 focus:border-red-200 transition-all"
+                                placeholder="Executive Name"
+                                value={adminForm.adminName}
+                                onChange={(e) => setAdminForm({ ...adminForm, adminName: e.target.value })}
+                            />
                         </div>
                     </div>
-                )
-            }
+
+                    <div className="space-y-2">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Secure Contact</label>
+                        <div className="relative">
+                            <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                            <input
+                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-5 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-red-50 focus:border-red-200 transition-all"
+                                placeholder="10-Digit Mobile"
+                                value={adminForm.adminMobile}
+                                onChange={(e) => setAdminForm({ ...adminForm, adminMobile: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                            />
+                        </div>
+                    </div>
+
+                    {!editingAdmin && (
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Initial Keyphrase</label>
+                            <div className="relative">
+                                <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                                <input
+                                    type="password"
+                                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-5 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-red-50 focus:border-red-200 transition-all"
+                                    placeholder="Leave blank for Mobile default"
+                                    value={adminForm.password}
+                                    onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">System Role</label>
+                            <select
+                                value={adminForm.role}
+                                onChange={(e) => setAdminForm({ ...adminForm, role: e.target.value as any })}
+                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3 text-sm font-black text-gray-900 focus:outline-none focus:ring-4 focus:ring-red-50 focus:border-red-200 transition-all uppercase tracking-tight"
+                            >
+                                <option value="Campus Head">Campus Head</option>
+                                <option value="Campus Admin">Campus Admin</option>
+                                <option value="Admission Admin">Admission Admin</option>
+                                <option value="Finance Admin">Finance Admin</option>
+                                <option value="Super Admin">Super Admin</option>
+                            </select>
+                        </div>
+
+                        {(adminForm.role === 'Campus Head' || adminForm.role === 'Campus Admin') && (
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Assigned Node</label>
+                                <div className="relative">
+                                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                                    <select
+                                        value={adminForm.assignedCampus}
+                                        onChange={(e) => setAdminForm({ ...adminForm, assignedCampus: e.target.value })}
+                                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-5 py-3 text-sm font-black text-gray-900 focus:outline-none focus:ring-4 focus:ring-red-50 focus:border-red-200 transition-all uppercase tracking-tight"
+                                    >
+                                        <option value="">Select Campus</option>
+                                        {campuses.map(c => <option key={c.id} value={c.campusName}>{c.campusName}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
+                        <p className="text-[10px] font-bold text-red-600 leading-relaxed uppercase tracking-wide">
+                            <ShieldCheck size={12} className="inline mr-1 -mt-0.5" />
+                            Warning: Administrative roles grant access to sensitive student data and financial records. Ensure the individual is authorized.
+                        </p>
+                    </div>
+                </div>
+            </Modal>
 
             {/* Reset Password Modal */}
             <ResetPasswordModal

@@ -28,7 +28,8 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
     const days = params?.days ? parseInt(params.days) : 30
 
     const { success, stats, error } = await getCampusStats(days)
-    const { target } = await (getCampusTargets as any)()
+    const targetsResult = await getCampusTargets()
+    const target = targetsResult.success ? targetsResult.target : null
 
     if (error) {
         return <div className="p-8 text-center text-red-500 flex flex-col items-center gap-4">

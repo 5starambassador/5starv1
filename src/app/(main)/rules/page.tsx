@@ -2,15 +2,25 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { Star, CheckCircle2, Trophy, ArrowRight, ShieldCheck, Wallet, Info } from 'lucide-react'
 import { PageAnimate, PageItem } from '@/components/PageAnimate'
 
+import { getBenefitSlabs } from '@/app/benefit-actions'
+
 export default async function RulesPage() {
-    // Tiers configuration
-    const benefits = [
-        { count: 1, percent: 5, label: 'Starter' },
-        { count: 2, percent: 10, label: 'Bronze' },
-        { count: 3, percent: 20, label: 'Silver' }, // Corrected to 20%
-        { count: 4, percent: 30, label: 'Gold' },
-        { count: 5, percent: 50, label: 'Platinum' },
-    ]
+    const slabsResult = await getBenefitSlabs()
+    const rawSlabs = slabsResult.data || []
+
+    // Sort and format for display
+    const sortedSlabs = [...rawSlabs].sort((a, b) => a.referralCount - b.referralCount)
+
+    const benefits = sortedSlabs.map(s => ({
+        count: s.referralCount,
+        percent: s.yearFeeBenefitPercent,
+        label: s.tierName || `Tier ${s.referralCount}`,
+        longTermBase: s.baseLongTermPercent
+    }))
+
+    // Global policy (assume first slab contains global settings)
+    const globalBase = rawSlabs[0]?.baseLongTermPercent || 15
+    const globalYield = 5 // Institutional protocol is linear 5% for long term
 
     return (
         <div className="-mt-8 pt-8 min-h-screen relative font-[family-name:var(--font-outfit)] pb-20">
@@ -145,16 +155,16 @@ export default async function RulesPage() {
                             <div className="flex justify-between items-center p-5 bg-white/10 rounded-2xl border border-white/20 hover:bg-white/15 transition-colors">
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Base Benefit</span>
-                                    <span className="text-xs text-indigo-100/70 font-medium">Guaranteed every year</span>
+                                    <span className="text-xs text-indigo-100/70 font-medium tracking-tight">Guaranteed Historic Base Sum</span>
                                 </div>
-                                <span className="font-black text-3xl text-white">15%</span>
+                                <span className="font-black text-3xl text-white italic">🏛️</span>
                             </div>
                             <div className="flex justify-between items-center p-5 bg-emerald-500/20 rounded-2xl border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors">
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-emerald-300 uppercase tracking-widest mb-1">New Referral Bonus</span>
-                                    <span className="text-xs text-emerald-100/70 font-medium">On top of base benefit</span>
+                                    <span className="text-[10px] font-black text-emerald-300 uppercase tracking-widest mb-1">New Referral Yield</span>
+                                    <span className="text-xs text-emerald-100/70 font-medium">Linear Protocol</span>
                                 </div>
-                                <span className="font-black text-3xl text-emerald-400">+5% <span className="text-sm align-top opacity-80">Extra</span></span>
+                                <span className="font-black text-3xl text-emerald-400">+{globalYield}% <span className="text-sm align-top opacity-80 italic">Yield</span></span>
                             </div>
                         </div>
 

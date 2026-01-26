@@ -144,6 +144,8 @@ export interface SystemAnalytics {
     totalStudents: number
     staffCount: number
     parentCount: number
+    alumniCount: number
+    othersCount: number
     userRoleDistribution: { name: string; value: number }[]
     avgLeadsPerAmbassador: number
     totalEstimatedRevenue: number
@@ -192,6 +194,8 @@ export interface CampusPerformance {
     totalStudents?: number
     staffCount?: number
     parentCount?: number
+    alumniCount?: number
+    othersCount?: number
     systemWideBenefits?: number
     prevBenefits?: number
     prevLeads?: number

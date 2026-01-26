@@ -746,3 +746,98 @@ export async function importReferrals(csvData: string) {
         return { success: false, error: error.message }
     }
 }
+
+// --- Import CRM Leads (Blacklist) ---
+export async function importCrmLeads(csvData: string) {
+    const admin = await getCurrentUser()
+    if (!admin || !admin.role.includes('Admin')) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const rows = parseCSV(csvData)
+        let processed = 0
+        let errors: string[] = []
+        let results: any[] = []
+
+        for (const [index, row] of rows.entries()) {
+            const mobileNumber = row.mobilenumber || row.mobileNumber || row['mobile number'] || row['phone']
+            const parentName = row.parentname || row.parentName || row['parent name'] || row['name']
+
+            // New Fields for Context & Logic
+            const studentName = row.studentname || row.studentName || row['student name'] || null
+            const grade = row.grade || row.grade || null
+            const campus = row.campus || row['campus name'] || null
+
+            // Date Parsing - Try to parse 'visitDate' or 'date', default to NOW if missing
+            let visitDate = new Date()
+            const dateStr = row.visitdate || row.visitDate || row['visit date'] || row['date']
+            if (dateStr) {
+                const parsed = new Date(dateStr)
+                if (!isNaN(parsed.getTime())) visitDate = parsed
+            }
+
+            const source = row.source || row['source'] || 'Walk-in'
+
+
+            if (!mobileNumber) {
+                const msg = `Mobile Number is required`
+                errors.push(`Row ${index + 2}: ${msg}`)
+                results.push({ row: index + 2, data: row, status: 'Failed', reason: msg })
+                continue
+            }
+
+            // Upsert: If exists, just update name/source (idempotent)
+            const crmEntry = await prisma.crmLead.upsert({
+                where: { mobileNumber },
+                update: {
+                    parentName: parentName || undefined,
+                    studentName: studentName || undefined,
+                    grade: grade || undefined,
+                    campus: campus || undefined,
+                    visitDate: visitDate, // Update date to latest CRM record
+                    source: source
+                },
+                create: {
+                    mobileNumber,
+                    parentName: parentName || null,
+                    studentName: studentName || null,
+                    grade: grade || null,
+                    campus: campus || null,
+                    visitDate: visitDate,
+                    source
+                }
+            })
+
+            // --- RETROACTIVE ENFORCEMENT (First Source Wins) ---
+            // If this parent already has a Pending Referral, check who was first.
+            const pendingReferral = await prisma.referralLead.findFirst({
+                where: {
+                    parentMobile: mobileNumber,
+                    leadStatus: { in: ['New', 'Interested', 'Follow_up', 'Contacted'] } // Only Open leads
+                }
+            })
+
+            if (pendingReferral) {
+                // If CRM Visit was BEFORE the Referral was created -> CRM Wins
+                if (visitDate < pendingReferral.createdAt) {
+                    await prisma.referralLead.update({
+                        where: { leadId: pendingReferral.leadId },
+                        data: {
+                            leadStatus: 'Rejected',
+                            rejectionReason: `Duplicate: Parent visited school directly on ${visitDate.toDateString()} (First Source Wins)`
+                        }
+                    })
+                    results.push({ row: index + 2, data: row, status: 'Warning', reason: 'Retroactively Rejected an existing Referral (First Source Wins)' })
+                    processed++
+                    continue
+                }
+            }
+
+            processed++
+            results.push({ row: index + 2, data: row, status: 'Success', reason: 'Imported/Updated' })
+        }
+
+        return { success: true, processed, errors, results }
+    } catch (error: any) {
+        return { success: false, error: error.message }
+    }
+}

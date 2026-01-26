@@ -6,7 +6,7 @@ import { X } from 'lucide-react'
 import { ImportDataPanel } from '@/components/superadmin/ImportDataPanel'
 
 interface CSVUploaderProps {
-    type: 'students' | 'users' | 'fees' | 'campuses' | 'referrals'
+    type: 'students' | 'users' | 'fees' | 'campuses' | 'referrals' | 'crm-leads'
     onUpload?: (data: any[]) => Promise<{ success: boolean; added: number; failed: number; errors: string[] }>
     onClose: () => void
     userRole?: string

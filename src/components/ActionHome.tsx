@@ -13,17 +13,10 @@ import { encryptReferralCode } from '@/lib/crypto'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://5starambassador.com'
 
+import { ClientUser } from '@/types/client-types'
+
 interface ActionHomeProps {
-    user: {
-        fullName: string
-        role: string
-        referralCode: string
-        confirmedReferralCount: number
-        yearFeeBenefitPercent: number
-        benefitStatus: string
-        empId?: string
-        assignedCampus?: string
-    }
+    user: ClientUser
     recentReferrals: {
         id: number
         parentName: string

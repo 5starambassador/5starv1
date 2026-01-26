@@ -350,6 +350,12 @@ export async function registerUser(formData: any) {
     })
     const currentYear = currentYearRecord?.year || "2025-2026"
 
+    // Safety check: Is registration still open?
+    const settings = await prisma.systemSettings.findFirst()
+    if (!settings?.allowNewRegistrations) {
+        return { success: false, error: 'Registration is currently closed.' }
+    }
+
     // Fetch fee based on campus and grade
     let studentFee = 60000
     let assignedCampusName = null
@@ -503,6 +509,12 @@ export async function createPendingUser(formData: any) {
     })
     const currentYear = currentYearRecord?.year || "2025-2026"
 
+    // Safety check: Is registration still open?
+    const settings = await prisma.systemSettings.findFirst()
+    if (!settings?.allowNewRegistrations) {
+        return { success: false, error: 'Registration is currently closed.' }
+    }
+
     let studentFee = 60000
     let assignedCampusName = null
 
@@ -625,5 +637,47 @@ export async function simulatePayment(userId: number) {
     } catch (error) {
         console.error("Simulation failed:", error);
         return { success: false, error: "Simulation failed" };
+    }
+
+}
+
+export async function submitManualPayment(formData: FormData) {
+    const utr = formData.get('utr') as string
+    const amount = parseFloat(formData.get('amount') as string)
+    const userId = parseInt(formData.get('userId') as string)
+
+    if (!utr || !amount || !userId) {
+        return { success: false, error: 'Missing required fields' }
+    }
+
+    try {
+        // Reuse Payment Table - No Schema Change
+        // Prefixed Order ID for uniqueness
+        const orderId = `MANUAL_${Date.now()}_${userId}`
+
+        await prisma.payment.create({
+            data: {
+                orderId: orderId,
+                paymentSessionId: `MANUAL_SESSION_${utr}`, // Placeholder
+                orderAmount: amount,
+                userId: userId,
+                orderStatus: "PENDING_APPROVAL", // Using existing string field
+                paymentStatus: "Pending Approval",
+                paymentMethod: "MANUAL_QR",
+                transactionId: utr,
+                bankReference: utr,
+                paidAt: new Date() // User claims they paid now
+            }
+        });
+
+        // Optionally notify admin (revalidate paths)
+        revalidatePath('/superadmin/finance')
+
+        return { success: true }
+    } catch (error: any) {
+        console.error("Manual Payment Error:", error)
+        // Handle unique constraint if user re-submits same UTR?
+        // For now, simple error
+        return { success: false, error: "Failed to submit. Please try again or contact support." }
     }
 }

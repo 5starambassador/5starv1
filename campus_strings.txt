@@ -1,0 +1,147 @@
+≡ƒôï Listing Distinct Campus Strings...
+
+--- User Table Assigned Campuses ---
+"null" (301)
+"ABSM - TINDIVANAM" (146)
+"ABSM - GORIMEDU" (35)
+"ASM - MUTHIRAPALAYAM" (7)
+"ABSM - ADYAR" (6)
+"ABSM - THIRU NAGAR" (7)
+"ABSM - NOLAMBUR" (2)
+"ABSM - DASARATHAPURAM" (20)
+"ABSM - KK NAGAR" (16)
+"ABSM PP - THENGAITHITTU" (29)
+"ASM CC -  ERODE" (27)
+"ASM HSC - VILLIANUR" (102)
+"ABSM - LAWSPET" (60)
+"SSV - VILLIANUR" (132)
+"ABSM - TRICHY" (24)
+"AASC" (39)
+"AKLAVYA - REDDIYARPALAYAM" (14)
+"ACCHM" (4)
+"ACET" (83)
+"ASM - ALAPAKKAM" (32)
+"ABSM - PADMANABHANAGAR" (21)
+"ASM - KARAIKAL" (71)
+"ABSM - SALIGRAMAM" (9)
+"AKLAVYA - ANUGRAHA" (16)
+"AIIS - ERODE" (114)
+"ABSM - VENKATA NAGAR" (11)
+"AKLAVYA - THENGAITHITTU" (104)
+"ABSM - THENGAITHITTU" (225)
+"ABSM - VARASALAVAKAM" (10)
+"ABSM - MUTHIYALPET" (11)
+"ABSM - ALAPAKKAM" (7)
+"ASM - VILLUPURAM" (227)
+"SSV HSC- VILLIANUR" (26)
+"AWGI - ETTIMADAI" (44)
+"CORPORATE" (52)
+"ABSM - RK NAGAR" (2)
+"ASM - VILLIANUR" (384)
+"ABSM - KALAPET" (3)
+"ASM - THAVALAKUPPAM" (23)
+"ASM - PERUNDURAI" (23)
+"ASM - MOOLAKULAM" (101)
+"ASM - TRICHY" (85)
+
+--- Admin Table Assigned Campuses ---
+"null" - Super Admin (Super_Admin)
+"null" - Admission Admin (Admission_Admin)
+"null" - Finance Admin (Finance_Admin)
+"null" - Rajakumaran (Super_Admin)
+"ASM - VILLIANUR" - Campus Head (Campus_Head)
+"null" - Super Admin (Super_Admin)
+"null" - Admission Admin (Admission_Admin)
+"null" - Revathi (Finance_Admin)
+"null" - Selvamani (Finance_Admin)
+"null" - Rajasekaran (Finance_Admin)
+"null" - Vijayan (Finance_Admin)
+"ABSM - TRICHY" - ABSM TRICHY (Campus_Head)
+"ABSM - KK NAGAR" - Campus Admin - KK Nagar (Campus_Admin)
+"ABSM - ADYAR" - Campus Head - Adyar (Campus_Head)
+"ASM - VILLIANUR" - ASM - VL (Mont to 8) (Campus_Head)
+"ABSM - THENGAITHITTU" - ABSM TT (Campus_Head)
+"AKLAVYA - THENGAITHITTU" - Aklavya - TT (Campus_Head)
+"SSV - VILLIANUR" - SSV - VL (Campus_Head)
+"SSV HSC- VILLIANUR" - SSV HSC - VL (Campus_Head)
+"ASM - THAVALAKUPPAM" - ASM TKM  (Campus_Head)
+"ASM - MOOLAKULAM" - ASM MKM (Campus_Head)
+"ASM - KARAIKAL" - ASM KARAIKAL (Campus_Head)
+"AWGI - ETTIMADAI" - AWGI (Campus_Head)
+"ASM - TRICHY" - ASM TRICHY (Campus_Head)
+"ABSM - TINDIVANAM" - ABSM TDM (Campus_Head)
+"ASM - VILLUPURAM" - ASM VPM (Campus_Head)
+"AKLAVYA - REDDIYARPALAYAM" - AKLAVYA RP (Campus_Head)
+"ASM - MUTHIRAPALAYAM" - ASM MP (Campus_Head)
+"ABSM - GORIMEDU" - ABSM GM (Campus_Head)
+"ABSM - LAWSPET" - ABSM LP (Campus_Head)
+"ABSM - MUTHIYALPET" - ABSM MLP (Campus_Head)
+"ABSM - KALAPET" - ABSM KP (Campus_Head)
+"ABSM - VENKATA NAGAR" - ABSM VN (Campus_Head)
+"ASM CC -  ERODE" - ASM CC - ERODE (Campus_Head)
+"ASM - ALAPAKKAM" - ASM - ALAPAKKAM (Campus_Head)
+"ASM - PERUNDURAI" - ASM - PERUNDURAI (Campus_Head)
+"ABSM - ADYAR" - ABSM ADYAR (Campus_Head)
+"ABSM - KK NAGAR" - ABSM KK NAGAR (Campus_Head)
+"ABSM - VARASALAVAKAM" - ABSM VVK (Campus_Head)
+"ABSM - PADMANABHANAGAR" - ABSM PBN (Campus_Head)
+"ABSM - DASARATHAPURAM" - ABSM DASARATHAPURAM (Campus_Head)
+"ABSM - SALIGRAMAM" - ABSM SALIGRAMAM (Campus_Head)
+"ABSM - RK NAGAR" - ABSM RK NAGAR (Campus_Head)
+"ABSM - ALAPAKKAM" - ABSM ALAPAKKAM (Campus_Head)
+"ABSM - THIRU NAGAR" - ABSM THIRU NAGAR (Campus_Head)
+"ABSM - MADURAVOYAL" - ABSM MADURAVOYAL (Campus_Head)
+"ABSM - NOLAMBUR" - ABSM NOLAMBUR (Campus_Head)
+"ACET" - ACET (Campus_Head)
+"ACCHM" - ACCHM (Campus_Head)
+"AIIS - ERODE" - AIIS - ERODE (Campus_Head)
+"AASC" - AASC (Campus_Head)
+"null" - IT MANAGER (Super_Admin)
+"ABSM PP - THENGAITHITTU" - ABSM PP - TT (Campus_Head)
+"AKLAVYA - ANUGRAHA" - AKLAVYA ANUGRAHA (Campus_Head)
+"ASM HSC - VILLIANUR" - Campus Head - Villianur (Campus_Head)
+"ASM HSC - VILLIANUR" - ASM VL (9-12) (Campus_Head)
+
+--- Campus Table Names ---
+"CORPORATE"
+"ABSM - THENGAITHITTU"
+"ABSM - TRICHY"
+"ABSM - KK NAGAR"
+"ASM - VILLIANUR"
+"AKLAVYA - THENGAITHITTU"
+"SSV - VILLIANUR"
+"SSV HSC- VILLIANUR"
+"ASM - THAVALAKUPPAM"
+"ASM - MOOLAKULAM"
+"ASM - KARAIKAL"
+"AWGI - ETTIMADAI"
+"ASM - TRICHY"
+"ABSM - TINDIVANAM"
+"ASM - VILLUPURAM"
+"AKLAVYA - REDDIYARPALAYAM"
+"ASM - MUTHIRAPALAYAM"
+"ABSM - GORIMEDU"
+"ABSM - LAWSPET"
+"ABSM - MUTHIYALPET"
+"ABSM - KALAPET"
+"ABSM - VENKATA NAGAR"
+"ASM CC -  ERODE"
+"ASM - PERUNDURAI"
+"ABSM - ADYAR"
+"ABSM - VARASALAVAKAM"
+"ABSM - PADMANABHANAGAR"
+"ABSM - DASARATHAPURAM"
+"ABSM - SALIGRAMAM"
+"ABSM - RK NAGAR"
+"ABSM - ALAPAKKAM"
+"ABSM - THIRU NAGAR"
+"ABSM - MADURAVOYAL"
+"ABSM - NOLAMBUR"
+"ACET"
+"ACCHM"
+"AIIS - ERODE"
+"ABSM PP - THENGAITHITTU"
+"AKLAVYA - ANUGRAHA"
+"ASM HSC - VILLIANUR"
+"ASM - ALAPAKKAM"
+"AASC"

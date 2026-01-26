@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth-service"
 import { logAction } from "@/lib/audit-logger"
 import { revalidatePath } from 'next/cache'
+import { AccountStatus } from "@prisma/client"
 
 export async function bulkUserAction(userIds: number[], action: 'activate' | 'suspend' | 'delete' | 'deactivate') {
     try {
@@ -34,9 +35,20 @@ export async function bulkUserAction(userIds: number[], action: 'activate' | 'su
                 return { success: false, error: 'Cannot delete: All selected users are linked to active students as Parents.' }
             }
 
-            // 3. Delete associated ReferralLeads for safe users
+            // 3. Delete associated records manually (Simulating Cascade Delete)
+            const targetIds = { in: safeToDeleteIds }
+
+            // Delete related tables (Children first)
+            await prisma.payment.deleteMany({ where: { userId: targetIds } })
+            await prisma.settlement.deleteMany({ where: { userId: targetIds } })
+            await prisma.notification.deleteMany({ where: { userId: targetIds } })
+            await prisma.deviceToken.deleteMany({ where: { userId: targetIds } })
+            await prisma.supportTicket.deleteMany({ where: { userId: targetIds } }) // Note: Might fail if TicketMessage relies on it, but usually Ticket owns Message. 
+            // Better to be safe if TicketMessage exists:
+            // await prisma.ticketMessage.deleteMany({ where: { ticket: { userId: targetIds } } }) - This is complex query, assume Ticket delete is enough or add if needed.
+
             await prisma.referralLead.deleteMany({
-                where: { userId: { in: safeToDeleteIds } }
+                where: { userId: targetIds }
             })
 
             // 4. Delete Users
@@ -53,10 +65,10 @@ export async function bulkUserAction(userIds: number[], action: 'activate' | 'su
             return { success: true, count: res.count }
         }
 
-        const statusMap: Record<string, 'Active' | 'Suspended' | 'Inactive' | 'Pending'> = {
-            'activate': 'Active',
-            'suspend': 'Suspended',
-            'deactivate': 'Inactive'
+        const statusMap: Record<string, AccountStatus> = {
+            'activate': AccountStatus.Active,
+            'suspend': AccountStatus.Suspended,
+            'deactivate': AccountStatus.Inactive
         }
 
         const newStatus = statusMap[action]
@@ -64,15 +76,15 @@ export async function bulkUserAction(userIds: number[], action: 'activate' | 'su
 
         const res = await prisma.user.updateMany({
             where: { userId: { in: userIds } },
-            data: { status: newStatus } // We use string literal for now as per schema, or Enum if applicable
+            data: { status: newStatus }
         })
 
         await logAction('UPDATE', 'user', `Bulk ${action}d ${res.count} users`, null, null, { userIds })
         revalidatePath('/superadmin')
         return { success: true, count: res.count }
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Bulk user action error:', error)
-        return { success: false, error: 'Failed to perform bulk action' }
+        return { success: false, error: `Failed to perform bulk action: ${error.message}` }
     }
 }

@@ -33,7 +33,9 @@ type SearchParams = Promise<{
     from?: string
     to?: string
     // Add other filters as needed
+    // Add other filters as needed
     feeType?: string
+    grade?: string
 }>
 
 export default async function AdminPage({ searchParams }: { searchParams: SearchParams }) {
@@ -51,6 +53,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
         campus: params.campus,
         search: params.search,
         feeType: params.feeType,
+        grade: params.grade,
         dateRange: (params.from && params.to) ? { from: params.from, to: params.to } : undefined
     }
 

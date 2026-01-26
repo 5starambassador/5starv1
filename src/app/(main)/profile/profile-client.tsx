@@ -223,27 +223,28 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                 <header className="py-6 flex items-center justify-between pl-2 relative">
                     <h1 className="text-xl font-black text-white tracking-tight uppercase">My Profile</h1>
 
-                    {!isEditingProfile && !isEditingBank && (
-                        <button
-                            onClick={() => setIsEditingProfile(true)}
-                            className="absolute top-6 right-0 w-10 h-10 rounded-full bg-white/20 border border-white/50 flex items-center justify-center z-[9999] shadow-md active:scale-95"
-                            aria-label="Edit Profile"
-                        >
-                            <svg
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="#ffffff"
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="drop-shadow-sm"
+                    <div className="flex items-center gap-3">
+                        {!isEditingProfile && !isEditingBank && (
+                            <div
+                                onClick={() => setIsEditingProfile(true)}
+                                className="w-10 h-10 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/20 active:scale-95 transition-all relative cursor-pointer"
+                                style={{
+                                    backgroundColor: '#fbbf24', // Amber-400
+                                    borderColor: '#fcd34d',     // Amber-300
+                                    borderWidth: '1px',
+                                    zIndex: 100,
+                                    opacity: 1,
+                                    display: 'flex'
+                                }}
+                                role="button"
+                                aria-label="Edit Profile"
                             >
-                                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-                            </svg>
-                        </button>
-                    )}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: '20px', minHeight: '20px', display: 'block' }}>
+                                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                                </svg>
+                            </div>
+                        )}
+                    </div>
                 </header>
 
                 {/* Hero Section */}
@@ -341,8 +342,12 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                 </div>
                                 <div className="text-right">
                                     <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest mb-0.5">Campus</p>
-                                    {/* Assuming assignedCampus or we might need mapped campus name if we saved it differently? Usually assignedCampus is good enough for display */}
-                                    <p className="text-xs font-bold text-white tracking-tight truncate">{(user as any).assignedCampus || 'Achariya'}</p>
+                                    <p className="text-xs font-bold text-white tracking-tight truncate">
+                                        {user.role === 'Staff'
+                                            ? (campuses.find(c => c.id === (user as any).childCampusId)?.campusName || 'Loading...')
+                                            : ((user as any).assignedCampus || 'Achariya')
+                                        }
+                                    </p>
                                 </div>
                             </div>
                         </div>

@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { MessageSquare, Calculator, Plus } from 'lucide-react'
+import { MessageSquare, Calculator } from 'lucide-react'
 
 // Import only what's needed for client-managed state
 import { getCampuses } from '@/app/campus-actions'
@@ -15,6 +15,8 @@ import { getRolePermissions, updateRolePermissions, resetRolePermissions } from 
 import { confirmReferral, convertLeadToStudent, rejectReferral } from '@/app/admin-actions' // Import server actions
 
 import { MarketingManager } from '@/components/MarketingManager'
+import { Modal } from '@/components/ui/Modal'
+import { Plus, Edit, Target, Save, Loader2, IndianRupee, TrendingUp, TrendingDown } from 'lucide-react'
 // Report actions are handled within ReportsPanel, superadmin-client just executes the passed function
 
 // Modular Components (Static Imports for core panels)
@@ -71,9 +73,16 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     const searchParams = useSearchParams()
     const router = useRouter()
 
+    console.log('DEBUG: SuperadminClient Rendered')
+    console.log(`DEBUG: Referrals Prop Length: ${referrals?.length || 0}`)
+    if (referrals && referrals.length > 0) {
+        console.log('DEBUG: First Referral:', JSON.stringify(referrals[0].user || {}, null, 2))
+    }
+
     // Core State
     const [loading, setLoading] = useState(false)
-    const [showBulkUpload, setShowBulkUpload] = useState(false) // Added state
+    const [showBulkUpload, setShowBulkUpload] = useState(false)
+    const [uploadType, setUploadType] = useState<'students' | 'users' | 'fees' | 'campuses' | 'referrals' | 'crm-leads'>('referrals')
 
     // View State
     const mapViewParam = (view: string): ViewType => {
@@ -248,9 +257,8 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     }
 
     return (
-        <div className="bg-gray-50 min-h-screen pb-20">
-
-            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        <div className="bg-slate-50/50 min-h-screen">
+            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-10 space-y-10">
 
                 {(selectedView === 'analytics' || selectedView === 'home') && (
                     <AnalyticsDashboard
@@ -297,7 +305,8 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                         <ReferralManagementTable
                             referrals={referrals}
                             meta={referralMeta || { page: 1, limit: 50, total: referrals.length, totalPages: 1 }}
-                            onBulkAdd={() => setShowBulkUpload(true)}
+                            onBulkAdd={() => { setUploadType('referrals'); setShowBulkUpload(true); }}
+                            onImportCrm={() => { setUploadType('crm-leads'); setShowBulkUpload(true); }}
                             confirmReferral={confirmReferral}
                             convertLeadToStudent={convertLeadToStudent}
                             rejectReferral={rejectReferral}
@@ -305,7 +314,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                         />
                         {showBulkUpload && (
                             <CSVUploader
-                                type="referrals"
+                                type={uploadType}
                                 onClose={() => setShowBulkUpload(false)}
                                 onUpload={async () => {
                                     router.refresh()
@@ -480,24 +489,84 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                     </div>
                 )}
 
-                {/* Modals that are still managed here (Slab Modal) */}
-                {/* Benefit Slab Modal */}
-                {showBenefitModal && (
-                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{ background: 'white', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-                            <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>{editingSlab ? 'Edit Slab' : 'Add Slab'}</h3>
-                            <div className="space-y-4">
-                                <input placeholder="Tier Name (e.g. Gold)" className="w-full border p-2 rounded" value={slabForm.tierName || ''} onChange={e => setSlabForm({ ...slabForm, tierName: e.target.value })} />
-                                <input type="number" placeholder="Referral Count" className="w-full border p-2 rounded" value={slabForm.referralCount || 0} onChange={e => setSlabForm({ ...slabForm, referralCount: Number(e.target.value) })} />
-                                <input type="number" placeholder="Year Fee Benefit %" className="w-full border p-2 rounded" value={slabForm.yearFeeBenefitPercent || 0} onChange={e => setSlabForm({ ...slabForm, yearFeeBenefitPercent: Number(e.target.value) })} />
-                                <div className="flex justify-end gap-2 mt-4">
-                                    <button onClick={() => setShowBenefitModal(false)} className="px-4 py-2 bg-gray-100 rounded">Cancel</button>
-                                    <button onClick={handleSaveSlab} className="px-4 py-2 bg-blue-600 text-white rounded">Save</button>
+                {/* Standardized Benefit Slab Modal */}
+                <Modal
+                    isOpen={showBenefitModal}
+                    onClose={() => setShowBenefitModal(false)}
+                    variant="blue"
+                    title={editingSlab ? 'Update Configuration' : 'Create New Slab'}
+                    subtitle="Benefit Distribution Intelligence"
+                    icon={editingSlab ? <Edit size={20} /> : <Plus size={20} />}
+                    footer={
+                        <div className="flex gap-4">
+                            <button
+                                onClick={() => setShowBenefitModal(false)}
+                                className="flex-1 py-4 bg-gray-100 text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-200 transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveSlab}
+                                disabled={loading}
+                                className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-blue-200 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                            >
+                                {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                {editingSlab ? 'Commit Changes' : 'Ignite Slab'}
+                            </button>
+                        </div>
+                    }
+                >
+                    <div className="space-y-6">
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Tier Designation</label>
+                            <input
+                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all placeholder:text-gray-300"
+                                placeholder="e.g. Platinum Elite"
+                                value={slabForm.tierName || ''}
+                                onChange={e => setSlabForm({ ...slabForm, tierName: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Referral Threshold</label>
+                                <div className="relative">
+                                    <Target className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                                    <input
+                                        type="number"
+                                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-5 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all"
+                                        value={slabForm.referralCount || 0}
+                                        onChange={e => setSlabForm({ ...slabForm, referralCount: Number(e.target.value) })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Base Benefit (%)</label>
+                                <div className="relative">
+                                    <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+                                    <input
+                                        type="number"
+                                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-5 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all"
+                                        value={slabForm.yearFeeBenefitPercent || 0}
+                                        onChange={e => setSlabForm({ ...slabForm, yearFeeBenefitPercent: Number(e.target.value) })}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-blue-600 shadow-sm">
+                                    <TrendingUp size={16} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-blue-900 uppercase tracking-tight italic">Yield Potential</p>
+                                    <p className="text-[11px] font-bold text-blue-600 tracking-wide">This slab triggers at {slabForm.referralCount} successfully confirmed referrals.</p>
                                 </div>
                             </div>
                         </div>
                     </div>
-                )}
+                </Modal>
 
             </div>
         </div>

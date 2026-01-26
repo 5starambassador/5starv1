@@ -155,17 +155,18 @@ export function MobileMenu({ navItems, user, logoutAction, onNavigate: propOnNav
                             </div>
                         </div>
                     </Link>
-                    <form action={logoutAction} className={isMobile ? '' : 'mt-4'}>
-                        <button
-                            type="submit"
-                            style={{ cursor: 'pointer' }}
-                            suppressHydrationWarning={true}
-                            className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-2xl bg-white/[0.03] text-blue-200 hover:text-white hover:bg-red-500/20 border border-white/10 transition-all text-[11px] font-black uppercase tracking-[0.2em] group shadow-inner"
-                        >
-                            <LogOut size={16} className="group-hover:translate-x-[-3px] transition-transform text-red-500/60 group-hover:text-red-500" />
-                            <span>Logout</span>
-                        </button>
-                    </form>
+                    <button
+                        onClick={async () => {
+                            await logoutAction()
+                            window.location.href = '/'
+                        }}
+                        style={{ cursor: 'pointer' }}
+                        suppressHydrationWarning={true}
+                        className={`w-full flex items-center justify-center gap-3 px-5 py-3 rounded-2xl bg-white/[0.03] text-blue-200 hover:text-white hover:bg-red-500/20 border border-white/10 transition-all text-[11px] font-black uppercase tracking-[0.2em] group shadow-inner ${isMobile ? '' : 'mt-4'}`}
+                    >
+                        <LogOut size={16} className="group-hover:translate-x-[-3px] transition-transform text-red-500/60 group-hover:text-red-500" />
+                        <span>Logout</span>
+                    </button>
                 </div>
             </div>
         </div>

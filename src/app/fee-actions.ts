@@ -97,7 +97,7 @@ export async function uploadFeeStructure(fees: BulkFeeData[]) {
             // Default Academic Year if missing to 2025-2026 to prevent empty display
             // TRIM inputs to strictly avoid filter mismatches
             const sanitizedGrade = f.grade.trim()
-            const sanitizedAY = (f.academicYear || '2025-2026').trim()
+            const sanitizedAY = (f.academicYear || '2026-2027').trim()
 
             await prisma.gradeFee.upsert({
                 where: {
@@ -182,7 +182,7 @@ export async function syncStudentFees(campusId?: number, academicYear?: string, 
 
         for (const s of students) {
             const sGrade = s.grade.trim()
-            const sAy = (s.academicYear || '2025-2026').trim()
+            const sAy = (s.academicYear || '2026-2027').trim()
             const key = `${s.campusId}-${sGrade}-${sAy}`
 
             // For student sync, we need to know WHICH fee type they have.

@@ -12,6 +12,8 @@ interface StatsCardsProps {
         totalStudents: number
         staffCount: number
         parentCount: number
+        alumniCount: number
+        othersCount: number
         prevAmbassadors?: number
         prevLeads?: number
         prevConfirmed?: number
@@ -33,7 +35,7 @@ export function StatsCards({ analytics, growthTrend }: StatsCardsProps) {
         {
             label: 'Total Ambassadors',
             value: analytics.totalAmbassadors,
-            sub: `${analytics.staffCount} Staff | ${analytics.parentCount} Parent`,
+            sub: `${analytics.staffCount} Staff | ${analytics.parentCount} Parent | ${analytics.alumniCount} Alumni | ${analytics.othersCount} Other`,
             icon: Users,
             grad: 'bg-grad-crimson',
             change: calculateChange(analytics.totalAmbassadors, analytics.prevAmbassadors),

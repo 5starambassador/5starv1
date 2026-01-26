@@ -185,6 +185,15 @@ export async function submitReferral(formData: {
             return { success: false, error: 'This mobile number is already registered as an existing User.' }
         }
 
+        // Check 1.5: Is this mobile number in the blocked CRM Lead list? (Lead Guard)
+        const existingCrmLead = await prisma.crmLead.findUnique({
+            where: { mobileNumber: parentMobile }
+        })
+
+        if (existingCrmLead) {
+            return { success: false, error: 'This parent has already visited the campus directly (CRM). Cannot claim as referral.' }
+        }
+
         // Check 2: Has this mobile number already been referred? (Strict Lead Check)
         const existingLead = await prisma.referralLead.findFirst({
             where: { parentMobile }
@@ -214,7 +223,8 @@ export async function submitReferral(formData: {
                 parentMobile,
                 studentName,
                 campus,
-                gradeInterested
+                gradeInterested,
+                admittedYear: '2026-2027' // Enforce current active year for form submissions
             }
         })
 

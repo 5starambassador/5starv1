@@ -7,8 +7,13 @@ import { App, URLOpenListenerEvent } from '@capacitor/app'
 // import { PushNotifications } from '@capacitor/push-notifications'
 import { useRouter } from 'next/navigation'
 
+import { useFcmToken } from '@/hooks/useFcmToken'
+
 export function MobileConfig() {
     const router = useRouter()
+
+    // Initialize FCM Token Logic (Web + Native)
+    useFcmToken()
 
     useEffect(() => {
         const configureMobile = async () => {
@@ -19,22 +24,9 @@ export function MobileConfig() {
                 await StatusBar.setBackgroundColor({ color: '#DC2626' })
                 await StatusBar.setStyle({ style: Style.Dark })
 
-                // 2. Push Notifications (Disabled until google-services.json is available)
-                // const permStatus = await PushNotifications.checkPermissions()
-                // if (permStatus.receive === 'prompt') {
-                //     await PushNotifications.requestPermissions()
-                // }
-                // if (permStatus.receive !== 'denied') {
-                //     await PushNotifications.register()
-                // }
-
-                // PushNotifications.addListener('registration', token => {
-                //     console.log('Push Registration Token:', token.value)
-                // })
-
-                // PushNotifications.addListener('pushNotificationReceived', notification => {
-                //     console.log('Notification received:', notification)
-                // })
+                // 2. Push Notifications
+                // Handled by useFcmToken hook now.
+                // We just keep listener for deep links here if needed or move it too.
 
                 // 3. Deep Linking
                 App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {

@@ -176,6 +176,8 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
     const totalStudents = await prisma.student.count()
     const staffCount = userRoles.find(u => u.role === UserRole.Staff)?._count.role || 0
     const parentCount = userRoles.find(u => u.role === UserRole.Parent)?._count.role || 0
+    const alumniCount = userRoles.find(u => u.role === UserRole.Alumni)?._count.role || 0
+    const othersCount = userRoles.find(u => u.role === UserRole.Others || (u.role as string) === 'Other')?._count.role || 0
 
     // --- Phase 2: Enhanced Analytics ---
     const avgLeadsPerAmbassador = totalAmbassadors > 0 ? Number((finalTotalLeads / totalAmbassadors).toFixed(2)) : 0
@@ -197,6 +199,8 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
         totalStudents,
         staffCount,
         parentCount,
+        alumniCount,
+        othersCount,
         userRoleDistribution,
         prevAmbassadors,
         prevLeads,
@@ -460,6 +464,8 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
             const entry = getEntry(u.assignedCampus);
             if (u.role === 'Staff') entry.staffCount = (entry.staffCount || 0) + u._count._all;
             else if (u.role === 'Parent') entry.parentCount = (entry.parentCount || 0) + u._count._all;
+            else if (u.role === 'Alumni') entry.alumniCount = (entry.alumniCount || 0) + u._count._all;
+            else entry.othersCount = (entry.othersCount || 0) + u._count._all;
         }
     });
 

@@ -1,0 +1,17 @@
+--- OPENING DATABASE VIEW: Reviewing Referral Leads ---
+Total Leads in DB: 10
+┌─────────┬─────┬───────────────────────┬──────────────────────────────┬──────────────────┬────────────────────────┬─────────────┬───────────────────┐
+│ (index) │ ID  │ Student Name          │ Parent Name                  │ Referrer         │ Campus                 │ Status      │ Correctly Linked? │
+├─────────┼─────┼───────────────────────┼──────────────────────────────┼──────────────────┼────────────────────────┼─────────────┼───────────────────┤
+│ 0       │ 278 │ 'Anuradha'            │ 'Kamararaj'                  │ 'PRAVEEN'        │ 'ABSM - THENGAITHITTU' │ 'New'       │ 'YES'             │
+│ 1       │ 277 │ 'Govardhan'           │ 'Sarneeya'                   │ 'Kirubakaran.A'  │ 'ASM - MOOLAKULAM'     │ 'New'       │ 'YES'             │
+│ 2       │ 276 │ 'Student One'         │ 'Test Parent one'            │ 'Saravanan. R'   │ 'ASM - VILLIANUR'      │ 'Confirmed' │ 'YES'             │
+│ 3       │ 275 │ 'SHIVANI A'           │ 'SHIVANI A Parent'           │ 'Thirumoorthi R' │ 'ASM - KARAIKAL'       │ 'Confirmed' │ 'YES'             │
+│ 4       │ 274 │ 'SASHWIN VAIBHAV M'   │ 'SASHWIN VAIBHAV M Parent'   │ 'Thirumoorthi R' │ 'ASM - KARAIKAL'       │ 'Confirmed' │ 'YES'             │
+│ 5       │ 273 │ 'KANISHK NATARAJAN N' │ 'KANISHK NATARAJAN N Parent' │ 'Thirumoorthi R' │ 'ASM - KARAIKAL'       │ 'Confirmed' │ 'YES'             │
+│ 6       │ 272 │ 'ENIYAVARSHINI M'     │ 'ENIYAVARSHINI M Parent'     │ 'Thirumoorthi R' │ 'ASM - KARAIKAL'       │ 'Confirmed' │ 'YES'             │
+│ 7       │ 271 │ 'AADHITHAN C'         │ 'AADHITHAN C Parent'         │ 'Thirumoorthi R' │ 'ASM - KARAIKAL'       │ 'Confirmed' │ 'YES'             │
+│ 8       │ 270 │ 'Current Student Fix' │ 'Current Student Fix Parent' │ 'Thirumoorthi R' │ 'ASM - KARAIKAL'       │ 'Confirmed' │ 'YES'             │
+│ 9       │ 263 │ 'Santhiya'            │ 'Badri'                      │ 'Mithran I P'    │ 'ABSM - THENGAITHITTU' │ 'New'       │ 'YES'             │
+└─────────┴─────┴───────────────────────┴──────────────────────────────┴──────────────────┴────────────────────────┴─────────────┴───────────────────┘
+--- END OF DATABASE VIEW ---

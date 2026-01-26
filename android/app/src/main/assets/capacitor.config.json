@@ -3,7 +3,7 @@
 	"appName": "5-Star Ambassador",
 	"webDir": "public",
 	"server": {
-		"url": "https://5starv1.vercel.app",
+		"url": "https://www.5starambassador.com",
 		"cleartext": true
 	},
 	"plugins": {

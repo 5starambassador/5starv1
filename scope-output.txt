@@ -1,0 +1,14 @@
+--- Checking Super Admin Scope (Admin Table) ---
+Found Super Admin: Super Admin (ID: 9)
+Role: Super_Admin
+Assigned Campus: None (Global)
+Global Access confirmed (no assigned campus).
+
+--- Restored Leads Campus Check ---
+Lead 270 (Current Student Fix): Campus='ASM - KARAIKAL', Status='Confirmed'
+Lead 271 (AADHITHAN C): Campus='ASM - KARAIKAL', Status='Confirmed'
+Lead 272 (ENIYAVARSHINI M): Campus='ASM - KARAIKAL', Status='Confirmed'
+Lead 273 (KANISHK NATARAJAN N): Campus='ASM - KARAIKAL', Status='Confirmed'
+Lead 274 (SASHWIN VAIBHAV M): Campus='ASM - KARAIKAL', Status='Confirmed'
+Lead 275 (SHIVANI A): Campus='ASM - KARAIKAL', Status='Confirmed'
+Lead 276 (Student One): Campus='ASM - VILLIANUR', Status='Confirmed'

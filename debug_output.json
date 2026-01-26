@@ -1,71 +1,55 @@
-{
-  "user": {
-    "id": 1177,
-    "name": "Thirumoorthi R",
-    "isFiveStar": true
-  },
-  "years": [
-    {
-      "id": 2,
-      "year": "2024-2025",
-      "startDate": "2024-06-01T00:00:00.000Z",
-      "endDate": "2025-05-31T00:00:00.000Z",
-      "isActive": true,
-      "isCurrent": false,
-      "createdAt": "2026-01-05T07:25:26.502Z",
-      "updatedAt": "2026-01-10T06:54:49.469Z"
-    },
-    {
-      "id": 4,
-      "year": "2026-2027",
-      "startDate": "2026-04-01T00:00:00.000Z",
-      "endDate": "2027-03-31T00:00:00.000Z",
-      "isActive": true,
-      "isCurrent": false,
-      "createdAt": "2026-01-05T08:06:54.798Z",
-      "updatedAt": "2026-01-10T06:54:49.469Z"
-    },
-    {
-      "id": 1,
-      "year": "2025-2026",
-      "startDate": "2025-06-01T00:00:00.000Z",
-      "endDate": "2026-05-31T00:00:00.000Z",
-      "isActive": true,
-      "isCurrent": true,
-      "createdAt": "2026-01-05T07:23:26.592Z",
-      "updatedAt": "2026-01-10T06:54:49.473Z"
-    }
-  ],
-  "referrals": [
-    {
-      "id": 38,
-      "status": "Confirmed",
-      "admittedYear": "2024-2025",
-      "createdAt": "2026-01-13T12:12:42.864Z"
-    },
-    {
-      "id": 44,
-      "status": "Confirmed",
-      "admittedYear": "2024-2025",
-      "createdAt": "2026-01-13T12:12:46.608Z"
-    },
-    {
-      "id": 134,
-      "status": "Confirmed",
-      "admittedYear": "2024-2025",
-      "createdAt": "2026-01-13T12:13:15.352Z"
-    },
-    {
-      "id": 169,
-      "status": "Confirmed",
-      "admittedYear": "2024-2025",
-      "createdAt": "2026-01-13T12:13:23.867Z"
-    },
-    {
-      "id": 215,
-      "status": "Confirmed",
-      "admittedYear": "2024-2025",
-      "createdAt": "2026-01-13T12:13:35.858Z"
-    }
-  ]
-}
+[
+  {
+    "userId": 1177,
+    "fullName": "Thirumoorthi R",
+    "role": "Parent",
+    "isFiveStarMember": true,
+    "referrals": [
+      {
+        "leadId": 594,
+        "studentName": "AADHITHAN C",
+        "leadStatus": "Confirmed",
+        "admittedYear": "2024-2025",
+        "studentAcademicYear": "2025-2026",
+        "createdAt": "2026-01-23T07:27:24.395Z",
+        "campusId": 106
+      },
+      {
+        "leadId": 532,
+        "studentName": "ENIYAVARSHINI M",
+        "leadStatus": "Confirmed",
+        "admittedYear": "2024-2025",
+        "studentAcademicYear": "2025-2026",
+        "createdAt": "2026-01-23T07:27:09.898Z",
+        "campusId": 106
+      },
+      {
+        "leadId": 486,
+        "studentName": "KANISHK NATARAJAN N",
+        "leadStatus": "Confirmed",
+        "admittedYear": "2024-2025",
+        "studentAcademicYear": "2025-2026",
+        "createdAt": "2026-01-23T07:26:51.568Z",
+        "campusId": 106
+      },
+      {
+        "leadId": 351,
+        "studentName": "SASHWIN VAIBHAV M",
+        "leadStatus": "Confirmed",
+        "admittedYear": "2024-2025",
+        "studentAcademicYear": "2025-2026",
+        "createdAt": "2026-01-23T07:26:05.864Z",
+        "campusId": 106
+      },
+      {
+        "leadId": 341,
+        "studentName": "SHIVANI A",
+        "leadStatus": "Confirmed",
+        "admittedYear": "2024-2025",
+        "studentAcademicYear": "2025-2026",
+        "createdAt": "2026-01-23T07:26:02.397Z",
+        "campusId": 106
+      }
+    ]
+  }
+]

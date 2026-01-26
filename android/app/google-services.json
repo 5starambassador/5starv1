@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "585095330900",
+    "project_id": "achariya-app",
+    "storage_bucket": "achariya-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:585095330900:android:3e4e6b3726cc6f4ef681c1",
+        "android_client_info": {
+          "package_name": "in.achariya.ambassador"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCKJiGeA8RvPm7mfUlqicFaK8cMSb8vp0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

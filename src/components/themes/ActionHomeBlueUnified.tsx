@@ -2,12 +2,10 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { Share2, UserPlus, ChevronRight, Clock, Star, TrendingUp, Wallet, Copy, Check, CheckCircle, Award, ChevronDown, User } from 'lucide-react'
-import { motion, Variants } from 'framer-motion'
+import { Share2, UserPlus, ChevronRight, Clock, Star, TrendingUp, Wallet, Copy, Check, CheckCircle, Award, ChevronDown, User, Clipboard, Bell } from 'lucide-react'
+import { motion, Variants, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { useState, useEffect, ReactNode } from 'react'
-
-import { SHORT_TERM_TIERS } from '@/lib/benefit-calculator'
 
 import { PageAnimate, PageItem } from '@/components/PageAnimate'
 import { CircularProgress } from '@/components/ui/CircularProgress'
@@ -26,6 +24,7 @@ interface ActionHomeBlueUnifiedProps {
         referralCode: string
         studentFee?: number
         isFiveStarMember?: boolean
+        lifetimeCount?: number
     }
     recentReferrals: any[]
     whatsappUrl: string
@@ -34,6 +33,8 @@ interface ActionHomeBlueUnifiedProps {
     totalLeadsCount?: number
     overrideEarnedAmount?: number
     overrideEstimatedAmount?: number
+    notifications?: any[]
+    unreadCount?: number
 }
 
 // Animation Variants
@@ -67,11 +68,14 @@ const itemVariants: Variants = {
     }
 }
 
-// Convert Object Tier Map to Array for Display
-const tiers = Object.entries(SHORT_TERM_TIERS).map(([count, percent]) => ({
-    count: parseInt(count),
-    percent: percent
-}))
+// Institutional Default Tiers (Fallback)
+const tiers = [
+    { count: 1, percent: 5 },
+    { count: 2, percent: 10 },
+    { count: 3, percent: 15 },
+    { count: 4, percent: 20 },
+    { count: 5, percent: 25 },
+]
 
 function getGreeting() {
     const hour = new Date().getHours()
@@ -81,7 +85,18 @@ function getGreeting() {
     return 'Happy Night'
 }
 
-export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, referralLink, monthStats, totalLeadsCount = 0, overrideEarnedAmount, overrideEstimatedAmount }: ActionHomeBlueUnifiedProps) {
+export function ActionHomeBlueUnified({
+    user,
+    recentReferrals,
+    whatsappUrl,
+    referralLink,
+    monthStats,
+    totalLeadsCount = 0,
+    overrideEarnedAmount,
+    overrideEstimatedAmount,
+    notifications = [],
+    unreadCount = 0
+}: ActionHomeBlueUnifiedProps) {
     const firstName = user.fullName.split(' ')[0]
 
     // Dynamic Data
@@ -91,7 +106,7 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
     const [subtitle, setSubtitle] = useState<ReactNode>('')
 
     // Greeting Data Logic - Always target 5 Star
-    const unitsToNext = 5 - displayCount
+    const unitsToNext = 5 - (user.lifetimeCount || displayCount)
 
     useEffect(() => {
         const hour = new Date().getHours()
@@ -186,7 +201,7 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
                 <div className="lg:col-span-8 space-y-6">
                     <motion.div variants={itemVariants} className="space-y-6">
                         {/* Hero Section - Elite Greeting */}
-                        <GlassCard className="flex-1 relative overflow-hidden !bg-gradient-to-br !from-blue-700/80 !to-indigo-900/90 !border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] group backdrop-brightness-100">
+                        <GlassCard className="flex-1 relative overflow-hidden !bg-gradient-to-br !from-blue-600 !to-blue-900 !border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] group backdrop-brightness-110">
                             <div className="relative z-10 flex flex-col justify-between h-full">
                                 <div>
                                     <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-blue-900/50 backdrop-blur-2xl border border-blue-400/40 text-[10px] font-black uppercase tracking-[0.2em] text-white mb-3 shadow-2xl">
@@ -198,15 +213,16 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
                                             25<sup className="text-[0.6em] ml-0.5">th</sup> <span className="ml-1.5">Year Celebration</span>
                                         </div>
                                     </div>
-                                    <h1 className="text-5xl md:text-6xl font-extrabold text-white mb-4 tracking-[-0.03em] leading-[0.9] drop-shadow-2xl">
-                                        {greeting}, <br className="hidden md:block" /> <span className="text-white">{firstName}</span>
+                                    <h1 className="mb-4 tracking-[-0.03em] leading-tight drop-shadow-2xl flex flex-col gap-0 md:gap-2">
+                                        <span className="text-xl md:text-3xl font-bold text-blue-100/90 tracking-normal">{greeting},</span>
+                                        <span className="text-3xl md:text-6xl font-black text-white">{firstName}</span>
                                     </h1>
                                     <p className="text-blue-100/80 font-bold uppercase tracking-[0.2em] text-[11px] mt-6 leading-relaxed">
                                         {subtitle}
                                     </p>
                                 </div>
 
-                                <div className="mt-10 flex items-center gap-10 opacity-100">
+                                <div className="mt-8 flex flex-col md:flex-row items-start gap-6 md:gap-10 opacity-100">
                                     <div className="text-left">
                                         <p className="text-[10px] uppercase tracking-[0.25em] text-blue-200/70 font-bold mb-2">Account Status</p>
                                         <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-400 text-[11px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(52,211,153,0.15)]">
@@ -214,10 +230,35 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
                                             Verified
                                         </div>
                                     </div>
-                                    <div className="w-px h-12 bg-white/10" />
-                                    <div className="text-left">
+                                    <div className="hidden md:block w-px h-12 bg-white/10" />
+                                    <div className="text-left w-full md:w-auto overflow-hidden">
                                         <p className="text-[10px] uppercase tracking-[0.25em] text-blue-200/70 font-bold mb-2">Campus</p>
-                                        <p className="text-white font-black text-2xl tracking-tighter uppercase leading-none">{user.assignedCampus || 'Corporate'}</p>
+                                        <p className="text-white font-black text-xl md:text-2xl tracking-tighter uppercase leading-none break-words">{user.assignedCampus || 'Corporate'}</p>
+                                    </div>
+                                    <div className="hidden md:block w-px h-12 bg-white/10" />
+                                    <div className="text-left relative z-20">
+                                        <p className="text-[10px] uppercase tracking-[0.25em] text-blue-200/70 font-bold mb-3 pl-1">Partner ID</p>
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(user.referralCode)
+                                                toast.success('Partner ID copied to clipboard')
+                                            }}
+                                            className="group/id relative flex items-center gap-4 pl-5 pr-4 py-3 bg-gradient-to-r from-blue-950/50 to-indigo-950/50 rounded-2xl border border-blue-400/20 hover:border-blue-400/40 hover:bg-blue-900/40 transition-all duration-300 shadow-[0_8px_20px_rgba(0,0,0,0.3)] backdrop-blur-md overflow-hidden"
+                                        >
+                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-400/5 to-transparent translate-x-[-100%] group-hover/id:translate-x-[100%] transition-transform duration-1000" />
+                                            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-400 to-indigo-500 opacity-50 group-hover/id:opacity-100 transition-opacity" />
+
+                                            <p className="text-white font-black text-xl md:text-2xl tracking-[0.15em] uppercase leading-none font-mono drop-shadow-lg relative z-10">
+                                                {user.referralCode}
+                                            </p>
+
+                                            <div className="p-2 rounded-lg bg-white/5 border border-white/10 group-hover/id:bg-white/10 group-hover/id:border-white/20 transition-all relative z-10">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: '16px', minHeight: '16px', display: 'block' }}>
+                                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                                </svg>
+                                            </div>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -228,30 +269,30 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
                         </GlassCard>
 
                         <div className="flex flex-col md:flex-row gap-6 w-full relative z-10 transition-all duration-700">
-                            {/* Referral Status Card - SAPPHIRE THEME */}
-                            <GlassCard className="w-full md:w-64 !bg-gradient-to-br !from-blue-600/20 !via-blue-900/40 !to-indigo-950/60 border-blue-400/50 shadow-[0_20px_60px_rgba(30,58,138,0.7)] group/blue hover:border-blue-400/70 transition-all">
-                                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/40 via-transparent to-transparent pointer-events-none" />
+                            {/* Referral Status Card - ROYAL GOLD THEME */}
+                            <GlassCard className="w-full md:w-64 !bg-gradient-to-br !from-amber-500/10 !via-amber-800/20 !to-yellow-950/40 border-amber-400/30 shadow-[0_20px_60px_rgba(245,158,11,0.2)] group/gold hover:border-amber-400/50 transition-all backdrop-brightness-110">
+                                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/10 via-transparent to-transparent pointer-events-none" />
                                 <div className="relative z-10 flex flex-col items-center justify-center h-full text-center py-6">
-                                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-10 group-hover/blue:text-blue-400 transition-colors">Referral Status</h3>
+                                    <h3 className="text-[10px] font-black text-amber-200/60 uppercase tracking-[0.3em] mb-10 group-hover/gold:text-amber-300 transition-colors">Referral Status</h3>
                                     <div className="relative group/progress">
-                                        <div className="absolute inset-0 bg-blue-500/20 blur-[50px] rounded-full scale-150 group-hover/progress:bg-blue-300/30 transition-all duration-700" />
+                                        <div className="absolute inset-0 bg-amber-500/20 blur-[50px] rounded-full scale-150 group-hover/progress:bg-amber-400/20 transition-all duration-700" />
                                         <CircularProgress
                                             value={displayCount}
                                             max={5}
                                             size={140}
                                             strokeWidth={8}
-                                            className="text-cyan-400 drop-shadow-[0_0_20px_rgba(34,211,238,0.5)]"
+                                            className="text-amber-400 drop-shadow-[0_0_25px_rgba(251,191,36,0.6)]"
                                         >
                                             <div className="text-center w-full">
                                                 <div className="text-5xl font-black text-white tracking-[-0.05em] leading-none mb-1 group-hover/progress:scale-110 transition-transform duration-700">
                                                     {displayCount}
                                                 </div>
-                                                <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Units</div>
+                                                <div className="text-[10px] text-amber-200/80 font-black uppercase tracking-widest mt-1">Units</div>
                                             </div>
                                         </CircularProgress>
                                     </div>
                                     <div className="mt-6">
-                                        {(displayCount >= 5 || user.isFiveStarMember) ? (
+                                        {(user.lifetimeCount || 0) >= 5 ? (
                                             <motion.div
                                                 initial={{ scale: 0.8, opacity: 0 }}
                                                 animate={{ scale: 1, opacity: 1 }}
@@ -280,7 +321,7 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
                             {/* Net Rewards Card - PLATINUM: Vibrant Indigo Theme */}
                             <GlassCard className="flex-1 !bg-gradient-to-br !from-indigo-950 !via-indigo-900/90 !to-blue-900 backdrop-blur-3xl border border-indigo-400/40 shadow-2xl group/indigo hover:border-indigo-400/60 transition-all duration-700 flex flex-col p-0 overflow-hidden">
                                 <div className="relative z-10 flex flex-col justify-between flex-1 p-6 md:p-10">
-                                    <div className="flex items-center gap-5 mb-10">
+                                    <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-5 mb-8 md:mb-10">
                                         <div className="w-14 h-14 bg-white/10 rounded-[20px] flex items-center justify-center backdrop-blur-2xl border border-white/20 group-hover/indigo:scale-110 group-hover/indigo:rotate-3 transition-transform shadow-2xl relative overflow-hidden">
                                             <div className="absolute inset-0 bg-gradient-to-br from-indigo-400/20 to-transparent" />
                                             <Wallet size={24} className="text-white relative z-10 drop-shadow-lg" />
@@ -300,7 +341,7 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
                                             Secured Balance
                                         </div>
                                         <div className="flex items-baseline gap-4">
-                                            <div className="text-5xl md:text-7xl font-black tracking-[-0.05em] text-white leading-none tabular-nums drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+                                            <div className="text-4xl md:text-7xl font-black tracking-[-0.05em] text-white leading-none tabular-nums drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
                                                 ₹{currentBenefitAmount.toLocaleString('en-IN')}
                                             </div>
                                             <div className="text-[12px] font-black text-white bg-indigo-500/40 px-3 py-1 rounded-xl border border-white/20 backdrop-blur-md mb-2 shadow-xl">{benefitPercent}%</div>
@@ -343,18 +384,33 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
                                 initial="rest"
                                 whileHover="hover"
                                 whileTap="tap"
-                                className="flex-1 group relative flex items-center justify-center gap-4 bg-emerald-500/10 backdrop-blur-3xl text-emerald-400 h-16 rounded-[28px] font-black text-[11px] uppercase tracking-[0.25em] shadow-[0_10px_30px_rgba(16,185,129,0.1)] border border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:shadow-[0_15px_40px_rgba(16,185,129,0.2)] transition-all overflow-hidden"
+                                className="flex-1 group relative flex items-center justify-center gap-4 bg-amber-500/10 backdrop-blur-3xl text-amber-400 h-12 md:h-16 rounded-[28px] font-black text-[10px] md:text-[11px] uppercase tracking-[0.25em] shadow-[0_10px_30px_rgba(245,158,11,0.1)] border border-amber-500/30 hover:bg-amber-500/20 hover:border-amber-500/50 hover:shadow-[0_15px_40px_rgba(245,158,11,0.2)] transition-all overflow-hidden"
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                                <Share2 size={18} className="relative z-10 drop-shadow-lg" />
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="relative z-10 drop-shadow-lg" style={{ minWidth: '18px', minHeight: '18px', display: 'block' }}>
+                                    <circle cx="18" cy="5" r="3" />
+                                    <circle cx="6" cy="12" r="3" />
+                                    <circle cx="18" cy="19" r="3" />
+                                    <line x1="8.59" x2="15.42" y1="13.51" y2="17.49" />
+                                    <line x1="15.41" x2="8.59" y1="6.51" y2="10.49" />
+                                </svg>
                                 <span className="relative z-10">Invite Friends</span>
                             </motion.a>
 
                             <button
                                 onClick={handleCopy}
-                                className="h-14 w-14 bg-white/[0.03] hover:bg-white/[0.08] backdrop-blur-xl text-white border border-white/10 rounded-[24px] flex items-center justify-center transition-all shrink-0 active:scale-95 shadow-lg relative group"
+                                className="h-12 w-12 md:h-14 md:w-14 bg-amber-400 hover:bg-amber-300 text-black border border-amber-300 rounded-[24px] flex items-center justify-center transition-all shrink-0 active:scale-95 shadow-[0_0_20px_rgba(251,191,36,0.4)] relative group"
                             >
-                                {copied ? <Check size={20} className="text-emerald-400" /> : <Copy size={20} className="opacity-40 group-hover:opacity-100" />}
+                                {copied ? (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: '20px', minHeight: '20px', display: 'block' }}>
+                                        <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: '22px', minHeight: '22px', display: 'block' }}>
+                                        <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+                                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                                    </svg>
+                                )}
                                 <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black/90 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none border border-white/10 shadow-2xl">Copy Link</span>
                             </button>
                         </div>
@@ -369,16 +425,17 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
                                     initial="rest"
                                     whileHover="hover"
                                     whileTap="tap"
-                                    className="group bg-gradient-to-r from-white/15 to-white/10 backdrop-blur-xl border border-white/30 rounded-[32px] p-8 flex items-center justify-between shadow-2xl hover:bg-white/20 transition-all relative overflow-hidden cursor-pointer"
+                                    className="group bg-gradient-to-r from-white/15 to-white/10 backdrop-blur-xl border border-white/30 rounded-[32px] p-5 md:p-8 flex items-center justify-between shadow-2xl hover:bg-white/20 transition-all relative overflow-hidden cursor-pointer"
                                 >
                                     <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none" />
                                     <div className="absolute -top-10 -right-10 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl group-hover:bg-amber-500/30 transition-colors opacity-50" />
                                     <div className="flex items-center gap-6 relative z-10">
-                                        <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center border border-white/20 shadow-[0_8px_16px_rgba(245,158,11,0.2)]">
-                                            <UserPlus size={32} className="text-white" />
+                                        <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center border border-white/20 shadow-[0_8px_16px_rgba(245,158,11,0.2)]">
+                                            <UserPlus size={24} className="text-white md:hidden" />
+                                            <UserPlus size={32} className="text-white hidden md:block" />
                                         </div>
                                         <div className="text-left">
-                                            <h3 className="text-3xl md:text-4xl font-black tracking-tighter leading-tight mb-1 text-white uppercase italic">Refer a Family Now</h3>
+                                            <h3 className="text-xl md:text-4xl font-black tracking-tighter leading-tight mb-1 text-white uppercase italic">Refer a Family Now</h3>
                                             <p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Start earning royal benefits today</p>
                                         </div>
                                     </div>
@@ -392,7 +449,7 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
 
                     {/* BENEFIT STRUCTURE - Royal Glass Theme (Blue-Slate Variant) */}
                     <motion.div variants={itemVariants}>
-                        <PageItem className="bg-gradient-to-br from-blue-800/70 to-slate-900/70 backdrop-blur-xl rounded-[32px] md:rounded-[40px] p-6 md:p-8 border border-blue-400/40 shadow-2xl relative z-10 mt-6 backdrop-brightness-125">
+                        <PageItem className="bg-gradient-to-br from-blue-700/60 to-slate-900/60 backdrop-blur-xl rounded-[32px] md:rounded-[40px] p-6 md:p-8 border border-blue-400/40 shadow-2xl relative z-10 mt-6 backdrop-brightness-125">
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="w-1 h-8 bg-gradient-to-b from-blue-400 to-blue-600 rounded-sm" />
                                 <div>
@@ -407,7 +464,7 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
                                     <CheckCircle size={14} className="text-blue-400" />
                                     <span className="text-[10px] font-black text-blue-200/80 uppercase tracking-widest">Current Year (Short Term)</span>
                                 </div>
-                                <div className="grid grid-cols-5 gap-2 md:gap-3">
+                                <div className="grid grid-cols-3 gap-2 md:grid-cols-5 md:gap-3">
                                     {tiers.map((tier, index) => {
                                         const isCurrentTier = displayCount === tier.count
                                         const isAchieved = displayCount >= tier.count
@@ -433,7 +490,7 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
                                         }
 
                                         return (
-                                            <div key={tier.count} className={`relative py-4 md:py-6 px-2 rounded-2xl text-center transition-all duration-500 ${getCardClasses()}`}>
+                                            <div key={tier.count} className={`relative py-3 md:py-6 px-1 md:px-2 rounded-2xl text-center transition-all duration-500 ${getCardClasses()}`}>
                                                 <div className={`text-[9px] font-black uppercase tracking-[0.15em] mb-1.5 ${index === 4 ? 'text-black/70' : 'text-white/40'}`}>
                                                     {tier.count} {tier.count > 1 ? 'Units' : 'Unit'}
                                                 </div>
@@ -489,7 +546,7 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
                                             ))}
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div className="!bg-gradient-to-br !from-blue-600/20 !via-blue-900/40 !to-indigo-950/60 rounded-2xl p-5 border border-blue-500/30 group-hover/lt:border-blue-500/50 shadow-lg transition-all">
                                                 <p className="text-[9px] font-black text-blue-300/80 uppercase tracking-[0.2em] mb-3">Base Loyalty</p>
                                                 <div className="flex items-end gap-1.5">
@@ -501,7 +558,7 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
                                                 <p className="text-[9px] font-black text-emerald-300/80 uppercase tracking-[0.2em] mb-3">Bonus Boost</p>
                                                 <div className="flex items-end gap-1.5">
                                                     <p className="text-4xl font-black text-white tracking-tighter tabular-nums leading-none">+5%</p>
-                                                    <span className="text-[10px] text-emerald-300/50 font-black uppercase mb-1">Per Ref</span>
+                                                    <span className="text-[10px] text-emerald-300/50 font-black uppercase mb-1 whitespace-nowrap">Per Ref</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -520,6 +577,144 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
 
                 <div className="lg:col-span-4 space-y-6">
                     <motion.div variants={itemVariants} className="flex flex-col gap-6">
+                        {/* NOTIFICATION CENTER - TEAL THEME - EXPANDABLE */}
+                        <PageItem className="relative z-10 group/notify mb-6">
+                            <GlassCard className={`!bg-gradient-to-br !from-teal-900/40 !via-cyan-900/50 !to-slate-900/60 border-teal-500/30 shadow-[0_20px_60px_rgba(20,184,166,0.2)] hover:border-teal-400/50 transition-all overflow-hidden ${longTermExpanded ? 'ring-2 ring-teal-500/20' : ''}`}>
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 blur-[80px] -mr-20 -mt-20 rounded-full group-hover/notify:bg-teal-500/20 transition-colors pointer-events-none" />
+
+                                <button
+                                    onClick={() => setLongTermExpanded(!longTermExpanded)}
+                                    className="w-full text-left relative z-10 outline-none"
+                                >
+                                    <div className="flex items-center justify-between p-6">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center relative overflow-hidden group-hover/notify:scale-110 transition-transform duration-500">
+                                                <div className="absolute inset-0 bg-gradient-to-br from-teal-400/20 to-transparent" />
+                                                <div className="relative z-10">
+                                                    <span className="text-xl">📢</span>
+                                                </div>
+                                                {/* Notification Badge */}
+                                                {unreadCount && unreadCount > 0 ? (
+                                                    <div className="absolute top-2 right-2 w-2 h-2 bg-teal-400 rounded-full animate-pulse shadow-[0_0_10px_#2dd4bf]" />
+                                                ) : null}
+                                            </div>
+                                            <div>
+                                                <h3 className="text-xl font-black text-white tracking-tighter uppercase italic leading-none mb-1">
+                                                    Circulars & Messages
+                                                </h3>
+                                                <p className="text-[10px] font-bold text-teal-200/60 uppercase tracking-widest flex items-center gap-2">
+                                                    Stay Updated
+                                                    {(unreadCount && unreadCount > 0) && (
+                                                        <span className="bg-teal-500/20 px-1.5 py-0.5 rounded text-teal-300 animate-pulse">{unreadCount} New</span>
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className={`w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10 transition-all duration-500 ${longTermExpanded ? 'rotate-180 bg-teal-500 text-black border-teal-400' : 'group-hover/notify:bg-white/10'}`}>
+                                            <ChevronDown size={16} />
+                                        </div>
+                                    </div>
+
+                                    {/* Preview (Collapsed State) - Show latest 1 item marquee-like or generic text */}
+                                    {!longTermExpanded && (
+                                        <div className="px-6 pb-6 pt-0">
+                                            <div className="p-3 rounded-xl bg-black/20 border border-teal-500/10 flex items-center gap-3">
+                                                <div className="w-1 h-8 bg-teal-500/50 rounded-full flex-shrink-0" />
+                                                <p className="text-xs text-slate-300 font-medium line-clamp-1">
+                                                    {notifications && notifications.length > 0 ? notifications[0].title : 'Tap to view all latest updates, circulars, and announcements.'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </button>
+
+                                {/* Expanded Content */}
+                                <AnimatePresence>
+                                    {longTermExpanded && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ type: "spring", stiffness: 100, damping: 15 }}
+                                            className="overflow-hidden bg-black/20 border-t border-teal-500/10"
+                                        >
+                                            <div className="p-6 space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                                {(!notifications || notifications.length === 0) ? (
+                                                    <div className="text-center py-8">
+                                                        <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-3">
+                                                            <Bell size={20} className="text-slate-500" />
+                                                        </div>
+                                                        <p className="text-white font-bold mb-1">No New Circulars</p>
+                                                        <p className="text-xs text-slate-500">You're all caught up!</p>
+                                                    </div>
+                                                ) : (
+                                                    notifications.map((notif: any) => (
+                                                        <div key={notif.id} className={`p-4 rounded-xl border transition-colors group/item relative ${notif.isRead ? 'bg-white/5 border-white/5' : 'bg-teal-500/10 border-teal-500/20'}`}>
+                                                            {!notif.isRead && (
+                                                                <div className="absolute top-4 right-4 w-2 h-2 bg-teal-400 rounded-full shadow-[0_0_8px_#2dd4bf]" />
+                                                            )}
+                                                            <div className="flex justify-between items-start mb-2 pr-4">
+                                                                <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${notif.type === 'success' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' :
+                                                                    notif.type === 'warning' ? 'bg-amber-500/20 text-amber-400 border-amber-500/20' :
+                                                                        'bg-blue-500/20 text-blue-400 border-blue-500/20'
+                                                                    }`}>
+                                                                    {notif.type || 'Info'}
+                                                                </span>
+                                                                <span className="text-[10px] text-slate-500 font-mono">
+                                                                    <Clock size={10} className="inline mr-1" />
+                                                                    {new Date(notif.createdAt).toLocaleDateString()}
+                                                                </span>
+                                                            </div>
+                                                            <h4 className="text-white font-bold text-sm mb-1 group-hover/item:text-teal-300 transition-colors pr-4">{notif.title}</h4>
+                                                            <p className="text-xs text-slate-400 leading-relaxed">
+                                                                {notif.message}
+                                                            </p>
+                                                            <div className="flex items-center justify-between mt-3">
+                                                                {notif.link ? (
+                                                                    <Link href={notif.link} className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-400 hover:text-teal-300 uppercase tracking-wider">
+                                                                        View Details <ChevronRight size={12} />
+                                                                    </Link>
+                                                                ) : <div />}
+
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        const shareData = {
+                                                                            title: notif.title,
+                                                                            text: `${notif.title}\n\n${notif.message}`,
+                                                                            url: notif.link || window.location.href
+                                                                        }
+
+                                                                        if (navigator.share) {
+                                                                            navigator.share(shareData).catch(console.error)
+                                                                        } else {
+                                                                            navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`)
+                                                                            toast.success('Message copied to clipboard')
+                                                                        }
+                                                                    }}
+                                                                    className="p-1.5 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 transition-colors"
+                                                                    title="Share Message"
+                                                                >
+                                                                    <Share2 size={13} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+
+                                                {/* Empty State Helper */}
+                                                {notifications && notifications.length > 0 && (
+                                                    <div className="text-center py-4">
+                                                        <p className="text-[10px] text-slate-600 uppercase tracking-widest">End of Updates</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </GlassCard>
+                        </PageItem>
+
                         {/* PERFORMANCE OVERVIEW - RUBY THEME */}
                         {monthStats && (
                             <PageItem className="relative z-10 overflow-hidden group/ruby">
@@ -561,13 +756,151 @@ export function ActionHomeBlueUnified({ user, recentReferrals, whatsappUrl, refe
                             </PageItem>
                         )}
 
+                        {/* DUPLICATE REMOVED */}{false && (
+                            <PageItem className="relative z-10 group/notify my-6">
+                                <GlassCard className={`!bg-gradient-to-br !from-teal-900/40 !via-cyan-900/50 !to-slate-900/60 border-teal-500/30 shadow-[0_20px_60px_rgba(20,184,166,0.2)] hover:border-teal-400/50 transition-all overflow-hidden ${longTermExpanded ? 'ring-2 ring-teal-500/20' : ''}`}>
+                                    <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 blur-[80px] -mr-20 -mt-20 rounded-full group-hover/notify:bg-teal-500/20 transition-colors pointer-events-none" />
+
+                                    <button
+                                        onClick={() => setLongTermExpanded(!longTermExpanded)}
+                                        className="w-full text-left relative z-10 outline-none"
+                                    >
+                                        <div className="flex items-center justify-between p-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center relative overflow-hidden group-hover/notify:scale-110 transition-transform duration-500">
+                                                    <div className="absolute inset-0 bg-gradient-to-br from-teal-400/20 to-transparent" />
+                                                    <div className="relative z-10">
+                                                        <span className="text-xl">📢</span>
+                                                    </div>
+                                                    {/* Notification Badge */}
+                                                    {unreadCount && unreadCount > 0 ? (
+                                                        <div className="absolute top-2 right-2 w-2 h-2 bg-teal-400 rounded-full animate-pulse shadow-[0_0_10px_#2dd4bf]" />
+                                                    ) : null}
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-xl font-black text-white tracking-tighter uppercase italic leading-none mb-1">
+                                                        Circulars & Messages
+                                                    </h3>
+                                                    <p className="text-[10px] font-bold text-teal-200/60 uppercase tracking-widest flex items-center gap-2">
+                                                        Stay Updated
+                                                        {(unreadCount && unreadCount > 0) && (
+                                                            <span className="bg-teal-500/20 px-1.5 py-0.5 rounded text-teal-300 animate-pulse">{unreadCount} New</span>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className={`w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10 transition-all duration-500 ${longTermExpanded ? 'rotate-180 bg-teal-500 text-black border-teal-400' : 'group-hover/notify:bg-white/10'}`}>
+                                                <ChevronDown size={16} />
+                                            </div>
+                                        </div>
+
+                                        {/* Preview (Collapsed State) - Show latest 1 item marquee-like or generic text */}
+                                        {!longTermExpanded && (
+                                            <div className="px-6 pb-6 pt-0">
+                                                <div className="p-3 rounded-xl bg-black/20 border border-teal-500/10 flex items-center gap-3">
+                                                    <div className="w-1 h-8 bg-teal-500/50 rounded-full flex-shrink-0" />
+                                                    <p className="text-xs text-slate-300 font-medium line-clamp-1">
+                                                        {notifications && notifications.length > 0 ? notifications[0].title : 'Tap to view all latest updates, circulars, and announcements.'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </button>
+
+                                    {/* Expanded Content */}
+                                    <AnimatePresence>
+                                        {longTermExpanded && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                transition={{ type: "spring", stiffness: 100, damping: 15 }}
+                                                className="overflow-hidden bg-black/20 border-t border-teal-500/10"
+                                            >
+                                                <div className="p-6 space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                                    {(!notifications || notifications.length === 0) ? (
+                                                        <div className="text-center py-8">
+                                                            <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-3">
+                                                                <Bell size={20} className="text-slate-500" />
+                                                            </div>
+                                                            <p className="text-white font-bold mb-1">No New Circulars</p>
+                                                            <p className="text-xs text-slate-500">You're all caught up!</p>
+                                                        </div>
+                                                    ) : (
+                                                        notifications.map((notif: any) => (
+                                                            <div key={notif.id} className={`p-4 rounded-xl border transition-colors group/item relative ${notif.isRead ? 'bg-white/5 border-white/5' : 'bg-teal-500/10 border-teal-500/20'}`}>
+                                                                {!notif.isRead && (
+                                                                    <div className="absolute top-4 right-4 w-2 h-2 bg-teal-400 rounded-full shadow-[0_0_8px_#2dd4bf]" />
+                                                                )}
+                                                                <div className="flex justify-between items-start mb-2 pr-4">
+                                                                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${notif.type === 'success' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' :
+                                                                        notif.type === 'warning' ? 'bg-amber-500/20 text-amber-400 border-amber-500/20' :
+                                                                            'bg-blue-500/20 text-blue-400 border-blue-500/20'
+                                                                        }`}>
+                                                                        {notif.type || 'Info'}
+                                                                    </span>
+                                                                    <span className="text-[10px] text-slate-500 font-mono">
+                                                                        <Clock size={10} className="inline mr-1" />
+                                                                        {new Date(notif.createdAt).toLocaleDateString()}
+                                                                    </span>
+                                                                </div>
+                                                                <h4 className="text-white font-bold text-sm mb-1 group-hover/item:text-teal-300 transition-colors pr-4">{notif.title}</h4>
+                                                                <p className="text-xs text-slate-400 leading-relaxed">
+                                                                    {notif.message}
+                                                                </p>
+                                                                <div className="flex items-center justify-between mt-3">
+                                                                    {notif.link ? (
+                                                                        <Link href={notif.link} className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-400 hover:text-teal-300 uppercase tracking-wider">
+                                                                            View Details <ChevronRight size={12} />
+                                                                        </Link>
+                                                                    ) : <div />}
+
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation()
+                                                                            const shareData = {
+                                                                                title: notif.title,
+                                                                                text: `${notif.title}\n\n${notif.message}`,
+                                                                                url: notif.link || window.location.href
+                                                                            }
+
+                                                                            if (navigator.share) {
+                                                                                navigator.share(shareData).catch(console.error)
+                                                                            } else {
+                                                                                navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`)
+                                                                                toast.success('Message copied to clipboard')
+                                                                            }
+                                                                        }}
+                                                                        className="p-1.5 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 transition-colors"
+                                                                        title="Share Message"
+                                                                    >
+                                                                        <Share2 size={13} />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    )}
+
+                                                    {/* Empty State Helper */}
+                                                    {notifications && notifications.length > 0 && (
+                                                        <div className="text-center py-4">
+                                                            <p className="text-[10px] text-slate-600 uppercase tracking-widest">End of Updates</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </GlassCard>
+                            </PageItem>)}
+
                         {/* RECENT REFERRALS - EMERALD/CYAN THEME */}
                         <PageItem className="relative z-10 min-h-[300px] group/cyan">
                             <GlassCard className="!bg-gradient-to-br !from-emerald-600/20 !via-emerald-900/40 !to-teal-950/60 border-emerald-500/40 shadow-[0_20px_60px_rgba(16,185,129,0.3)] hover:border-emerald-500/60 transition-all h-full p-0">
                                 <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-400/20 blur-[40px] -ml-16 -mt-16 rounded-full group-hover/cyan:bg-emerald-400/30 transition-colors" />
-                                <div className="flex items-center justify-between p-6 border-b border-emerald-400/20 relative z-10 bg-emerald-950/40">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 md:p-6 border-b border-emerald-400/20 relative z-10 bg-emerald-950/40 gap-3 sm:gap-0">
                                     <h3 className="text-xl md:text-2xl font-black text-white tracking-tighter uppercase italic leading-none">Activity</h3>
-                                    <Link href="/referrals" className="text-[10px] font-bold text-cyan-500 uppercase tracking-[0.2em] flex items-center gap-1 hover:bg-cyan-400/10 px-3 py-1.5 rounded-full transition-all border border-transparent hover:border-cyan-400/20 group-hover/cyan:translate-x-1 transition-transform">
+                                    <Link href="/referrals" className="text-[10px] font-bold text-cyan-500 uppercase tracking-[0.2em] flex items-center gap-1 hover:bg-cyan-400/10 px-3 py-1.5 rounded-full transition-all border border-transparent hover:border-cyan-400/20 group-hover/cyan:translate-x-1 transition-transform self-start sm:self-auto">
                                         View Referrals <ChevronRight size={14} />
                                     </Link>
                                 </div>

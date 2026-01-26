@@ -18,17 +18,21 @@ const filterReferralsByYear = (referrals: any[], yearRecord: any) => {
     // 1. Current Year Logic
     if (yearRecord.isCurrent) {
         return referrals.filter((r: any) => {
-            // Priority 1: Check admittedYear first (most reliable indicator)
+            // Priority 0: Recurring Student Check
+            const s = r.student
+            if (s?.academicYear) {
+                if (s.academicYear === CURRENT_ACADEMIC_YEAR || s.academicYear === '2026-2027') return true
+            }
+
+            // Priority 1: Check admittedYear (Acquisition Date)
             if (r.admittedYear) {
                 if (r.admittedYear === PREVIOUS_ACADEMIC_YEAR) return false
                 if (r.admittedYear === CURRENT_ACADEMIC_YEAR || r.admittedYear === '2026-2027') return true
             }
 
-            // Priority 2: Check student's academic year
-            const s = r.student
+            // Priority 2: Fallback to student year negative check
             if (s?.academicYear) {
                 if (s.academicYear === PREVIOUS_ACADEMIC_YEAR) return false
-                if (s.academicYear === CURRENT_ACADEMIC_YEAR || s.academicYear === '2026-2027') return true
             }
 
             // Priority 3: Fallback to creation date
@@ -57,14 +61,21 @@ const filterReferralsByYear = (referrals: any[], yearRecord: any) => {
     }
 }
 
+import { ClientUser } from '@/types/client-types'
+
+import { BenefitSlabData } from '@/app/benefit-actions'
+
 interface DashboardClientProps {
-    user: any
+    user: ClientUser
     referrals: any[]
     activeYears: any[]
     campusFeeMap: Map<number, { otp: number, wotp: number }>
+    slabs: BenefitSlabData[]
     // Pre-calculated context stuff
     dynamicStudentFee: number
     monthStats: any
+    notifications?: any[]
+    unreadCount?: number
 }
 
 export function DashboardClient({
@@ -72,8 +83,11 @@ export function DashboardClient({
     referrals,
     activeYears,
     campusFeeMap,
+    slabs,
     dynamicStudentFee,
-    monthStats
+    monthStats,
+    notifications = [],
+    unreadCount = 0
 }: DashboardClientProps) {
 
     // Filter State
@@ -141,7 +155,7 @@ export function DashboardClient({
         const previousYearReferrals = filterReferralsByYear(referrals, prevYearRecord).filter((r: any) => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted')
 
         const userContext: UserContext = {
-            role: user.role,
+            role: user.role as 'Parent' | 'Staff' | 'Alumni' | 'Others',
             childInAchariya: user.childInAchariya,
             studentFee: user.studentFee || 60000,
             isFiveStarLastYear: user.isFiveStarMember,
@@ -153,131 +167,70 @@ export function DashboardClient({
             }))
         }
 
-        // 3. Calculate Earnings
-        const confirmedList = currentSet.filter((r: any) => r.leadStatus === 'Confirmed')
-        const potentialList = currentSet.filter((r: any) => r.leadStatus !== 'Rejected')
+        const rawBenefits = calculateTotalBenefit(formatForCalculator(currentSet), userContext, slabs)
 
-        const earnedResult = calculateTotalBenefit(formatForCalculator(confirmedList), userContext)
-        const potentialResult = calculateTotalBenefit(formatForCalculator(potentialList), userContext)
-
-        // 4. Calculate Display Percent
-        let displayPercent = 0
-        const count = confirmedList.length
-        if (user.role === 'Parent' || (user.role === 'Staff' && user.childInAchariya)) {
-            // Fee Discount
-            if (user.isFiveStarMember) {
-                if (count >= 5) displayPercent = 25
-                else if (count === 4) displayPercent = 20
-                else if (count === 3) displayPercent = 15
-                else if (count === 2) displayPercent = 10
-                else if (count >= 1) displayPercent = 5
-            } else {
-                if (count >= 5) displayPercent = 50
-                else if (count === 4) displayPercent = 30
-                else if (count === 3) displayPercent = 20
-                else if (count === 2) displayPercent = 10
-                else if (count >= 1) displayPercent = 5
-            }
-        } else {
-            // Cash
-            if (count >= 5) displayPercent = 100
-            else displayPercent = count * 20
+        const benefitStats = {
+            earned: rawBenefits.totalAmount,
+            potential: 0,
+            displayPercent: rawBenefits.tierPercent
         }
 
-        return {
-            filteredReferrals: currentSet,
-            benefitStats: {
-                earned: earnedResult.totalAmount, // This includes Base if applicable
-                potential: potentialResult.totalAmount,
-                displayPercent
-            }
-        }
+        return { filteredReferrals: currentSet, benefitStats }
+    }, [referrals, selectedYearId, activeYears, campusFeeMap, user, slabs])
 
-    }, [selectedYearId, referrals, activeYears, campusFeeMap, user])
+    // Derived Display Data
+    const realConfirmedCount = filteredReferrals.filter((r: any) => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted').length
+    const pendingCount = filteredReferrals.length - realConfirmedCount
 
-
-    // Prepare Recent Referrals for Display (Top 5 of filtered set)
-    const recentReferralsDisplay = filteredReferrals
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    // Sort recent referrals (just for display)
+    const recentReferralsDisplay = [...filteredReferrals]
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5)
-        .map((r: any) => ({
-            id: r.leadId,
-            parentName: r.parentName,
-            studentName: r.studentName,
-            status: r.leadStatus,
-            createdAt: r.createdAt // Passed as string already or Date?
-        }))
-
-    // Calculate Counts
-    const realConfirmedCount = filteredReferrals.filter((r: any) => r.leadStatus === 'Confirmed').length
-    const pendingCount = filteredReferrals.filter((r: any) => r.leadStatus !== 'Confirmed' && r.leadStatus !== 'Rejected').length
 
     return (
-        <div className="-mx-2 xl:mx-0 relative">
-            {/* Royal Glass Background Layer */}
-            <div className="fixed inset-0 bg-[#0f172a] -z-50">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/40 via-slate-900/60 to-slate-900 z-0 opacity-100" />
-            </div>
-            <div className="fixed inset-0 bg-[url('/bg-pattern.png')] bg-cover opacity-10 -z-40 pointer-events-none" />
-            <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-blue-600/20 blur-[100px] rounded-full translate-x-1/2 -translate-y-1/2 -z-40 pointer-events-none" />
-            <div className="fixed bottom-0 left-0 w-[500px] h-[500px] bg-indigo-600/10 blur-[100px] rounded-full -translate-x-1/3 translate-y-1/3 -z-40 pointer-events-none" />
-
-            {/* YEAR FILTER DROPDOWN - Floating Top Right */}
-            <div className="absolute top-0 right-0 z-50 mb-6">
+        <div className="space-y-6">
+            {/* Filter UI */}
+            <div className="flex justify-end">
                 <div className="relative">
                     <button
                         onClick={() => setIsFilterOpen(!isFilterOpen)}
-                        className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all shadow-xl"
+                        className="flex items-center gap-2 px-4 py-2 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl text-sm font-medium hover:bg-white/10 transition-colors"
                     >
-                        <Calendar size={14} className="text-amber-400" />
-                        <span>
-                            {selectedYearId === 'all' ? 'All Time' : activeYears.find(y => y.id === selectedYearId)?.year}
-                        </span>
-                        <ChevronDown size={14} className={`transition-transform duration-300 ${isFilterOpen ? 'rotate-180' : ''}`} />
+                        <Calendar className="w-4 h-4 text-blue-400" />
+                        <span>{activeYears.find(y => y.id === selectedYearId)?.year || 'All Time'}</span>
+                        <ChevronDown className={`w-4 h-4 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     <AnimatePresence>
                         {isFilterOpen && (
                             <motion.div
-                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                className="absolute right-0 mt-2 w-48 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                                className="absolute right-0 mt-2 w-48 bg-[#0f172a] border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden"
                             >
-                                <div className="p-1">
-                                    {activeYears.map((year) => (
-                                        <button
-                                            key={year.id}
-                                            onClick={() => {
-                                                setSelectedYearId(year.id)
-                                                setIsFilterOpen(false)
-                                            }}
-                                            className={`w-full text-left px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-colors flex items-center justify-between ${selectedYearId === year.id
-                                                ? 'bg-blue-600 text-white'
-                                                : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                                                }`}
-                                        >
-                                            {year.year}
-                                            {year.isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />}
-                                        </button>
-                                    ))}
-                                    {/* Optional: All Time Option */}
-                                    {/* 
+                                {activeYears.map((year) => (
                                     <button
+                                        key={year.id}
                                         onClick={() => {
-                                            setSelectedYearId('all')
+                                            setSelectedYearId(year.id)
                                             setIsFilterOpen(false)
                                         }}
-                                        className={`w-full text-left px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-colors ${
-                                            selectedYearId === 'all' 
-                                            ? 'bg-blue-600 text-white' 
-                                            : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                                        }`}
+                                        className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition-colors ${selectedYearId === year.id ? 'text-blue-400 font-medium' : 'text-slate-400'}`}
                                     >
-                                        All Time
+                                        {year.year}
+                                        {year.isCurrent && <span className="ml-2 text-xs bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full">Current</span>}
                                     </button>
-                                    */}
-                                </div>
+                                ))}
+                                <button
+                                    onClick={() => {
+                                        setSelectedYearId('all')
+                                        setIsFilterOpen(false)
+                                    }}
+                                    className={`w-full text-left px-4 py-3 text-sm hover:bg-white/5 transition-colors border-t border-white/5 ${selectedYearId === 'all' ? 'text-blue-400 font-medium' : 'text-slate-400'}`}
+                                >
+                                    All Time
+                                </button>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -288,8 +241,9 @@ export function DashboardClient({
                 user={{
                     fullName: user.fullName,
                     role: user.role,
-                    referralCode: user.referralCode,
+                    referralCode: user.referralCode || '',
                     confirmedReferralCount: realConfirmedCount,
+                    lifetimeCount: user.confirmedReferralCount,
                     yearFeeBenefitPercent: benefitStats.displayPercent,
                     potentialFeeBenefitPercent: 0,
                     benefitStatus: user.benefitStatus || 'Active',
@@ -305,6 +259,8 @@ export function DashboardClient({
                 totalLeadsCount={pendingCount}
                 overrideEarnedAmount={benefitStats.earned}
                 overrideEstimatedAmount={benefitStats.potential}
+                notifications={notifications}
+                unreadCount={unreadCount}
             />
         </div>
     )

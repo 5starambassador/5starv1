@@ -83,7 +83,7 @@ export default async function DashboardPage() {
     })
 
     // Prepare User Object for Client
-    const userForClient = {
+    const userForClient: any = { // Cast to any first to build it, then validate at prop level or interface
         fullName: userData.fullName,
         role: userData.role,
         referralCode: userData.referralCode,
@@ -116,14 +116,20 @@ export default async function DashboardPage() {
         updatedAt: y.updatedAt ? new Date(y.updatedAt).toISOString() : null
     }))
 
+    // Fetch Notifications
+    const { notifications, unreadCount } = await import('@/app/notification-actions').then(m => m.getNotifications(1, 10))
+
     return (
         <DashboardClient
             user={userForClient}
             referrals={serializedReferrals}
             activeYears={serializedActiveYears}
             campusFeeMap={campusFeeMapObj as any} // Cast to any to bypass Map typing mismatch if needed
+            slabs={slabsResult.data || []}
             dynamicStudentFee={dynamicStudentFee || 60000}
             monthStats={monthStats}
+            notifications={notifications || []}
+            unreadCount={unreadCount || 0}
         />
     )
 }
