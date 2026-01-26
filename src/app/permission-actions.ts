@@ -63,7 +63,8 @@ export async function getRolePermissions(role: string) {
                     rulesAccess: { access: (dbPerms as any).rulesAccessAccess, scope: (dbPerms as any).rulesAccessScope || 'none' },
                     passwordReset: { access: (dbPerms as any).passwordResetAccess, scope: (dbPerms as any).passwordResetScope || 'none' },
                     feeManagement: { access: (dbPerms as any).feeManagementAccess, scope: (dbPerms as any).feeManagementScope || 'none' },
-                    engagementCentre: { access: (dbPerms as any).engagementCentreAccess, scope: (dbPerms as any).engagementCentreScope || 'none' }
+                    engagementCentre: { access: (dbPerms as any).engagementCentreAccess, scope: (dbPerms as any).engagementCentreScope || 'none' },
+                    paymentApproval: { access: (dbPerms as any).paymentApprovalAccess, scope: (dbPerms as any).paymentApprovalScope || 'none' }
                 }
             }
         }
@@ -142,6 +143,8 @@ export async function updateRolePermissions(role: string, permissions: RolePermi
                 feeManagementScope: permissions.feeManagement?.scope ?? 'none',
                 engagementCentreAccess: permissions.engagementCentre?.access ?? false,
                 engagementCentreScope: permissions.engagementCentre?.scope ?? 'none',
+                paymentApprovalAccess: permissions.paymentApproval?.access ?? false,
+                paymentApprovalScope: permissions.paymentApproval?.scope ?? 'none',
                 updatedBy: admin.fullName
             } as any,
             update: {
@@ -192,6 +195,8 @@ export async function updateRolePermissions(role: string, permissions: RolePermi
                 feeManagementScope: permissions.feeManagement?.scope ?? 'none',
                 engagementCentreAccess: permissions.engagementCentre?.access ?? false,
                 engagementCentreScope: permissions.engagementCentre?.scope ?? 'none',
+                paymentApprovalAccess: permissions.paymentApproval?.access ?? false,
+                paymentApprovalScope: permissions.paymentApproval?.scope ?? 'none',
                 updatedBy: admin.fullName
             } as any
         })
@@ -202,9 +207,9 @@ export async function updateRolePermissions(role: string, permissions: RolePermi
         await logAction('PERMISSION_CHANGE', 'permissions', `Updated permissions for role: ${role}`, role, JSON.stringify({ permissions }))
 
         return { success: true }
-    } catch (error) {
+    } catch (error: any) {
         console.error('Update permissions error:', error)
-        return { success: false, error: 'Failed to update permissions' }
+        return { success: false, error: `Failed to update permissions: ${error.message || 'Unknown error'}` }
     }
 }
 

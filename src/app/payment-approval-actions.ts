@@ -3,15 +3,13 @@
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { getCurrentUser } from '@/lib/auth-service'
+import { hasModuleAccess } from '@/lib/permissions'
 
 export async function approveManualPayment(orderId: string) {
     try {
-        // 1. Auth Check (Must be Super Admin or Finance Admin)
+        // 1. Auth Check (Must have paymentApproval permission)
         const user = await getCurrentUser()
-        if (!user || (user.role !== 'Super Admin' && user.role !== 'Finance Admin')) {
-            // Fallback check for "admin" table if "user" table auth fails or is different scheme
-            // For now assuming getCurrentUser handles both or we are strict.
-            // Actually, `getCurrentUser` returns { formattedRole: ... }
+        if (!user || !require('@/lib/permissions').hasModuleAccess(user.role, 'paymentApproval')) {
             return { success: false, error: 'Unauthorized' }
         }
 
@@ -63,33 +61,39 @@ export async function approveManualPayment(orderId: string) {
     }
 }
 
-export async function rejectManualPayment(orderId: string) {
+export async function rejectManualPayment(orderId: string, reason: string) {
     try {
         // 1. Auth Check
         const user = await getCurrentUser()
-        if (!user || (user.role !== 'Super Admin' && user.role !== 'Finance Admin')) {
+        if (!user || !require('@/lib/permissions').hasModuleAccess(user.role, 'paymentApproval')) {
             return { success: false, error: 'Unauthorized' }
         }
 
-        // 2. Update Payment to Failed
+        if (!reason || reason.trim().length === 0) {
+            return { success: false, error: 'Reason for rejection is required' }
+        }
+
+        // 2. Update Payment to Failed with Remarks
         const payment = await prisma.payment.update({
             where: { orderId: orderId },
             data: {
                 orderStatus: 'FAILED',
                 paymentStatus: 'Rejected by Admin',
-            }
+                adminRemarks: reason
+            } as any
         })
 
-        // Reset User Status to allow retry
+        // Update User Status to 'Rejected' (was 'Pending') to show reason clearly
         await prisma.user.update({
             where: { userId: payment.userId },
             data: {
-                paymentStatus: 'Pending',
+                paymentStatus: 'Rejected' as any, // Cast as any if enum not yet refreshed
                 transactionId: null
             }
         })
 
         revalidatePath('/superadmin/approvals')
+        revalidatePath('/complete-payment')
         return { success: true }
     } catch (error: any) {
         console.error("Rejection Error:", error)

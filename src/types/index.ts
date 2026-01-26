@@ -31,6 +31,7 @@ export interface RolePermissions {
     passwordReset: ModulePermission
     feeManagement: ModulePermission
     engagementCentre: ModulePermission
+    paymentApproval: ModulePermission
 }
 
 export interface User {
@@ -212,8 +213,9 @@ export interface SystemSettings {
     parentReferralText?: string | null
     staffWelcomeMessage?: string | null
     parentWelcomeMessage?: string | null
-    alumniWelcomeMessage?: string | null
-    updatedAt: Date
+    alumniWelcomeMessage?: string | null;
+    allowManualPayments: boolean;
+    updatedAt: Date;
 }
 
 export interface MarketingAsset {

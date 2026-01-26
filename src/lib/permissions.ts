@@ -35,6 +35,7 @@ export interface RolePermissions {
     rulesAccess: ModulePermission
     feeManagement: ModulePermission
     engagementCentre: ModulePermission
+    paymentApproval: ModulePermission
 }
 
 export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
@@ -57,7 +58,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         savingsCalculator: { access: true, scope: 'all' },
         rulesAccess: { access: true, scope: 'all' },
         feeManagement: { access: true, scope: 'all' },
-        engagementCentre: { access: true, scope: 'all' }
+        engagementCentre: { access: true, scope: 'all' },
+        paymentApproval: { access: true, scope: 'all' }
     },
     'Campus Head': {
         // MANAGER ROLE: Strategy & Oversight (View Only for Operations, Full Analytics)
@@ -79,7 +81,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         savingsCalculator: { access: true, scope: 'campus' },
         rulesAccess: { access: true, scope: 'campus' },
         feeManagement: { access: true, scope: 'campus', canCreate: false, canEdit: false }, // View Only
-        engagementCentre: { access: false, scope: 'none' }
+        engagementCentre: { access: false, scope: 'none' },
+        paymentApproval: { access: false, scope: 'none' }
     },
     'Finance Admin': {
         analytics: { access: true, scope: 'all' },
@@ -100,7 +103,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         savingsCalculator: { access: false, scope: 'none' },
         rulesAccess: { access: false, scope: 'none' },
         feeManagement: { access: false, scope: 'none' },
-        engagementCentre: { access: false, scope: 'none' }
+        engagementCentre: { access: false, scope: 'none' },
+        paymentApproval: { access: true, scope: 'all' }
     },
     'Admission Admin': {
         analytics: { access: true, scope: 'view-only' },
@@ -121,7 +125,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         savingsCalculator: { access: false, scope: 'none' },
         rulesAccess: { access: true, scope: 'all' },
         feeManagement: { access: false, scope: 'none' },
-        engagementCentre: { access: false, scope: 'none' }
+        engagementCentre: { access: false, scope: 'none' },
+        paymentApproval: { access: true, scope: 'view-only' }
     },
     'Campus Admin': {
         // OPERATOR ROLE: Execution & Data Entry (Full Edit Access, Basic Reports)
@@ -143,7 +148,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         savingsCalculator: { access: false, scope: 'none' },
         rulesAccess: { access: true, scope: 'campus' },
         feeManagement: { access: true, scope: 'campus', canCreate: true, canEdit: true },
-        engagementCentre: { access: false, scope: 'none' }
+        engagementCentre: { access: false, scope: 'none' },
+        paymentApproval: { access: false, scope: 'none' }
     },
     'Staff': {
         analytics: { access: true, scope: 'self' },
@@ -164,7 +170,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         savingsCalculator: { access: true, scope: 'self' },
         rulesAccess: { access: true, scope: 'all' },
         feeManagement: { access: false, scope: 'none' },
-        engagementCentre: { access: false, scope: 'none' }
+        engagementCentre: { access: false, scope: 'none' },
+        paymentApproval: { access: false, scope: 'none' }
     },
     'Parent': {
         analytics: { access: true, scope: 'self' },
@@ -185,7 +192,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         savingsCalculator: { access: true, scope: 'self' },
         rulesAccess: { access: true, scope: 'all' },
         feeManagement: { access: false, scope: 'none' },
-        engagementCentre: { access: false, scope: 'none' }
+        engagementCentre: { access: false, scope: 'none' },
+        paymentApproval: { access: false, scope: 'none' }
     },
     'Alumni': {
         analytics: { access: true, scope: 'self' },
@@ -206,7 +214,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         savingsCalculator: { access: true, scope: 'self' },
         rulesAccess: { access: true, scope: 'all' },
         feeManagement: { access: false, scope: 'none' },
-        engagementCentre: { access: false, scope: 'none' }
+        engagementCentre: { access: false, scope: 'none' },
+        paymentApproval: { access: false, scope: 'none' }
     },
     'Others': {
         analytics: { access: true, scope: 'self' },
@@ -227,8 +236,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         savingsCalculator: { access: true, scope: 'self' },
         rulesAccess: { access: true, scope: 'all' },
         feeManagement: { access: false, scope: 'none' },
-        engagementCentre: { access: false, scope: 'none' }
-    }
+        engagementCentre: { access: false, scope: 'none' },
+        paymentApproval: { access: false, scope: 'none' }
+    },
 }
 
 /**

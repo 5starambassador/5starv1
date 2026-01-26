@@ -105,7 +105,7 @@ model ReferralLead {
   createdAt       DateTime   @default(now())
   studentName     String?
   leadStatus      LeadStatus @default(New)
-  admissionNumber String? // [New] - Final link to student
+  admissionNumber String?
   section         String?
   selectedFeeType FeeType?
   annualFee       Int?
@@ -129,7 +129,7 @@ model BenefitSlab {
   baseLongTermPercent   Float   @default(15)
   description           String?
   appBonusPercent       Float   @default(5)
-  appBonusEligibility   String  @default("PARENT,STAFF_CHILD") // PARENT, STAFF_CHILD, STAFF_PAYOUT, ALUMNI_OTHERS
+  appBonusEligibility   String  @default("PARENT,STAFF_CHILD")
 }
 
 model Admin {
@@ -163,6 +163,7 @@ model SystemSettings {
   updatedBy             String?
   alumniReferralText    String?  @default("Hello 👋 I'm part of Achariya's 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: ${referralLink} – Achariya Ambassador")
   alumniWelcomeMessage  String?  @default("Welcome to the Alumni Ambassador Dashboard")
+  allowManualPayments   Boolean  @default(true)
 }
 
 model AcademicYear {
@@ -258,6 +259,8 @@ model RolePermissions {
   engagementCentreScope    String   @default("none")
   feeManagementAccess      Boolean  @default(false)
   feeManagementScope       String   @default("none")
+  paymentApprovalAccess    Boolean  @default(false)
+  paymentApprovalScope     String   @default("none")
 }
 
 model Settlement {
@@ -494,10 +497,26 @@ model Payment {
   settlementDate   DateTime?
   settlementId     String?
   transactionId    String?
+  adminRemarks     String?
   user             User      @relation(fields: [userId], references: [userId])
 
   @@index([orderId])
   @@index([userId])
+}
+
+model CrmLead {
+  id           Int      @id @default(autoincrement())
+  mobileNumber String   @unique
+  parentName   String?
+  source       String   @default("Walk-in")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  campus       String?
+  grade        String?
+  studentName  String?
+  visitDate    DateTime @default(now())
+
+  @@index([mobileNumber])
 }
 
 enum FeeType {
@@ -539,19 +558,4 @@ enum UserRole {
   Staff
   Alumni
   Others
-}
-
-model CrmLead {
-  id           Int      @id @default(autoincrement())
-  mobileNumber String   @unique
-  parentName   String?
-  studentName  String?  // [NEW] For context matching
-  grade        String?  // [NEW]
-  campus       String?  // [NEW]
-  source       String   @default("Walk-in")
-  visitDate    DateTime @default(now()) // [NEW] For "First Source Wins" logic
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@index([mobileNumber])
 }

@@ -91,9 +91,8 @@ export async function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL('/dashboard', request.url))
         }
 
-        // 2. RBAC Checks
-        // Super Admin Only
-        if (isSuperAdminRoute && user.role !== 'Super Admin') {
+        // Super Admin Only (except for shared modules like approvals)
+        if (isSuperAdminRoute && user.role !== 'Super Admin' && !pathname.startsWith('/superadmin/approvals')) {
             return NextResponse.redirect(new URL('/dashboard', request.url))
         }
 

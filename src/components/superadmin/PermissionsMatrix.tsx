@@ -43,6 +43,7 @@ const SECTIONS = [
             { key: 'referralTracking', label: 'Global Referral Module', icon: List },
             { key: 'feeManagement', label: 'Fee Management', icon: Wallet },
             { key: 'engagementCentre', label: 'Engagement Centre', icon: Users },
+            { key: 'paymentApproval', label: 'Payment Approval', icon: IndianRupee },
         ]
     },
     {

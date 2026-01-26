@@ -353,6 +353,23 @@ export function SettingsPanel() {
                                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                                     </label>
                                 </div>
+
+                                <div className="p-6 bg-blue-50 rounded-2xl border border-blue-100 flex items-center justify-between">
+                                    <div>
+                                        <p className="font-black text-blue-900 uppercase tracking-widest text-[10px] mb-1">Payments</p>
+                                        <h4 className="font-bold text-gray-900">Manual QR Payment</h4>
+                                        <p className="text-xs text-blue-700 mt-1 opacity-70 italic">Enable "Scan & Pay" option</p>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only peer"
+                                            checked={systemSettings.allowManualPayments}
+                                            onChange={(e) => setSystemSettings({ ...systemSettings, allowManualPayments: e.target.checked })}
+                                        />
+                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
+                                </div>
                             </div>
 
 

@@ -16,6 +16,7 @@ const SettingsUpdateSchema = z.object({
     parentWelcomeMessage: z.string().max(100).optional(),
     alumniReferralText: z.string().max(500).optional(),
     alumniWelcomeMessage: z.string().max(100).optional(),
+    allowManualPayments: z.boolean().optional(),
 })
 
 const SecuritySettingsSchema = z.object({
@@ -126,6 +127,8 @@ export async function updateSystemSettings(rawData: any) {
                 ...(data.parentWelcomeMessage !== undefined && { parentWelcomeMessage: data.parentWelcomeMessage }),
                 ...(data.alumniReferralText !== undefined && { alumniReferralText: data.alumniReferralText }),
                 ...(data.alumniWelcomeMessage !== undefined && { alumniWelcomeMessage: data.alumniWelcomeMessage }),
+                // @ts-ignore
+                ...(data.allowManualPayments !== undefined && { allowManualPayments: data.allowManualPayments }),
             },
             create: {
                 maintenanceMode: data.maintenanceMode || false,
@@ -135,7 +138,9 @@ export async function updateSystemSettings(rawData: any) {
                 staffWelcomeMessage: data.staffWelcomeMessage,
                 parentWelcomeMessage: data.parentWelcomeMessage,
                 alumniReferralText: data.alumniReferralText,
-                alumniWelcomeMessage: data.alumniWelcomeMessage
+                alumniWelcomeMessage: data.alumniWelcomeMessage,
+                // @ts-ignore
+                allowManualPayments: data.allowManualPayments ?? true
             }
         })
 

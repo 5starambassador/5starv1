@@ -70,14 +70,18 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         if (permissions.referralTracking.access && isSuperAdmin) navItems.push({ label: 'Global Referral Module', href: `/superadmin?view=referrals`, icon: <Globe /> })
         if (isSuperAdmin) navItems.push({ label: 'Fee Management', href: `/superadmin?view=fees`, icon: <IndianRupee /> })
 
-        // Management of specific dashboard types
+        // Specific management of dashboard types based on permissions
+        if (permissions.engagementCentre?.access) navItems.push({ label: 'Engagement Center', href: `${baseAdminPath}?view=engagement`, icon: <Zap /> })
+        if (permissions.marketingKit?.access && isSuperAdmin) navItems.push({ label: 'Promo Management', href: '/superadmin?view=marketing', icon: <Megaphone /> })
+
         if (isSuperAdmin) {
-            navItems.push({ label: 'Engagement Center', href: '/superadmin?view=engagement', icon: <Zap /> })
-            navItems.push({ label: 'Promo Management', href: '/superadmin?view=marketing', icon: <Megaphone /> })
             navItems.push({ label: 'Benefit Config', href: '/superadmin/benefits', icon: <Gift /> })
             navItems.push({ label: 'Verifications', href: '/superadmin/verification', icon: <ShieldCheck /> })
-            navItems.push({ label: 'Payment Approvals', href: '/superadmin/approvals', icon: <CheckCircle /> })
             navItems.push({ label: 'Permissions', href: '/superadmin?view=permissions', icon: <Lock /> })
+        }
+
+        if (permissions.paymentApproval?.access) {
+            navItems.push({ label: 'Payment Approvals', href: '/superadmin/approvals', icon: <CheckCircle /> })
         }
 
         if (permissions.deletionHub?.access) {
@@ -177,13 +181,12 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                 </div>
             </aside>
 
-            {/* Main Content Wrapper for fixed sidebar offset */}
+            {/* Main Content Wrapper */}
             <div className="flex-1 flex flex-col min-h-screen xl:ml-[280px] w-full items-center overflow-x-hidden relative">
 
                 {/* Mobile Topbar */}
                 <div className={`mobile-topbar xl:hidden fixed top-0 left-0 right-0 h-16 border-b z-50 flex items-center justify-between px-4 backdrop-blur-xl shadow-lg ${isDarkTheme ? 'bg-[#0f172a]/80 border-white/10 text-white' : 'bg-white/80 border-gray-100 text-gray-900'}`}>
                     <div className="flex items-center gap-3">
-                        {/* Hamburger Menu Trigger */}
                         <MobileSidebarWrapper>
                             <MobileMenu
                                 navItems={navItems}
@@ -206,10 +209,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                     </div>
                 </div>
 
-                <main
-                    className="flex-1 w-full max-w-[1400px] px-4 py-4 xl:p-8 pt-20 xl:pt-8 pb-20 xl:pb-8 relative z-10"
-                >
-                    {/* Desktop Notification Header */}
+                <main className="flex-1 w-full max-w-[1400px] px-4 py-4 xl:p-8 pt-20 xl:pt-8 pb-20 xl:pb-8 relative z-10">
                     <header className="hidden xl:flex justify-end mb-4 absolute top-4 right-8 z-20">
                         <div className="bg-white/80 backdrop-blur-md p-1.5 rounded-full shadow-sm border border-white/50">
                             <NotificationDropdown userName={user.fullName} referralCode={(user as any).referralCode || ''} />
@@ -218,14 +218,13 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                     {children}
                 </main>
 
-                {/* Mobile Bottom Navigation */}
                 <BottomNav role={user.role} />
                 <InstallPrompt />
                 <MobileConfig />
                 <OfflineAlert />
                 <CommandPalette />
             </div>
-        </div >
+        </div>
     )
 }
 

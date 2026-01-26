@@ -5,7 +5,9 @@ import { load } from '@cashfreepayments/cashfree-js'
 import { toast } from 'sonner'
 
 import { simulatePayment } from '@/app/actions'
+import { getSystemSettings } from '@/app/settings-actions'
 import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 interface PaymentButtonProps {
     amount: number
@@ -21,6 +23,13 @@ export default function PaymentButton({ amount, onSuccess, userId }: PaymentButt
     const [loading, setLoading] = useState(false)
     const [showManual, setShowManual] = useState(false)
     const [showFallback, setShowFallback] = useState(false)
+    const [allowManual, setAllowManual] = useState(true)
+
+    useEffect(() => {
+        getSystemSettings().then(settings => {
+            setAllowManual(settings.allowManualPayments)
+        })
+    }, [])
 
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -107,7 +116,7 @@ export default function PaymentButton({ amount, onSuccess, userId }: PaymentButt
             </button>
 
             {/* Smart Fallback Link */}
-            {showFallback && (
+            {showFallback && allowManual && (
                 <div className="text-center pt-2 animate-in fade-in slide-in-from-top-2 duration-700">
                     <p className="text-xs text-slate-500 mb-1">Having trouble paying online?</p>
                     <button
