@@ -670,6 +670,15 @@ export async function submitManualPayment(formData: FormData) {
             }
         });
 
+        // Update User Status
+        await prisma.user.update({
+            where: { userId: userId },
+            data: {
+                paymentStatus: 'Pending Approval',
+                transactionId: utr
+            }
+        });
+
         // Optionally notify admin (revalidate paths)
         revalidatePath('/superadmin/finance')
 

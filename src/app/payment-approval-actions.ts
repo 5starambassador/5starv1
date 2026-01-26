@@ -73,11 +73,20 @@ export async function rejectManualPayment(orderId: string) {
         }
 
         // 2. Update Payment to Failed
-        await prisma.payment.update({
+        const payment = await prisma.payment.update({
             where: { orderId: orderId },
             data: {
                 orderStatus: 'FAILED',
                 paymentStatus: 'Rejected by Admin',
+            }
+        })
+
+        // Reset User Status to allow retry
+        await prisma.user.update({
+            where: { userId: payment.userId },
+            data: {
+                paymentStatus: 'Pending',
+                transactionId: null
             }
         })
 
