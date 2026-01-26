@@ -53,7 +53,9 @@ export function InstallPrompt() {
         const handleTriggerInstall = () => {
             if (deferredPrompt) {
                 handleInstallClick()
-            } else if (isIosDevice) {
+            } else {
+                // If no native prompt available (e.g. dismissed or not supported),
+                // show our internal beautiful guide card instead of just doing nothing.
                 setShowPrompt(true)
             }
         }
@@ -116,12 +118,14 @@ export function InstallPrompt() {
                             <p className="text-sm text-blue-100 leading-relaxed">
                                 {isIOS
                                     ? "Tap the Share button (□↑) below and select 'Add to Home Screen' for instant access!"
-                                    : "Get instant access with one tap. Works offline and launches like a native app!"}
+                                    : deferredPrompt
+                                        ? "Get instant access with one tap. Works offline and launches like a native app!"
+                                        : "Tap the three dots (⋮) in your browser menu and select 'Install app' or 'Add to home screen'."}
                             </p>
                         </div>
                     </div>
 
-                    {!isIOS && (
+                    {deferredPrompt && !isIOS && (
                         <button
                             onClick={handleInstallClick}
                             className="w-full bg-white text-blue-600 px-6 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-blue-50 transition-all shadow-lg mb-4"

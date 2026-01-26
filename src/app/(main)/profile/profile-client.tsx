@@ -38,6 +38,7 @@ interface ProfileClientProps {
         childCampusId?: number
         empId?: string
         transactionId?: string
+        childInAchariya?: boolean
         status?: string
         benefitStatus?: string
         bankName?: string
@@ -354,27 +355,28 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                     </div>
                 )}
 
-                {/* Staff: Prompt to Link Child if Missing */}
-                {user.role === 'Staff' && !(user as any).childName && !(user as any).childEprNo && (
-                    <button
-                        onClick={() => setIsEditingProfile(true)}
-                        className="w-full mb-6 group relative overflow-hidden rounded-2xl p-[1px] focus:outline-none"
-                    >
-                        <span className="absolute inset-0 bg-gradient-to-r from-amber-400/50 via-amber-200/50 to-amber-400/50 opacity-100 group-hover:opacity-100 animate-gradient-xy transition-opacity" />
-                        <div className="relative bg-slate-900 rounded-2xl p-5 flex items-center gap-4 transition-transform group-active:scale-[0.98]">
-                            <div className="w-12 h-12 rounded-full bg-amber-400/10 text-amber-400 flex items-center justify-center shrink-0 border border-amber-400/20 group-hover:bg-amber-400 group-hover:text-black transition-colors">
-                                <Shield size={24} strokeWidth={2.5} />
+                {/* Prompt to Link Child if Missing (Parents & Relevant Staff) */}
+                {((user.role === 'Parent') || (user.role === 'Staff' && user.childInAchariya)) &&
+                    !(user as any).childName && !(user as any).childEprNo && (
+                        <button
+                            onClick={() => setIsEditingProfile(true)}
+                            className="w-full mb-6 group relative overflow-hidden rounded-2xl p-[1px] focus:outline-none"
+                        >
+                            <span className="absolute inset-0 bg-gradient-to-r from-amber-400/50 via-amber-200/50 to-amber-400/50 opacity-100 group-hover:opacity-100 animate-gradient-xy transition-opacity" />
+                            <div className="relative bg-slate-900 rounded-2xl p-5 flex items-center gap-4 transition-transform group-active:scale-[0.98]">
+                                <div className="w-12 h-12 rounded-full bg-amber-400/10 text-amber-400 flex items-center justify-center shrink-0 border border-amber-400/20 group-hover:bg-amber-400 group-hover:text-black transition-colors">
+                                    <Shield size={24} strokeWidth={2.5} />
+                                </div>
+                                <div className="flex-1 text-left">
+                                    <h3 className="text-sm font-black text-amber-400 uppercase tracking-wide group-hover:text-white transition-colors">Link Child Details</h3>
+                                    <p className="text-[10px] text-white/50 font-medium leading-tight mt-0.5">
+                                        Claim your <strong>School Fee Discount</strong> by linking your child's ERP details.
+                                    </p>
+                                </div>
+                                < ChevronRight size={18} className="text-amber-400/50 group-hover:text-white transition-colors" />
                             </div>
-                            <div className="flex-1 text-left">
-                                <h3 className="text-sm font-black text-amber-400 uppercase tracking-wide group-hover:text-white transition-colors">Link Child Details</h3>
-                                <p className="text-[10px] text-white/50 font-medium leading-tight mt-0.5">
-                                    Claim your <strong>School Fee Discount</strong> by linking your child's ERP details.
-                                </p>
-                            </div>
-                            < ChevronRight size={18} className="text-amber-400/50 group-hover:text-white transition-colors" />
-                        </div>
-                    </button>
-                )}
+                        </button>
+                    )}
 
                 {/* Edit Form or Menu List */}
                 <div className="space-y-4">
@@ -724,8 +726,8 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                             onClick={() => {
                                 // Dispatch custom event to trigger global install prompt if available
                                 window.dispatchEvent(new CustomEvent('trigger-PWA-install'));
-                                toast.info('Click "Install" in the browser prompt or add to Home Screen', {
-                                    description: 'iOS users: Tap Share (□↑) and "Add to Home Screen"'
+                                toast.info('App Installation Guide Opened', {
+                                    description: 'Follow the steps in the guide to install the app on your home screen.'
                                 });
                             }}
                             className="w-full bg-blue-600 hover:bg-blue-500 text-white h-12 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all"

@@ -63,6 +63,7 @@ export default async function ProfilePage() {
         childEprNo: isUser ? (user as any).childEprNo : undefined,
         childCampusId: isUser ? (user as any).childCampusId : undefined,
         empId: isUser ? (user as any).empId : undefined,
+        childInAchariya: isUser ? (user as any).childInAchariya : false,
         aadharNo: aadhar,
         transactionId: isUser ? (user as any).transactionId : undefined,
         status: isUser ? (user as any).status : undefined,
