@@ -94,9 +94,108 @@ export async function rejectManualPayment(orderId: string, reason: string) {
 
         revalidatePath('/superadmin/approvals')
         revalidatePath('/complete-payment')
+        revalidatePath('/dashboard')
         return { success: true }
     } catch (error: any) {
         console.error("Rejection Error:", error)
         return { success: false, error: 'Failed to reject' }
+    }
+}
+
+export async function approveBulkManualPayments(orderIds: string[]) {
+    try {
+        const user = await getCurrentUser()
+        if (!user || !require('@/lib/permissions').hasModuleAccess(user.role, 'paymentApproval')) {
+            return { success: false, error: 'Unauthorized' }
+        }
+
+        let successCount = 0;
+        let failCount = 0;
+
+        // Process sequentially to reuse logic/logging, or optimize with updateMany if possible.
+        // updateMany is harder because we need to update User table too based on relation.
+        // So loop is safer.
+        for (const id of orderIds) {
+            const res = await approveManualPayment(id)
+            if (res.success) successCount++
+            else failCount++
+        }
+
+        revalidatePath('/superadmin/approvals')
+        revalidatePath('/dashboard')
+        return { success: true, message: `Approved ${successCount} payments. Failed: ${failCount}` }
+    } catch (e: any) {
+        return { success: false, error: e.message }
+    }
+}
+
+export async function rejectBulkManualPayments(orderIds: string[], reason: string) {
+    try {
+        const user = await getCurrentUser()
+        if (!user || !require('@/lib/permissions').hasModuleAccess(user.role, 'paymentApproval')) {
+            return { success: false, error: 'Unauthorized' }
+        }
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const id of orderIds) {
+            const res = await rejectManualPayment(id, reason)
+            if (res.success) successCount++
+            else failCount++
+        }
+
+        revalidatePath('/superadmin/approvals')
+        revalidatePath('/dashboard')
+        return { success: true, message: `Rejected ${successCount} payments. Failed: ${failCount}` }
+    } catch (e: any) {
+        return { success: false, error: e.message }
+    }
+}
+
+export async function getPaymentsForExport(search?: string) {
+    try {
+        const user = await getCurrentUser()
+        if (!user || !require('@/lib/permissions').hasModuleAccess(user.role, 'paymentApproval')) {
+            return { success: false, error: 'Unauthorized' }
+        }
+
+        const where: any = {
+            AND: [
+                {
+                    OR: [
+                        { orderStatus: 'PENDING_APPROVAL' },
+                        { paymentStatus: 'Pending Approval' },
+                        { orderStatus: 'FAILED' },
+                        { paymentStatus: 'Rejected by Admin' }
+                    ]
+                },
+                { paymentMethod: 'MANUAL_QR' }
+            ]
+        }
+
+        if (search) {
+            where.AND.push({
+                OR: [
+                    { transactionId: { contains: search, mode: 'insensitive' } },
+                    { user: { fullName: { contains: search, mode: 'insensitive' } } },
+                    { user: { mobileNumber: { contains: search, mode: 'insensitive' } } }
+                ]
+            })
+        }
+
+        const payments = await prisma.payment.findMany({
+            where,
+            include: {
+                user: {
+                    select: { fullName: true, mobileNumber: true, email: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        })
+
+        return { success: true, data: payments }
+    } catch (e: any) {
+        return { success: false, error: e.message }
     }
 }

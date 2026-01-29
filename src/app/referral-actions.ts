@@ -287,6 +287,12 @@ export async function submitReferral(formData: {
 
         revalidatePath('/dashboard')
         revalidatePath('/referrals')
+        revalidatePath('/superadmin')
+        revalidatePath('/superadmin/referrals')
+        revalidatePath('/campus')
+        revalidatePath('/campus/referrals')
+        revalidatePath('/admin')
+        revalidatePath('/admin/referrals')
         return { success: true }
     } catch (e) {
         console.error(e)

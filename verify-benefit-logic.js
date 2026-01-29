@@ -26,15 +26,30 @@ function calculateTotalBenefit(currentReferrals, user) {
     }
 
     // 2. Calculate Current Year Benefit
-    if (referralCount > 0) {
+    const SPECIAL_RATES = { 'ACET': 5000, 'AASC': 2000, 'ACCHM': 2000 };
+    const specialReferrals = currentReferrals.filter(r => r.campusName && SPECIAL_RATES[r.campusName]);
+    const standardReferrals = currentReferrals.filter(r => !r.campusName || !SPECIAL_RATES[r.campusName]);
+
+    // Special Benefits
+    if (specialReferrals.length > 0) {
+        specialReferrals.forEach(r => {
+            const rate = SPECIAL_RATES[r.campusName];
+            currentYearAmount += rate;
+            breakdown.push(`Special Bonus (${r.campusName}): ${rate}`);
+        });
+    }
+
+    const stdCount = standardReferrals.length;
+
+    if (stdCount > 0) {
         const currentSlab = (isFiveStar) ? LONG_TERM_TIERS : SHORT_TERM_TIERS;
         const slabName = isFiveStar ? 'Long Term Slab' : 'Standard Slab';
 
         if (user.role === 'Parent' || (user.role === 'Staff' && user.childInAchariya)) {
             const myChildFee = user.studentFee || 60000;
-            const tierPercent = currentSlab[Math.min(referralCount, 5)] || 0;
+            const tierPercent = currentSlab[Math.min(stdCount, 5)] || 0;
             const currentDiscount = (myChildFee * tierPercent) / 100;
-            currentYearAmount = currentDiscount;
+            currentYearAmount += currentDiscount;
             breakdown.push(`Current Year (${slabName} - ${tierPercent}%): ${tierPercent}% of ${myChildFee} = ${currentDiscount}`);
 
             if (!isFiveStar) {
@@ -50,7 +65,7 @@ function calculateTotalBenefit(currentReferrals, user) {
                 return currentTotal - prevTotal;
             };
 
-            currentReferrals.forEach((ref, index) => {
+            standardReferrals.forEach((ref, index) => {
                 const count = index + 1;
                 const slicePercent = getMarginalPercent(count, currentSlab);
                 const g1Fee = ref.campusGrade1Fee || 60000;
@@ -122,13 +137,12 @@ async function verify() {
     console.log(`Current Cycle Referrals: ${currentReferrals.length}`);
     console.log(`Previous Cycle Referrals (Eligible for Base): ${previousReferrals.length}`);
 
-    // 5. Calculate
-    // Format data slightly to match Calculator input
     const currentRefsData = currentReferrals.map((r, i) => ({
         id: r.leadId,
         campusId: r.campusId || 0,
+        campusName: r.campus || '',
         grade: r.gradeInterested || '',
-        campusGrade1Fee: 60000 // Mocking Grade 1 Fee for test
+        campusGrade1Fee: 60000
     }));
 
     const prevRefsData = previousReferrals.map(r => ({

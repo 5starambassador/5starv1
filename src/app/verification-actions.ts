@@ -92,6 +92,8 @@ export async function approveVerification(userId: number, updatedDetails?: {
         await logAction('UPDATE', 'verification', `Approved verification for User ${userId}`, admin.userId.toString(), userId, { approvedBy: admin.userId })
 
         revalidatePath('/superadmin/verification')
+        revalidatePath('/dashboard')
+        revalidatePath('/profile')
         return { success: true }
     } catch (error) {
         console.error('Error approving verification:', error)
@@ -116,6 +118,8 @@ export async function rejectVerification(userId: number) {
         await logAction('UPDATE', 'verification', `Rejected verification for User ${userId}`, admin.userId.toString(), userId, { rejectedBy: admin.userId })
 
         revalidatePath('/superadmin/verification')
+        revalidatePath('/dashboard')
+        revalidatePath('/profile')
         return { success: true }
     } catch (error) {
         return { success: false, error: 'Rejection failed' }
@@ -201,6 +205,8 @@ export async function bulkVerifyAgainstDatabase() {
         }
 
         revalidatePath('/superadmin/verification')
+        revalidatePath('/dashboard')
+        revalidatePath('/profile')
         return { success: true, verifiedCount, matchesFound }
 
     } catch (error) {

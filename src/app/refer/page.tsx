@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { PageAnimate } from '@/components/PageAnimate'
 
 import { getRegistrationCampuses } from '@/app/actions'
+import { getGradesForCampus } from '@/lib/grade-utils'
 import { useWebOTP } from '@/hooks/useWebOTP'
 
 export default function ReferPage() {
@@ -85,31 +86,10 @@ function ReferralFormContent() {
         if (error) setError(null)
     }
 
-    // Helper to parse complex grade string
-    const parseGrades = (gradeString: string) => {
-        if (!gradeString) return []
-        const rawItems = gradeString.split(',').map(s => s.trim())
-        const finalGrades: string[] = []
-
-        rawItems.forEach(item => {
-            if (/^\d+$/.test(item)) {
-                finalGrades.push(`Grade - ${item}`)
-            } else if (item.toLowerCase().startsWith('grade -')) {
-                finalGrades.push(item)
-            } else {
-                if (item === 'Pre-KG') finalGrades.push('Pre-Mont')
-                else if (item === 'LKG') finalGrades.push('Mont-1')
-                else if (item === 'UKG') finalGrades.push('Mont-2')
-                else finalGrades.push(item)
-            }
-        })
-        return finalGrades
-    }
-
     const currentCampusGrades = useMemo(() => {
         const selected = campuses.find(c => c.campusName === formData.campus)
-        if (!selected || !selected.grades) return []
-        return parseGrades(selected.grades)
+        if (!selected) return []
+        return getGradesForCampus(selected.id, campuses)
     }, [formData.campus, campuses])
 
     const handleSendOtp = async () => {

@@ -65,6 +65,7 @@ export async function getSystemSettings() {
             currentAcademicYear: currentYearRecord?.year || '2025-2026',
             defaultStudentFee: 60000,
             maintenanceMode: false,
+            allowManualPayments: true,
             id: 0,
             updatedAt: new Date()
         }
@@ -82,6 +83,7 @@ export async function getSystemSettings() {
             currentAcademicYear: '2025-2026',
             defaultStudentFee: 60000,
             maintenanceMode: false,
+            allowManualPayments: true,
             id: 0,
             updatedAt: new Date()
         }

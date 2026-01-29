@@ -84,6 +84,8 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
         totalStudents: 0,
         staffCount: 0,
         parentCount: 0,
+        alumniCount: 0,
+        othersCount: 0,
         userRoleDistribution: [],
         avgLeadsPerAmbassador: 0,
         totalEstimatedRevenue: 0,

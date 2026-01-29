@@ -48,6 +48,10 @@ export async function addCampus(data: {
             },
             include: { gradeFees: true }
         })
+
+        revalidatePath('/superadmin')
+        revalidatePath('/dashboard')
+        revalidatePath('/campus')
         return { success: true, campus }
     } catch (error: any) {
         console.error('Error adding campus:', error)
@@ -107,6 +111,9 @@ export async function updateCampus(id: number, data: any) {
             }
         })
 
+        revalidatePath('/superadmin')
+        revalidatePath('/dashboard')
+        revalidatePath('/campus')
         return { success: true }
     } catch (error) {
         console.error('Error updating campus:', error)
@@ -128,6 +135,7 @@ export async function toggleCampusStatus(id: number, isActive: boolean) {
 
         revalidatePath('/dashboard')
         revalidatePath('/campus')
+        revalidatePath('/superadmin')
         return { success: true }
     } catch (error) {
         console.error('Error toggling campus status:', error)
@@ -175,6 +183,9 @@ export async function deleteCampus(id: number, force: boolean = false) {
             })
         })
 
+        revalidatePath('/superadmin')
+        revalidatePath('/dashboard')
+        revalidatePath('/campus')
         return { success: true }
     } catch (error: any) {
         console.error('Error deleting campus:', error)
@@ -230,6 +241,7 @@ export async function deleteCampuses(ids: number[], force: boolean = false) {
 
         revalidatePath('/dashboard')
         revalidatePath('/campus')
+        revalidatePath('/superadmin')
 
         return { success: true }
     } catch (error) {
@@ -456,6 +468,7 @@ export async function confirmCampusReferral(leadId: number, campusName: string, 
 
         revalidatePath('/campus')
         revalidatePath('/dashboard')
+        revalidatePath('/superadmin')
         return { success: true }
     } catch (error) {
         console.error('Error confirming campus referral:', error)

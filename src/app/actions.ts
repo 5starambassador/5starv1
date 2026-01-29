@@ -438,6 +438,10 @@ export async function registerUser(formData: any) {
                 revalidatePath('/superadmin/verification')
             }
             revalidatePath('/superadmin/users')
+            revalidatePath('/superadmin')
+            revalidatePath('/finance')
+            revalidatePath('/campus')
+            revalidatePath('/admin')
             revalidatePath('/dashboard') // Ensure their own dashboard is fresh
 
             // In-App Welcome Notification
@@ -655,6 +659,24 @@ export async function submitManualPayment(formData: FormData) {
         // Prefixed Order ID for uniqueness
         const orderId = `MANUAL_${Date.now()}_${userId}`
 
+        // Check for duplicate UTR (Data Integrity)
+        const existingPayment = await prisma.payment.findFirst({
+            where: {
+                transactionId: utr,
+                // Block if it's Pending or Success. Only allow if previously Rejected/Failed (maybe user fixed it?)
+                // Actually, for safety, let's block ALL duplicates. If rejected, they should contact support or use a new transaction.
+                // Or better: Allow if status is strictly 'FAILED' or 'Rejected by Admin' so they can retry?
+                // Plan said: "If a payment exists with this UTR and is PENDING or SUCCESS -> BLOCK."
+                NOT: {
+                    orderStatus: 'FAILED'
+                }
+            }
+        });
+
+        if (existingPayment) {
+            return { success: false, error: 'This UTR / Transaction ID has already been submitted.' }
+        }
+
         await prisma.payment.create({
             data: {
                 orderId: orderId,
@@ -681,6 +703,9 @@ export async function submitManualPayment(formData: FormData) {
 
         // Optionally notify admin (revalidate paths)
         revalidatePath('/superadmin/finance')
+        revalidatePath('/superadmin/approvals')
+        revalidatePath('/superadmin')
+        revalidatePath('/dashboard')
 
         return { success: true }
     } catch (error: any) {

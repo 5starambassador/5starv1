@@ -3,6 +3,7 @@
 import { useState } from 'react' // Import useState
 import { Star, ShieldCheck, User, GraduationCap, ChevronLeft } from 'lucide-react'
 import { PrivacyModal } from '@/components/PrivacyModal'
+import { getGradesForCampus } from '@/lib/grade-utils'
 
 interface RegistrationRoleProps {
     formData: any
@@ -18,8 +19,9 @@ export const RegistrationRole = ({ formData, setFormData, campuses, onNext, onBa
     const [agreedToPrivacy, setAgreedToPrivacy] = useState(false)
 
     const isFormValid = () => {
-        if (formData.role === 'Parent' && !formData.childEprNo) return false
+        if (formData.role === 'Parent' && (!formData.childEprNo || !formData.grade || !formData.campusId)) return false
         if (formData.role === 'Staff' && (!formData.empId || !formData.campusId)) return false
+        if (formData.role === 'Staff' && formData.childInAchariya === 'Yes' && (!formData.childCampusId || !formData.grade)) return false
         if (formData.role === 'Alumni' && ((formData.aadharNo?.length !== 12) || !formData.passoutYear || !formData.campusId)) return false
         if (formData.role === 'Others' && (formData.aadharNo?.length !== 12)) return false
         if (!agreedToPrivacy) return false
@@ -59,8 +61,7 @@ export const RegistrationRole = ({ formData, setFormData, campuses, onNext, onBa
                                     key={role}
                                     onClick={() => {
                                         const newRole = role as 'Parent' | 'Staff' | 'Alumni' | 'Others'
-                                        const updatedGrade = newRole === 'Parent' ? 'Grade 1' : ''
-                                        setFormData({ ...formData, role: newRole, grade: updatedGrade })
+                                        setFormData({ ...formData, role: newRole, grade: '', childCampusId: '' })
                                     }}
                                     className={`flex flex-col items-center justify-center gap-2 py-3 px-1 rounded-xl cursor-pointer transition-all border ${formData.role === role ? 'border-amber-400/50 bg-amber-400/10 shadow-[0_0_15px_rgba(251,191,36,0.1)]' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
                                 >
@@ -93,7 +94,7 @@ export const RegistrationRole = ({ formData, setFormData, campuses, onNext, onBa
                                     <select
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 h-12 text-white focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-sm font-medium appearance-none cursor-pointer"
                                         value={formData.campusId}
-                                        onChange={(e) => setFormData({ ...formData, campusId: e.target.value })}
+                                        onChange={(e) => setFormData({ ...formData, campusId: e.target.value, grade: '' })}
                                     >
                                         <option value="" className="text-gray-500 bg-slate-900">Select Campus</option>
                                         {campuses.map(c => (
@@ -101,6 +102,21 @@ export const RegistrationRole = ({ formData, setFormData, campuses, onNext, onBa
                                         ))}
                                     </select>
                                 </div>
+                                {formData.campusId && (
+                                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <label className="text-blue-200/70 text-[10px] font-bold uppercase tracking-[0.2em] mb-2 block ml-1">Grade</label>
+                                        <select
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 h-12 text-white focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-sm font-medium appearance-none cursor-pointer"
+                                            value={formData.grade}
+                                            onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                                        >
+                                            <option value="" className="text-gray-500 bg-slate-900">Select Grade</option>
+                                            {getGradesForCampus(formData.campusId, campuses).map(g => (
+                                                <option key={g} value={g} className="text-white bg-slate-900">{g}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -135,11 +151,45 @@ export const RegistrationRole = ({ formData, setFormData, campuses, onNext, onBa
                                             type="checkbox"
                                             className="w-4 h-4 rounded border-amber-500/50 text-amber-500 focus:ring-amber-500 bg-transparent"
                                             checked={formData.childInAchariya === 'Yes'}
-                                            onChange={(e) => setFormData({ ...formData, childInAchariya: e.target.checked ? 'Yes' : 'No' })}
+                                            onChange={(e) => setFormData({ ...formData, childInAchariya: e.target.checked ? 'Yes' : 'No', childCampusId: '', grade: '' })}
                                         />
                                         <span className="text-sm font-bold text-white">My Child studies in Achariya</span>
                                     </label>
                                 </div>
+
+                                {formData.childInAchariya === 'Yes' && (
+                                    <div className="space-y-4 animate-in slide-in-from-top-2 fade-in duration-300 p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/10 mt-2">
+                                        <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest text-center">Child Information</p>
+                                        <div>
+                                            <label className="text-blue-200/70 text-[10px] font-bold uppercase tracking-[0.2em] mb-2 block ml-1">Child Campus</label>
+                                            <select
+                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 h-12 text-white focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-sm font-medium appearance-none cursor-pointer"
+                                                value={formData.childCampusId}
+                                                onChange={(e) => setFormData({ ...formData, childCampusId: e.target.value, grade: '' })}
+                                            >
+                                                <option value="" className="text-gray-500 bg-slate-900">Select Child's Campus</option>
+                                                {campuses.map(c => (
+                                                    <option key={c.id} value={c.id} className="text-white bg-slate-900">{c.campusName}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        {formData.childCampusId && (
+                                            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <label className="text-blue-200/70 text-[10px] font-bold uppercase tracking-[0.2em] mb-2 block ml-1">Child Grade</label>
+                                                <select
+                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 h-12 text-white focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-sm font-medium appearance-none cursor-pointer"
+                                                    value={formData.grade}
+                                                    onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                                                >
+                                                    <option value="" className="text-gray-500 bg-slate-900">Select Grade</option>
+                                                    {getGradesForCampus(formData.childCampusId, campuses).map(g => (
+                                                        <option key={g} value={g} className="text-white bg-slate-900">{g}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
 

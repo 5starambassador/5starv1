@@ -3,6 +3,7 @@ import { BenefitSlabData } from '@/app/benefit-actions'
 export interface ReferralData {
     id: number
     campusId: number
+    campusName?: string
     grade: string
     actualFee?: number
     campusGrade1Fee?: number
@@ -54,7 +55,29 @@ export function calculateTotalBenefit(
     }
 
     // 2. Calculate Current Year Benefit (Linear for 5-Star, Aggressive for Standard)
-    if (referralCount > 0 && slabs.length > 0) {
+    // SPLIT STRATEGY: Isolate ACET, AASC, ACCHM from Standard Calculation
+    const SPECIAL_RATES: Record<string, number> = {
+        'ACET': 5000,
+        'AASC': 2000,
+        'ACCHM': 2000
+    }
+
+    const specialReferrals = currentReferrals.filter(r => r.campusName && SPECIAL_RATES[r.campusName])
+    const standardReferrals = currentReferrals.filter(r => !r.campusName || !SPECIAL_RATES[r.campusName])
+
+    // A. Calculate Special Benefits (Flat Additive)
+    if (specialReferrals.length > 0) {
+        specialReferrals.forEach((ref, idx) => {
+            const rate = SPECIAL_RATES[ref.campusName || ''] || 0
+            currentYearAmount += rate
+            breakdown.push(`⭐ SPECIAL BONUS (${ref.campusName}): Flat Benefit = ₹${rate.toLocaleString()}`)
+        })
+    }
+
+    // B. Calculate Standard Benefits (Existing Logic)
+    const stdCount = standardReferrals.length
+
+    if (stdCount > 0 && slabs.length > 0) {
         const sorted = [...slabs].sort((a, b) => a.referralCount - b.referralCount)
 
         const getPercent = (count: number) => {
@@ -66,17 +89,18 @@ export function calculateTotalBenefit(
             return slab?.yearFeeBenefitPercent || 0
         }
 
-        const tierPercent = getPercent(referralCount)
+        const tierPercent = getPercent(stdCount)
         finalTierPercent = tierPercent
         const slabName = isFiveStar ? '5-Star Precision Slab (Linear)' : 'Standard Growth Slab'
 
-        // A. WING A: Fee Discount TRACK (Parent, Staff with Child)
+        // B.1 WING A: Fee Discount TRACK (Parent, Staff with Child)
         const isGroupAWaiver = user.role === 'Parent' || (user.role === 'Staff' && user.childInAchariya)
 
         if (isGroupAWaiver) {
             const myChildFee = user.studentFee || 60000
-            currentYearAmount = (myChildFee * tierPercent) / 100
-            breakdown.push(`⚡ WAIVER GROUP A: ${tierPercent}% of Child Fee ₹${myChildFee.toLocaleString()} = ₹${currentYearAmount.toLocaleString()}`)
+            const amount = (myChildFee * tierPercent) / 100
+            currentYearAmount += amount
+            breakdown.push(`⚡ WAIVER GROUP A: ${tierPercent}% of Child Fee ₹${myChildFee.toLocaleString()} = ₹${amount.toLocaleString()}`)
 
             // App Enrollment Bonus (Dynamic targeting from global governance)
             // Note: 5% Bonus is NOT for long term
@@ -96,11 +120,11 @@ export function calculateTotalBenefit(
             }
         }
 
-        // B. WING B: Cash Payout TRACK (Alumni, Others, Staff without Child)
+        // B.2 WING B: Cash Payout TRACK (Alumni, Others, Staff without Child)
         else {
             breakdown.push(`💧 PAYOUT GROUP B: Current Year Yield`)
 
-            currentReferrals.forEach((ref, index) => {
+            standardReferrals.forEach((ref, index) => {
                 const count = index + 1
                 if (count > 5) return // Yield caps at 5 referrals per policy
 
@@ -132,7 +156,7 @@ export function calculateTotalBenefit(
                     // For payout, we apply bonus on avg Grade 1 fee or sum? 
                     // Protocol: 5% flat of Grade 1 base fee per referral
                     const bonusPerRef = (60000 * bonusPercent) / 100 // Estimate base if per ref
-                    const totalBonus = bonusPerRef * Math.min(referralCount, 5)
+                    const totalBonus = bonusPerRef * Math.min(stdCount, 5)
                     currentYearAmount += totalBonus
                     breakdown.push(`📱 APP BONUS: ₹${totalBonus.toLocaleString()} (Projected)`)
                 }

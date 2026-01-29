@@ -8,6 +8,7 @@ import { Student, User, Campus, BulkStudentData } from '@/types'
 import { StudentTable } from '@/components/superadmin/StudentTable'
 import CSVUploader from '@/components/CSVUploader'
 import { addStudent, updateStudent, bulkAddStudents } from '@/app/student-actions'
+import { getGradesForCampus } from '@/lib/grade-utils'
 
 interface StudentPanelProps {
     students: Student[]
@@ -252,7 +253,7 @@ export function StudentPanel({ students, users, campuses }: StudentPanelProps) {
                                         style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
                                     >
                                         <option value="">Select Grade</option>
-                                        {['Pre-Mont', 'Mont-1', 'Mont-2', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map(g => (
+                                        {getGradesForCampus(studentForm.campusId, campuses).map(g => (
                                             <option key={g} value={g}>{g}</option>
                                         ))}
                                     </select>

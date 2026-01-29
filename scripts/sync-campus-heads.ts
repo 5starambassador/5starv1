@@ -7,7 +7,7 @@ async function main() {
 
     // 1. Fetch all admins with role 'Campus Head' (using filters to avoid enum issues)
     const allAdmins = await prisma.admin.findMany()
-    const campusHeads = allAdmins.filter(a => a.role === 'Campus_Head' || a.role === 'Campus Head')
+    const campusHeads = allAdmins.filter(a => (a.role as string) === 'Campus_Head' || (a.role as string) === 'Campus Head')
 
     console.log(`Found ${campusHeads.length} Campus Head admins.`)
 

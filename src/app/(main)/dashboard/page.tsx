@@ -82,7 +82,20 @@ export default async function DashboardPage() {
         campusFeeMapObj[k] = v
     })
 
+    // Hotfix: Explicitly fetch status to ensure it's never undefined
+    const freshUser = await prisma.user.findUnique({
+        where: { userId: userData.userId },
+        select: { status: true }
+    })
+    const accountStatus = freshUser?.status || 'Pending'
+
     // Prepare User Object for Client
+    console.log('DEBUG: Dashboard User Data:', {
+        status: accountStatus,
+        benefitStatus: userData.benefitStatus,
+        role: userData.role
+    })
+
     const userForClient: any = { // Cast to any first to build it, then validate at prop level or interface
         fullName: userData.fullName,
         role: userData.role,
@@ -92,6 +105,7 @@ export default async function DashboardPage() {
         studentFee: userData.studentFee,
         isFiveStarMember: userData.isFiveStarMember,
         benefitStatus: userData.benefitStatus,
+        status: accountStatus,
         empId: userData.empId,
         assignedCampus: userData.assignedCampus
     }

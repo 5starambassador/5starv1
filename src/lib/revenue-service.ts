@@ -110,6 +110,7 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
         return {
             id: r.leadId,
             campusId: r.campusId || 0,
+            campusName: r.campus || '',
             grade: r.gradeInterested || '',
             campusGrade1Fee: selectedGrade1Fee,
             actualFee: r.student?.annualFee || r.student?.baseFee || r.annualFee || 60000
@@ -119,11 +120,17 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
     const previousReferralsData: ReferralData[] = previousReferrals.map(r => ({
         id: r.leadId,
         campusId: r.campusId || 0,
+        campusName: r.campus || '',
         grade: r.gradeInterested || '',
         actualFee: r.student?.annualFee || r.student?.baseFee || r.annualFee || 60000
     }))
 
-    // 5. Calculate
+    // 5. Fetch Benefit Slabs (Required for Calculator)
+    const slabs = await prisma.benefitSlab.findMany({
+        orderBy: { referralCount: 'asc' }
+    })
+
+    // 6. Calculate
     const calcContext: UserContext = {
         role: userRole as any,
         childInAchariya: userContext.childInAchariya,
@@ -132,7 +139,7 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
         previousYearReferrals: previousReferralsData
     }
 
-    const { totalAmount } = calculateTotalBenefit(currentReferralsData, calcContext)
+    const { totalAmount } = calculateTotalBenefit(currentReferralsData, calcContext, slabs)
 
     return {
         projectedValue: totalAmount,

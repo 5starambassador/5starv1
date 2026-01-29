@@ -112,11 +112,15 @@ export async function POST(request: Request) {
             })
         }
 
-        return NextResponse.json({ success: true })
-
         // Sync: Notify Admin
         revalidatePath('/superadmin/verification')
         revalidatePath('/superadmin/users')
+        revalidatePath('/superadmin')
+        revalidatePath('/dashboard')
+        revalidatePath('/campus')
+        revalidatePath('/admin')
+
+        return NextResponse.json({ success: true })
     } catch (error: any) {
         console.error('Profile update error FINAL:', error)
         console.error('Error Stack:', error.stack)

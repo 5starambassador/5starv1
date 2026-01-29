@@ -129,6 +129,7 @@ export function DashboardClient({
             return {
                 id: r.leadId,
                 campusId: r.campusId || 0,
+                campusName: r.campus || '',
                 grade: r.gradeInterested || '',
                 campusGrade1Fee: g1Fee,
                 actualFee: r.student?.annualFee || r.student?.baseFee || r.annualFee || 60000
@@ -162,6 +163,7 @@ export function DashboardClient({
             previousYearReferrals: previousYearReferrals.map((r: any) => ({
                 id: r.leadId,
                 campusId: r.campusId || 0,
+                campusName: r.campus || '',
                 grade: r.gradeInterested || '',
                 actualFee: r.student?.annualFee || r.student?.baseFee || r.annualFee || 60000
             }))
@@ -247,6 +249,7 @@ export function DashboardClient({
                     yearFeeBenefitPercent: benefitStats.displayPercent,
                     potentialFeeBenefitPercent: 0,
                     benefitStatus: user.benefitStatus || 'Active',
+                    status: user.status || 'Pending',
                     empId: user.empId,
                     assignedCampus: user.assignedCampus,
                     studentFee: dynamicStudentFee || 60000,

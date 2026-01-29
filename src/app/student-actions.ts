@@ -142,6 +142,11 @@ export async function addStudent(data: {
         revalidatePath('/superadmin')
         revalidatePath('/dashboard')
         revalidatePath('/students')
+        revalidatePath('/superadmin/students')
+        revalidatePath('/campus')
+        revalidatePath('/campus/students')
+        revalidatePath('/admin')
+        revalidatePath('/admin/students')
         return { success: true, student }
     } catch (error) {
         console.error('Error adding student:', error)
@@ -187,6 +192,12 @@ export async function updateStudent(studentId: number, data: Partial<{
         })
         revalidatePath('/superadmin')
         revalidatePath('/students')
+        revalidatePath('/superadmin/students')
+        revalidatePath('/dashboard') // Parent might see updated fee
+        revalidatePath('/campus')
+        revalidatePath('/campus/students')
+        revalidatePath('/admin')
+        revalidatePath('/admin/students')
         return { success: true }
     } catch (error) {
         console.error('Error updating student:', error)
@@ -323,6 +334,11 @@ export async function convertLeadToStudent(leadId: number, studentDetails: {
         revalidatePath('/superadmin')
         revalidatePath('/campus')
         revalidatePath('/students')
+        revalidatePath('/superadmin/students')
+        revalidatePath('/campus/students')
+        revalidatePath('/admin')
+        revalidatePath('/admin/students')
+        revalidatePath('/dashboard')
 
         return { success: true, student: result }
     } catch (error: any) {
@@ -530,5 +546,11 @@ export async function bulkAddStudents(students: Array<{
 
     revalidatePath('/superadmin')
     revalidatePath('/students')
+    revalidatePath('/superadmin/students')
+    revalidatePath('/campus')
+    revalidatePath('/campus/students')
+    revalidatePath('/admin')
+    revalidatePath('/admin/students')
+    revalidatePath('/dashboard')
     return { success: true, added, failed, errors }
 }

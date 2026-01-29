@@ -25,6 +25,8 @@ interface SystemAnalytics {
     totalStudents: number
     staffCount: number
     parentCount: number
+    alumniCount: number
+    othersCount: number
     userRoleDistribution: { name: string; value: number }[]
     // Comparison metrics
     prevAmbassadors?: number
@@ -50,6 +52,8 @@ interface CampusComparison {
     totalStudents?: number
     staffCount?: number
     parentCount?: number
+    alumniCount?: number
+    othersCount?: number
     systemWideBenefits?: number
     prevBenefits?: number
 }

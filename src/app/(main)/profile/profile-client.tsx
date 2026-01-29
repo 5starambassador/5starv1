@@ -11,6 +11,7 @@ import { PageAnimate, PageItem } from '@/components/PageAnimate'
 import { ScrollLock } from '@/components/ui/ScrollLock'
 import { GRADES } from '@/lib/constants'
 import { getCampuses } from '@/app/campus-actions'
+import { getGradesForCampus } from '@/lib/grade-utils'
 import { ifscSchema, accountNumberSchema } from '@/lib/validators'
 
 interface ProfileClientProps {
@@ -61,6 +62,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
     const [ifscCode, setIfscCode] = useState(user.ifscCode || '')
 
     const [childEprNo, setChildEprNo] = useState(user.childEprNo || '')
+    const [childName, setChildName] = useState(user.childName || '')
     const [grade, setGrade] = useState(user.grade || '')
     const [profileImage, setProfileImage] = useState(user.profileImage)
     const [saving, setSaving] = useState(false)
@@ -79,8 +81,8 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                 setCampuses(res.campuses)
             }
         }
-        if (user.role === 'Staff') fetchCampuses()
-    }, [user.role])
+        if ((user.role === 'Staff' && user.childInAchariya) || user.role === 'Parent') fetchCampuses()
+    }, [user.role, user.childInAchariya])
 
     // Derived or safe default stats
     const referralCount = user.confirmedReferralCount || 0
@@ -123,8 +125,9 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                 fullName,
                 email,
                 address,
-                ...(isEditingProfile && user.role === 'Staff' && {
+                ...(isEditingProfile && ((user.role === 'Staff' && user.childInAchariya) || user.role === 'Parent') && {
                     childEprNo,
+                    childName,
                     grade,
                     childCampusId: childCampusId ? parseInt(childCampusId) : undefined
                 }),
@@ -185,6 +188,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
         setAccountNumber((user as any).accountNumber || '')
         setIfscCode((user as any).ifscCode || '')
         setChildEprNo((user as any).childEprNo || '')
+        setChildName((user as any).childName || '')
         setGrade((user as any).grade || '')
         setIsEditingProfile(false)
         setIsEditingBank(false)
@@ -319,10 +323,40 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                     <div>
                                         <h3 className="text-sm font-bold text-white uppercase tracking-wide">Student Details</h3>
                                         <div className="flex items-center gap-1.5 mt-0.5">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${(user as any).benefitStatus === 'Active' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${(user as any).benefitStatus === 'Active' ? 'text-emerald-400' : 'text-amber-400'}`}>
-                                                {(user as any).benefitStatus === 'Active' ? 'Verified Benefit' : 'Pending Verification'}
-                                            </span>
+                                            {(() => {
+                                                const s = (user as any).benefitStatus;
+                                                if (s === 'Active') {
+                                                    return (
+                                                        <>
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Verified</span>
+                                                        </>
+                                                    )
+                                                }
+                                                if (s === 'PendingVerification') {
+                                                    return (
+                                                        <>
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Pending Check</span>
+                                                        </>
+                                                    )
+                                                }
+                                                return (
+                                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 w-full">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                                                            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Action Required</span>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setIsEditingProfile(true)}
+                                                            className="px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-400 text-[10px] font-black uppercase tracking-widest hover:bg-rose-500/30 transition-all flex items-center gap-1.5"
+                                                        >
+                                                            <Edit2 size={10} />
+                                                            Fix Details
+                                                        </button>
+                                                    </div>
+                                                )
+                                            })()}
                                         </div>
                                     </div>
                                 </div>
@@ -423,8 +457,8 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                     />
                                 </div>
 
-                                {/* Child Details Section for Staff */}
-                                {user.role === 'Staff' && (
+                                {/* Child Details Section for Staff (with child opt-in) & Parents */}
+                                {((user.role === 'Staff' && user.childInAchariya) || user.role === 'Parent') && (
                                     <div className="pt-4 border-t border-white/10 space-y-4">
                                         <div className="flex items-center justify-between">
                                             <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wide">Child Details (Achariya)</h3>
@@ -443,6 +477,18 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                 value={childEprNo}
                                                 onChange={(e) => setChildEprNo(e.target.value)}
                                                 placeholder="Enter ERP Number"
+                                                disabled={(user as any).benefitStatus === 'Active'}
+                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors focus:outline-none ${(user as any).benefitStatus === 'Active' ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50'}`}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-white/40 ml-1">Child Name</label>
+                                            <input
+                                                type="text"
+                                                value={childName}
+                                                onChange={(e) => setChildName(e.target.value)}
+                                                placeholder="Enter Child Name"
                                                 disabled={(user as any).benefitStatus === 'Active'}
                                                 className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors focus:outline-none ${(user as any).benefitStatus === 'Active' ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50'}`}
                                             />
@@ -479,32 +525,16 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                     {!childCampusId ? 'Select Campus First' : 'Select Grade'}
                                                 </option>
                                                 {(() => {
-                                                    const selectedCampus = campuses.find(c => c.id.toString() === childCampusId)
-
-                                                    // If no campus found or no grades defined, show all GRADES (Fail Open)
-                                                    if (!selectedCampus || !selectedCampus.grades) {
-                                                        return GRADES.map(g => (
-                                                            <option key={g} value={g} className="bg-slate-900 text-white">{g}</option>
-                                                        ))
-                                                    }
-
-                                                    // Normalize helper: Standardize to lowercase alphanumeric only (Grade-1 == Grade 1 == grade1)
-                                                    const normalize = (s: string) => s.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
-
-                                                    const campusGradesRaw = selectedCampus.grades.split(',').map((g: string) => normalize(g))
-
-                                                    // Filter GRADES constant
-                                                    const filtered = GRADES.filter(g => campusGradesRaw.includes(normalize(g)))
+                                                    const supportedGrades = getGradesForCampus(childCampusId, campuses)
 
                                                     // Fallback: If strict matching returns nothing, show all GRADES to avoid blocking user
-                                                    // This handles huge data mismatches
-                                                    if (filtered.length === 0) {
-                                                        return GRADES.map(g => (
+                                                    if (supportedGrades.length === 0) {
+                                                        return (GRADES as readonly string[]).map(g => (
                                                             <option key={g} value={g} className="bg-slate-900 text-white">{g}</option>
                                                         ))
                                                     }
 
-                                                    return filtered.map(g => (
+                                                    return supportedGrades.map(g => (
                                                         <option key={g} value={g} className="bg-slate-900 text-white">{g}</option>
                                                     ))
                                                 })()}

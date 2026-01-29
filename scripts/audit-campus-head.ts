@@ -13,7 +13,7 @@ async function main() {
     const rolesFound = [...new Set(allAdmins.map(a => a.role))]
     console.log('Roles found in DB:', rolesFound)
 
-    const campusHeads = allAdmins.filter(a => a.role === 'Campus_Head' || a.role === 'Campus Head')
+    const campusHeads = allAdmins.filter(a => (a.role as string) === 'Campus_Head' || (a.role as string) === 'Campus Head')
 
 
     console.log(`found ${campusHeads.length} Campus Head(s).`)

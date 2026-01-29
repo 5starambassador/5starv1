@@ -19,6 +19,7 @@ interface ActionHomeBlueUnifiedProps {
         yearFeeBenefitPercent: number
         potentialFeeBenefitPercent?: number
         benefitStatus: string
+        status: string
         empId?: string | null
         assignedCampus?: string | null
         referralCode: string
@@ -225,11 +226,40 @@ export function ActionHomeBlueUnified({
                                 <div className="mt-8 flex flex-col md:flex-row items-start gap-6 md:gap-10 opacity-100">
                                     <div className="text-left">
                                         <p className="text-[10px] uppercase tracking-[0.25em] text-blue-200/70 font-bold mb-2">Account Status</p>
-                                        <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-400 text-[11px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(52,211,153,0.15)]">
-                                            <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)] animate-pulse" />
-                                            Verified
-                                        </div>
+                                        {(() => {
+                                            const s = user.status;
+                                            if (s === 'Active') {
+                                                return (
+                                                    <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-400 text-[11px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(52,211,153,0.15)]">
+                                                        <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)] animate-pulse" />
+                                                        Active
+                                                    </div>
+                                                )
+                                            }
+                                            if (s === 'Pending') {
+                                                return (
+                                                    <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-400/30 text-amber-400 text-[11px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(245,158,11,0.15)]">
+                                                        <div className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.7)] animate-pulse" />
+                                                        Pending
+                                                    </div>
+                                                )
+                                            }
+                                            return (
+                                                <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-rose-500/10 border border-rose-400/30 text-rose-400 text-[11px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(244,63,94,0.15)]">
+                                                    <div className="w-2 h-2 rounded-full bg-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.7)]" />
+                                                    {s}
+                                                </div>
+                                            )
+                                        })()}
                                     </div>
+                                    {user.benefitStatus === 'Inactive' && (
+                                        <div className="text-left">
+                                            <p className="text-[10px] uppercase tracking-[0.25em] text-rose-200/70 font-bold mb-2">Verification</p>
+                                            <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-rose-500/10 border border-rose-400/30 text-rose-400 text-[11px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(244,63,94,0.15)] animate-pulse">
+                                                Needs Update
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="hidden md:block w-px h-12 bg-white/10" />
                                     <div className="text-left w-full md:w-auto overflow-hidden">
                                         <p className="text-[10px] uppercase tracking-[0.25em] text-blue-200/70 font-bold mb-2">Campus</p>

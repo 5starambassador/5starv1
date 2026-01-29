@@ -4,21 +4,23 @@
     "isFiveStar": true
   },
   "referralCounts": {
-    "current": 1,
+    "current": 0,
     "previous": 5
   },
   "result": {
-    "totalAmount": 9939.75,
+    "totalAmount": 22000,
     "breakdown": [
-      "Long Term Base: 3% of 49400 = 1482",
-      "Long Term Base: 3% of 49875 = 1496.25",
-      "Long Term Base: 3% of 45600 = 1368",
-      "Long Term Base: 3% of 37050 = 1111.5",
-      "Long Term Base: 3% of 49400 = 1482",
-      "Current Year (Long Term Slab - 5%): 5% of 60000 = 3000"
+      "Long Term Base: 3% of 60000 = 1800",
+      "Long Term Base: 3% of 60000 = 1800",
+      "Long Term Base: 3% of 60000 = 1800",
+      "Long Term Base: 3% of 60000 = 1800",
+      "Long Term Base: 3% of 60000 = 1800",
+      "Special Bonus (ACET): 5000",
+      "Special Bonus (AASC): 2000",
+      "Current Year (Long Term Slab - 10%): 10% of 60000 = 6000"
     ],
     "isLongActive": true,
-    "longTermBaseAmount": 6939.75,
-    "currentYearAmount": 3000
+    "longTermBaseAmount": 9000,
+    "currentYearAmount": 13000
   }
 }

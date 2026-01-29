@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { getPendingVerifications, approveVerification, rejectVerification, bulkVerifyAgainstDatabase } from '@/app/verification-actions'
 import { getCampuses } from '@/app/campus-actions'
 import { GRADES } from '@/lib/constants'
+import { getGradesForCampus } from '@/lib/grade-utils'
 
 interface VerificationQueueProps {
     initialData?: any[]
@@ -251,7 +252,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                                     className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                                 >
                                                     <option value="" className="text-gray-500">Select Grade</option>
-                                                    {GRADES.map(g => (
+                                                    {getGradesForCampus(editForm.childCampusId, campuses).map(g => (
                                                         <option key={g} value={g} className="text-gray-900">{g}</option>
                                                     ))}
                                                 </select>
