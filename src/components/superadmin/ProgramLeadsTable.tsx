@@ -21,8 +21,13 @@ interface ProgramLeadsTableProps {
 }
 
 export function ProgramLeadsTable({ leads }: ProgramLeadsTableProps) {
+    const [mounted, setMounted] = useState(false)
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState('ALL')
+
+    useState(() => {
+        setMounted(true)
+    })
 
     // Derived state
     const filteredLeads = leads.filter(lead => {
@@ -69,6 +74,7 @@ export function ProgramLeadsTable({ leads }: ProgramLeadsTableProps) {
                 <div className="flex gap-2">
                     <button
                         onClick={downloadCSV}
+                        suppressHydrationWarning
                         className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 hover:bg-slate-800"
                     >
                         <Download size={14} /> Export CSV
@@ -83,6 +89,7 @@ export function ProgramLeadsTable({ leads }: ProgramLeadsTableProps) {
                     <input
                         type="text"
                         placeholder="Search by program, referrer, or visitor..."
+                        suppressHydrationWarning
                         className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-100"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -93,6 +100,7 @@ export function ProgramLeadsTable({ leads }: ProgramLeadsTableProps) {
                     <select
                         className="bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-600 py-2 pl-3 pr-8 focus:ring-2 focus:ring-indigo-100"
                         value={statusFilter}
+                        suppressHydrationWarning
                         onChange={(e) => setStatusFilter(e.target.value)}
                     >
                         <option value="ALL">All Status</option>
@@ -122,10 +130,10 @@ export function ProgramLeadsTable({ leads }: ProgramLeadsTableProps) {
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm font-bold text-slate-600">
-                                                {new Date(lead.clickedAt).toLocaleDateString()}
+                                                {mounted ? new Date(lead.clickedAt).toLocaleDateString() : '...'}
                                             </span>
                                             <span className="text-xs text-slate-400">
-                                                {new Date(lead.clickedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                {mounted ? new Date(lead.clickedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                                             </span>
                                         </div>
                                     </td>
@@ -155,8 +163,8 @@ export function ProgramLeadsTable({ leads }: ProgramLeadsTableProps) {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${lead.status === 'REGISTERED'
-                                                ? 'bg-emerald-100 text-emerald-600'
-                                                : 'bg-amber-100 text-amber-600'
+                                            ? 'bg-emerald-100 text-emerald-600'
+                                            : 'bg-amber-100 text-amber-600'
                                             }`}>
                                             {lead.status}
                                         </span>

@@ -8,7 +8,7 @@ import { registerSchema, mobileSchema } from "@/lib/validators"
 import { z } from "zod"
 import bcrypt from "bcryptjs"
 import { hasModuleAccess, getDataScope, getPrismaScopeFilter } from "@/lib/permissions"
-import { hasPermission } from "@/lib/permission-service"
+import { hasPermission, getMyPermissions } from "@/lib/permission-service"
 import { generateSmartReferralCode } from "@/lib/referral-service"
 import { UserRole, AdminRole, AccountStatus, LeadStatus, Prisma } from "@prisma/client"
 import { revalidatePath } from 'next/cache'

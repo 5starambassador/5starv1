@@ -154,9 +154,36 @@ export async function captureProgramLead(data: {
 }
 
 /**
- * Sync Leads from Google Sheets (CSV)
- * Triggers status update from CLICKED -> REGISTERED
+ * Robust CSV parser that handles quoted fields correctly
  */
+function parseCSV(text: string): string[][] {
+    const rows: string[][] = [];
+    const lines = text.split(/\r?\n/);
+
+    for (const line of lines) {
+        if (!line.trim()) continue;
+
+        const row: string[] = [];
+        let inQuotes = false;
+        let currentValue = '';
+
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                row.push(currentValue.trim());
+                currentValue = '';
+            } else {
+                currentValue += char;
+            }
+        }
+        row.push(currentValue.trim());
+        rows.push(row);
+    }
+    return rows;
+}
+
 export async function syncProgramLeads() {
     try {
         const programs = await prisma.externalProgram.findMany({
@@ -171,42 +198,60 @@ export async function syncProgramLeads() {
             try {
                 // 1. Fetch CSV
                 const response = await fetch(program.autoSyncUrl)
-                const text = await response.text()
+                let text = await response.text()
 
-                // 2. Parse CSV (Simple parsing for Mobile column)
-                // We typically expect headers. Let's look for "Mobile" or "Phone"
-                const rows = text.split('\n').map(r => r.split(','))
+                // Remove UTF-8 BOM if present
+                if (text.charCodeAt(0) === 0xFEFF) {
+                    text = text.substring(1);
+                }
+
+                // 2. Parse CSV robustly
+                const rows = parseCSV(text)
                 if (rows.length < 2) continue
 
+                // 3. Detect Headers
                 const headers = rows[0].map(h => h.trim().toLowerCase())
-                const mobileIndex = headers.findIndex(h => h.includes('mobile') || h.includes('phone') || h.includes('contact'))
+
+                // Better Mobile detection
+                const mobileIndex = headers.findIndex(h =>
+                    h === 'mobile' || h === 'phone' || h === 'contact' ||
+                    h.includes('mobile') || h.includes('phone number') || h.includes('contact number')
+                )
+
+                // Better Name detection
+                const nameIndex = headers.findIndex(h =>
+                    h === 'name' || h === 'student' || h === 'student name' || h === 'full name' ||
+                    h.includes('student') || h.includes('child') || h.includes('candidate') || h.includes('name of')
+                )
 
                 if (mobileIndex === -1) {
-                    results.push({ program: program.title, status: 'Failed', error: 'No Mobile/Phone column found in CSV' })
+                    results.push({ program: program.title, status: 'Failed', error: 'No Mobile column found' })
                     continue
                 }
 
-                // 3. Extract Data (Mobile + Student Name)
+                // 4. Extract Data
                 const leadsToUpdate = rows.slice(1).map(row => {
                     const rawMobile = row[mobileIndex]
-                    const mobile = rawMobile ? rawMobile.replace(/\D/g, '').slice(-10) : null
+                    if (!rawMobile) return null
+
+                    // Normalize to last 10 digits
+                    const mobile = rawMobile.replace(/\D/g, '').slice(-10)
+                    if (mobile.length !== 10) return null
 
                     let studentName = null
-                    // Try to find Student Name column
-                    const nameIndex = headers.findIndex(h =>
-                        h.includes('student') || h.includes('child') || h.includes('candidate') || h.includes('name of')
-                    )
-                    if (nameIndex !== -1) {
-                        const rawName = row[nameIndex]
-                        if (rawName && rawName.trim().length > 0) studentName = rawName.trim()
+                    if (nameIndex !== -1 && row[nameIndex]) {
+                        studentName = row[nameIndex].trim()
                     }
 
-                    return mobile ? { mobile, studentName } : null
+                    return { mobile, studentName }
                 }).filter((l): l is { mobile: string, studentName: string | null } => l !== null)
 
-                if (leadsToUpdate.length === 0) continue
+                if (leadsToUpdate.length === 0) {
+                    results.push({ program: program.title, status: 'Success', synced: 0, message: 'No valid leads in file' })
+                    continue
+                }
 
-                // 4. Update Database
+                // 5. Update Database
                 // We need to update individually because studentName varies
                 let updatedCount = 0
 
