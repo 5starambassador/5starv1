@@ -6,10 +6,11 @@ import PaymentButton from '@/components/payment/PaymentButton'
 interface PaymentGatewayProps {
     onBack: () => void
     loading: boolean
+    userId?: number
 }
 
 // Removing unused props: transactionId, setTransactionId, onComplete
-export const PaymentGateway = ({ onBack, loading }: PaymentGatewayProps) => {
+export const PaymentGateway = ({ onBack, loading, userId }: PaymentGatewayProps) => {
     return (
         <div className="space-y-6">
             <div className="text-center space-y-2 relative">
@@ -40,7 +41,7 @@ export const PaymentGateway = ({ onBack, loading }: PaymentGatewayProps) => {
                 <div className="relative z-10">
                     <p className="text-blue-200/60 text-[10px] font-bold uppercase tracking-wider mb-8">Pay Membership Fee</p>
 
-                    <PaymentButton amount={25} />
+                    <PaymentButton amount={25} userId={userId} />
 
                     <p className="text-white/40 text-[10px] font-medium tracking-wide mt-6">
                         Secured by Cashfree Payments

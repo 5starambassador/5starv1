@@ -585,7 +585,7 @@ export async function createPendingUser(formData: any) {
 
             await createSession(user.userId, 'user', mapUserRole(user.role), !is2faRequired)
 
-            return { success: true }
+            return { success: true, userId: user.userId }
 
         } catch (e: any) {
             if (e.code === 'P2002') {

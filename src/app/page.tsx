@@ -36,6 +36,7 @@ export default function LoginPage() {
   const [isNewUser, setIsNewUser] = useState(false)
   const [loading, setLoading] = useState(false)
   const [isForgotMode, setIsForgotMode] = useState(false)
+  const [registeredUserId, setRegisteredUserId] = useState<number | undefined>(undefined)
 
   // Registration Form State
   const [formData, setFormData] = useState({
@@ -272,6 +273,7 @@ export default function LoginPage() {
             setLoading(false)
 
             if (res.success) {
+              setRegisteredUserId(res.userId)
               setStep(4)
             } else {
               toast.error(res.error)
@@ -286,6 +288,7 @@ export default function LoginPage() {
         <PaymentGateway
           onBack={() => setStep(3.5)}
           loading={loading}
+          userId={registeredUserId}
         />
       )}
 
