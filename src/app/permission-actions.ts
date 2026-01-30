@@ -64,7 +64,9 @@ export async function getRolePermissions(role: string) {
                     passwordReset: { access: (dbPerms as any).passwordResetAccess, scope: (dbPerms as any).passwordResetScope || 'none' },
                     feeManagement: { access: (dbPerms as any).feeManagementAccess, scope: (dbPerms as any).feeManagementScope || 'none' },
                     engagementCentre: { access: (dbPerms as any).engagementCentreAccess, scope: (dbPerms as any).engagementCentreScope || 'none' },
-                    paymentApproval: { access: (dbPerms as any).paymentApprovalAccess, scope: (dbPerms as any).paymentApprovalScope || 'none' }
+                    paymentApproval: { access: (dbPerms as any).paymentApprovalAccess, scope: (dbPerms as any).paymentApprovalScope || 'none' },
+                    programLeads: { access: (dbPerms as any).programLeadsAccess, scope: (dbPerms as any).programLeadsScope || 'none' },
+                    externalPrograms: { access: (dbPerms as any).externalProgramsAccess, scope: (dbPerms as any).externalProgramsScope || 'none' }
                 }
             }
         }
@@ -145,6 +147,10 @@ export async function updateRolePermissions(role: string, permissions: RolePermi
                 engagementCentreScope: permissions.engagementCentre?.scope ?? 'none',
                 paymentApprovalAccess: permissions.paymentApproval?.access ?? false,
                 paymentApprovalScope: permissions.paymentApproval?.scope ?? 'none',
+                programLeadsAccess: permissions.programLeads?.access ?? false,
+                programLeadsScope: permissions.programLeads?.scope ?? 'none',
+                externalProgramsAccess: permissions.externalPrograms?.access ?? false,
+                externalProgramsScope: permissions.externalPrograms?.scope ?? 'none',
                 updatedBy: admin.fullName
             } as any,
             update: {
@@ -197,6 +203,10 @@ export async function updateRolePermissions(role: string, permissions: RolePermi
                 engagementCentreScope: permissions.engagementCentre?.scope ?? 'none',
                 paymentApprovalAccess: permissions.paymentApproval?.access ?? false,
                 paymentApprovalScope: permissions.paymentApproval?.scope ?? 'none',
+                programLeadsAccess: permissions.programLeads?.access ?? false,
+                programLeadsScope: permissions.programLeads?.scope ?? 'none',
+                externalProgramsAccess: permissions.externalPrograms?.access ?? false,
+                externalProgramsScope: permissions.externalPrograms?.scope ?? 'none',
                 updatedBy: admin.fullName
             } as any
         })

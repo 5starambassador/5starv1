@@ -36,6 +36,8 @@ export interface RolePermissions {
     feeManagement: ModulePermission
     engagementCentre: ModulePermission
     paymentApproval: ModulePermission
+    programLeads: ModulePermission
+    externalPrograms: ModulePermission
 }
 
 export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
@@ -59,7 +61,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         rulesAccess: { access: true, scope: 'all' },
         feeManagement: { access: true, scope: 'all' },
         engagementCentre: { access: true, scope: 'all' },
-        paymentApproval: { access: true, scope: 'all' }
+        paymentApproval: { access: true, scope: 'all' },
+        programLeads: { access: true, scope: 'all' },
+        externalPrograms: { access: true, scope: 'all', canCreate: true, canEdit: true, canDelete: true }
     },
     'Campus Head': {
         // MANAGER ROLE: Strategy & Oversight (View Only for Operations, Full Analytics)
@@ -76,13 +80,15 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         settings: { access: false, scope: 'none' },
         deletionHub: { access: false, scope: 'none' },
         passwordReset: { access: false, scope: 'none' },
-        referralSubmission: { access: true, scope: 'campus' },
+        referralSubmission: { access: false, scope: 'none' },
         referralTracking: { access: true, scope: 'campus' },
         savingsCalculator: { access: true, scope: 'campus' },
         rulesAccess: { access: true, scope: 'campus' },
         feeManagement: { access: true, scope: 'campus', canCreate: false, canEdit: false }, // View Only
         engagementCentre: { access: false, scope: 'none' },
-        paymentApproval: { access: false, scope: 'none' }
+        paymentApproval: { access: false, scope: 'none' },
+        programLeads: { access: false, scope: 'none' },
+        externalPrograms: { access: false, scope: 'none' }
     },
     'Finance Admin': {
         analytics: { access: true, scope: 'all' },
@@ -104,7 +110,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         rulesAccess: { access: false, scope: 'none' },
         feeManagement: { access: false, scope: 'none' },
         engagementCentre: { access: false, scope: 'none' },
-        paymentApproval: { access: true, scope: 'all' }
+        paymentApproval: { access: true, scope: 'all' },
+        programLeads: { access: false, scope: 'none' },
+        externalPrograms: { access: false, scope: 'none' }
     },
     'Admission Admin': {
         analytics: { access: true, scope: 'view-only' },
@@ -126,10 +134,12 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         rulesAccess: { access: true, scope: 'all' },
         feeManagement: { access: false, scope: 'none' },
         engagementCentre: { access: false, scope: 'none' },
-        paymentApproval: { access: true, scope: 'view-only' }
+        paymentApproval: { access: true, scope: 'view-only' },
+        programLeads: { access: false, scope: 'none' },
+        externalPrograms: { access: false, scope: 'none' }
     },
     'Campus Admin': {
-        // OPERATOR ROLE: Execution & Data Entry (Full Edit Access, Basic Reports)
+        // OPERATORRole: Execution & Data Entry (Full Edit Access, Basic Reports)
         analytics: { access: true, scope: 'campus' },
         userManagement: { access: true, scope: 'campus', canCreate: true, canEdit: true },
         studentManagement: { access: true, scope: 'campus', canCreate: true, canEdit: true },
@@ -149,7 +159,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         rulesAccess: { access: true, scope: 'campus' },
         feeManagement: { access: true, scope: 'campus', canCreate: true, canEdit: true },
         engagementCentre: { access: false, scope: 'none' },
-        paymentApproval: { access: false, scope: 'none' }
+        paymentApproval: { access: false, scope: 'none' },
+        programLeads: { access: false, scope: 'none' },
+        externalPrograms: { access: false, scope: 'none' }
     },
     'Staff': {
         analytics: { access: true, scope: 'self' },
@@ -171,7 +183,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         rulesAccess: { access: true, scope: 'all' },
         feeManagement: { access: false, scope: 'none' },
         engagementCentre: { access: false, scope: 'none' },
-        paymentApproval: { access: false, scope: 'none' }
+        paymentApproval: { access: false, scope: 'none' },
+        programLeads: { access: true, scope: 'self' },
+        externalPrograms: { access: false, scope: 'none' }
     },
     'Parent': {
         analytics: { access: true, scope: 'self' },
@@ -193,7 +207,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         rulesAccess: { access: true, scope: 'all' },
         feeManagement: { access: false, scope: 'none' },
         engagementCentre: { access: false, scope: 'none' },
-        paymentApproval: { access: false, scope: 'none' }
+        paymentApproval: { access: false, scope: 'none' },
+        programLeads: { access: true, scope: 'self' },
+        externalPrograms: { access: false, scope: 'none' }
     },
     'Alumni': {
         analytics: { access: true, scope: 'self' },
@@ -215,7 +231,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         rulesAccess: { access: true, scope: 'all' },
         feeManagement: { access: false, scope: 'none' },
         engagementCentre: { access: false, scope: 'none' },
-        paymentApproval: { access: false, scope: 'none' }
+        paymentApproval: { access: false, scope: 'none' },
+        programLeads: { access: true, scope: 'self' },
+        externalPrograms: { access: false, scope: 'none' }
     },
     'Others': {
         analytics: { access: true, scope: 'self' },
@@ -237,7 +255,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         rulesAccess: { access: true, scope: 'all' },
         feeManagement: { access: false, scope: 'none' },
         engagementCentre: { access: false, scope: 'none' },
-        paymentApproval: { access: false, scope: 'none' }
+        paymentApproval: { access: false, scope: 'none' },
+        programLeads: { access: true, scope: 'self' },
+        externalPrograms: { access: false, scope: 'none' }
     },
 }
 

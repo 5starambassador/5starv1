@@ -646,7 +646,8 @@ export async function simulatePayment(userId: number) {
 }
 
 export async function submitManualPayment(formData: FormData) {
-    const utr = formData.get('utr') as string
+    const rawUtr = formData.get('utr') as string
+    const utr = rawUtr?.trim().toUpperCase()
     const amount = parseFloat(formData.get('amount') as string)
     const userId = parseInt(formData.get('userId') as string)
 
@@ -654,22 +655,21 @@ export async function submitManualPayment(formData: FormData) {
         return { success: false, error: 'Missing required fields' }
     }
 
+    // Strict 12-character alphanumeric validation
+    const utrRegex = /^[A-Z0-9]{12}$/
+    if (!utrRegex.test(utr)) {
+        return { success: false, error: 'Invalid UTR format. Must be exactly 12 alphanumeric characters.' }
+    }
+
     try {
         // Reuse Payment Table - No Schema Change
         // Prefixed Order ID for uniqueness
         const orderId = `MANUAL_${Date.now()}_${userId}`
 
-        // Check for duplicate UTR (Data Integrity)
+        // Check for duplicate UTR (Strict Uniqueness)
         const existingPayment = await prisma.payment.findFirst({
             where: {
-                transactionId: utr,
-                // Block if it's Pending or Success. Only allow if previously Rejected/Failed (maybe user fixed it?)
-                // Actually, for safety, let's block ALL duplicates. If rejected, they should contact support or use a new transaction.
-                // Or better: Allow if status is strictly 'FAILED' or 'Rejected by Admin' so they can retry?
-                // Plan said: "If a payment exists with this UTR and is PENDING or SUCCESS -> BLOCK."
-                NOT: {
-                    orderStatus: 'FAILED'
-                }
+                transactionId: utr
             }
         });
 
@@ -701,11 +701,15 @@ export async function submitManualPayment(formData: FormData) {
             }
         });
 
-        // Optionally notify admin (revalidate paths)
-        revalidatePath('/superadmin/finance')
-        revalidatePath('/superadmin/approvals')
-        revalidatePath('/superadmin')
-        revalidatePath('/dashboard')
+        // Log Action
+        await logAction(
+            'PAYMENT_SUBMITTED',
+            'finance',
+            `User submitted manual payment proof for ₹${amount}. UTR: ${utr}`,
+            orderId,
+            userId,
+            { amount, utr, isUser: true }
+        )
 
         return { success: true }
     } catch (error: any) {

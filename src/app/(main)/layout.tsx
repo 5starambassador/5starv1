@@ -2,7 +2,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { AccountStatus } from '@prisma/client'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, IndianRupee, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2, Zap, Lock, UserCog, Share2, Megaphone, Globe, Gift, CheckCircle } from 'lucide-react'
+import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, IndianRupee, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2, Zap, Lock, UserCog, Share2, Megaphone, Globe, Gift, CheckCircle, ExternalLink, MousePointerClick, LayoutDashboard, GraduationCap, GitFork, Calculator, History } from 'lucide-react'
 import { MobileMenu } from '@/components/MobileMenu'
 import { NotificationDropdown } from '@/components/NotificationDropdown'
 import MobileSidebarWrapper from '@/components/MobileSidebarWrapper'
@@ -32,7 +32,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     // Check Payment Status (Skip for Admins and Active legacy users)
     const isSpecialRole = user.role === 'Super Admin' || user.role === 'Finance Admin' || user.role.includes('Admin') || user.role.includes('Campus')
 
-    if (!isSpecialRole && (user as any).status === AccountStatus.Pending) {
+    if (!isSpecialRole && user.status !== 'Active') {
         redirect('/complete-payment')
     }
 
@@ -44,7 +44,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     const isCampusAdmin = user.role === 'Campus Admin'
     const isCampusLevel = isCampusHead || isCampusAdmin
     const isRegularAdmin = (user.role.includes('Admin') || user.role === 'Admission Admin') && !isSuperAdmin && !isCampusAdmin
-    const isAmbassadorRole = user.role === 'Staff' || user.role === 'Parent' || user.role === 'Alumni'
+    const isAmbassadorRole = user.role === 'Staff' || user.role === 'Parent' || user.role === 'Alumni' || user.role === 'Others'
 
     const navItems = []
     const permissions = await getMyPermissions()
@@ -58,30 +58,37 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         // Admin Modules
         const baseAdminPath = isSuperAdmin ? '/superadmin' : (isCampusLevel ? '/campus' : '/admin')
 
-        if (permissions.analytics.access && !isAmbassadorRole) navItems.push({ label: 'Analytics', href: `${baseAdminPath}?view=analytics`, icon: <Shield /> })
-        if (permissions.campusPerformance.access) navItems.push({ label: 'Campus Management', href: `${baseAdminPath}?view=campuses`, icon: <Building2 /> })
+        if (permissions.analytics.access && !isAmbassadorRole && !isSuperAdmin) navItems.push({ label: 'Analytics', href: `${baseAdminPath}?view=analytics`, icon: <Shield /> })
+        if (permissions.campusPerformance.access && !isSuperAdmin) navItems.push({ label: 'Campus Management', href: `${baseAdminPath}?view=campuses`, icon: <Building2 /> })
 
         // These modules might not be ready in AdminClient yet, but if permissions allow, we link them.
         // We might need to implement these views in AdminClient or condition these links further.
-        if (permissions.userManagement.access) navItems.push({ label: 'User Management', href: isCampusLevel ? '/campus/users' : `${baseAdminPath}?view=users`, icon: <Users /> })
-        if (permissions.studentManagement.access) navItems.push({ label: 'Student Management', href: isCampusLevel ? '/campus/students' : `${baseAdminPath}?view=students`, icon: <BookOpen /> })
+        if (permissions.userManagement.access && !isSuperAdmin) navItems.push({ label: 'User Management', href: isCampusLevel ? '/campus/users' : `${baseAdminPath}?view=users`, icon: <Users /> })
+        if (permissions.studentManagement.access && !isSuperAdmin) navItems.push({ label: 'Student Management', href: isCampusLevel ? '/campus/students' : `${baseAdminPath}?view=students`, icon: <BookOpen /> })
         if (permissions.adminManagement.access) navItems.push({ label: 'Admin Management', href: `${baseAdminPath}?view=admins`, icon: <UserCog /> })
         if (permissions.reports.access) navItems.push({ label: 'Reports', href: `${baseAdminPath}?view=reports`, icon: <FileDown /> })
-        if (permissions.referralTracking.access && isSuperAdmin) navItems.push({ label: 'Global Referral Module', href: `/superadmin?view=referrals`, icon: <Globe /> })
+        // Global Referral Module removed (Duplicate for Super Admin)
         if (isSuperAdmin) navItems.push({ label: 'Fee Management', href: `/superadmin?view=fees`, icon: <IndianRupee /> })
 
         // Specific management of dashboard types based on permissions
         if (permissions.engagementCentre?.access) navItems.push({ label: 'Engagement Center', href: `${baseAdminPath}?view=engagement`, icon: <Zap /> })
-        if (permissions.marketingKit?.access && isSuperAdmin) navItems.push({ label: 'Promo Management', href: '/superadmin?view=marketing', icon: <Megaphone /> })
-
         if (isSuperAdmin) {
-            navItems.push({ label: 'Benefit Config', href: '/superadmin/benefits', icon: <Gift /> })
-            navItems.push({ label: 'Verifications', href: '/superadmin/verification', icon: <ShieldCheck /> })
-            navItems.push({ label: 'Permissions', href: '/superadmin?view=permissions', icon: <Lock /> })
+            navItems.push({ label: 'System Overview', href: '/superadmin?view=analytics', icon: <LayoutDashboard /> })
+            navItems.push({ label: 'Campus Control', href: '/superadmin?view=campuses', icon: <Building2 /> })
+            navItems.push({ label: 'User Operations', href: '/superadmin?view=users', icon: <Users /> })
+            navItems.push({ label: 'Student Records', href: '/superadmin?view=students', icon: <GraduationCap /> })
+            navItems.push({ label: 'Referral Pipeline', href: '/superadmin?view=referrals', icon: <GitFork /> })
+            navItems.push({ label: 'External Programs', href: '/superadmin?view=programs', icon: <ExternalLink /> })
+            navItems.push({ label: 'Program Leads', href: '/superadmin?view=program-leads', icon: <MousePointerClick /> }) // New Link
+            navItems.push({ label: 'Revenue & Payouts', href: '/superadmin?view=settlements', icon: <IndianRupee /> })
+            navItems.push({ label: 'Access Matrix', href: '/superadmin?view=permissions', icon: <Shield /> })
+            navItems.push({ label: 'App Settings', href: '/superadmin?view=settings', icon: <Settings /> })
+            navItems.push({ label: 'Benefit Management', href: '/superadmin/benefits', icon: <Calculator /> })
         }
 
         if (permissions.paymentApproval?.access) {
             navItems.push({ label: 'Payment Approvals', href: '/superadmin/approvals', icon: <CheckCircle /> })
+            navItems.push({ label: 'Rejection History', href: '/superadmin/approvals/history', icon: <History className="text-red-400" /> })
         }
 
         if (permissions.deletionHub?.access) {
@@ -93,11 +100,11 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             permissions.referralTracking.access && navItems.push({ label: 'Campus Leads', href: '/campus/referrals', icon: <List /> })
         }
 
-        // Ambassador Portal Links (Only for Staff & Parents)
+        // Ambassador Portal Links (Only for Staff, Parents, Alumni, Others)
         if (isAmbassadorRole) {
             if (permissions.referralSubmission.access) navItems.push({ label: 'Refer Now', href: '/refer', icon: <UserPlus /> })
             if (permissions.referralTracking.access) navItems.push({ label: 'My Referrals', href: '/referrals', icon: <List /> })
-            // Analytics merged into Dashboard:  if (permissions.analytics.access) navItems.push({ label: 'Analytics', href: '/analytics', icon: <BarChart3 /> })
+            if (permissions.programLeads?.access) navItems.push({ label: 'Program Leads', href: '/program-leads', icon: <MousePointerClick /> })
             if (permissions.rulesAccess.access) navItems.push({ label: 'Rules', href: '/rules', icon: <BookOpen /> })
         }
 
@@ -117,7 +124,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                 }
             }
             if (permissions.auditLog.access) navItems.push({ label: 'Audit Trail', href: '/superadmin?view=audit', icon: <GanttChartSquare /> })
-            if (permissions.settings.access) navItems.push({ label: 'Settings', href: '/superadmin?view=settings', icon: <Settings /> })
+            if (permissions.settings.access && !isSuperAdmin) navItems.push({ label: 'Settings', href: '/superadmin?view=settings', icon: <Settings /> })
         }
     }
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BarChart3, Users, BookOpen, ShieldCheck, Building2, Download, IndianRupee, Database, GanttChartSquare, MessageSquare, Settings, UserPlus, Edit, Trash, List, Wallet, ChevronDown, ChevronRight, CheckCircle2, Eye, Key, RotateCcw } from 'lucide-react'
+import { BarChart3, Users, BookOpen, ShieldCheck, Building2, Download, IndianRupee, Database, GanttChartSquare, MessageSquare, Settings, UserPlus, Edit, Trash, List, Wallet, ChevronDown, ChevronRight, CheckCircle2, Eye, Key, RotateCcw, ExternalLink } from 'lucide-react'
 
 import { RolePermissions } from '@/types'
 
@@ -44,6 +44,8 @@ const SECTIONS = [
             { key: 'feeManagement', label: 'Fee Management', icon: Wallet },
             { key: 'engagementCentre', label: 'Engagement Centre', icon: Users },
             { key: 'paymentApproval', label: 'Payment Approval', icon: IndianRupee },
+            { key: 'programLeads', label: 'Program Leads Manager', icon: List },
+            { key: 'externalPrograms', label: 'External Programs Manager', icon: ExternalLink },
         ]
     },
     {

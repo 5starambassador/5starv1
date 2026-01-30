@@ -216,6 +216,17 @@ export async function submitReferral(formData: {
 
         if (!referringUserId) return { success: false, error: 'Ambassador attribution failed' }
 
+        // Resolve Campus ID from name (Crucial for Campus Dashboards)
+        let resolvedCampusId: number | null = null
+        if (campus) {
+            const campusData = await prisma.campus.findUnique({
+                where: { campusName: campus }
+            })
+            if (campusData) {
+                resolvedCampusId = campusData.id
+            }
+        }
+
         const newLead = await prisma.referralLead.create({
             data: {
                 userId: referringUserId,
@@ -223,6 +234,7 @@ export async function submitReferral(formData: {
                 parentMobile,
                 studentName,
                 campus,
+                campusId: resolvedCampusId,
                 gradeInterested,
                 admittedYear: '2026-2027' // Enforce current active year for form submissions
             }
@@ -325,6 +337,19 @@ export async function getMyReferrals() {
             }
         },
         orderBy: { createdAt: 'desc' }
+    })
+}
+
+export async function getMyProgramLeads() {
+    const user = await getCurrentUser()
+    if (!user) return []
+
+    return await prisma.programLead.findMany({
+        where: { referrerId: user.userId },
+        include: {
+            program: true
+        },
+        orderBy: { clickedAt: 'desc' }
     })
 }
 

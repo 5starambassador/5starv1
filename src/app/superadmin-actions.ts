@@ -789,33 +789,56 @@ export async function updateUser(userId: number, data: {
     yearFeeBenefitPercent?: number
     longTermBenefitPercent?: number
 }) {
-    const admin = await getCurrentUser()
-    const allowedRoles = ['Super Admin', 'Admission Admin', 'Campus Head']
-
-    if (!admin || !allowedRoles.includes(admin.role)) {
-        return { success: false, error: 'Unauthorized: Insufficient permissions' }
-    }
-
     try {
+        const admin = await getCurrentUser()
+        const allowedRoles = ['Super Admin', 'Admission Admin', 'Campus Head']
+
+        if (!admin || !allowedRoles.includes(admin.role)) {
+            return { success: false, error: 'Unauthorized: Insufficient permissions' }
+        }
+
         const previousUser = await prisma.user.findUnique({ where: { userId } })
 
         const updatedUser = await prisma.user.update({
             where: { userId },
-            data: {
-                ...data
-            }
+            data
         })
 
-        await logAction('UPDATE', 'user', `Updated user: ${userId}`, userId.toString(), null, {
-            previous: previousUser,
-            next: updatedUser
-        })
+        await logAction('UPDATE', 'user', `Updated user ${userId}`, userId.toString(), null, { previous: previousUser, next: updatedUser })
 
         return { success: true, user: updatedUser }
     } catch (error) {
         console.error('Update user error:', error)
         return { success: false, error: 'Failed to update user' }
     }
+}
+
+/**
+ * Fetches ALL external program leads for Super Admin monitoring.
+ */
+export async function getAllProgramLeads() {
+    const user = await getCurrentUser()
+    if (!user) {
+        throw new Error('Unauthorized')
+    }
+
+    const permissions = await getMyPermissions()
+    if (!permissions || !permissions.programLeads?.access) {
+        // Fallback for Super Admin if permissions fail to load (safety net)
+        if (!user.role.includes('Super Admin')) {
+            throw new Error('Unauthorized')
+        }
+    }
+
+    const leads = await prisma.programLead.findMany({
+        include: {
+            program: { select: { title: true, slug: true } },
+            referrer: { select: { fullName: true, referralCode: true, mobileNumber: true } }
+        },
+        orderBy: { clickedAt: 'desc' }
+    })
+
+    return { success: true, leads }
 }
 
 // ===================== DELETE USER (with return object) =====================

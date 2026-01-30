@@ -232,3 +232,69 @@ export async function exportPayouts(startDate: Date, endDate: Date, status?: str
         return { success: false, error: 'Failed to generate export' }
     }
 }
+
+export async function exportRejectedPayments(search?: string) {
+    const admin = await getCurrentUser()
+    if (!admin) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const where: any = {
+            AND: [
+                {
+                    OR: [
+                        { orderStatus: 'FAILED' },
+                        { paymentStatus: 'Rejected by Admin' }
+                    ]
+                },
+                { paymentMethod: 'MANUAL_QR' }
+            ]
+        }
+
+        if (search) {
+            where.AND.push({
+                OR: [
+                    { transactionId: { contains: search, mode: 'insensitive' } },
+                    { user: { fullName: { contains: search, mode: 'insensitive' } } },
+                    { user: { mobileNumber: { contains: search, mode: 'insensitive' } } }
+                ]
+            })
+        }
+
+        const payments = await prisma.payment.findMany({
+            where,
+            include: {
+                user: {
+                    select: { fullName: true, mobileNumber: true, email: true, role: true }
+                }
+            },
+            orderBy: { updatedAt: 'desc' }
+        })
+
+        const csvHeaders = 'Rejection Date,Full Name,Mobile,Role,Email,UTR / Ref,Amount,Rejection Reason'
+        const safeString = (str: string | null | undefined) => `"${(String(str || '')).replace(/"/g, '""')}"`
+
+        const csvRows = payments.map(p => {
+            return [
+                format(new Date(p.updatedAt), 'yyyy-MM-dd HH:mm'),
+                safeString(p.user.fullName),
+                `="${p.user.mobileNumber}"`,
+                safeString(p.user.role),
+                safeString(p.user.email),
+                `="${p.transactionId || 'N/A'}"`,
+                p.orderAmount,
+                safeString(p.adminRemarks)
+            ].join(',')
+        })
+
+        const csvContent = [csvHeaders, ...csvRows].join('\n')
+        return {
+            success: true,
+            csv: csvContent,
+            filename: `Rejected_Payments_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`
+        }
+
+    } catch (error) {
+        console.error('Export Rejected Payments Error:', error)
+        return { success: false, error: 'Failed to generate export' }
+    }
+}

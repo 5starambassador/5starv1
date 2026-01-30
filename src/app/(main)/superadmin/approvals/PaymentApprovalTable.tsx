@@ -157,7 +157,10 @@ export function PaymentApprovalTable({ initialPayments, page, totalPages, totalC
 
     const handleBulkReject = async () => {
         const reason = prompt("Enter rejection reason for ALL selected items:")
-        if (!reason) return
+        if (!reason || reason.trim().length === 0) {
+            toast.error("Reason is required")
+            return
+        }
 
         setBulkLoading('reject')
         try {
@@ -269,6 +272,7 @@ export function PaymentApprovalTable({ initialPayments, page, totalPages, totalC
                                 <th className="px-6 py-4">Date</th>
                                 <th className="px-6 py-4">User Details</th>
                                 <th className="px-6 py-4">UTR / Ref</th>
+                                <th className="px-6 py-4">Status</th>
                                 <th className="px-6 py-4 text-right">Amount</th>
                                 <th className="px-6 py-4 text-center">Action</th>
                             </tr>
@@ -292,6 +296,12 @@ export function PaymentApprovalTable({ initialPayments, page, totalPages, totalC
                                         <div className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-gray-100 text-gray-800 font-mono text-sm font-medium border border-gray-200 select-all">
                                             {payment.transactionId}
                                         </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${payment.orderStatus === 'PENDING_APPROVAL' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                                            }`}>
+                                            {payment.orderStatus === 'PENDING_APPROVAL' ? 'Pending' : payment.orderStatus}
+                                        </span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <span className="font-bold text-emerald-600">₹{payment.orderAmount}</span>

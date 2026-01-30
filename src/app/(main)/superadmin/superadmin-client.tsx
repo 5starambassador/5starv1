@@ -9,10 +9,15 @@ import { MessageSquare, Calculator } from 'lucide-react'
 // Import only what's needed for client-managed state
 import { getCampuses } from '@/app/campus-actions'
 import { getBenefitSlabs, updateBenefitSlab, addBenefitSlab, deleteBenefitSlab } from '@/app/benefit-actions'
-import { getCampusDetails } from '@/app/superadmin-actions'
+import { getCampusDetails, getAllProgramLeads } from '@/app/superadmin-actions'
+import { ProgramLeadsTable } from '@/components/superadmin/ProgramLeadsTable'
 import { getSettlements, processSettlement, deleteSettlement } from '@/app/settlement-actions'
 import { getRolePermissions, updateRolePermissions, resetRolePermissions } from '@/app/permission-actions'
-import { confirmReferral, convertLeadToStudent, rejectReferral } from '@/app/admin-actions' // Import server actions
+import { confirmReferral, convertLeadToStudent, rejectReferral } from '@/app/admin-actions'
+
+// ... existing imports ...
+
+import { ProgramManager } from '@/components/superadmin/ProgramManager'
 
 import { MarketingManager } from '@/components/MarketingManager'
 import { Modal } from '@/components/ui/Modal'
@@ -42,7 +47,20 @@ const SettlementCalculatorModal = dynamic(() => import('@/components/superadmin/
 
 import { User, Student, SystemAnalytics, CampusPerformance, Admin, SystemSettings, MarketingAsset, Campus, BenefitSlab, RolePermissions } from '@/types'
 
-type ViewType = 'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'referrals' | 'fees' | 'engagement';
+// ... existing imports
+
+type ViewType = 'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'referrals' | 'fees' | 'engagement' | 'programs' | 'program-leads';
+
+// ... in SuperadminClient
+
+const mapViewParam = (view: string): ViewType => {
+    const validViews = ['home', 'analytics', 'users', 'admins', 'campuses', 'settings', 'reports', 'students', 'settlements', 'marketing', 'audit', 'support', 'permissions', 'staff-dash', 'parent-dash', 'referrals', 'fees', 'engagement', 'programs', 'program-leads']
+    return validViews.includes(view) ? (view as ViewType) : 'home'
+}
+
+// ... inside return (render logic)
+
+
 
 interface Props {
     analytics: SystemAnalytics
@@ -86,7 +104,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
 
     // View State
     const mapViewParam = (view: string): ViewType => {
-        const validViews = ['home', 'analytics', 'users', 'admins', 'campuses', 'settings', 'reports', 'students', 'settlements', 'marketing', 'audit', 'support', 'permissions', 'staff-dash', 'parent-dash', 'referrals', 'fees', 'engagement']
+        const validViews = ['home', 'analytics', 'users', 'admins', 'campuses', 'settings', 'reports', 'students', 'settlements', 'marketing', 'audit', 'support', 'permissions', 'staff-dash', 'parent-dash', 'referrals', 'fees', 'engagement', 'programs', 'program-leads']
         return validViews.includes(view) ? (view as ViewType) : 'home'
     }
     const [selectedView, setSelectedView] = useState<ViewType>(mapViewParam(initialView))
@@ -100,6 +118,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     const [campuses, setCampuses] = useState<Campus[]>(initialCampuses) // Fetch for dropdowns in other panels
     const [slabs, setSlabs] = useState<BenefitSlab[]>([])
     const [settlements, setSettlements] = useState<any[]>([]) // Placeholder
+    const [programLeads, setProgramLeads] = useState<any[]>([])
 
     // Analytics State
     const [analyticsData, setAnalyticsData] = useState(analytics)
@@ -124,6 +143,23 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     useEffect(() => {
         setCampuses(initialCampuses)
     }, [initialCampuses])
+
+    useEffect(() => {
+        if (selectedView === 'program-leads') {
+            const loadLeads = async () => {
+                setLoading(true)
+                try {
+                    const res = await getAllProgramLeads()
+                    if (res.success && res.leads) setProgramLeads(res.leads)
+                } catch (error) {
+                    toast.error('Failed to load program leads')
+                } finally {
+                    setLoading(false)
+                }
+            }
+            loadLeads()
+        }
+    }, [selectedView])
 
     const loadSettlements = async () => {
         const res = await getSettlements()
@@ -347,6 +383,16 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
 
                 {/* Settings View */}
                 {selectedView === 'settings' && <SettingsPanel />}
+
+                {/* External Programs View */}
+                {selectedView === 'programs' && <ProgramManager />}
+
+                {/* Program Leads View */}
+                {selectedView === 'program-leads' && (
+                    <div className="space-y-6 animate-fade-in">
+                        <ProgramLeadsTable leads={programLeads} />
+                    </div>
+                )}
 
                 {/* Permissions Matrix View - Use full available width */}
                 {selectedView === 'permissions' && (

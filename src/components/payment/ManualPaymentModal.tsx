@@ -38,8 +38,9 @@ export default function ManualPaymentModal({ isOpen, onClose, amount, userId, on
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        if (!utr || utr.length < 8) {
-            toast.error("Please enter a valid Transaction ID (UTR)")
+        const utrRegex = /^[a-zA-Z0-9]{12}$/
+        if (!utrRegex.test(utr)) {
+            toast.error("Invalid UTR format. Must be exactly 12 alphanumeric characters.")
             return
         }
 
@@ -134,9 +135,11 @@ export default function ManualPaymentModal({ isOpen, onClose, amount, userId, on
                             id="utr"
                             type="text"
                             value={utr}
-                            onChange={(e) => setUtr(e.target.value)}
+                            onChange={(e) => setUtr(e.target.value.toUpperCase())}
+                            maxLength={12}
+                            pattern="[A-Z0-9]{12}"
                             placeholder="e.g. 402518..."
-                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-mono text-sm"
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-mono text-sm uppercase placeholder:normal-case"
                             required
                         />
                         <p className="text-[10px] text-gray-500">

@@ -133,17 +133,22 @@ export default async function DashboardPage() {
     // Fetch Notifications
     const { notifications, unreadCount } = await import('@/app/notification-actions').then(m => m.getNotifications(1, 10))
 
+    // Fetch Active External Programs
+    const { getActivePrograms } = await import('@/app/program-actions')
+    const { programs } = await getActivePrograms()
+
     return (
         <DashboardClient
             user={userForClient}
             referrals={serializedReferrals}
             activeYears={serializedActiveYears}
-            campusFeeMap={campusFeeMapObj as any} // Cast to any to bypass Map typing mismatch if needed
+            campusFeeMap={campusFeeMapObj as any}
             slabs={slabsResult.data || []}
             dynamicStudentFee={dynamicStudentFee || 60000}
             monthStats={monthStats}
             notifications={notifications || []}
             unreadCount={unreadCount || 0}
+            programs={programs || []}
         />
     )
 }

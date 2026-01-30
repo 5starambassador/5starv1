@@ -32,6 +32,8 @@ export interface RolePermissions {
     feeManagement: ModulePermission
     engagementCentre: ModulePermission
     paymentApproval: ModulePermission
+    programLeads: ModulePermission
+    externalPrograms: ModulePermission
 }
 
 export interface User {

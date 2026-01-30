@@ -5,6 +5,8 @@ import { format } from 'date-fns'
 import { getCurrentUser } from '@/lib/auth-service'
 import { hasModuleAccess } from '@/lib/permissions'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { History } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,15 +23,12 @@ export default async function ApprovalsPage(props: { searchParams: Promise<{ pag
     const skip = (page - 1) * limit
     const search = searchParams.search
 
-    // Base Where Clause
     const where: any = {
         AND: [
             {
                 OR: [
                     { orderStatus: 'PENDING_APPROVAL' },
-                    { paymentStatus: 'Pending Approval' },
-                    { orderStatus: 'FAILED' }, // Show recent failures too
-                    { paymentStatus: 'Rejected by Admin' }
+                    { paymentStatus: 'Pending Approval' }
                 ]
             },
             { paymentMethod: 'MANUAL_QR' }
@@ -76,7 +75,14 @@ export default async function ApprovalsPage(props: { searchParams: Promise<{ pag
                     <h1 className="text-3xl font-black text-gray-900 tracking-tight">Payment Verification</h1>
                     <p className="text-gray-500 mt-2">Approve manual QR code payments. Verify UTR with your bank statement first.</p>
                 </div>
-                <div className="flex gap-4">
+                <div className="flex gap-4 items-center">
+                    <Link
+                        href="/superadmin/approvals/history"
+                        className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg text-sm font-bold border border-gray-200 hover:bg-gray-50 transition-colors shadow-sm"
+                    >
+                        <History size={16} />
+                        View History
+                    </Link>
                     <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg font-mono text-sm font-bold border border-blue-100">
                         Pending: {pendingCount}
                     </div>

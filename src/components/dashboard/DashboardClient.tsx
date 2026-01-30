@@ -65,6 +65,8 @@ import { ClientUser } from '@/types/client-types'
 
 import { BenefitSlabData } from '@/app/benefit-actions'
 
+import { ProgramGallery } from './ProgramGallery'
+
 interface DashboardClientProps {
     user: ClientUser
     referrals: any[]
@@ -76,6 +78,7 @@ interface DashboardClientProps {
     monthStats: any
     notifications?: any[]
     unreadCount?: number
+    programs?: any[]
 }
 
 export function DashboardClient({
@@ -87,7 +90,8 @@ export function DashboardClient({
     dynamicStudentFee,
     monthStats,
     notifications = [],
-    unreadCount = 0
+    unreadCount = 0,
+    programs = []
 }: DashboardClientProps) {
 
     // Filter State
@@ -238,6 +242,11 @@ export function DashboardClient({
                     </AnimatePresence>
                 </div>
             </div>
+
+            {/* External Programs Gallery */}
+            {programs && programs.length > 0 && (
+                <ProgramGallery programs={programs} referralCode={user.referralCode || ''} />
+            )}
 
             <ActionHomeBlueUnified
                 user={{

@@ -4,12 +4,14 @@ import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { getCurrentUser } from '@/lib/auth-service'
 import { hasModuleAccess } from '@/lib/permissions'
+import { notifyReferralStatusChanged } from '@/lib/notification-helper'
+import { logAction } from '@/lib/audit-logger'
 
 export async function approveManualPayment(orderId: string) {
     try {
         // 1. Auth Check (Must have paymentApproval permission)
         const user = await getCurrentUser()
-        if (!user || !require('@/lib/permissions').hasModuleAccess(user.role, 'paymentApproval')) {
+        if (!user || !hasModuleAccess(user.role, 'paymentApproval')) {
             return { success: false, error: 'Unauthorized' }
         }
 
@@ -27,29 +29,41 @@ export async function approveManualPayment(orderId: string) {
             return { success: false, error: 'Payment is not in pending state' }
         }
 
-        // 3. Update Transaction (Atomic-ish)
-        // Update Payment
-        await prisma.payment.update({
-            where: { orderId: orderId },
-            data: {
-                orderStatus: 'SUCCESS', // Standard Cashfree Success Status
-                paymentStatus: 'Success',
-                paidAt: new Date(),
-            }
+        // 3. Update Transaction (Atomic)
+        await prisma.$transaction(async (tx) => {
+            // Update Payment
+            await tx.payment.update({
+                where: { orderId: orderId },
+                data: {
+                    orderStatus: 'SUCCESS',
+                    paymentStatus: 'Success',
+                    paidAt: new Date(),
+                }
+            })
+
+            // Update User
+            await tx.user.update({
+                where: { userId: payment.userId },
+                data: {
+                    status: 'Active',
+                    paymentStatus: 'Success',
+                    paymentAmount: payment.orderAmount,
+                    transactionId: payment.transactionId
+                }
+            })
         })
 
-        // Update User
-        await prisma.user.update({
-            where: { userId: payment.userId },
-            data: {
-                status: 'Active',
-                paymentStatus: 'Success',
-                paymentAmount: payment.orderAmount,
-                transactionId: payment.transactionId
-            }
-        })
+        // 4. Log Action
+        await logAction(
+            'PAYMENT_APPROVED',
+            'finance',
+            `Manually approved payment of ₹${payment.orderAmount} for ${payment.user.fullName} (${payment.user.mobileNumber})`,
+            orderId,
+            (user as any).adminId || (user as any).userId,
+            { amount: payment.orderAmount, utr: payment.transactionId }
+        )
 
-        // 4. Revalidate
+        // 5. Revalidate
         revalidatePath('/superadmin/approvals')
         revalidatePath('/superadmin/finance')
         revalidatePath('/dashboard')
@@ -65,7 +79,7 @@ export async function rejectManualPayment(orderId: string, reason: string) {
     try {
         // 1. Auth Check
         const user = await getCurrentUser()
-        if (!user || !require('@/lib/permissions').hasModuleAccess(user.role, 'paymentApproval')) {
+        if (!user || !hasModuleAccess(user.role, 'paymentApproval')) {
             return { success: false, error: 'Unauthorized' }
         }
 
@@ -73,24 +87,58 @@ export async function rejectManualPayment(orderId: string, reason: string) {
             return { success: false, error: 'Reason for rejection is required' }
         }
 
-        // 2. Update Payment to Failed with Remarks
-        const payment = await prisma.payment.update({
-            where: { orderId: orderId },
-            data: {
-                orderStatus: 'FAILED',
-                paymentStatus: 'Rejected by Admin',
-                adminRemarks: reason
-            } as any
+        // 2. Fetch Payment
+        const paymentData = await prisma.payment.findUnique({
+            where: { orderId },
+            include: { user: { select: { fullName: true, mobileNumber: true } } }
         })
 
-        // Update User Status to 'Rejected' (was 'Pending') to show reason clearly
-        await prisma.user.update({
-            where: { userId: payment.userId },
-            data: {
-                paymentStatus: 'Rejected' as any, // Cast as any if enum not yet refreshed
-                transactionId: null
-            }
+        if (!paymentData) {
+            return { success: false, error: 'Payment not found' }
+        }
+
+        // 3. Update Transaction (Atomic)
+        await prisma.$transaction(async (tx) => {
+            // Update Payment
+            await tx.payment.update({
+                where: { orderId: orderId },
+                data: {
+                    orderStatus: 'FAILED',
+                    paymentStatus: 'Rejected by Admin',
+                    adminRemarks: reason
+                } as any
+            })
+
+            // Update User Status
+            await tx.user.update({
+                where: { userId: paymentData.userId },
+                data: {
+                    paymentStatus: 'Rejected' as any,
+                    transactionId: null
+                }
+            })
         })
+
+        // 4. Log Action
+        await logAction(
+            'PAYMENT_REJECTED',
+            'finance',
+            `Rejected payment for ${paymentData.user.fullName}. Reason: ${reason}`,
+            orderId,
+            (user as any).adminId || (user as any).userId,
+            { reason }
+        )
+
+        // 5. Notify User
+        const { createNotification } = await import('@/app/notification-actions')
+        await createNotification({
+            userId: paymentData.userId,
+            title: '❌ Payment Verification Failed',
+            message: `Your payment was rejected: ${reason}. Please resubmit with correct details.`,
+            type: 'warning',
+            link: '/complete-payment'
+        })
+
 
         revalidatePath('/superadmin/approvals')
         revalidatePath('/complete-payment')
@@ -192,6 +240,51 @@ export async function getPaymentsForExport(search?: string) {
                 }
             },
             orderBy: { createdAt: 'desc' }
+        })
+
+        return { success: true, data: payments }
+    } catch (e: any) {
+        return { success: false, error: e.message }
+    }
+}
+
+export async function getRejectedPayments(search?: string) {
+    try {
+        const user = await getCurrentUser()
+        if (!user || !hasModuleAccess(user.role, 'paymentApproval')) {
+            return { success: false, error: 'Unauthorized' }
+        }
+
+        const where: any = {
+            AND: [
+                {
+                    OR: [
+                        { orderStatus: 'FAILED' },
+                        { paymentStatus: 'Rejected by Admin' }
+                    ]
+                },
+                { paymentMethod: 'MANUAL_QR' }
+            ]
+        }
+
+        if (search) {
+            where.AND.push({
+                OR: [
+                    { transactionId: { contains: search, mode: 'insensitive' } },
+                    { user: { fullName: { contains: search, mode: 'insensitive' } } },
+                    { user: { mobileNumber: { contains: search, mode: 'insensitive' } } }
+                ]
+            })
+        }
+
+        const payments = await prisma.payment.findMany({
+            where,
+            include: {
+                user: {
+                    select: { fullName: true, mobileNumber: true, email: true }
+                }
+            },
+            orderBy: { updatedAt: 'desc' }
         })
 
         return { success: true, data: payments }

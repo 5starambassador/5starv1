@@ -54,6 +54,7 @@ model User {
   referredStudents       Student[]       @relation("StudentAmbassador")
   students               Student[]       @relation("StudentParent")
   supportTickets         SupportTicket[]
+  programLeads           ProgramLead[]
 
   @@index([role])
   @@index([assignedCampus])
@@ -261,6 +262,10 @@ model RolePermissions {
   feeManagementScope       String   @default("none")
   paymentApprovalAccess    Boolean  @default(false)
   paymentApprovalScope     String   @default("none")
+  programLeadsAccess       Boolean  @default(false)
+  programLeadsScope        String   @default("none")
+  externalProgramsAccess   Boolean  @default(false)
+  externalProgramsScope    String   @default("none")
 }
 
 model Settlement {
@@ -502,6 +507,7 @@ model Payment {
 
   @@index([orderId])
   @@index([userId])
+  @@index([transactionId])
 }
 
 model CrmLead {
@@ -558,4 +564,58 @@ enum UserRole {
   Staff
   Alumni
   Others
+}
+
+model ExternalProgram {
+  id          Int           @id @default(autoincrement())
+  title       String
+  slug        String        @unique
+  description String?
+  imageUrl    String?
+
+  // Links
+  publicUrl   String?       // The standard page (Reference)
+  targetUrl   String        // The "Secret" Discount Page to redirect to
+  autoSyncUrl String?       // Google Sheet CSV Link for auto-sync
+
+  // Rewards
+  commissionAmount Float          @default(0)
+  rewardType       ProgramRewardType @default(NONE)
+
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  leads       ProgramLead[]
+}
+
+model ProgramLead {
+  id            Int             @id @default(autoincrement())
+  programId     Int
+  referrerId    Int
+
+  // Visitor Info
+  visitorName   String?
+  visitorMobile String
+  studentName   String?   // New field for separating Parent/Student
+
+  // Status
+  status        String          @default("CLICKED") // CLICKED, REGISTERED
+  commissionCredited Boolean    @default(false)
+  clickedAt     DateTime        @default(now())
+  registeredAt  DateTime?
+
+  // Relations
+  program       ExternalProgram @relation(fields: [programId], references: [id])
+  referrer      User            @relation(fields: [referrerId], references: [userId])
+
+  @@index([visitorMobile])
+  @@index([referrerId])
+  @@index([programId])
+}
+
+enum ProgramRewardType {
+  CASH
+  POINTS
+  NONE
 }
