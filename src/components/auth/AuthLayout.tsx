@@ -38,10 +38,15 @@ export const AuthLayout = ({ children, animationKey }: { children: React.ReactNo
                 </div>
 
                 {/* Footer */}
-                <div className="relative z-10 mt-auto pb-4">
-                    <p className="text-[9px] font-black tracking-[0.3em] text-white/20 uppercase hover:text-white/40 transition-colors cursor-default">
-                        © 2026 Achariya World Class Education
+                <div className="relative z-10 mt-auto pb-6 text-center space-y-2">
+                    <p className="text-[9px] font-black tracking-[0.3em] text-white/30 uppercase cursor-default">
+                        © 2026 Achariya Educational Public Trust
                     </p>
+                    <div className="flex justify-center gap-4 text-[9px] font-black text-white/20 uppercase tracking-widest">
+                        <a href="/policies/terms" className="hover:text-white/40 transition-colors">Terms</a>
+                        <a href="/policies/refund" className="hover:text-white/40 transition-colors">Refunds</a>
+                        <a href="/policies/contact" className="hover:text-white/40 transition-colors">Contact</a>
+                    </div>
                 </div>
             </div>
         </main>

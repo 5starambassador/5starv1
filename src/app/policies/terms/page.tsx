@@ -29,10 +29,10 @@ export default function TermsPage() {
                 <section className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
                     <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                         <CheckCircle2 size={20} className="text-indigo-400" />
-                        2. Ambassador Program
+                        2. Partnership Program
                     </h2>
                     <p className="mb-4">
-                        As a registered Ambassador (Parent, Staff, Alumni, or Other), you agree to represent Achariya with integrity.
+                        As a registered Partner (Parent, Staff, Alumni), you agree to represent Achariya with integrity.
                     </p>
                     <ul className="list-disc pl-5 space-y-2 text-white/60">
                         <li>Referrals must be genuine leads interested in admission.</li>
@@ -57,7 +57,7 @@ export default function TermsPage() {
                         4. Limitation of Liability
                     </h2>
                     <p>
-                        Achariya World Class Education shall not be held liable for any indirect, incidental, or consequential damages arising from your use of this service or participation in the program.
+                        Achariya Educational Public Trust shall not be held liable for any indirect, incidental, or consequential damages arising from your use of this service or participation in the program.
                     </p>
                 </section>
 

@@ -22,7 +22,7 @@ export default function ContactPage() {
                         <div>
                             <h3 className="text-lg font-bold text-white mb-2">Registered Office</h3>
                             <p className="text-white/60 leading-relaxed font-medium">
-                                ACHARIYA WORLD CLASS EDUCATION<br />
+                                ACHARIYA EDUCATIONAL PUBLIC TRUST<br />
                                 No. 5, Achariya Campus,<br />
                                 Villianur, Puducherry - 605 110.
                             </p>

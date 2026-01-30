@@ -19,7 +19,7 @@ export default function RefundPage() {
                         Registration Fees
                     </h2>
                     <p className="text-lg font-medium text-white/90 mb-4">
-                        All registration fees paid for the Achariya Partnership Program (APP) are non-refundable.
+                        All registration fees paid to Achariya Educational Public Trust for the Achariya Partnership Program (APP) are non-refundable.
                     </p>
                     <p className="text-white/60">
                         Once a transaction is successfully completed and your account is activated, we cannot process any cancellations or refunds. The fee covers the administrative costs of setting up your dashboard, generating referral tools, and providing access to our marketing resources.

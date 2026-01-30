@@ -56,7 +56,7 @@ export function MobileWelcome({ onGetStarted }: MobileWelcomeProps) {
                     </h1>
 
                     <p className="text-white/90 text-sm leading-relaxed max-w-[280px] mx-auto text-shadow-sm font-medium">
-                        Join an elite community of ambassadors committed to shaping and securing the future of education by empowering minds and enriching lives.
+                        Join an elite community of partners committed to shaping and securing the future of education by empowering minds and enriching lives.
                     </p>
                 </motion.div>
 

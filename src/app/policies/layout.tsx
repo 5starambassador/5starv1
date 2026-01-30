@@ -42,7 +42,7 @@ export default function PolicyLayout({
             {/* Footer */}
             <footer className="border-t border-white/10 bg-[#0f172a] py-8 relative z-10">
                 <div className="max-w-4xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-white/40">
-                    <p>© {new Date().getFullYear()} Achariya World Class Education. All rights reserved.</p>
+                    <p>© {new Date().getFullYear()} Achariya Educational Public Trust. All rights reserved.</p>
                     <div className="flex gap-6">
                         <Link href="/policies/terms" className="hover:text-white transition-colors">Terms</Link>
                         <Link href="/policies/refund" className="hover:text-white transition-colors">Refunds</Link>
