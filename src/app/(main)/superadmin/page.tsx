@@ -9,6 +9,7 @@ import { getAdminMarketingAssets } from '@/app/marketing-actions'
 import { getSystemSettings, getSecuritySettings } from '@/app/settings-actions'
 import SuperadminClient from './superadmin-client' // Client component
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { Suspense } from 'react'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,6 +73,7 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
 
     // Get view from URL params (default to 'home')
     const initialView = getString(params.view) || 'home'
+    const initialReportMode = (getString(params.mode) || 'classic') as 'classic' | 'visual'
 
     // Default Empty Analytics Object
     const defaultAnalytics = {
@@ -196,25 +198,37 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
 
     return (
         <ErrorBoundary>
-            <SuperadminClient
-                analytics={analytics}
-                campusComparison={campusComparison}
-                users={serializeData(users) as any}
-                admins={serializeData(admins) as any}
-                students={serializeData(students) as any}
-                currentUser={serializeData(user) as any}
-                initialView={initialView}
-                marketingAssets={serializeData(marketingAssets.assets || []) as any}
-                campuses={(campusesResult.success ? campusesResult.campuses : []) as any}
+            <Suspense fallback={
+                <div className="flex h-screen items-center justify-center bg-slate-50">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center border border-indigo-100">
+                            <div className="h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                        <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Initializing Control Hub...</p>
+                    </div>
+                </div>
+            }>
+                <SuperadminClient
+                    analytics={analytics}
+                    campusComparison={campusComparison}
+                    users={serializeData(users) as any}
+                    admins={serializeData(admins) as any}
+                    students={serializeData(students) as any}
+                    currentUser={serializeData(user) as any}
+                    initialView={initialView}
+                    initialReportMode={initialReportMode}
+                    marketingAssets={serializeData(marketingAssets.assets || []) as any}
+                    campuses={(campusesResult.success ? campusesResult.campuses : []) as any}
 
-                growthTrend={growthTrend}
-                deepTrends={deepTrends.success ? deepTrends : null}
-                urgentTicketCount={urgentTicketCount}
+                    growthTrend={growthTrend}
+                    deepTrends={deepTrends.success ? deepTrends : null}
+                    urgentTicketCount={urgentTicketCount}
 
-                // Referral Props
-                referrals={serializeData(referralData.referrals || [])}
-                referralMeta={referralData.meta || { page: 1, limit: 50, total: 0, totalPages: 1 }}
-            />
+                    // Referral Props
+                    referrals={serializeData(referralData.referrals || [])}
+                    referralMeta={referralData.meta || { page: 1, limit: 50, total: 0, totalPages: 1 }}
+                />
+            </Suspense>
         </ErrorBoundary>
     )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import {
@@ -13,38 +13,10 @@ import {
     ShieldCheck,
     TrendingUp,
     FileDown,
-    ArrowRight,
     Mail,
-    LayoutGrid,
-    Presentation,
     Loader2,
-    Calendar,
-    Target,
-    Zap,
-    Star,
-    Sparkles,
-    Compass,
-    Activity,
-    Heart,
-    Clock
+    Activity
 } from 'lucide-react'
-import {
-    ResponsiveContainer,
-    BarChart as ReBarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    Tooltip as ReTooltip,
-    CartesianGrid,
-    Cell,
-    LineChart as ReLineChart,
-    Line,
-    Legend,
-    AreaChart,
-    Area,
-    PieChart as RePieChart,
-    Pie
-} from 'recharts'
 import { generatePDFReport } from '@/lib/pdf-export'
 import { emailReport } from '@/app/reporting-actions'
 import {
@@ -59,12 +31,8 @@ import {
     generateStaffVsParentReport,
     generateLeadPipelineReport,
     generateStarMilestoneReport,
-    generateConversionFunnelData,
-    generateFinancialROIData,
-    generateTargetAchievementData,
-    generateStarMilestonesData,
-    generateAdmissionIntelligenceData,
-    generateRetentionAnalyticsData
+    generateAuditTrailReport,
+    generateSettlementIntegrityReport
 } from '@/app/report-actions'
 
 interface ReportsPanelProps {
@@ -74,6 +42,7 @@ interface ReportsPanelProps {
     campusComparison?: any[]
     onDownloadReport: (reportFunction: () => Promise<{ success: boolean; csv?: string; filename?: string; error?: string }>) => Promise<void>
     onWeeklyReport?: () => Promise<void>
+    initialReportMode?: 'classic' | 'visual'
 }
 
 export function ReportsPanel({
@@ -82,82 +51,11 @@ export function ReportsPanel({
     admins = [],
     campusComparison = [],
     onDownloadReport,
-    onWeeklyReport
+    onWeeklyReport,
 }: ReportsPanelProps) {
-    const searchParams = useSearchParams()
-    const modeParam = searchParams.get('mode')
-
     const [emailingId, setEmailingId] = useState<string | null>(null)
     const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' })
     const [selectedCampus, setSelectedCampus] = useState<string>('All')
-    const [reportMode, setReportMode] = useState<'classic' | 'visual'>((modeParam as any) || 'classic')
-    const [isLoadingVisual, setIsLoadingVisual] = useState(false)
-    const [visualData, setVisualData] = useState<{
-        funnel: any[],
-        roi: any,
-        achievement: any[],
-        velocity: string,
-        milestones: { distribution: any[], risingStars: any[] },
-        intelligence: { campuses: any[], totalPredicted: number, avgVelocity: string },
-        retention: { cohorts: any[], avgDaysToConfirm: string }
-    }>({
-        funnel: [],
-        roi: null,
-        achievement: [],
-        velocity: '0',
-        milestones: { distribution: [], risingStars: [] },
-        intelligence: { campuses: [], totalPredicted: 0, avgVelocity: '0' },
-        retention: { cohorts: [], avgDaysToConfirm: '0' }
-    })
-
-    const fetchVisualData = async () => {
-        setIsLoadingVisual(true)
-        try {
-            const filters = {
-                startDate: dateRange.start || undefined,
-                endDate: dateRange.end || undefined,
-                campus: selectedCampus !== 'All' ? selectedCampus : undefined
-            }
-
-            const [funnelRes, roiRes, achievementRes, milestoneRes, intelligenceRes, retentionRes] = await Promise.all([
-                generateConversionFunnelData(filters),
-                generateFinancialROIData(filters),
-                generateTargetAchievementData({ campus: filters.campus }),
-                generateStarMilestonesData({ campus: filters.campus }),
-                generateAdmissionIntelligenceData({ campus: filters.campus }),
-                generateRetentionAnalyticsData({ campus: filters.campus })
-            ])
-
-            setVisualData({
-                funnel: funnelRes.success ? (funnelRes.funnelData || []) : [],
-                roi: roiRes.success ? roiRes.roi : null,
-                achievement: achievementRes.success ? (achievementRes.achievementData || []) : [],
-                velocity: funnelRes.success ? (funnelRes.avgVelocity || '0') : '0',
-                milestones: (milestoneRes.success && milestoneRes.milestones) ? milestoneRes.milestones : { distribution: [], risingStars: [] },
-                intelligence: intelligenceRes.success ? (intelligenceRes.intelligence || { campuses: [], totalPredicted: 0, avgVelocity: '0' }) : { campuses: [], totalPredicted: 0, avgVelocity: '0' },
-                retention: retentionRes.success ? (retentionRes.retention || { cohorts: [], avgDaysToConfirm: '0' }) : { cohorts: [], avgDaysToConfirm: '0' }
-            })
-        } catch (error) {
-            toast.error('Failed to load visual insights')
-        } finally {
-            setIsLoadingVisual(false)
-        }
-    }
-
-    // Sync mode with query param
-    useEffect(() => {
-        if (modeParam === 'visual' || modeParam === 'classic') {
-            setReportMode(modeParam as 'classic' | 'visual')
-        }
-    }, [modeParam])
-
-    // Refetch when filters change while in visual mode
-    useEffect(() => {
-        if (reportMode === 'visual') {
-            fetchVisualData()
-        }
-    }, [reportMode, dateRange.start, dateRange.end, selectedCampus])
-
     const uniqueCampuses = Array.from(new Set(campuses.map(c => c.campusName || c.campus).filter(Boolean)))
 
     const handleEmailReport = async (reportId: string) => {
@@ -183,66 +81,6 @@ export function ReportsPanel({
             campus: selectedCampus !== 'All' ? selectedCampus : undefined
         }
         onDownloadReport(() => action(filters))
-    }
-
-    const handlePDFExport = (type: 'users' | 'campus' | 'admins') => {
-        let filteredUsers = users
-        let filteredAdmins = admins
-        let filteredCampusComparison = campusComparison
-
-        if (selectedCampus !== 'All') {
-            filteredUsers = users.filter(u => u.assignedCampus === selectedCampus)
-            filteredAdmins = admins.filter(a => a.assignedCampus === selectedCampus)
-            filteredCampusComparison = campusComparison.filter(c => c.campus === selectedCampus)
-        }
-
-        switch (type) {
-            case 'users':
-                generatePDFReport({
-                    title: `Users Report ${selectedCampus !== 'All' ? `- ${selectedCampus}` : ''}`,
-                    subtitle: `Total Users: ${filteredUsers.length}`,
-                    fileName: 'users_report',
-                    columns: [
-                        { header: 'Name', dataKey: 'fullName' },
-                        { header: 'Mobile', dataKey: 'mobileNumber' },
-                        { header: 'Role', dataKey: 'role' },
-                        { header: 'Campus', dataKey: 'assignedCampus' },
-                        { header: 'Status', dataKey: 'status' }
-                    ],
-                    data: filteredUsers.map(u => ({ ...u, assignedCampus: u.assignedCampus || 'N/A' }))
-                })
-                break
-            case 'campus':
-                generatePDFReport({
-                    title: 'Campus Management Report',
-                    subtitle: `Total Campuses: ${filteredCampusComparison.length}`,
-                    fileName: 'campus_management',
-                    columns: [
-                        { header: 'Campus', dataKey: 'campus' },
-                        { header: 'Total Leads', dataKey: 'totalLeads' },
-                        { header: 'Confirmed', dataKey: 'confirmed' },
-                        { header: 'Pending', dataKey: 'pending' },
-                        { header: 'Conversion %', dataKey: 'conversionRate' }
-                    ],
-                    data: filteredCampusComparison
-                })
-                break
-            case 'admins':
-                generatePDFReport({
-                    title: 'Admin Directory',
-                    subtitle: `Total Admins: ${filteredAdmins.length}`,
-                    fileName: 'admins_directory',
-                    columns: [
-                        { header: 'Name', dataKey: 'adminName' },
-                        { header: 'Mobile', dataKey: 'adminMobile' },
-                        { header: 'Role', dataKey: 'role' },
-                        { header: 'Campus', dataKey: 'assignedCampus' },
-                        { header: 'Status', dataKey: 'status' }
-                    ],
-                    data: filteredAdmins.map(a => ({ ...a, assignedCampus: a.assignedCampus || 'N/A' }))
-                })
-                break
-        }
     }
 
     const reportGroups = [
@@ -362,28 +200,45 @@ export function ReportsPanel({
             border: 'border-red-200',
             action: generateInactiveUsersReport,
             canEmail: true
+        },
+        {
+            id: 'audit-trail',
+            title: 'System Audit Trail',
+            count: 'Admin accountability',
+            desc: 'Chronological log of critical system actions and permission changes.',
+            icon: ShieldCheck,
+            color: 'from-slate-500 to-slate-600',
+            bg: 'bg-slate-50',
+            text: 'text-slate-700',
+            border: 'border-slate-200',
+            action: generateAuditTrailReport,
+            canEmail: false
+        },
+        {
+            id: 'integrity-audit',
+            title: 'Settlement Integrity',
+            count: 'Payment vs Admissions',
+            desc: 'Audit report to verify lead confirmation vs successful settlements.',
+            icon: Activity,
+            color: 'from-pink-500 to-pink-600',
+            bg: 'bg-pink-50',
+            text: 'text-pink-700',
+            border: 'border-pink-200',
+            action: generateSettlementIntegrityReport,
+            canEmail: false
         }
     ]
 
     return (
         <div className="space-y-6 animate-fade-in pb-4">
-            {/* Mode Switcher & Filter Controls */}
+            {/* Filter Controls */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-1">
-                <div className="flex items-center gap-1 p-1 bg-gray-100/80 rounded-2xl w-fit border border-gray-200/50">
-                    <button
-                        onClick={() => setReportMode('classic')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${reportMode === 'classic' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                        <LayoutGrid size={14} />
-                        Classic Downloads
-                    </button>
-                    <button
-                        onClick={() => setReportMode('visual')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${reportMode === 'visual' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                        <Zap size={14} className={reportMode === 'visual' ? 'text-amber-500' : ''} />
-                        Visual Insights
-                    </button>
+                <div className="flex flex-col">
+                    <h1 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+                        <FileDown className="text-blue-600" size={32} />
+                        Export & Historical Center
+                    </h1>
+                    <p className="text-gray-500 text-sm font-medium mt-1">Download raw data and administrative audit logs.</p>
                 </div>
 
                 <div className="flex flex-wrap gap-3 items-center">
@@ -396,6 +251,7 @@ export function ReportsPanel({
                                     className="bg-transparent text-[11px] font-bold text-gray-700 focus:outline-none w-24"
                                     value={dateRange.start}
                                     onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                                    suppressHydrationWarning
                                 />
                                 <span className="text-gray-300">-</span>
                                 <input
@@ -403,6 +259,7 @@ export function ReportsPanel({
                                     className="bg-transparent text-[11px] font-bold text-gray-700 focus:outline-none w-24"
                                     value={dateRange.end}
                                     onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                                    suppressHydrationWarning
                                 />
                             </div>
                         </div>
@@ -415,6 +272,7 @@ export function ReportsPanel({
                                 className="bg-transparent text-[11px] font-bold text-gray-700 focus:outline-none mt-0.5 min-w-[140px] cursor-pointer"
                                 value={selectedCampus}
                                 onChange={(e) => setSelectedCampus(e.target.value)}
+                                suppressHydrationWarning
                             >
                                 <option value="All">All Campuses</option>
                                 {uniqueCampuses.map(c => (
@@ -426,426 +284,48 @@ export function ReportsPanel({
                 </div>
             </div>
 
-            {reportMode === 'classic' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {reportGroups.map((group) => (
-                        <div key={group.id} className="group relative bg-white rounded-xl border border-gray-200 shadow-sm hover:border-gray-300 transition-all duration-300 overflow-hidden flex flex-col h-full">
-                            <div className="p-6 flex-1 flex flex-col">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className={`w-12 h-12 rounded-xl ${group.bg} flex items-center justify-center`}>
-                                        <group.icon size={24} className={group.text} />
-                                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {reportGroups.map((group) => (
+                    <div key={group.id} className="group relative bg-white rounded-xl border border-gray-200 shadow-sm hover:border-gray-300 transition-all duration-300 overflow-hidden flex flex-col h-full">
+                        <div className="p-6 flex-1 flex flex-col">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className={`w-12 h-12 rounded-xl ${group.bg} flex items-center justify-center`}>
+                                    <group.icon size={24} className={group.text} />
                                 </div>
+                            </div>
 
-                                <h3 className="text-lg font-bold text-gray-900 mb-1 leading-tight">{group.title}</h3>
-                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{group.count}</p>
-                                <p className="text-sm text-gray-500 leading-relaxed mb-6 flex-1">{group.desc}</p>
+                            <h3 className="text-lg font-bold text-gray-900 mb-1 leading-tight">{group.title}</h3>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{group.count}</p>
+                            <p className="text-sm text-gray-500 leading-relaxed mb-6 flex-1">{group.desc}</p>
 
-                                <div className="grid grid-cols-2 gap-3 mt-auto">
-                                    <button
-                                        onClick={() => handleDownload(group.action)}
-                                        className="col-span-1 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 hover:border-gray-300 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md"
-                                    >
-                                        <Download size={14} />
-                                        <span>CSV</span>
-                                    </button>
+                            <div className="grid grid-cols-2 gap-3 mt-auto">
+                                <button
+                                    onClick={() => handleDownload(group.action)}
+                                    suppressHydrationWarning
+                                    className="col-span-1 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 hover:border-gray-300 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md"
+                                >
+                                    <Download size={14} />
+                                    <span>CSV</span>
+                                </button>
 
-                                    <button
-                                        onClick={() => handleEmailReport(group.id)}
-                                        disabled={emailingId === group.id}
-                                        className="col-span-1 px-4 py-2.5 rounded-xl bg-gray-900 hover:bg-black text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
-                                    >
-                                        {emailingId === group.id ? (
-                                            <Loader2 size={14} className="animate-spin" />
-                                        ) : (
-                                            <Mail size={14} />
-                                        )}
-                                        <span>Email</span>
-                                    </button>
-                                </div>
+                                <button
+                                    onClick={() => handleEmailReport(group.id)}
+                                    disabled={emailingId === group.id}
+                                    suppressHydrationWarning
+                                    className="col-span-1 px-4 py-2.5 rounded-xl bg-gray-900 hover:bg-black text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
+                                >
+                                    {emailingId === group.id ? (
+                                        <Loader2 size={14} className="animate-spin" />
+                                    ) : (
+                                        <Mail size={14} />
+                                    )}
+                                    <span>Email</span>
+                                </button>
                             </div>
                         </div>
-                    ))}
-                </div>
-            ) : (
-                <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-500">
-                    {isLoadingVisual ? (
-                        <div className="h-[400px] bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center text-center p-8">
-                            <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center border border-amber-100 mb-4">
-                                <Loader2 className="text-amber-500 animate-spin" size={32} />
-                            </div>
-                            <h3 className="text-lg font-bold text-gray-900">Crunching Real-time Data...</h3>
-                            <p className="text-sm text-gray-500 max-w-xs mt-2">We're aggregating campus performance and financial ROI for your selected filters.</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Funnel Insight */}
-                            <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                <div className="flex justify-between items-start mb-6 text-gray-900">
-                                    <div>
-                                        <h3 className="text-xl font-black flex items-center gap-2">
-                                            <TrendingUp className="text-blue-500" size={24} />
-                                            Conversion Funnel Efficiency
-                                        </h3>
-                                        <p className="text-sm text-gray-500">Pipeline health and drop-off analysis</p>
-                                    </div>
-                                    <div className="bg-blue-50 border border-blue-100 px-4 py-2 rounded-2xl flex flex-col items-end">
-                                        <span className="text-[10px] font-black text-blue-400 uppercase">Avg. Velocity</span>
-                                        <span className="text-lg font-black text-blue-600">{visualData.velocity} Days</span>
-                                    </div>
-                                </div>
-
-                                <div className="h-[300px] w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <ReBarChart data={visualData.funnel} layout="vertical">
-                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                                            <XAxis type="number" hide />
-                                            <YAxis dataKey="stage" type="category" width={100} axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#64748b' }} />
-                                            <ReTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                                            <Bar dataKey="count" radius={[0, 8, 8, 0]} barSize={40}>
-                                                {visualData.funnel.map((entry: any, index: number) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                                ))}
-                                            </Bar>
-                                        </ReBarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-
-                            {/* ROI Yield */}
-                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 relative overflow-hidden">
-                                <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-gray-900">
-                                    <Zap className="text-amber-500" size={24} />
-                                    Financial ROI
-                                </h3>
-
-                                <div className="space-y-6 relative z-10">
-                                    <div>
-                                        <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Gross Revenue Yield</p>
-                                        <p className="text-3xl font-black text-gray-900">₹{visualData.roi?.revenue?.toLocaleString()}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Benefit burden</p>
-                                        <p className="text-3xl font-black text-red-600">- ₹{visualData.roi?.cost?.toLocaleString()}</p>
-                                    </div>
-                                    <div className="h-px bg-gray-100" />
-                                    <div>
-                                        <p className="text-amber-600 text-xs font-bold uppercase tracking-wider mb-1">Net Program Yield</p>
-                                        <p className="text-4xl font-black text-emerald-600">₹{visualData.roi?.netYield?.toLocaleString()}</p>
-                                    </div>
-                                    <div className="bg-gray-50 border border-gray-100 p-4 rounded-xl">
-                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1 text-center">ROI Efficiency Ratio</p>
-                                        <p className="text-2xl font-black text-center text-amber-600">{visualData.roi?.roiRatio}x</p>
-                                    </div>
-
-                                    {/* Segmented Profitability */}
-                                    <div className="space-y-4 pt-4 border-t border-gray-100">
-                                        <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">Profitability by Role</p>
-                                        {visualData.roi?.breakdown?.map((seg: any) => (
-                                            <div key={seg.role} className="space-y-1.5">
-                                                <div className="flex justify-between text-[10px] font-bold">
-                                                    <span className="text-gray-600">{seg.role}</span>
-                                                    <span className="text-emerald-600">₹{(seg.net / 1000).toFixed(0)}k</span>
-                                                </div>
-                                                <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
-                                                        style={{ width: `${Math.min(100, (seg.net / (visualData.roi?.netYield || 1)) * 100)}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Star Distribution & Performance */}
-                            <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                {/* Star Distribution */}
-                                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col">
-                                    <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-gray-900">
-                                        <Star className="text-amber-500" size={24} fill="currentColor" />
-                                        Ambassador Stars
-                                    </h3>
-                                    <div className="h-[250px] w-full flex-1">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <RePieChart>
-                                                <Pie
-                                                    data={visualData.milestones.distribution}
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    innerRadius={60}
-                                                    outerRadius={80}
-                                                    paddingAngle={5}
-                                                    dataKey="value"
-                                                >
-                                                    {[
-                                                        '#EAB308', // 1-Star
-                                                        '#F59E0B', // 2-Star
-                                                        '#D97706', // 3-Star
-                                                        '#B45309', // 4-Star
-                                                        '#78350F'  // 5-Star
-                                                    ].map((color, index) => (
-                                                        <Cell key={`cell-${index}`} fill={color} />
-                                                    ))}
-                                                </Pie>
-                                                <ReTooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                                                <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                                            </RePieChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-
-                                {/* Rising Stars */}
-                                <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6 relative overflow-hidden">
-                                    <div className="relative z-10 h-full flex flex-col">
-                                        <div className="flex justify-between items-center mb-6">
-                                            <div>
-                                                <h3 className="text-xl font-bold flex items-center gap-2 text-gray-900">
-                                                    <Sparkles className="text-amber-500" size={24} />
-                                                    Rising Stars
-                                                </h3>
-                                                <p className="text-gray-500 text-sm font-medium">Almost at the next milestone</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {visualData.milestones.risingStars.length > 0 ? (
-                                                visualData.milestones.risingStars.map((star: any) => (
-                                                    <div key={star.name} className="bg-gray-50 border border-gray-100 rounded-xl p-4 flex items-center justify-between group hover:border-gray-300 transition-all cursor-default">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center font-bold text-xs shadow-sm border border-gray-100 text-gray-700">
-                                                                {star.name.charAt(0)}
-                                                            </div>
-                                                            <div>
-                                                                <p className="font-bold text-sm leading-tight text-gray-900">{star.name}</p>
-                                                                <p className="text-[10px] text-gray-500 mt-0.5 uppercase tracking-wider font-bold">{star.campus}</p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest leading-none mb-1">Needs {star.needed - star.current}</p>
-                                                            <p className="text-xs font-bold text-gray-500">for {star.nextTier}</p>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <div className="col-span-2 flex flex-col items-center justify-center py-8 opacity-50">
-                                                    <Target size={32} className="mb-2 text-gray-400" />
-                                                    <p className="text-sm font-bold text-gray-500">All stars are currently stable.</p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Strategic Forecast & Admission Intelligence */}
-                            <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 relative overflow-hidden">
-                                    <div className="relative z-10">
-                                        <div className="flex items-center gap-3 mb-6">
-                                            <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center border border-indigo-100">
-                                                <Sparkles className="text-indigo-600" size={24} />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-xl font-bold text-gray-900">Strategic Forecast</h3>
-                                                <p className="text-gray-500 text-sm font-medium">30-Day Predictive Admissions Yield</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-6 mb-8">
-                                            <div className="bg-gray-50 border border-gray-100 rounded-xl p-6">
-                                                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">Expected Yield</p>
-                                                <p className="text-4xl font-black text-gray-900">+{visualData.intelligence.totalPredicted}</p>
-                                                <p className="text-xs text-gray-400 mt-1">Next 30 Days Forecast</p>
-                                            </div>
-                                            <div className="bg-gray-50 border border-gray-100 rounded-xl p-6">
-                                                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Rolling Velocity</p>
-                                                <p className="text-4xl font-black text-emerald-600">{visualData.intelligence.avgVelocity}</p>
-                                                <p className="text-xs text-gray-400 mt-1">Days to Confirm (Avg)</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            {visualData.intelligence.campuses.slice(0, 3).map((camp: any) => (
-                                                <div key={camp.campus} className="flex items-center justify-between text-sm py-2 border-b border-gray-100">
-                                                    <span className="font-bold text-gray-700">{camp.campus}</span>
-                                                    <div className="flex items-center gap-4">
-                                                        <span className="text-xs text-gray-500">Pipeline: {camp.pipelineSize}</span>
-                                                        <span className="font-black text-emerald-600">Yield: +{camp.predictedYield}</span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                    <div className="flex justify-between items-center mb-8 text-gray-900">
-                                        <div>
-                                            <h3 className="text-xl font-black flex items-center gap-2">
-                                                <Activity className="text-emerald-500" size={24} />
-                                                Admission Velocity
-                                            </h3>
-                                            <p className="text-sm text-gray-500">Processing speed by campus (Days)</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="h-[300px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <ReBarChart data={visualData.intelligence.campuses}>
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                                <XAxis dataKey="campus" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#64748b' }} />
-                                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#64748b' }} label={{ value: 'Days', angle: -90, position: 'insideLeft', style: { fill: '#94a3b8', fontSize: '10px', fontWeight: 700 } }} />
-                                                <ReTooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                                                <Bar name="Velocity (Days)" dataKey="velocity" fill="#10B981" radius={[8, 8, 0, 0]} barSize={40}>
-                                                    {visualData.intelligence.campuses.map((entry: any, index: number) => (
-                                                        <Cell key={`cell-${index}`} fill={entry.velocity > 15 ? '#EF4444' : entry.velocity > 7 ? '#F59E0B' : '#10B981'} />
-                                                    ))}
-                                                </Bar>
-                                            </ReBarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-2 mt-4">
-                                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-[10px] font-bold text-gray-400">Fast (&lt;7d)</span></div>
-                                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500" /><span className="text-[10px] font-bold text-gray-400">Moderate (7-15d)</span></div>
-                                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-red-500" /><span className="text-[10px] font-bold text-gray-400">Slow (&gt;15d)</span></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                    <div className="flex justify-between items-center mb-8 text-gray-900">
-                                        <div>
-                                            <h3 className="text-xl font-black flex items-center gap-2">
-                                                <Heart className="text-rose-500" size={24} />
-                                                Ambassador Health
-                                            </h3>
-                                            <p className="text-sm text-gray-500">Activity cohorts & retention risk</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="h-[250px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <RePieChart>
-                                                <Pie
-                                                    data={visualData.retention.cohorts}
-                                                    innerRadius={60}
-                                                    outerRadius={80}
-                                                    paddingAngle={5}
-                                                    dataKey="value"
-                                                >
-                                                    {visualData.retention.cohorts.map((entry: any, index: number) => (
-                                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                                    ))}
-                                                </Pie>
-                                                <ReTooltip />
-                                                <Legend iconType="circle" />
-                                            </RePieChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-
-                                <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                    <div className="flex justify-between items-center mb-8 text-gray-900">
-                                        <div>
-                                            <h3 className="text-xl font-black flex items-center gap-2">
-                                                <Clock className="text-amber-500" size={24} />
-                                                Conversion Efficiency
-                                            </h3>
-                                            <p className="text-sm text-gray-500">Processing speed across the pipeline</p>
-                                        </div>
-                                        <div className="bg-amber-50 px-4 py-2 rounded-2xl border border-amber-100 text-right">
-                                            <p className="text-[10px] font-black text-amber-500 uppercase leading-none mb-1">Total Velocity</p>
-                                            <p className="text-lg font-black text-amber-700">{visualData.retention.avgDaysToConfirm} Days</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center justify-between gap-4 mt-8">
-                                        {[
-                                            { label: 'Lead Entry', time: '0 Days', color: 'bg-emerald-500' },
-                                            { label: 'Nurturing', time: (parseFloat(visualData.retention.avgDaysToConfirm || '0') * 0.4).toFixed(1) + ' Days', color: 'bg-amber-500' },
-                                            { label: 'Follow-up', time: (parseFloat(visualData.retention.avgDaysToConfirm || '0') * 0.3).toFixed(1) + ' Days', color: 'bg-orange-500' },
-                                            { label: 'Admission', time: (parseFloat(visualData.retention.avgDaysToConfirm || '0') * 0.3).toFixed(1) + ' Days', color: 'bg-rose-500' }
-                                        ].map((step, idx, arr) => (
-                                            <div key={step.label} className="flex-1 relative">
-                                                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{step.label}</p>
-                                                    <p className="text-lg font-black text-gray-800">{step.time}</p>
-                                                </div>
-                                                {idx < arr.length - 1 && (
-                                                    <div className="absolute top-1/2 -right-3 -translate-y-1/2 z-10">
-                                                        <ArrowRight size={16} className="text-gray-300" />
-                                                    </div>
-                                                )}
-                                                <div className={`h-1 mt-2 rounded-full ${step.color} opacity-20`} style={{ width: '100%' }} />
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <p className="text-center text-[11px] font-medium text-gray-400 mt-8 italic">
-                                        * Stage times are estimated based on total conversion velocity patterns.
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Campus Comparison & Capacity */}
-                            <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm p-8">
-                                    <div className="flex justify-between items-center mb-8 text-gray-900">
-                                        <div>
-                                            <h3 className="text-xl font-black flex items-center gap-2">
-                                                <Target className="text-purple-500" size={24} />
-                                                Target Achievement
-                                            </h3>
-                                            <p className="text-sm text-gray-500">Admissions vs. Monthly Goals</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="h-[300px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <ReBarChart data={visualData.achievement}>
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                                <XAxis dataKey="campus" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#64748b' }} />
-                                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#64748b' }} />
-                                                <ReTooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                                                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '12px', fontWeight: 700 }} />
-                                                <Bar name="Target" dataKey="target" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
-                                                <Bar name="Actual" dataKey="actual" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
-                                            </ReBarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-
-                                <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm p-8">
-                                    <div className="flex justify-between items-center mb-8 text-gray-900">
-                                        <div>
-                                            <h3 className="text-xl font-black flex items-center gap-2">
-                                                <ShieldCheck className="text-emerald-500" size={24} />
-                                                Capacity Buffer
-                                            </h3>
-                                            <p className="text-sm text-gray-500">Enrollment vs. Campus Capacity</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="h-[300px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <ReBarChart data={visualData.achievement} layout="vertical">
-                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                                                <XAxis type="number" hide />
-                                                <YAxis dataKey="campus" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#64748b' }} width={80} />
-                                                <ReTooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                                                <Bar name="Capacity Buffer" dataKey="capacity" fill="#f1f5f9" radius={[0, 4, 4, 0]} barSize={12} />
-                                                <Bar name="Current Enrollment" dataKey="enrolled" fill="#10B981" radius={[0, 4, 4, 0]} barSize={24} />
-                                            </ReBarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
+                    </div>
+                ))}
+            </div>
         </div>
     )
 }

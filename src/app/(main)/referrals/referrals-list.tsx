@@ -147,12 +147,28 @@ function ReferralCard({ referral, type }: { referral: any, type: 'pre-asset' | '
                     </div>
 
                     <div className="flex items-center gap-3">
-                        {(referral.annualFee || referral.student?.baseFee) && (
-                            <div className="text-right">
-                                <p className="text-[9px] font-bold text-white/30 uppercase tracking-wider">Fee</p>
-                                <p className="text-sm font-bold text-white">₹{(referral.annualFee || referral.student?.baseFee).toLocaleString('en-IN')}</p>
-                            </div>
-                        )}
+                        <div className="text-right">
+                            {referral.annualFee && (
+                                <>
+                                    <p className="text-[9px] font-bold text-white/30 uppercase tracking-wider">Fee</p>
+                                    <p className="text-sm font-bold text-white">₹{referral.annualFee.toLocaleString('en-IN')}</p>
+                                </>
+                            )}
+                            {(referral.admissionFeeCollected > 0 || referral.donationFeeCollected > 0) && (
+                                <div className="mt-1 flex flex-col items-end gap-0.5">
+                                    {referral.admissionFeeCollected > 0 && (
+                                        <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-400">
+                                            <span>ADM: ₹{referral.admissionFeeCollected.toLocaleString('en-IN')}</span>
+                                        </div>
+                                    )}
+                                    {referral.donationFeeCollected > 0 && (
+                                        <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-400">
+                                            <span>DON: ₹{referral.donationFeeCollected.toLocaleString('en-IN')}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                         <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border ${statusBg} ${statusColor}`}>
                             {isAsset ? <CheckCircle2 size={12} /> : <Clock size={12} />}
                             <span className="text-xs font-bold">{referral.leadStatus}</span>
@@ -168,10 +184,33 @@ function ReferralCard({ referral, type }: { referral: any, type: 'pre-asset' | '
                         <GraduationCap size={10} className="text-white/40" /> {referral.gradeInterested || 'No Grade'}
                     </span>
                     {/* Show Year Tag */}
-                    <span className="bg-white/5 px-2 py-1 rounded-md border border-white/5 flex items-center gap-1.5 ml-auto">
+                    <span className="bg-white/5 px-2 py-1 rounded-md border border-white/5 flex items-center gap-1.5 ">
                         <Clock size={10} className="text-white/40" /> {referral.admittedYear || referral.student?.academicYear || new Date(referral.createdAt).getFullYear()}
                     </span>
                 </div>
+
+                {/* Rejection Reason Section */}
+                {referral.leadStatus === 'Rejected' && referral.rejectionReason && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20"
+                    >
+                        <div className="flex items-start gap-2">
+                            <div className="mt-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-400">
+                                    <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-red-400 mb-1">Reason for Rejection</p>
+                                <p className="text-[11px] text-red-200/80 leading-relaxed font-medium capitalize">
+                                    {referral.rejectionReason}
+                                </p>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
             </div>
         </div>
     )

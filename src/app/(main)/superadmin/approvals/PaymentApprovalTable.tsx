@@ -6,6 +6,8 @@ import { toast } from 'sonner'
 import { Check, X, Loader2, Download, RefreshCcw, Search } from 'lucide-react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { approveManualPayment, rejectManualPayment, approveBulkManualPayments, rejectBulkManualPayments } from '@/app/payment-approval-actions'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { PromptDialog } from '@/components/ui/PromptDialog'
 
 
 interface CheckboxProps {
@@ -86,6 +88,10 @@ export function PaymentApprovalTable({ initialPayments, page, totalPages, totalC
     const [rejectOrderId, setRejectOrderId] = useState<string | null>(null)
     const [rejectReason, setRejectReason] = useState('')
 
+    // Dialog States
+    const [showBulkApproveConfirm, setShowBulkApproveConfirm] = useState(false)
+    const [showBulkRejectPrompt, setShowBulkRejectPrompt] = useState(false)
+
     const handleSelectAll = () => {
         if (selectedIds.length === payments.length && payments.length > 0) {
             setSelectedIds([])
@@ -139,7 +145,11 @@ export function PaymentApprovalTable({ initialPayments, page, totalPages, totalC
 
     // Bulk Actions
     const handleBulkApprove = async () => {
-        if (!confirm(`Approve ${selectedIds.length} payments?`)) return
+        setShowBulkApproveConfirm(true)
+    }
+
+    const confirmBulkApprove = async () => {
+        setShowBulkApproveConfirm(false)
         setBulkLoading('approve')
         try {
             const res = await approveBulkManualPayments(selectedIds)
@@ -156,7 +166,11 @@ export function PaymentApprovalTable({ initialPayments, page, totalPages, totalC
     }
 
     const handleBulkReject = async () => {
-        const reason = prompt("Enter rejection reason for ALL selected items:")
+        setShowBulkRejectPrompt(true)
+    }
+
+    const confirmBulkReject = async (reason: string) => {
+        setShowBulkRejectPrompt(false)
         if (!reason || reason.trim().length === 0) {
             toast.error("Reason is required")
             return
@@ -397,6 +411,27 @@ export function PaymentApprovalTable({ initialPayments, page, totalPages, totalC
                     </button>
                 </div>
             )}
+
+            {/* Premium Dialogs */}
+            <ConfirmDialog
+                isOpen={showBulkApproveConfirm}
+                title="Approve Payments"
+                description={`Are you sure you want to approve ${selectedIds.length} selected payments? This action cannot be undone.`}
+                confirmText="Approve All"
+                variant="info"
+                onConfirm={confirmBulkApprove}
+                onCancel={() => setShowBulkApproveConfirm(false)}
+            />
+
+            <PromptDialog
+                isOpen={showBulkRejectPrompt}
+                title="Reject Payments"
+                description={`Please provide a reason for rejecting ${selectedIds.length} selected payments.`}
+                placeholder="e.g. Invalid UTR or Screenshot"
+                confirmText="Reject All"
+                onConfirm={confirmBulkReject}
+                onCancel={() => setShowBulkRejectPrompt(false)}
+            />
         </div>
     )
 }

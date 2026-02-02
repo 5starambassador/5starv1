@@ -5,6 +5,7 @@ import { CheckCircle2, Clock, Trash, X, CreditCard, Loader2 } from 'lucide-react
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { DataTable } from '@/components/ui/DataTable'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 interface Settlement {
     id: number
@@ -37,6 +38,8 @@ export function SettlementTable({ settlements, onProcess, onDelete }: Settlement
     const [bankRef, setBankRef] = useState('')
     const [remarks, setRemarks] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [selectedIdForDelete, setSelectedIdForDelete] = useState<number | null>(null)
 
     const handleOpenModal = (settlement: Settlement) => {
         setSelectedSettlement(settlement)
@@ -142,7 +145,8 @@ export function SettlementTable({ settlements, onProcess, onDelete }: Settlement
                             </button>
                             <button
                                 onClick={() => {
-                                    if (confirm('Delete this settlement entry?')) onDelete(s.id)
+                                    setSelectedIdForDelete(s.id)
+                                    setShowDeleteConfirm(true)
                                 }}
                                 className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                             >
@@ -180,6 +184,7 @@ export function SettlementTable({ settlements, onProcess, onDelete }: Settlement
                     pageSize={10}
                     searchKey={['user.fullName', 'user.mobileNumber', 'bankReference'] as any}
                     searchPlaceholder="Search ambassador, mobile, or reference..."
+                    uniqueKey="id"
                 />
             </div>
 
@@ -247,6 +252,17 @@ export function SettlementTable({ settlements, onProcess, onDelete }: Settlement
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                isOpen={showDeleteConfirm}
+                title="Delete Settlement"
+                description="Are you sure you want to delete this settlement entry? This action cannot be undone."
+                onConfirm={() => {
+                    if (selectedIdForDelete) onDelete(selectedIdForDelete)
+                    setShowDeleteConfirm(false)
+                }}
+                onCancel={() => setShowDeleteConfirm(false)}
+            />
         </div>
     )
 }

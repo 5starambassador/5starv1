@@ -629,18 +629,18 @@ export async function generateFinancialROIData(filters?: { startDate?: string, e
         }
 
         users.forEach((user: any) => {
-            const confirmedCount = user.referrals.length
-            if (confirmedCount > 0) {
-                const revenuePerStudent = 60000
-                const revenue = confirmedCount * revenuePerStudent
+            const confirmedReferrals = user.referrals
+            if (confirmedReferrals.length > 0) {
+                // Precision: Sum up actual annualFee from confirmed leads, or fallback to default
+                const actualRevenue = confirmedReferrals.reduce((sum: number, r: any) => sum + (r.annualFee || 60000), 0)
                 const benefitPerYear = (user.studentFee || 60000) * (user.yearFeeBenefitPercent / 100)
 
-                totalRevenue += revenue
+                totalRevenue += actualRevenue
                 totalBenefitCost += benefitPerYear
 
                 const role = user.role as string
                 if (roleBreakdown[role]) {
-                    roleBreakdown[role].revenue += revenue
+                    roleBreakdown[role].revenue += actualRevenue
                     roleBreakdown[role].cost += benefitPerYear
                 }
             }
@@ -973,6 +973,79 @@ export async function generateRetentionAnalyticsData(filters?: { campus?: string
         }
     } catch (error) {
         console.error('Retention Data Error:', error)
+        return { success: false, error: 'Failed' }
+    }
+}
+
+// ===================== REPORT #12: SYSTEM AUDIT TRAIL =====================
+export async function generateAuditTrailReport(filters?: { startDate?: string, endDate?: string, module?: string }) {
+    const admin = await getCurrentUser()
+    if (!admin || !admin.role.includes('Super Admin')) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        const whereClause: any = {}
+        if (filters?.startDate || filters?.endDate) {
+            whereClause.createdAt = {}
+            if (filters.startDate) whereClause.createdAt.gte = new Date(filters.startDate)
+            if (filters.endDate) whereClause.createdAt.lte = new Date(filters.endDate)
+        }
+        if (filters?.module && filters.module !== 'All') {
+            whereClause.module = filters.module
+        }
+
+        const logs = await prisma.activityLog.findMany({
+            where: whereClause,
+            orderBy: { createdAt: 'desc' },
+            take: 1000 // Limit for safety
+        })
+
+        let csv = 'Timestamp,Actor ID,Action,Module,Target ID,Description,IP Address\n'
+        logs.forEach(log => {
+            const actor = log.adminId ? `Admin:${log.adminId}` : log.userId ? `User:${log.userId}` : 'System'
+            csv += `${new Date(log.createdAt).toLocaleString()},${actor},"${log.action}","${log.module}","${log.targetId || ''}","${log.description.replace(/"/g, '""')}","${log.ipAddress || ''}"\n`
+        })
+
+        return { success: true, csv, filename: `audit-trail-${new Date().toISOString().split('T')[0]}.csv` }
+    } catch (error) {
+        console.error('Audit Trail Report Error:', error)
+        return { success: false, error: 'Failed' }
+    }
+}
+
+// ===================== REPORT #13: SETTLEMENT INTEGRITY =====================
+export async function generateSettlementIntegrityReport() {
+    const admin = await getCurrentUser()
+    if (!admin || !admin.role.includes('Super Admin')) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        const leads = await prisma.referralLead.findMany({
+            where: { leadStatus: _LeadStatus.Confirmed },
+            include: {
+                user: {
+                    select: { fullName: true, mobileNumber: true, userId: true }
+                }
+            }
+        })
+
+        const settlements = await prisma.settlement.findMany({
+            where: { status: 'Processed' }
+        })
+
+        let csv = 'Ambassador Name,Mobile,Lead Name,Confirmed Date,Status,Settlement Status\n'
+
+        leads.forEach(lead => {
+            const hasSettlement = settlements.some(s => s.userId === lead.userId)
+            const settlementStatus = hasSettlement ? 'Settled' : 'Unsettled'
+            csv += `"${lead.user.fullName}",${lead.user.mobileNumber},"${lead.parentName}",${new Date(lead.confirmedDate || lead.createdAt).toLocaleDateString()},${lead.leadStatus},${settlementStatus}\n`
+        })
+
+        return { success: true, csv, filename: `integrity-audit-${new Date().toISOString().split('T')[0]}.csv` }
+    } catch (error) {
+        console.error('Integrity Report Error:', error)
         return { success: false, error: 'Failed' }
     }
 }

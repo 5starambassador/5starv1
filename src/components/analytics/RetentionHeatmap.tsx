@@ -4,14 +4,15 @@ import { useEffect, useState } from 'react'
 import { getRetentionData, CohortRetention } from '@/app/analytics-actions'
 import { Loader2, Users, Calendar } from 'lucide-react'
 
-export function RetentionHeatmap() {
+export function RetentionHeatmap({ campus }: { campus?: string }) {
     const [data, setData] = useState<CohortRetention[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         const fetchRetention = async () => {
+            setLoading(true)
             try {
-                const result = await getRetentionData()
+                const result = await getRetentionData({ campus })
                 setData(result)
             } catch (error) {
                 console.error('Failed to fetch retention:', error)
@@ -20,7 +21,7 @@ export function RetentionHeatmap() {
             }
         }
         fetchRetention()
-    }, [])
+    }, [campus])
 
     const getHeatColor = (percent: number, isBaseline: boolean) => {
         if (isBaseline) return 'bg-gray-100 text-gray-900 border-2 border-gray-200'

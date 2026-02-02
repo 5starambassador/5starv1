@@ -8,6 +8,7 @@ import { getPendingVerifications, approveVerification, rejectVerification, bulkV
 import { getCampuses } from '@/app/campus-actions'
 import { GRADES } from '@/lib/constants'
 import { getGradesForCampus } from '@/lib/grade-utils'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 interface VerificationQueueProps {
     initialData?: any[]
@@ -28,6 +29,9 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
         childCampusId: '',
         childName: ''
     })
+
+    const [showRejectConfirm, setShowRejectConfirm] = useState(false)
+    const [selectedUserIdForReject, setSelectedUserIdForReject] = useState<number | null>(null)
 
     const loadData = async () => {
         setLoading(true)
@@ -71,8 +75,14 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
     }
 
     const handleReject = async (userId: number) => {
-        if (!confirm('Are you sure you want to reject this request? It will revert benefits to default.')) return
+        setSelectedUserIdForReject(userId)
+        setShowRejectConfirm(true)
+    }
 
+    const confirmReject = async () => {
+        if (!selectedUserIdForReject) return
+        setShowRejectConfirm(false)
+        const userId = selectedUserIdForReject
         setProcessing(userId)
         const res = await rejectVerification(userId)
 
@@ -344,6 +354,15 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                     </AnimatePresence>
                 </div>
             )}
+
+            <ConfirmDialog
+                isOpen={showRejectConfirm}
+                title="Reject Request"
+                description="Are you sure you want to reject this request? It will revert benefits to default."
+                confirmText="Reject Now"
+                onConfirm={confirmReject}
+                onCancel={() => setShowRejectConfirm(false)}
+            />
         </div>
     )
 }

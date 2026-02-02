@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X, Send, User, Shield, Loader2, Clock, AlertTriangle, CheckCircle2, MessageSquare } from 'lucide-react'
 import { addTicketMessage, getTicketMessages, escalateTicket } from '@/app/ticket-actions'
 import { toast } from 'sonner'
+import { PromptDialog } from '../ui/PromptDialog'
 
 interface Message {
     id: number
@@ -33,6 +34,7 @@ interface TicketChatModalProps {
 export function TicketChatModal({ ticket, currentUserType, currentUserId, onClose, onStatusChange }: TicketChatModalProps) {
     const [mounted, setMounted] = useState(false)
     const [newMessage, setNewMessage] = useState('')
+    const [showEscalatePrompt, setShowEscalatePrompt] = useState(false)
 
     useEffect(() => {
         setMounted(true)
@@ -101,9 +103,11 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
 
     const handleEscalate = async () => {
         if (currentUserType !== 'Admin') return
-        const reason = prompt('Escalation Reason:')
-        if (!reason) return
+        setShowEscalatePrompt(true)
+    }
 
+    const confirmEscalate = async (reason: string) => {
+        setShowEscalatePrompt(false)
         const result = await escalateTicket(ticket.id, reason)
         if (result.success) {
             toast.success(`Ticket escalated to Level ${result.level}`)
@@ -239,6 +243,17 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
                     )}
                 </div>
             </div>
+
+            <PromptDialog
+                isOpen={showEscalatePrompt}
+                title="Escalate Ticket?"
+                description="Please provide a brief reason for escalating this ticket. This will be recorded in the audit log."
+                placeholder="Enter escalation reason..."
+                confirmText="Yes, Escalate"
+                onConfirm={confirmEscalate}
+                onCancel={() => setShowEscalatePrompt(false)}
+                variant="warning"
+            />
         </div>
     )
 }

@@ -56,7 +56,7 @@ export interface User {
     childEprNo?: string | null
     isFiveStarMember?: boolean
     currentYearCount?: number
-    // Expanded fields for UserDetailsModal
+    // Expanded fields for UserDetailsModal and Export
     childName?: string | null
     grade?: string | null
     paymentStatus?: string | null
@@ -64,6 +64,15 @@ export interface User {
     paymentAmount?: number | null
     aadharNo?: string | null
     bankAccountDetails?: string | null
+    address?: string | null
+    accountNumber?: string | null
+    bankName?: string | null
+    ifscCode?: string | null
+    academicYear?: string | null
+    studentFee?: number | null
+    childInAchariya?: boolean | null
+    benefitStatus?: string | null
+    childCampusId?: number | null
 }
 
 export interface Student {
@@ -82,6 +91,8 @@ export interface Student {
     parent?: { fullName: string; mobileNumber: string }
     campus?: { campusName: string }
     ambassador?: { fullName: string; mobileNumber: string; referralCode?: string; role?: string }
+    admissionNumber?: string | null
+    academicYear?: string | null
     createdAt: Date
 }
 

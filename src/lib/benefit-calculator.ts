@@ -7,6 +7,8 @@ export interface ReferralData {
     grade: string
     actualFee?: number
     campusGrade1Fee?: number
+    admissionFeeCollected?: number
+    donationFeeCollected?: number
 }
 
 export interface UserContext {
@@ -163,6 +165,22 @@ export function calculateTotalBenefit(
             }
         }
     }
+
+    // 3. New Incentive Integration: 80% Admission + 50% Donation (Normal Logic Only)
+    currentReferrals.forEach(ref => {
+        if (!ref.campusName || !SPECIAL_RATES[ref.campusName]) {
+            const admFee = (ref as any).admissionFeeCollected || 0
+            const donFee = (ref as any).donationFeeCollected || 0
+
+            if (admFee > 0 || donFee > 0) {
+                const admBonus = admFee * 0.8
+                const donBonus = donFee * 0.5
+                const totalBonus = admBonus + donBonus
+                currentYearAmount += totalBonus
+                breakdown.push(`💰 PROFIT SHARE (${ref.campusName || 'Normal'}): 80% Adm (₹${admBonus.toLocaleString()}) + 50% Don (₹${donBonus.toLocaleString()}) = ₹${totalBonus.toLocaleString()}`)
+            }
+        }
+    })
 
     return {
         totalAmount: currentYearAmount + longTermBaseAmount,

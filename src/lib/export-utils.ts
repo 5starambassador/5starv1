@@ -1,8 +1,9 @@
 import { format } from 'date-fns'
+import { toast } from 'sonner'
 
 export function exportToCSV(data: any[], filename: string, columns: { header: string, maxLen?: number, accessor?: (row: any) => any }[]) {
     if (!data || data.length === 0) {
-        alert("No data to export.")
+        toast.error("No data to export.")
         return
     }
 

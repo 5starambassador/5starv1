@@ -5,16 +5,21 @@ import { approveManualPayment, rejectManualPayment } from '@/app/payment-approva
 import { toast } from 'sonner'
 import { Check, X, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 export function ApprovalActions({ orderId }: { orderId: string }) {
     const [loading, setLoading] = useState<'approve' | 'reject' | null>(null)
     const router = useRouter()
     const [showRejectForm, setShowRejectForm] = useState(false)
     const [reason, setReason] = useState('')
+    const [showApproveConfirm, setShowApproveConfirm] = useState(false)
 
     const handleApprove = async () => {
-        if (!confirm("Are you sure you want to approve this payment? This will activate the user.")) return
+        setShowApproveConfirm(true)
+    }
 
+    const confirmApprove = async () => {
+        setShowApproveConfirm(false)
         setLoading('approve')
         try {
             const res = await approveManualPayment(orderId)
@@ -101,6 +106,16 @@ export function ApprovalActions({ orderId }: { orderId: string }) {
             >
                 <X size={16} />
             </button>
+
+            <ConfirmDialog
+                isOpen={showApproveConfirm}
+                title="Approve Payment"
+                description="Are you sure you want to approve this payment? This will activate the user."
+                confirmText="Approve Now"
+                variant="info"
+                onConfirm={confirmApprove}
+                onCancel={() => setShowApproveConfirm(false)}
+            />
         </div>
     )
 }

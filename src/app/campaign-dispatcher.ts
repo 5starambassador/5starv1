@@ -51,7 +51,8 @@ export async function dispatchCampaignBatch(campaignId: number) {
         emailSent: 0,
         emailFailed: 0,
         pushSent: 0,
-        pushFailed: 0
+        pushFailed: 0,
+        inAppSent: 0
     }
 
     // 2. Prepare Chunks for Push (Max 500 per chunk for FCM)
@@ -63,6 +64,9 @@ export async function dispatchCampaignBatch(campaignId: number) {
     // Here we run it in the Server Action buffer time.
 
     const notificationsToCreate: any[] = []
+
+    // Parallel Email Processing
+    const emailPromises: Promise<void>[] = []
 
     for (const userObj of users) {
         const user = userObj as any
@@ -76,17 +80,15 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 .replace(/{code}/gi, user.referralCode || '')
         }
 
-        // A. Email
+        // A. Email (Async Collect)
         if (isEmail && user.email) {
             const subject = aliasTokens(campaign.subject)
             const body = aliasTokens(campaign.templateBody)
 
-            try {
-                await EmailService.sendCampaignEmail(user.email, subject, body)
-                stats.emailSent++
-            } catch (e) {
-                stats.emailFailed++
-            }
+            const p = EmailService.sendCampaignEmail(user.email, subject, body)
+                .then(() => { stats.emailSent++ })
+                .catch(() => { stats.emailFailed++ })
+            emailPromises.push(p)
         }
 
         // B. Push Collection
@@ -114,6 +116,11 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 isRead: false
             })
         }
+    }
+
+    // Await all emails in parallel
+    if (emailPromises.length > 0) {
+        await Promise.all(emailPromises)
     }
 
     // Add remaining push tokens
@@ -167,6 +174,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
         await prisma.notification.createMany({
             data: notificationsToCreate
         })
+        stats.inAppSent = notificationsToCreate.length
 
         // 6. Retention Policy Cleanup
         // Delete notifications older than 30 days
@@ -178,15 +186,19 @@ export async function dispatchCampaignBatch(campaignId: number) {
         })
     }
 
-    // 7. Update Campaign Log
     await prisma.campaignLog.create({
         data: {
             campaignId: campaign.id,
             status: 'COMPLETED',
             recipientCount: stats.total,
-            sentCount: stats.emailSent + stats.pushSent, // Aggregate
-            failedCount: stats.emailFailed + stats.pushFailed
-        }
+            sentCount: stats.emailSent + stats.pushSent + stats.inAppSent, // Aggregate
+            failedCount: stats.emailFailed + stats.pushFailed,
+            emailSent: stats.emailSent,
+            emailFailed: stats.emailFailed,
+            pushSent: stats.pushSent,
+            pushFailed: stats.pushFailed,
+            inAppSent: stats.inAppSent
+        } as any
     })
 
     await prisma.campaign.update({

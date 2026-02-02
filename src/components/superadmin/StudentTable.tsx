@@ -16,6 +16,7 @@ interface StudentTableProps {
     onBulkAdd: () => void
     onEdit: (student: Student) => void
     onViewAmbassador: (referralCode: string) => void
+    onRowClick?: (student: Student) => void
     campuses?: any[]
 }
 
@@ -29,6 +30,7 @@ export function StudentTable({
     onBulkAdd,
     onEdit,
     onViewAmbassador,
+    onRowClick,
     campuses = []
 }: StudentTableProps) {
     const router = useRouter()
@@ -470,6 +472,7 @@ export function StudentTable({
                         renderExpandedRow={renderExpandedRow}
                         enableMultiSelection={true}
                         onSelectionChange={(selected) => setSelectedStudents(selected)}
+                        onRowClick={onRowClick}
                         uniqueKey="studentId"
                     />
                 </div>

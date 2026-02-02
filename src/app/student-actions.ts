@@ -45,13 +45,14 @@ export async function addStudent(data: {
     grade: string
     section?: string
     rollNumber?: string
+    admissionNumber?: string
     baseFee?: number
     discountPercent?: number
     newParent?: {
         fullName: string
         mobileNumber: string
     }
-    academicYear?: string // Added
+    academicYear?: string
 }) {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
@@ -132,6 +133,7 @@ export async function addStudent(data: {
                     grade: data.grade,
                     section: data.section,
                     rollNumber: data.rollNumber,
+                    admissionNumber: data.admissionNumber,
                     status: 'Active',
                     baseFee: bFee as number,
                     discountPercent: dPercent as number,
@@ -161,6 +163,7 @@ export async function updateStudent(studentId: number, data: Partial<{
     campusId: number
     section: string
     rollNumber: string
+    admissionNumber: string
     status: string
     baseFee: number
     discountPercent: number

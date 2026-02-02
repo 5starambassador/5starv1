@@ -1,8 +1,9 @@
-import { UserPlus, Download, CheckCircle, XCircle, Calendar, CreditCard, Smartphone, Hash, Building, Trash2, Key, Shield } from 'lucide-react'
+import { UserPlus, Download, CheckCircle, XCircle, Calendar, CreditCard, Smartphone, Hash, Building, Trash2, Key, Shield, Star, ArrowRight } from 'lucide-react'
 import Image from 'next/image'
 
 import { ActivityHistory } from './ActivityHistory'
 import { UserAuditTimeline } from './UserAuditTimeline'
+import { UserDetailPanel } from './UserDetailPanel'
 import { User } from '@/types'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
@@ -45,6 +46,7 @@ export function UserTable({
     const [isProcessing, setIsProcessing] = useState(false)
     const [showAuditTimeline, setShowAuditTimeline] = useState(false)
     const [selectedUserForAudit, setSelectedUserForAudit] = useState<User | null>(null)
+    const [selectedUserForDetail, setSelectedUserForDetail] = useState<User | null>(null)
     const router = useRouter()
 
     // Bulk Confirmation State
@@ -93,102 +95,67 @@ export function UserTable({
             sortable: true,
             filterable: true,
             cell: (user: User) => (
-                <div className="flex flex-col">
-                    <p className="font-bold text-gray-900 group-hover:text-red-700 transition-colors uppercase tracking-tight text-sm">
-                        {user.fullName ?? 'N/A'}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                        <Smartphone size={10} className="text-gray-400" />
-                        <p className="text-[11px] font-medium text-gray-500">{user.mobileNumber ?? 'No Mobile'}</p>
+                <div className="flex flex-col gap-1.5 py-1">
+                    <div className="flex items-center gap-2">
+                        <p className="font-black text-gray-900 group-hover:text-red-700 transition-colors uppercase tracking-tight text-sm">
+                            {user.fullName ?? 'N/A'}
+                        </p>
+                        <span className="font-black text-[9px] bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-100 uppercase tracking-widest shadow-sm">
+                            {user.referralCode || 'N/A'}
+                        </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <Badge variant={user.role === 'Staff' ? 'info' : 'outline'} className="font-black text-[9px] tracking-wider uppercase px-1.5 py-0">
+                            {user.role}
+                        </Badge>
+                        <div className="flex items-center gap-1">
+                            <Smartphone size={10} className="text-gray-400" />
+                            <p className="text-[10px] font-bold text-gray-400">{user.mobileNumber ?? 'No Mobile'}</p>
+                        </div>
                     </div>
                 </div>
             ),
-
         },
         {
             header: 'Star Status',
             accessorKey: 'badge',
             cell: (user: User) => {
                 const stars = calculateStars(user.confirmedReferralCount || 0)
-
                 return (
                     <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-0.5" title={stars.tier}>
                             {[...Array(5)].map((_, i) => (
-                                <svg
+                                <Star
                                     key={i}
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    viewBox="0 0 24 24"
+                                    size={14}
                                     fill={i < stars.starCount ? "currentColor" : "none"}
-                                    stroke="currentColor"
-                                    className={`w-3.5 h-3.5 ${i < stars.starCount ? (stars.tier === '5-Star' ? 'text-red-600' : 'text-amber-400') : 'text-gray-200 stroke-1'}`}
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={i < stars.starCount ? 0 : 1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                                </svg>
+                                    className={`${i < stars.starCount ? (stars.tier === '5-Star' ? 'text-red-600' : 'text-amber-400') : 'text-gray-200'}`}
+                                    strokeWidth={i < stars.starCount ? 0 : 1.5}
+                                />
                             ))}
                         </div>
-                        {user.isFiveStarMember && (
-                            <div className="relative w-16 h-6 mt-1">
-                                <Image
-                                    src="/5-star-badge.png"
-                                    alt="5-Star Member"
-                                    fill
-                                    className="object-contain object-left"
-                                />
-                            </div>
-                        )}
                     </div>
                 )
             }
         },
         {
-            header: 'Code',
-            accessorKey: 'referralCode',
-            sortable: true,
-            filterable: true,
-            cell: (user: User) => (
-                <span className="font-black text-[10px] bg-red-50 text-red-700 px-2.5 py-1 rounded-lg border border-red-100 uppercase tracking-widest shadow-sm">
-                    {user.referralCode || 'N/A'}
-                </span>
-            ),
-
-        },
-        {
-            header: 'Role',
-            accessorKey: 'role',
-            sortable: true,
-            filterable: true,
-            cell: (user: User) => (
-                <Badge variant={user.role === 'Staff' ? 'info' : 'outline'} className="font-black text-[10px] tracking-wider uppercase">
-                    {user.role}
-                </Badge>
-            ),
-
-        },
-        {
-            header: 'EMP ID',
-            accessorKey: 'empId',
-            sortable: true,
-            filterable: true,
-            cell: (user: User) => (
-                <span className="text-[10px] font-bold text-gray-500 font-mono tracking-wider">
-                    {user.empId || '-'}
-                </span>
-            ),
-
-        },
-        {
-            header: 'Campus',
+            header: 'Context',
             accessorKey: 'assignedCampus',
             sortable: true,
             filterable: true,
             cell: (user: User) => (
-                <div className="flex items-center gap-2">
-                    <Building size={14} className="text-gray-400" />
-                    <span className="text-xs font-bold text-gray-600">{user.assignedCampus || 'Global'}</span>
+                <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-1.5">
+                        <Building size={12} className="text-gray-400" />
+                        <span className="text-xs font-bold text-gray-600 truncate max-w-[120px]">{user.assignedCampus || 'Global'}</span>
+                    </div>
+                    {user.grade && (
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider pl-4">
+                            Grade: {user.grade}
+                        </span>
+                    )}
                 </div>
             ),
-
         },
         {
             header: 'Referrals',
@@ -196,9 +163,9 @@ export function UserTable({
             sortable: true,
             filterable: true,
             cell: (user: User) => (
-                <div className="flex flex-col items-center">
-                    <span className="font-black text-gray-900 text-sm">{user.confirmedReferralCount}</span>
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Confirmed</span>
+                <div className="flex flex-col">
+                    <span className="font-black text-red-600 text-sm">{user.confirmedReferralCount}</span>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Confirmed</span>
                 </div>
             )
         },
@@ -210,30 +177,33 @@ export function UserTable({
             cell: (user: User) => {
                 const isDeleted = user.status === 'Deleted'
                 return (
-                    <Badge
-                        variant={isDeleted ? 'error' : (user.status === 'Active' ? 'success' : 'outline')}
-                        className="font-black text-[10px] tracking-wider uppercase"
-                    >
-                        {user.status}
-                    </Badge>
+                    <div className="flex flex-col gap-1">
+                        <Badge
+                            variant={isDeleted ? 'error' : (user.status === 'Active' ? 'success' : 'outline')}
+                            className="font-black text-[9px] tracking-wider uppercase w-fit"
+                        >
+                            {user.status}
+                        </Badge>
+                        <span className="text-[10px] font-bold text-gray-400 whitespace-nowrap" suppressHydrationWarning>
+                            Joined {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        </span>
+                    </div>
                 )
             },
-
-        },
-        {
-            header: 'Password',
-            accessorKey: 'password',
-            cell: (user: User) => (
-                <code className="text-[10px] bg-gray-100 px-2 py-1 rounded text-red-600 font-mono">
-                    {user.password || '••••••'}
-                </code>
-            )
         },
         {
             header: 'Actions',
             accessorKey: (user: User) => user.userId,
             cell: (user: User) => (
                 <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                        onClick={() => setSelectedUserForDetail(user)}
+                        className="p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all border border-gray-100 shadow-sm bg-white hover:scale-110 active:scale-95"
+                        title="View Details"
+                        suppressHydrationWarning
+                    >
+                        <ArrowRight size={16} strokeWidth={2.5} />
+                    </button>
                     {user.status !== 'Deleted' ? (
                         <>
                             <button
@@ -268,99 +238,13 @@ export function UserTable({
         }
     ]
 
-    const renderExpandedRow = (user: User) => (
-        <div className="p-8 bg-gradient-to-br from-gray-50/50 to-white border-x border-b border-gray-100">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                <div className="space-y-1.5">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <Calendar size={12} className="text-red-500" />
-                        Joined Date
-                    </p>
-                    <p className="text-sm font-bold text-gray-900">
-                        {new Date(user.createdAt).toLocaleDateString('en-US', {
-                            month: 'long',
-                            day: 'numeric',
-                            year: 'numeric'
-                        })}
-                    </p>
-                </div>
-                <div className="space-y-1.5">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <CreditCard size={12} className="text-emerald-500" />
-                        Current Benefit
-                    </p>
-                    <p className="text-sm font-black text-emerald-600">
-                        {user.yearFeeBenefitPercent}% Discount
-                    </p>
-                </div>
-                <div className="space-y-1.5">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <Building size={12} className="text-blue-500" />
-                        Loyalty Benefit
-                    </p>
-                    <p className="text-sm font-black text-blue-600">
-                        {user.longTermBenefitPercent}% Extra
-                    </p>
-                </div>
-                <div className="space-y-1.5">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <Hash size={12} className="text-purple-500" />
-                        Ambassador ID
-                    </p>
-                    <p className="text-sm font-bold text-gray-900">
-                        #{user.userId.toString().padStart(6, '0')}
-                    </p>
-                </div>
-                <div className="space-y-1.5">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <CreditCard size={12} className="text-amber-500" />
-                        Payment
-                    </p>
-                    <p className="text-sm font-bold text-gray-900">
-                        <span className="text-gray-400">Not Recorded</span>
-                    </p>
-                </div>
-            </div>
-
-            <div className="mt-8">
-                <ActivityHistory userId={user.userId} userName={user.fullName} />
-            </div>
-
-            {/* Quick Actions or more details could go here */}
-            <div className="mt-8 pt-6 border-t border-gray-100 flex flex-wrap gap-4">
-                <button
-                    onClick={() => onViewReferrals?.(user.referralCode)}
-                    className="text-[10px] font-black text-red-600 hover:bg-red-50 px-4 py-2 rounded-xl border border-red-100 transition-all uppercase tracking-widest"
-                >
-                    View Referral History
-                </button>
-                <button
-                    onClick={() => onEdit?.(user)}
-                    className="text-[10px] font-black text-gray-900 bg-white hover:bg-gray-100 px-4 py-2 rounded-xl border border-gray-200 transition-all uppercase tracking-widest shadow-sm"
-                >
-                    Edit Details
-                </button>
-                <button
-                    onClick={() => onResetPassword?.(user.userId, user.fullName, 'user')}
-                    className="text-[10px] font-black text-amber-600 hover:bg-amber-50 px-4 py-2 rounded-xl border border-amber-100 transition-all uppercase tracking-widest flex items-center gap-2"
-                >
-                    <Key size={14} /> Reset Password
-                </button>
-                <button
-                    onClick={() => {
-                        setSelectedUserForAudit(user)
-                        setShowAuditTimeline(true)
-                    }}
-                    className="text-[10px] font-black text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-xl border border-blue-100 transition-all uppercase tracking-widest flex items-center gap-2"
-                >
-                    <Shield size={14} /> View Audit Trail
-                </button>
-            </div>
-        </div>
-    )
 
     // Export State
     const [showExportModal, setShowExportModal] = useState(false)
+    const [exportDateRange, setExportDateRange] = useState({
+        from: '',
+        to: ''
+    })
     const [selectedColumns, setSelectedColumns] = useState({
         fullName: true,
         mobileNumber: true,
@@ -369,22 +253,57 @@ export function UserTable({
         referralCode: true,
         confirmedReferrals: true,
         status: true,
-        email: false,
-        empId: false,
-        childEprNo: false,
-        yearBenefit: false,
-        longTermBenefit: false,
-        joinedDate: false,
+        email: true,
+        empId: true,
+        grade: true,
+        isFiveStarMember: true,
+        benefitStatus: true,
+        childInAchariya: true,
+        childName: true,
+        childEprNo: true,
+        aadharNo: true,
+        address: true,
+        bankAccountDetails: true,
+        accountNumber: true,
+        bankName: true,
+        ifscCode: true,
+        academicYear: true,
+        studentFee: true,
+        paymentAmount: true,
+        paymentStatus: true,
+        transactionId: true,
+        yearBenefit: true,
+        longTermBenefit: true,
+        joinedDate: true,
         password: false
     })
 
     const handleExport = () => {
-        // Filter data based on search
-        const filteredData = users.filter(user =>
+        // Filter data based on search and date range
+        let filteredData = users.filter(user =>
             user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             user.mobileNumber?.includes(searchTerm) ||
             user.referralCode?.toLowerCase().includes(searchTerm.toLowerCase())
         )
+
+        // Apply Date Range Filter if set
+        if (exportDateRange.from || exportDateRange.to) {
+            filteredData = filteredData.filter(user => {
+                const userDate = new Date(user.createdAt)
+                const fromDate = exportDateRange.from ? new Date(exportDateRange.from) : null
+                const toDate = exportDateRange.to ? new Date(exportDateRange.to) : null
+
+                if (fromDate) {
+                    fromDate.setHours(0, 0, 0, 0)
+                    if (userDate < fromDate) return false
+                }
+                if (toDate) {
+                    toDate.setHours(23, 59, 59, 999)
+                    if (userDate > toDate) return false
+                }
+                return true
+            })
+        }
 
         const headers = []
         if (selectedColumns.fullName) headers.push('Full Name')
@@ -393,7 +312,23 @@ export function UserTable({
         if (selectedColumns.email) headers.push('Email')
         if (selectedColumns.campus) headers.push('Campus')
         if (selectedColumns.empId) headers.push('EMP ID')
+        if (selectedColumns.grade) headers.push('Grade')
+        if (selectedColumns.isFiveStarMember) headers.push('Is 5-Star Member')
+        if (selectedColumns.benefitStatus) headers.push('Benefit Status')
+        if (selectedColumns.childInAchariya) headers.push('Child in Achariya')
+        if (selectedColumns.childName) headers.push('Child Name')
         if (selectedColumns.childEprNo) headers.push('Child ERP No')
+        if (selectedColumns.aadharNo) headers.push('Aadhar No')
+        if (selectedColumns.address) headers.push('Address')
+        if (selectedColumns.bankAccountDetails) headers.push('Bank Account Details')
+        if (selectedColumns.accountNumber) headers.push('Account Number')
+        if (selectedColumns.bankName) headers.push('Bank Name')
+        if (selectedColumns.ifscCode) headers.push('IFSC Code')
+        if (selectedColumns.academicYear) headers.push('Academic Year')
+        if (selectedColumns.studentFee) headers.push('Student Fee')
+        if (selectedColumns.paymentAmount) headers.push('Payment Amount')
+        if (selectedColumns.paymentStatus) headers.push('Payment Status')
+        if (selectedColumns.transactionId) headers.push('Transaction ID')
         if (selectedColumns.referralCode) headers.push('Referral Code')
         if (selectedColumns.confirmedReferrals) headers.push('Confirmed Referrals')
         if (selectedColumns.yearBenefit) headers.push('Year Benefit %')
@@ -412,7 +347,23 @@ export function UserTable({
             if (selectedColumns.email) row.push(`"${user.email || ''}"`)
             if (selectedColumns.campus) row.push(`"${user.assignedCampus || ''}"`)
             if (selectedColumns.empId) row.push(`"${user.empId || ''}"`)
+            if (selectedColumns.grade) row.push(`"${user.grade || ''}"`)
+            if (selectedColumns.isFiveStarMember) row.push(user.isFiveStarMember ? 'Yes' : 'No')
+            if (selectedColumns.benefitStatus) row.push(`"${user.benefitStatus}"`)
+            if (selectedColumns.childInAchariya) row.push(user.childInAchariya ? 'Yes' : 'No')
+            if (selectedColumns.childName) row.push(`"${user.childName || ''}"`)
             if (selectedColumns.childEprNo) row.push(`"${user.childEprNo || ''}"`)
+            if (selectedColumns.aadharNo) row.push(`"${user.aadharNo || ''}"`)
+            if (selectedColumns.address) row.push(`"${(user.address || '').replace(/"/g, '""')}"`)
+            if (selectedColumns.bankAccountDetails) row.push(`"${(user.bankAccountDetails || '').replace(/"/g, '""')}"`)
+            if (selectedColumns.accountNumber) row.push(`"${user.accountNumber || ''}"`)
+            if (selectedColumns.bankName) row.push(`"${user.bankName || ''}"`)
+            if (selectedColumns.ifscCode) row.push(`"${user.ifscCode || ''}"`)
+            if (selectedColumns.academicYear) row.push(`"${user.academicYear || ''}"`)
+            if (selectedColumns.studentFee) row.push(user.studentFee || 0)
+            if (selectedColumns.paymentAmount) row.push(user.paymentAmount || 0)
+            if (selectedColumns.paymentStatus) row.push(`"${user.paymentStatus || ''}"`)
+            if (selectedColumns.transactionId) row.push(`"${user.transactionId || ''}"`)
             if (selectedColumns.referralCode) row.push(`"${user.referralCode || ''}"`)
             if (selectedColumns.confirmedReferrals) row.push(user.confirmedReferralCount || 0)
             if (selectedColumns.yearBenefit) row.push(user.yearFeeBenefitPercent || 0)
@@ -437,6 +388,14 @@ export function UserTable({
     // Toggle Column Handler
     const toggleColumn = (key: keyof typeof selectedColumns) => {
         setSelectedColumns(prev => ({ ...prev, [key]: !prev[key] }))
+    }
+
+    const setAllColumns = (value: boolean) => {
+        const reset: any = {}
+        Object.keys(selectedColumns).forEach(key => {
+            reset[key] = value
+        })
+        setSelectedColumns(reset)
     }
 
     return (
@@ -549,7 +508,6 @@ export function UserTable({
                         onSearchChange={onSearchChange}
                         searchPlaceholder="Search ambassadors by name, code or mobile..."
                         pageSize={10}
-                        renderExpandedRow={renderExpandedRow}
                         enableMultiSelection={true}
                         onSelectionChange={(selected) => setSelectedUsers(selected)}
                         uniqueKey="userId"
@@ -563,12 +521,47 @@ export function UserTable({
                     <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-lg font-bold text-gray-900">Export Data</h3>
-                            <button onClick={() => setShowExportModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                                <XCircle size={20} />
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setAllColumns(true)}
+                                    className="text-[10px] font-black text-red-600 uppercase tracking-widest hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
+                                >
+                                    Select All
+                                </button>
+                                <button
+                                    onClick={() => setAllColumns(false)}
+                                    className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:bg-gray-50 px-2 py-1 rounded-lg transition-colors"
+                                >
+                                    Clear All
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="space-y-4 mb-6 max-h-[60vh] overflow-y-auto pr-2">
+                        <div className="space-y-4 mb-6 pt-2 border-t border-gray-100">
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Date Range (Optional)</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">From</label>
+                                    <input
+                                        type="date"
+                                        value={exportDateRange.from}
+                                        onChange={(e) => setExportDateRange(prev => ({ ...prev, from: e.target.value }))}
+                                        className="w-full p-3 rounded-xl border border-gray-100 bg-gray-50 text-sm focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all outline-none"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">To</label>
+                                    <input
+                                        type="date"
+                                        value={exportDateRange.to}
+                                        onChange={(e) => setExportDateRange(prev => ({ ...prev, to: e.target.value }))}
+                                        className="w-full p-3 rounded-xl border border-gray-100 bg-gray-50 text-sm focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all outline-none"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 mb-6 max-h-[40vh] overflow-y-auto pr-2">
                             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Select Columns</p>
                             <div className="grid grid-cols-2 gap-3">
                                 {Object.entries(selectedColumns).map(([key, value]) => (
@@ -604,6 +597,24 @@ export function UserTable({
                     </div>
                 </div>
             )}
+
+            {/* User Detail Side Panel */}
+            <UserDetailPanel
+                user={selectedUserForDetail}
+                onClose={() => setSelectedUserForDetail(null)}
+                onEdit={(user) => {
+                    setSelectedUserForDetail(null)
+                    onEdit?.(user)
+                }}
+                onResetPassword={(id, name, type) => {
+                    setSelectedUserForDetail(null)
+                    onResetPassword?.(id, name, type)
+                }}
+                onViewAudit={(user) => {
+                    setSelectedUserForAudit(user)
+                    setShowAuditTimeline(true)
+                }}
+            />
 
             {/* User Audit Timeline Modal */}
             {showAuditTimeline && selectedUserForAudit && (

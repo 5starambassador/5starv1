@@ -81,7 +81,9 @@ model Student {
   ambassadorId    Int?
   admissionNumber String?       @unique
   selectedFeeType FeeType?
-  annualFee       Int?
+  annualFee             Int?
+  admissionFeeCollected Float?
+  donationFeeCollected  Float?
   ambassador      User?         @relation("StudentAmbassador", fields: [ambassadorId], references: [userId])
   campus          Campus        @relation(fields: [campusId], references: [id])
   parent          User          @relation("StudentParent", fields: [parentId], references: [userId])
@@ -106,11 +108,13 @@ model ReferralLead {
   createdAt       DateTime   @default(now())
   studentName     String?
   leadStatus      LeadStatus @default(New)
-  admissionNumber String?
-  section         String?
-  selectedFeeType FeeType?
-  annualFee       Int?
-  rejectionReason String?
+  admissionNumber       String?
+  section               String?
+  selectedFeeType       FeeType?
+  annualFee             Int?
+  admissionFeeCollected Float?
+  donationFeeCollected  Float?
+  rejectionReason       String?
   user            User       @relation(fields: [userId], references: [userId])
   student         Student?
 
@@ -474,6 +478,11 @@ model CampaignLog {
   recipientCount Int      @default(0)
   sentCount      Int      @default(0)
   failedCount    Int      @default(0)
+  emailSent      Int      @default(0)
+  emailFailed    Int      @default(0)
+  pushSent       Int      @default(0)
+  pushFailed     Int      @default(0)
+  inAppSent      Int      @default(0)
   errorLog       Json?
   campaign       Campaign @relation(fields: [campaignId], references: [id])
 }
@@ -583,6 +592,8 @@ model ExternalProgram {
   rewardType       ProgramRewardType @default(NONE)
 
   isActive    Boolean       @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 

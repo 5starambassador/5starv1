@@ -30,6 +30,7 @@ interface DataTableProps<T> {
     onPageChange?: (page: number) => void
     currentPage?: number
     emptyState?: React.ReactNode
+    onRowClick?: (row: T) => void
 }
 
 export function DataTable<T>({
@@ -50,7 +51,8 @@ export function DataTable<T>({
     rowCount,
     onPageChange,
     currentPage: propCurrentPage,
-    emptyState
+    emptyState,
+    onRowClick
 }: DataTableProps<T>) {
     const [internalSearchTerm, setInternalSearchTerm] = useState('')
 
@@ -59,8 +61,8 @@ export function DataTable<T>({
     const [internalPage, setInternalPage] = useState(1)
     const currentPage = propCurrentPage !== undefined ? propCurrentPage : internalPage
 
-    const [sortConfig, setSortConfig] = useState<{ key: keyof T | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' })
-    const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
+    const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' })
+    const [expandedRows, setExpandedRows] = useState<Set<any>>(new Set())
 
     // Selection State
     const [selectedRows, setSelectedRows] = useState<Set<any>>(new Set())
@@ -166,13 +168,21 @@ export function DataTable<T>({
     const sortedData = useMemo(() => {
         return [...filteredData].sort((a, b) => {
             if (!sortConfig.key) return 0
-            const aValue = a[sortConfig.key]
-            const bValue = b[sortConfig.key]
+
+            // Support both string keys and function accessors
+            const column = columns.find(c => String(c.header) === sortConfig.key || String(c.accessorKey) === sortConfig.key)
+            const aValue = column && typeof column.accessorKey === 'function'
+                ? column.accessorKey(a)
+                : (a as any)[sortConfig.key as any]
+            const bValue = column && typeof column.accessorKey === 'function'
+                ? column.accessorKey(b)
+                : (b as any)[sortConfig.key as any]
+
             if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
             if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
             return 0
         })
-    }, [filteredData, sortConfig])
+    }, [filteredData, sortConfig, columns])
 
     // Pagination
     const computedTotalPages = Math.ceil(sortedData.length / pageSize)
@@ -181,7 +191,7 @@ export function DataTable<T>({
     // If manual pagination, we assume 'data' is already the slice for the current page
     const paginatedData = manualPagination ? data : sortedData.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
-    const handleSort = (key: keyof T) => {
+    const handleSort = (key: string) => {
         setSortConfig(current => ({
             key,
             direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
@@ -223,6 +233,17 @@ export function DataTable<T>({
     useEffect(() => {
         // Optional: clear selection on filter change? Keeping it for now.
     }, [filteredData])
+
+    // Auto-reset pagination if current page becomes invalid
+    useEffect(() => {
+        if (!manualPagination && sortedData.length > 0) {
+            const maxPage = Math.max(1, Math.ceil(sortedData.length / pageSize))
+            if (currentPage > maxPage) {
+                setInternalPage(1)
+                onPageChange?.(1)
+            }
+        }
+    }, [sortedData.length, pageSize, manualPagination, currentPage, onPageChange])
 
 
     return (
@@ -283,7 +304,12 @@ export function DataTable<T>({
                                         <div className="flex items-center gap-3 justify-between">
                                             <div
                                                 className={`${column.sortable ? 'cursor-pointer hover:text-gray-900 select-none' : ''} flex items-center gap-2`}
-                                                onClick={() => column.sortable && typeof column.accessorKey === 'string' && handleSort(column.accessorKey as keyof T)}
+                                                onClick={() => {
+                                                    if (column.sortable) {
+                                                        const sortKey = typeof column.accessorKey === 'string' ? column.accessorKey : String(column.header)
+                                                        handleSort(sortKey)
+                                                    }
+                                                }}
                                             >
                                                 {column.header}
                                                 {column.sortable && <ArrowUpDown size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400" />}
@@ -381,17 +407,20 @@ export function DataTable<T>({
                         {paginatedData.length > 0 ? (
                             paginatedData.map((row, i) => {
                                 const rowId = getItemId(row, (currentPage - 1) * pageSize + i) // Must map to global ID
-                                const isExpanded = expandedRows.has(i)
+                                const isExpanded = expandedRows.has(rowId)
                                 const isSelected = selectedRows.has(rowId)
 
                                 return (
-                                    <Fragment key={i}>
+                                    <Fragment key={rowId}>
                                         <tr
                                             onClick={() => {
+                                                if (onRowClick) {
+                                                    onRowClick(row)
+                                                }
                                                 if (renderExpandedRow) {
                                                     const next = new Set(expandedRows)
-                                                    if (isExpanded) next.delete(i)
-                                                    else next.add(i)
+                                                    if (expandedRows.has(rowId)) next.delete(rowId)
+                                                    else next.add(rowId)
                                                     setExpandedRows(next)
                                                 }
                                             }}
@@ -425,7 +454,7 @@ export function DataTable<T>({
                                                             ? column.cell(row)
                                                             : typeof column.accessorKey === 'function'
                                                                 ? column.accessorKey(row)
-                                                                : (row[column.accessorKey] != null ? (row[column.accessorKey] as any) : 'N/A')}
+                                                                : ((row as any)[column.accessorKey] != null ? ((row as any)[column.accessorKey] as any) : 'N/A')}
                                                     </div>
                                                 </td>
                                             ))}
@@ -477,7 +506,8 @@ export function DataTable<T>({
                 </p>
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={() => {
+                        onClick={(e) => {
+                            e.preventDefault()
                             const next = Math.max(1, currentPage - 1)
                             if (!manualPagination) setInternalPage(next)
                             onPageChange?.(next)
@@ -497,55 +527,54 @@ export function DataTable<T>({
                         <span className="text-[10px] font-black text-gray-600">PAGE {currentPage} / {totalPages}</span>
                     </div>
 
-                    {/* Desktop: Page Numbers with Ellipses logic or simple list (capped) */}
+                    {/* Desktop: Page Numbers with Dynamic Window */}
                     <div className="hidden md:flex items-center gap-1.5">
-                        {totalPages <= 7 ? (
-                            [...Array(totalPages)].map((_, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => {
-                                        const page = i + 1
-                                        if (!manualPagination) setInternalPage(page)
-                                        onPageChange?.(page)
-                                    }}
-                                    className={`w-10 h-10 rounded-xl text-sm font-bold transition-all duration-200 ${currentPage === i + 1
-                                        ? 'bg-gradient-to-br from-red-600 to-red-700 text-white shadow-xl shadow-red-600/20 scale-105'
-                                        : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
-                                        }`}
-                                    suppressHydrationWarning
-                                >
-                                    {i + 1}
-                                </button>
+                        {(() => {
+                            const pages: (number | string)[] = []
+                            if (totalPages <= 7) {
+                                for (let i = 1; i <= totalPages; i++) pages.push(i)
+                            } else {
+                                pages.push(1)
+                                if (currentPage > 3) pages.push('...')
+
+                                let start = Math.max(2, currentPage - 1)
+                                let end = Math.min(totalPages - 1, currentPage + 1)
+
+                                if (currentPage <= 3) end = 4
+                                if (currentPage >= totalPages - 2) start = totalPages - 3
+
+                                for (let i = start; i <= end; i++) pages.push(i)
+                                if (currentPage < totalPages - 2) pages.push('...')
+                                pages.push(totalPages)
+                            }
+
+                            return pages.map((p, i) => (
+                                typeof p === 'number' ? (
+                                    <button
+                                        key={i}
+                                        onClick={(e) => {
+                                            e.preventDefault()
+                                            if (!manualPagination) setInternalPage(p)
+                                            onPageChange?.(p)
+                                        }}
+                                        className={`w-10 h-10 rounded-xl text-sm font-bold transition-all duration-200 ${currentPage === p
+                                            ? 'bg-gradient-to-br from-red-600 to-red-700 text-white shadow-xl shadow-red-600/20 scale-105'
+                                            : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 border border-transparent'
+                                            }`}
+                                        suppressHydrationWarning
+                                    >
+                                        {p}
+                                    </button>
+                                ) : (
+                                    <span key={i} className="px-2 text-gray-400 font-bold tracking-widest">...</span>
+                                )
                             ))
-                        ) : (
-                            <>
-                                {/* Simple Ellipses Logic for Desktop if many pages */}
-                                {[1, 2, '...', totalPages - 1, totalPages].map((p, i) => (
-                                    typeof p === 'number' ? (
-                                        <button
-                                            key={i}
-                                            onClick={() => {
-                                                if (!manualPagination) setInternalPage(p)
-                                                onPageChange?.(p)
-                                            }}
-                                            className={`w-10 h-10 rounded-xl text-sm font-bold transition-all duration-200 ${currentPage === p
-                                                ? 'bg-gradient-to-br from-red-600 to-red-700 text-white shadow-xl shadow-red-600/20 scale-105'
-                                                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
-                                                }`}
-                                            suppressHydrationWarning
-                                        >
-                                            {p}
-                                        </button>
-                                    ) : (
-                                        <span key={i} className="text-gray-400">...</span>
-                                    )
-                                ))}
-                            </>
-                        )}
+                        })()}
                     </div>
 
                     <button
-                        onClick={() => {
+                        onClick={(e) => {
+                            e.preventDefault()
                             const next = Math.min(totalPages, currentPage + 1)
                             if (!manualPagination) setInternalPage(next)
                             onPageChange?.(next)

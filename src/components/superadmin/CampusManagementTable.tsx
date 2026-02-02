@@ -78,6 +78,7 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBul
                             : 'bg-gray-100 text-gray-500 hover:bg-gray-200 cursor-pointer'
                             }`}
                         title={campus.isActive ? 'Click to Deactivate' : 'Click to Activate'}
+                        suppressHydrationWarning
                     >
                         {campus.isActive ? 'Active' : 'Inactive'}
                     </button>
@@ -138,16 +139,18 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBul
             header: 'Actions',
             accessorKey: (campus: Campus) => campus.id,
             cell: (campus: Campus) => (
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                     <button
                         onClick={() => onEdit(campus)}
                         className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                        suppressHydrationWarning
                     >
                         <Edit size={16} />
                     </button>
                     <button
                         onClick={() => onDelete(campus.id, campus.campusName)}
                         className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                        suppressHydrationWarning
                     >
                         <Trash size={16} />
                     </button>
@@ -196,6 +199,7 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBul
                                 { header: 'Active', accessor: (c) => c.isActive ? 'Yes' : 'No' }
                             ])}
                             className="px-5 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-xl font-bold text-xs hover:bg-gray-50 transition-all flex items-center gap-2"
+                            suppressHydrationWarning
                         >
                             <Download size={16} strokeWidth={2.5} />
                             Export
@@ -203,6 +207,7 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBul
                         <button
                             onClick={() => setShowUpload(true)}
                             className="px-5 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-xl font-bold text-xs hover:bg-gray-50 transition-all flex items-center gap-2"
+                            suppressHydrationWarning
                         >
                             <Upload size={16} strokeWidth={2.5} />
                             Bulk Upload
@@ -210,13 +215,15 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBul
                         <button
                             onClick={onAdd}
                             className="px-5 py-2.5 bg-gray-900 text-white rounded-xl font-bold text-xs shadow-lg shadow-gray-200 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                            suppressHydrationWarning
                         >
                             <Plus size={16} strokeWidth={2.5} />
                             Add Campus
                         </button>
-                    </div>
-                )}
-            </div>
+                    </div >
+                )
+                }
+            </div >
 
             <div className="w-full xl:max-w-[calc(100vw-340px)] mx-auto overflow-hidden">
                 <div className="overflow-x-auto pb-4 custom-scrollbar">
@@ -233,12 +240,14 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBul
                 </div>
             </div>
 
-            {showUpload && (
-                <CSVUploader
-                    type="campuses"
-                    onClose={() => setShowUpload(false)}
-                />
-            )}
-        </div>
+            {
+                showUpload && (
+                    <CSVUploader
+                        type="campuses"
+                        onClose={() => setShowUpload(false)}
+                    />
+                )
+            }
+        </div >
     )
 }

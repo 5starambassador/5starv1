@@ -276,14 +276,23 @@ export function CampaignManager() {
                                 {c.logs && c.logs.length > 0 ? (
                                     c.logs.slice(0, 1).map((log: any, idx: number) => (
                                         <div key={idx} className="space-y-3">
-                                            <div className="flex items-end justify-between">
-                                                <div className="flex-1">
-                                                    <p className="text-[20px] font-black text-gray-900 leading-none">{log.sentCount}</p>
-                                                    <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mt-1">Confirmed Delivery</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className={`text-[20px] font-black leading-none ${log.failedCount > 0 ? 'text-rose-500' : 'text-gray-200'}`}>{log.failedCount}</p>
-                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Failed</p>
+                                            <div className="flex flex-col gap-3">
+                                                <div className="flex items-end justify-between">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-3 mb-1">
+                                                            <span className="text-[20px] font-black text-gray-900 leading-none">{log.sentCount}</span>
+                                                            <span className="text-[9px] font-black text-gray-300">TOTAL</span>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            {log.emailSent > 0 && <span className="text-[9px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">📧 {log.emailSent}</span>}
+                                                            {log.pushSent > 0 && <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">🔔 {log.pushSent}</span>}
+                                                            {log.inAppSent > 0 && <span className="text-[9px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">📱 {log.inAppSent}</span>}
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className={`text-[20px] font-black leading-none ${log.failedCount > 0 ? 'text-rose-500' : 'text-gray-200'}`}>{log.failedCount}</p>
+                                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Failed</p>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2 text-[9px] font-black text-gray-400 uppercase tracking-widest pt-2 border-t border-gray-100/50">

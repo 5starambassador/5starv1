@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/preserve-manual-memoization */
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
@@ -14,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { PolicyVisualizer } from './PolicyVisualizer'
 import { GrowthCoreView } from './GrowthCoreView'
 import { LegacyVaultView } from './LegacyVaultView'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 interface Props {
     initialSlabs: BenefitSlabData[]
@@ -24,6 +26,7 @@ export function BenefitManagement({ initialSlabs }: Props) {
     const [slabs, setSlabs] = useState<BenefitSlabData[]>(initialSlabs || [])
     const [isSaving, setIsSaving] = useState(false)
     const [activeView, setActiveView] = useState<'Standard' | 'Long Term'>('Standard')
+    const [showResetConfirm, setShowResetConfirm] = useState(false)
 
     useEffect(() => {
         setIsMounted(true)
@@ -52,6 +55,7 @@ export function BenefitManagement({ initialSlabs }: Props) {
     }, [slabs])
 
     // INSTITUTIONAL LOGIC ENGINE
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const simResult = useMemo(() => {
         if (simCount <= 0 || !slabs.length) return { percent: 0, amount: 0, breakdown: [], bonus: 0, longTermBase: 0 }
 
@@ -172,7 +176,11 @@ export function BenefitManagement({ initialSlabs }: Props) {
     }
 
     const handleReset = async () => {
-        if (!confirm('Reverting to factory defaults will wipe all custom institutional policies. Proceed?')) return
+        setShowResetConfirm(true)
+    }
+
+    const confirmReset = async () => {
+        setShowResetConfirm(false)
         setIsSaving(true)
         const res = await resetDefaultSlabs()
         if (res.success) window.location.reload()
@@ -292,6 +300,16 @@ export function BenefitManagement({ initialSlabs }: Props) {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            <ConfirmDialog
+                isOpen={showResetConfirm}
+                title="Reset Policies?"
+                description="Reverting to factory defaults will wipe all custom institutional policies. This action cannot be undone."
+                confirmText="Yes, Purge All"
+                variant="danger"
+                onConfirm={confirmReset}
+                onCancel={() => setShowResetConfirm(false)}
+            />
         </div>
     )
 }

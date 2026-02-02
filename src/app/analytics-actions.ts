@@ -121,7 +121,7 @@ export interface CohortRetention {
  * A user is considered "retained" in Month N if they have any ActivityLog 
  * entry in that month.
  */
-export async function getRetentionData(): Promise<CohortRetention[]> {
+export async function getRetentionData(filters?: { campus?: string }): Promise<CohortRetention[]> {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Admin')) {
         throw new Error('Unauthorized')
@@ -139,8 +139,9 @@ export async function getRetentionData(): Promise<CohortRetention[]> {
         // 2. Fetch all ambassadors joined in the last 6 months
         const ambassadors = await prisma.user.findMany({
             where: {
-                role: { in: ['Staff', 'Parent', 'Alumni'] },
-                createdAt: { gte: startOfWindow }
+                role: { in: ['Staff', 'Parent', 'Alumni', 'Others'] },
+                createdAt: { gte: startOfWindow },
+                ...(filters?.campus && filters.campus !== 'All' && filters.campus !== 'all' && { assignedCampus: filters.campus })
             },
             select: {
                 userId: true,

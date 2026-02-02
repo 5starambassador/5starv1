@@ -33,6 +33,22 @@ export async function getSettlements() {
 }
 
 /**
+ * Fetches settlement records for a specific user.
+ */
+export async function getUserSettlements(userId: number) {
+    try {
+        const settlements = await prisma.settlement.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' }
+        })
+        return { success: true, settlements }
+    } catch (error) {
+        console.error('getUserSettlements error:', error)
+        return { success: false, error: 'Failed to fetch user settlements' }
+    }
+}
+
+/**
  * Calculates current amount due to an ambassador.
  * Rule: (StudentFee * BenefitPercent / 100) * ConfirmedCount - TotalPreviouslySettled
  */

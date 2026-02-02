@@ -11,13 +11,50 @@ import { getMyPermissions } from '@/lib/permission-service'
 export async function getActivePrograms() {
     try {
         const programs = await prisma.externalProgram.findMany({
-            where: { isActive: true },
+            where: {
+                isActive: true,
+                // Filter: Show only if started (or no start date) and not ended (or no end date)
+                // Actually, for "Active" list, we might want to see upcoming ones?
+                // User requirement: "when it is closed or ended, it should not displayed in ambassador dashbaord"
+                // So we hide ended ones.
+                // We also hide ones that haven't started yet? Usually "Coming Soon" is good, but let's be strict for now based on "Active".
+                AND: [
+                    {
+                        OR: [
+                            { endDate: null },
+                            { endDate: { gt: new Date() } }
+                        ]
+                    },
+                    {
+                        OR: [
+                            { startDate: null },
+                            { startDate: { lte: new Date() } }
+                        ]
+                    }
+                ]
+            },
             orderBy: { createdAt: 'desc' }
         })
 
         return { success: true, programs }
     } catch (error) {
         console.error('Error fetching programs:', error)
+        return { success: false, error: 'Failed to load campaigns' }
+    }
+}
+
+/**
+ * Fetch ALL programs for Admin Management (Includes Future/Expired)
+ */
+export async function getAllPrograms() {
+    try {
+        const programs = await prisma.externalProgram.findMany({
+            // No Date Filter for Admin
+            orderBy: { createdAt: 'desc' }
+        })
+        return { success: true, programs }
+    } catch (error) {
+        console.error('Error fetching all programs:', error)
         return { success: false, error: 'Failed to load campaigns' }
     }
 }
@@ -33,6 +70,8 @@ export async function createExternalProgram(data: {
     commissionAmount?: number
     rewardType?: 'CASH' | 'POINTS' | 'NONE'
     autoSyncUrl?: string
+    startDate?: Date
+    endDate?: Date
 }) {
 
 
@@ -55,6 +94,8 @@ export async function createExternalProgram(data: {
                 commissionAmount: data.commissionAmount || 0,
                 rewardType: data.rewardType || 'NONE',
                 autoSyncUrl: data.autoSyncUrl,
+                startDate: data.startDate,
+                endDate: data.endDate,
                 isActive: true
             }
         })
@@ -79,6 +120,8 @@ export async function updateExternalProgram(id: number, data: {
     rewardType?: 'CASH' | 'POINTS' | 'NONE'
     autoSyncUrl?: string
     isActive?: boolean
+    startDate?: Date
+    endDate?: Date
 }) {
     try {
         const user = await getCurrentUser()
@@ -99,7 +142,9 @@ export async function updateExternalProgram(id: number, data: {
                 commissionAmount: data.commissionAmount || 0,
                 rewardType: data.rewardType || 'NONE',
                 autoSyncUrl: data.autoSyncUrl,
-                isActive: data.isActive
+                isActive: data.isActive,
+                startDate: data.startDate,
+                endDate: data.endDate
             }
         })
         revalidatePath('/dashboard')
@@ -126,6 +171,15 @@ export async function captureProgramLead(data: {
             where: { slug: data.slug }
         })
         if (!program || !program.isActive) return { success: false, error: 'Program not found or inactive' }
+
+        // Check Validity Dates
+        const now = new Date()
+        if (program.startDate && now < program.startDate) {
+            return { success: false, error: 'Program has not started yet' }
+        }
+        if (program.endDate && now > program.endDate) {
+            return { success: false, error: 'Program has ended' }
+        }
 
         // 2. Find Referrer
         const referrer = await prisma.user.findUnique({

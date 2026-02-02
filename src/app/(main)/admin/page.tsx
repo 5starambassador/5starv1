@@ -130,6 +130,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
                 admins={serializeData(admins.success ? admins.admins : []) as any}
                 campusPerformance={serializeData(campusPerformance.success ? campusPerformance.campusPerformance : []) as any}
                 permissions={permissions || undefined}
+                userRole={user.role}
             />
         </ErrorBoundary>
     )

@@ -311,6 +311,7 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
     }
 
     // Optimized Aggregation: Fetch all stats in parallel grouping queries
+    // Batch 1: Core Campus and Lead Stats (Fastest)
     const [
         allCampuses,
         totalLeadsData,
@@ -318,12 +319,7 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
         pendingData,
         ambassadorData,
         prevLeadsData,
-        prevConfirmedData,
-        roleDistributionData,
-        campusStudentsData,
-        campusUsersData,
-        currentBenefitsData,
-        prevBenefitsData
+        prevConfirmedData
     ] = await Promise.all([
         prisma.campus.findMany({
             where: { isActive: true },
@@ -358,7 +354,17 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
             by: ['campus'],
             where: { campus: { not: null }, leadStatus: 'Confirmed', ...prevDateFilter },
             _count: { _all: true }
-        }) : Promise.resolve([]),
+        }) : Promise.resolve([])
+    ]);
+
+    // Batch 2: Distribution and Financial Data (Heavy)
+    const [
+        roleDistributionData,
+        campusStudentsData,
+        campusUsersData,
+        currentBenefitsData,
+        prevBenefitsData
+    ] = await Promise.all([
         prisma.referralLead.findMany({
             where: { campus: { not: null }, ...dateFilter },
             select: {
@@ -510,45 +516,7 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
     return comparison.sort((a, b) => b.totalLeads - a.totalLeads);
 }
 
-// ===================== CAMPUS DRILL DOWN =====================
-export async function getCampusDetails(campusName: string) {
-    const admin = await getCurrentUser()
-    if (!admin || !admin.role.includes('Admin')) {
-        return { success: false, error: 'Unauthorized' }
-    }
-
-    try {
-        // 1. Top Ambassadors in this campus
-        const topAmbassadors = await prisma.user.findMany({
-            where: { assignedCampus: campusName, role: { not: UserRole.Staff } },
-            orderBy: { confirmedReferralCount: 'desc' },
-            take: 5,
-            select: {
-                fullName: true,
-                mobileNumber: true,
-                confirmedReferralCount: true,
-                referralCode: true
-            }
-        })
-
-        // 2. Recent Leads for this campus
-        const recentLeads = await prisma.referralLead.findMany({
-            where: { campus: campusName },
-            orderBy: { createdAt: 'desc' },
-            take: 5,
-            include: {
-                student: {
-                    select: { fullName: true } // Referrer details
-                }
-            }
-        })
-
-        return { success: true, topAmbassadors, recentLeads }
-    } catch (error) {
-        console.error('Get campus details error:', error)
-        return { success: false, error: 'Failed to fetch details' }
-    }
-}
+// getCampusDetails removed (not used)
 export async function getAllUsers(): Promise<UserRecord[]> {
     const user = await getCurrentUser()
     if (!user) throw new Error('Unauthorized')
@@ -574,9 +542,25 @@ export async function getAllUsers(): Promise<UserRecord[]> {
             referralCode: true,
             createdAt: true,
             empId: true,
+            email: true,
             isFiveStarMember: true,
             transactionId: true,
-            paymentAmount: true
+            paymentAmount: true,
+            paymentStatus: true,
+            childName: true,
+            childEprNo: true,
+            aadharNo: true,
+            address: true,
+            bankAccountDetails: true,
+            accountNumber: true,
+            bankName: true,
+            ifscCode: true,
+            academicYear: true,
+            childInAchariya: true,
+            benefitStatus: true,
+            password: true,
+            yearFeeBenefitPercent: true,
+            longTermBenefitPercent: true
         },
         orderBy: { createdAt: 'desc' }
     })
@@ -716,9 +700,24 @@ export async function addUser(data: {
     fullName: string
     mobileNumber: string
     role: UserRole
-    childInAchariya?: string
+    childInAchariya?: boolean
     childName?: string
+    grade?: string
     assignedCampus?: string
+    email?: string
+    address?: string
+    aadharNo?: string
+    empId?: string
+    childEprNo?: string
+    status?: AccountStatus
+    benefitStatus?: AccountStatus
+    accountNumber?: string
+    bankName?: string
+    ifscCode?: string
+    bankAccountDetails?: string
+    yearFeeBenefitPercent?: number
+    longTermBenefitPercent?: number
+    isFiveStarMember?: boolean
 }) {
     const admin = await getCurrentUser()
     const allowedRoles = ['Super Admin', 'Admission Admin', 'Campus Head']
@@ -746,13 +745,25 @@ export async function addUser(data: {
                 mobileNumber: data.mobileNumber,
                 role: data.role,
                 referralCode,
-                childInAchariya: data.childInAchariya === 'Yes',
+                childInAchariya: data.childInAchariya || false,
                 childName: data.childName || null,
+                grade: data.grade || null,
                 assignedCampus: data.assignedCampus || null,
-                yearFeeBenefitPercent: 0,
-                longTermBenefitPercent: 0,
+                email: data.email || null,
+                address: data.address || null,
+                aadharNo: data.aadharNo || null,
+                empId: data.empId || null,
+                childEprNo: data.childEprNo || null,
+                status: data.status || 'Active',
+                benefitStatus: data.benefitStatus || 'Pending',
+                accountNumber: data.accountNumber || null,
+                bankName: data.bankName || null,
+                ifscCode: data.ifscCode || null,
+                bankAccountDetails: data.bankAccountDetails || null,
+                yearFeeBenefitPercent: data.yearFeeBenefitPercent || 0,
+                longTermBenefitPercent: data.longTermBenefitPercent || 0,
                 confirmedReferralCount: 0,
-                isFiveStarMember: false
+                isFiveStarMember: data.isFiveStarMember || false
             }
         })
 
@@ -785,9 +796,21 @@ export async function updateUser(userId: number, data: {
     assignedCampus?: string
     empId?: string
     childEprNo?: string
+    grade?: string
+    email?: string
+    address?: string
+    aadharNo?: string
+    status?: AccountStatus
+    benefitStatus?: AccountStatus
+    accountNumber?: string
+    bankName?: string
+    ifscCode?: string
+    bankAccountDetails?: string
     isFiveStarMember?: boolean
     yearFeeBenefitPercent?: number
     longTermBenefitPercent?: number
+    childInAchariya?: boolean
+    childName?: string
 }) {
     try {
         const admin = await getCurrentUser()
@@ -1384,6 +1407,47 @@ export async function triggerWeeklyKPIReport(email?: string) {
         return { success: true }
     } catch (error) {
         console.error('Weekly report trigger error:', error)
-        return { success: false, error: 'Failed to generate report' }
+        return { success: false, error: 'Failed to generate_report' }
+    }
+}
+
+// Get user specific referrals for detail view
+export async function getUserReferrals(userId: number) {
+    try {
+        const referrals = await prisma.referralLead.findMany({
+            where: { userId },
+            select: {
+                leadId: true,
+                leadStatus: true,
+                createdAt: true,
+                student: {
+                    select: {
+                        fullName: true,
+                        status: true
+                    }
+                },
+                user: {
+                    select: {
+                        fullName: true
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 20
+        })
+
+        return {
+            success: true,
+            referrals: referrals.map(r => ({
+                id: r.leadId,
+                status: toLeadStatus(r.leadStatus),
+                studentName: r.student?.fullName || 'Pending',
+                date: r.createdAt.toISOString(),
+                admissionStatus: r.student?.status
+            }))
+        }
+    } catch (error) {
+        console.error('Error fetching user referrals:', error)
+        return { success: false, error: 'Failed to fetch referrals' }
     }
 }

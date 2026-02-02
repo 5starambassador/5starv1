@@ -9,6 +9,7 @@ import { processBulkPayouts } from '@/app/finance-actions'
 import { toast } from 'sonner'
 import { exportPayouts } from '@/app/export-actions'
 import { ExportDateRangeModal } from './ExportDateRangeModal'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 interface Settlement {
     id: number
@@ -38,11 +39,18 @@ export function SettlementTable({ data }: SettlementTableProps) {
     const [isUploading, setIsUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
+    // Dialog States
+    const [showAlert, setShowAlert] = useState(false)
+    const [alertConfig, setAlertConfig] = useState({ title: '', description: '' })
+    const [showBulkConfirm, setShowBulkConfirm] = useState(false)
+    const [pendingPayoutsToProcess, setPendingPayoutsToProcess] = useState<{ id: number, transactionId: string }[]>([])
+
     // Export for Bank Processing
     const handleBankExport = () => {
         const pendingPayouts = data.filter(s => s.status === 'Pending')
         if (pendingPayouts.length === 0) {
-            alert("No pending payouts to export.")
+            setAlertConfig({ title: 'No Pending Payouts', description: 'There are no pending payouts to export at this time.' })
+            setShowAlert(true)
             return
         }
 
@@ -134,17 +142,8 @@ export function SettlementTable({ data }: SettlementTableProps) {
                     return
                 }
 
-                if (!confirm(`Found ${payoutsToProcess.length} valid records to process. Proceed?`)) {
-                    setIsUploading(false)
-                    return
-                }
-
-                const res = await processBulkPayouts(payoutsToProcess)
-                if (res.success) {
-                    toast.success(res.message)
-                } else {
-                    toast.error(res.error)
-                }
+                setPendingPayoutsToProcess(payoutsToProcess)
+                setShowBulkConfirm(true)
 
             } catch (err) {
                 console.error(err)
@@ -156,6 +155,24 @@ export function SettlementTable({ data }: SettlementTableProps) {
         }
 
         reader.readAsText(file)
+    }
+
+    const confirmBulkProcess = async () => {
+        setShowBulkConfirm(false)
+        setIsUploading(true)
+        try {
+            const res = await processBulkPayouts(pendingPayoutsToProcess)
+            if (res.success) {
+                toast.success(res.message)
+            } else {
+                toast.error(res.error)
+            }
+        } catch (err) {
+            toast.error("Bulk processing failed.")
+        } finally {
+            setIsUploading(false)
+            if (fileInputRef.current) fileInputRef.current.value = ''
+        }
     }
 
     const columns = [
@@ -347,6 +364,30 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 title="Export Payouts"
                 showStatusFilter={true}
                 columns={exportColumns}
+            />
+
+            <ConfirmDialog
+                isOpen={showAlert}
+                title={alertConfig.title}
+                description={alertConfig.description}
+                confirmText="Got it"
+                onConfirm={() => setShowAlert(false)}
+                onCancel={() => setShowAlert(false)}
+                variant="info"
+            />
+
+            <ConfirmDialog
+                isOpen={showBulkConfirm}
+                title="Confirm Bulk Payouts"
+                description={`Found ${pendingPayoutsToProcess.length} valid records to process. Are you sure you want to proceed with bulk processing?`}
+                confirmText="Proceed Bulk"
+                onConfirm={confirmBulkProcess}
+                onCancel={() => {
+                    setShowBulkConfirm(false)
+                    setIsUploading(false)
+                    if (fileInputRef.current) fileInputRef.current.value = ''
+                }}
+                variant="warning"
             />
         </div>
     )

@@ -4,12 +4,13 @@ import { useState, useEffect, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { MessageSquare, Calculator } from 'lucide-react'
+import { MessageSquare, Calculator, X, School, ArrowRight, Phone, IndianRupee, Users, Plus, Edit, Target, Save, Loader2, TrendingUp, TrendingDown } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 // Import only what's needed for client-managed state
 import { getCampuses } from '@/app/campus-actions'
 import { getBenefitSlabs, updateBenefitSlab, addBenefitSlab, deleteBenefitSlab } from '@/app/benefit-actions'
-import { getCampusDetails, getAllProgramLeads } from '@/app/superadmin-actions'
+import { getAllProgramLeads } from '@/app/superadmin-actions'
 import { ProgramLeadsTable } from '@/components/superadmin/ProgramLeadsTable'
 import { getSettlements, processSettlement, deleteSettlement } from '@/app/settlement-actions'
 import { getRolePermissions, updateRolePermissions, resetRolePermissions } from '@/app/permission-actions'
@@ -21,7 +22,6 @@ import { ProgramManager } from '@/components/superadmin/ProgramManager'
 
 import { MarketingManager } from '@/components/MarketingManager'
 import { Modal } from '@/components/ui/Modal'
-import { Plus, Edit, Target, Save, Loader2, IndianRupee, TrendingUp, TrendingDown } from 'lucide-react'
 // Report actions are handled within ReportsPanel, superadmin-client just executes the passed function
 
 // Modular Components (Static Imports for core panels)
@@ -77,6 +77,7 @@ interface Props {
     referrals?: any[]
     referralMeta?: any
     campuses?: Campus[]
+    initialReportMode?: 'classic' | 'visual'
 }
 
 export default function SuperadminClient({ analytics, campusComparison = [], users = [], admins = [], students = [], initialView = 'analytics', marketingAssets = [],
@@ -86,7 +87,8 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     urgentTicketCount = 0,
     referrals = [],
     referralMeta,
-    campuses: initialCampuses = []
+    campuses: initialCampuses = [],
+    initialReportMode = 'classic'
 }: Props) {
     const searchParams = useSearchParams()
     const router = useRouter()
@@ -124,8 +126,8 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     const [analyticsData, setAnalyticsData] = useState(analytics)
     const [trendData, setTrendData] = useState(growthTrend)
     const [campusCompData, setCampusCompData] = useState(campusComparison)
-    const [campusDetails, setCampusDetails] = useState<{ topAmbassadors: any[], recentLeads: any[] } | null>(null)
     const [showCalcModal, setShowCalcModal] = useState(false)
+    const [resetConfirm, setResetConfirm] = useState<{ isOpen: boolean, role: string | null }>({ isOpen: false, role: null })
 
     // Sync State with Server Props (Next.js Soft Navigation Fix)
     useEffect(() => {
@@ -200,19 +202,6 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
             })
         }
     }, [urgentTicketCount, router])
-
-    const handleCampusClick = async (campusName: string) => {
-        try {
-            const res = await getCampusDetails(campusName)
-            if (res.success) {
-                setCampusDetails({ topAmbassadors: res.topAmbassadors || [], recentLeads: res.recentLeads || [] })
-            } else {
-                toast.error('Failed to load campus details')
-            }
-        } catch (error) {
-            toast.error('Error loading details')
-        }
-    }
 
     // Generic Report Handler (Executing the function passed from ReportsPanel)
     const handleDownloadReport = async (reportFunction: () => Promise<{ success: boolean; csv?: string; filename?: string; error?: string }>) => {
@@ -301,13 +290,16 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                         analyticsData={analyticsData}
                         trendData={trendData}
                         campusCompData={campusCompData}
-                        onCampusClick={handleCampusClick}
                         deepTrends={deepTrends}
                     />
                 )}
 
                 {selectedView === 'campuses' && (
-                    <CampusPanel campusComparison={campusCompData} mode="management" />
+                    <CampusPanel
+                        campuses={campuses}
+                        campusComparison={campusCompData}
+                        mode="management"
+                    />
                 )}
 
                 {selectedView === 'users' && (
@@ -347,6 +339,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                             convertLeadToStudent={convertLeadToStudent}
                             rejectReferral={rejectReferral}
                             campuses={campuses}
+                            isSuperAdmin={true}
                         />
                         {showBulkUpload && (
                             <CSVUploader
@@ -369,6 +362,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                         campusComparison={campusCompData}
                         onDownloadReport={handleDownloadReport}
                         onWeeklyReport={handleWeeklyReport}
+                        initialReportMode={initialReportMode}
                     />
                 )}
 
@@ -421,26 +415,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                 }
                             }}
                             onReset={async (role: string) => {
-                                if (confirm(`Are you sure you want to RESET permissions for ${role} to system defaults? This cannot be undone.`)) {
-                                    setLoading(true)
-                                    try {
-                                        const res = await resetRolePermissions(role)
-                                        if (res.success) {
-                                            toast.success(`Permissions for ${role} reset to defaults.`)
-                                            // Refresh permissions
-                                            const newPerms = await getRolePermissions(role)
-                                            if (newPerms.success && newPerms.permissions) {
-                                                setRolePermissionsMatrix(prev => ({ ...prev, [role]: newPerms.permissions! }))
-                                            }
-                                        } else {
-                                            toast.error(res.error || 'Failed to reset permissions')
-                                        }
-                                    } catch (err) {
-                                        toast.error('Error resetting permissions')
-                                    } finally {
-                                        setLoading(false)
-                                    }
-                                }
+                                setResetConfirm({ isOpen: true, role })
                             }}
                         />
                     </div>
@@ -615,6 +590,37 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                 </Modal>
 
             </div>
+
+            <ConfirmDialog
+                isOpen={resetConfirm.isOpen}
+                title="Reset Permissions?"
+                description={`Are you sure you want to RESET permissions for ${resetConfirm.role} to system defaults? This action cannot be undone.`}
+                confirmText="Yes, Reset to Default"
+                variant="danger"
+                onConfirm={async () => {
+                    if (resetConfirm.role) {
+                        setResetConfirm(prev => ({ ...prev, isOpen: false }))
+                        setLoading(true)
+                        try {
+                            const res = await resetRolePermissions(resetConfirm.role)
+                            if (res.success) {
+                                toast.success(`Permissions for ${resetConfirm.role} reset to defaults.`)
+                                const newPerms = await getRolePermissions(resetConfirm.role)
+                                if (newPerms.success && newPerms.permissions) {
+                                    setRolePermissionsMatrix(prev => ({ ...prev, [resetConfirm.role!]: newPerms.permissions! }))
+                                }
+                            } else {
+                                toast.error(res.error || 'Failed to reset permissions')
+                            }
+                        } catch (err) {
+                            toast.error('Error resetting permissions')
+                        } finally {
+                            setLoading(false)
+                        }
+                    }
+                }}
+                onCancel={() => setResetConfirm({ isOpen: false, role: null })}
+            />
         </div>
     )
 }

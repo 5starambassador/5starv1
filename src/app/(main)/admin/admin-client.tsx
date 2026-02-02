@@ -34,7 +34,7 @@ interface AdminClientProps {
         conversionRate?: number
     }
     analytics: AdminAnalytics
-    confirmReferral: (leadId: number, admissionNumber: string, selectedFeeType: 'OTP' | 'WOTP') => Promise<{ success: boolean; error?: string }>
+    confirmReferral: (leadId: number, admissionNumber: string, selectedFeeType: 'OTP' | 'WOTP', admFee?: number, donFee?: number) => Promise<{ success: boolean; error?: string }>
     initialView?: string
     campuses?: Campus[]
     users?: User[]
@@ -42,9 +42,10 @@ interface AdminClientProps {
     admins?: Admin[]
     campusPerformance?: CampusPerformance[]
     permissions?: RolePermissions
+    userRole?: string
 }
 
-export function AdminClient({ referrals, referralMeta, referralStats, analytics, confirmReferral, initialView = 'analytics', campuses = [], users = [], students = [], admins = [], campusPerformance = [], permissions }: AdminClientProps) {
+export function AdminClient({ referrals, referralMeta, referralStats, analytics, confirmReferral, initialView = 'analytics', campuses = [], users = [], students = [], admins = [], campusPerformance = [], permissions, userRole }: AdminClientProps) {
     const router = useRouter()
     const searchParams = useSearchParams()
     const [statusFilter, setStatusFilter] = useState<string>('All')
@@ -541,6 +542,8 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                         meta={referralMeta || { page: 1, limit: 50, total: referrals.length, totalPages: 1 }}
                         isReadOnly={permissions?.referralTracking?.scope === 'view-only'}
                         campuses={campuses}
+                        isSuperAdmin={userRole === 'Super Admin'}
+                        confirmReferral={confirmReferral}
                     />
                 </div>
             )}

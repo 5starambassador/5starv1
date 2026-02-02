@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createExternalProgram, getActivePrograms, updateExternalProgram } from '@/app/program-actions'
+import { createExternalProgram, getAllPrograms, updateExternalProgram } from '@/app/program-actions'
 import { toast } from 'sonner'
-import { Plus, Link2, DollarSign, Database, Loader2, Save, X, ExternalLink, RefreshCw, Edit } from 'lucide-react'
+import { Plus, Link2, DollarSign, Database, Loader2, Save, X, ExternalLink, RefreshCw, Edit, Calendar } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export function ProgramManager() {
@@ -21,7 +21,9 @@ export function ProgramManager() {
         description: '',
         commissionAmount: 0,
         rewardType: 'NONE' as 'NONE' | 'CASH' | 'POINTS',
-        autoSyncUrl: ''
+        autoSyncUrl: '',
+        startDate: '',
+        endDate: ''
     })
 
     // Load Data
@@ -31,7 +33,7 @@ export function ProgramManager() {
 
     const loadPrograms = async () => {
         setLoading(true)
-        const res = await getActivePrograms()
+        const res = await getAllPrograms()
         if (res.success) setPrograms(res.programs || [])
         setLoading(false)
     }
@@ -55,12 +57,16 @@ export function ProgramManager() {
         if (editingProgram) {
             res = await updateExternalProgram(editingProgram.id, {
                 ...form,
-                commissionAmount: Number(form.commissionAmount)
+                commissionAmount: Number(form.commissionAmount),
+                startDate: form.startDate ? new Date(form.startDate) : undefined,
+                endDate: form.endDate ? new Date(form.endDate) : undefined
             })
         } else {
             res = await createExternalProgram({
                 ...form,
-                commissionAmount: Number(form.commissionAmount)
+                commissionAmount: Number(form.commissionAmount),
+                startDate: form.startDate ? new Date(form.startDate) : undefined,
+                endDate: form.endDate ? new Date(form.endDate) : undefined
             })
         }
         setIsProcessing(false)
@@ -70,7 +76,8 @@ export function ProgramManager() {
             setShowModal(false)
             setForm({
                 title: '', slug: '', targetUrl: '', description: '',
-                commissionAmount: 0, rewardType: 'NONE', autoSyncUrl: ''
+                commissionAmount: 0, rewardType: 'NONE', autoSyncUrl: '',
+                startDate: '', endDate: ''
             })
             setEditingProgram(null)
             loadPrograms()
@@ -96,7 +103,8 @@ export function ProgramManager() {
                         setEditingProgram(null)
                         setForm({
                             title: '', slug: '', targetUrl: '', description: '',
-                            commissionAmount: 0, rewardType: 'NONE', autoSyncUrl: ''
+                            commissionAmount: 0, rewardType: 'NONE', autoSyncUrl: '',
+                            startDate: '', endDate: ''
                         })
                         setShowModal(true)
                     }}
@@ -127,6 +135,17 @@ export function ProgramManager() {
                                     <span className="bg-gray-100 px-2 py-0.5 rounded">/offer/{p.slug}</span>
                                     <span className="text-gray-300">→</span>
                                     <span className="truncate max-w-[150px]">{p.targetUrl}</span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 mb-4">
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 rounded-lg text-indigo-700">
+                                    <Calendar size={12} />
+                                    <span className="text-[10px] font-bold uppercase tracking-wide">
+                                        {p.startDate ? new Date(p.startDate).toLocaleDateString() : 'Now'}
+                                        {' '}-{' '}
+                                        {p.endDate ? new Date(p.endDate).toLocaleDateString() : 'Forever'}
+                                    </span>
                                 </div>
                             </div>
 
@@ -161,7 +180,9 @@ export function ProgramManager() {
                                             description: p.description || '',
                                             commissionAmount: p.commissionAmount,
                                             rewardType: p.rewardType,
-                                            autoSyncUrl: p.autoSyncUrl || ''
+                                            autoSyncUrl: p.autoSyncUrl || '',
+                                            startDate: p.startDate ? new Date(p.startDate).toISOString().split('T')[0] : '',
+                                            endDate: p.endDate ? new Date(p.endDate).toISOString().split('T')[0] : ''
                                         })
                                         setShowModal(true)
                                     }}
@@ -206,6 +227,27 @@ export function ProgramManager() {
                                             onChange={e => setForm({ ...form, title: e.target.value })}
                                         />
                                     </div>
+
+                                    {/* Date Parsers - Moved to Top */}
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Start Date (Optional)</label>
+                                        <input
+                                            type="date"
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                            value={form.startDate}
+                                            onChange={e => setForm({ ...form, startDate: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">End Date (Optional)</label>
+                                        <input
+                                            type="date"
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                            value={form.endDate}
+                                            onChange={e => setForm({ ...form, endDate: e.target.value })}
+                                        />
+                                    </div>
+
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">URL Slug</label>
                                         <div className="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">

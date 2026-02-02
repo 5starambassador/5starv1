@@ -15,12 +15,11 @@ export interface CampusComparison {
 
 interface CampusPerformanceTableProps {
     comparison: CampusComparison[]
-    onCampusClick?: (campusName: string) => void
     isExpanded?: boolean
     onToggleExpand?: () => void
 }
 
-export function CampusPerformanceTable({ comparison, onCampusClick, isExpanded = false, onToggleExpand }: CampusPerformanceTableProps) {
+export function CampusPerformanceTable({ comparison, isExpanded = false, onToggleExpand }: CampusPerformanceTableProps) {
     const calculateTrend = (current: number, previous?: number) => {
         if (previous === undefined || previous === 0) return null
         return ((current - previous) / previous) * 100
@@ -82,8 +81,7 @@ export function CampusPerformanceTable({ comparison, onCampusClick, isExpanded =
                                 return (
                                     <tr
                                         key={c.campus}
-                                        onClick={() => onCampusClick?.(c.campus)}
-                                        className="group hover:bg-blue-50/50 transition-all cursor-pointer block md:table-row bg-white rounded-2xl md:rounded-none border border-gray-100 md:border-b md:border-x-0 md:border-t-0 mb-4 md:mb-0 shadow-sm md:shadow-none p-4 md:p-0 relative"
+                                        className="block md:table-row bg-white rounded-2xl md:rounded-none border border-gray-100 md:border-b md:border-x-0 md:border-t-0 mb-4 md:mb-0 shadow-sm md:shadow-none p-4 md:p-0 relative"
                                     >
                                         <td className="p-2 md:p-5 flex justify-between md:table-cell items-center">
                                             <span className="md:hidden font-bold text-gray-400 text-xs uppercase tracking-wider">Campus</span>

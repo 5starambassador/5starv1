@@ -47,12 +47,24 @@ export function UserPanel({ users, campuses, currentUserRole }: UserPanelProps) 
         fullName: '',
         mobileNumber: '',
         role: 'Parent' as 'Parent' | 'Staff' | 'Alumni' | 'Others',
-        assignedCampus: '',
         empId: '',
         childEprNo: '',
+        grade: '',
+        email: '',
+        address: '',
+        aadharNo: '',
+        status: 'Active' as any,
+        benefitStatus: 'Pending' as any,
+        accountNumber: '',
+        bankName: '',
+        ifscCode: '',
+        bankAccountDetails: '',
         isFiveStarMember: false,
         yearFeeBenefitPercent: 0,
-        longTermBenefitPercent: 0
+        longTermBenefitPercent: 0,
+        childName: '',
+        childInAchariya: false,
+        assignedCampus: '' // Added assignedCampus to initial state
     })
 
     const openEditUserModal = (user: User) => {
@@ -64,9 +76,21 @@ export function UserPanel({ users, campuses, currentUserRole }: UserPanelProps) 
             assignedCampus: user.assignedCampus || '',
             empId: user.empId || '',
             childEprNo: user.childEprNo || '',
+            grade: user.grade || '',
+            email: user.email || '',
+            address: user.address || '',
+            aadharNo: user.aadharNo || '',
+            status: user.status as any,
+            benefitStatus: user.benefitStatus as any,
+            accountNumber: user.accountNumber || '',
+            bankName: user.bankName || '',
+            ifscCode: user.ifscCode || '',
+            bankAccountDetails: user.bankAccountDetails || '',
             isFiveStarMember: user.isFiveStarMember || false,
             yearFeeBenefitPercent: user.yearFeeBenefitPercent || 0,
-            longTermBenefitPercent: user.longTermBenefitPercent || 0
+            longTermBenefitPercent: user.longTermBenefitPercent || 0,
+            childName: user.childName || '',
+            childInAchariya: user.childInAchariya || false
         })
         setShowAddUserModal(true)
     }
@@ -98,7 +122,13 @@ export function UserPanel({ users, campuses, currentUserRole }: UserPanelProps) 
         if (result.success) {
             setShowAddUserModal(false)
             setEditingUser(null)
-            setUserForm({ fullName: '', mobileNumber: '', role: 'Parent', assignedCampus: '', empId: '', childEprNo: '', isFiveStarMember: false, yearFeeBenefitPercent: 0, longTermBenefitPercent: 0 })
+            setUserForm({
+                fullName: '', mobileNumber: '', role: 'Parent', assignedCampus: '', empId: '', childEprNo: '', grade: '',
+                email: '', address: '', aadharNo: '', status: 'Active' as any, benefitStatus: 'Pending' as any,
+                accountNumber: '', bankName: '', ifscCode: '', bankAccountDetails: '',
+                isFiveStarMember: false, yearFeeBenefitPercent: 0, longTermBenefitPercent: 0,
+                childName: '', childInAchariya: false
+            })
             router.refresh()
         } else {
             toast.error(result.error || 'Failed to save user')
@@ -196,7 +226,13 @@ export function UserPanel({ users, campuses, currentUserRole }: UserPanelProps) 
                 onSearchChange={setSearchQuery}
                 onAddUser={() => {
                     setEditingUser(null);
-                    setUserForm({ fullName: '', mobileNumber: '', role: 'Parent', assignedCampus: '', empId: '', childEprNo: '', isFiveStarMember: false, yearFeeBenefitPercent: 0, longTermBenefitPercent: 0 });
+                    setUserForm({
+                        fullName: '', mobileNumber: '', role: 'Parent', assignedCampus: '', empId: '', childEprNo: '', grade: '',
+                        email: '', address: '', aadharNo: '', status: 'Active' as any, benefitStatus: 'Pending' as any,
+                        accountNumber: '', bankName: '', ifscCode: '', bankAccountDetails: '',
+                        isFiveStarMember: false, yearFeeBenefitPercent: 0, longTermBenefitPercent: 0,
+                        childName: '', childInAchariya: false
+                    });
                     setShowAddUserModal(true)
                 }}
                 onBulkAdd={() => setShowBulkUploadModal(true)}
@@ -214,128 +250,303 @@ export function UserPanel({ users, campuses, currentUserRole }: UserPanelProps) 
             {/* Add User Modal */}
             {
                 showAddUserModal && (
-                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{ background: 'white', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>{editingUser ? 'Edit Ambassador' : 'Add New User'}</h3>
-                                <button onClick={() => { setShowAddUserModal(false); setEditingUser(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                                    <X size={20} />
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                        <div style={{ background: 'white', borderRadius: '20px', width: '100%', maxWidth: '900px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+                            {/* Header - Fixed */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 32px', borderBottom: '1px solid #F3F4F6', background: 'white', flexShrink: 0 }}>
+                                <div>
+                                    <h3 style={{ fontSize: '24px', fontWeight: '800', margin: 0, color: '#111827' }}>{editingUser ? 'Update Ambassador' : 'Add New Ambassador'}</h3>
+                                    <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>Complete all details to ensure correct benefit calculation.</p>
+                                </div>
+                                <button onClick={() => { setShowAddUserModal(false); setEditingUser(null) }} style={{ background: '#F3F4F6', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '50%', color: '#6B7280', transition: 'all 0.2s' }}>
+                                    <X size={24} />
                                 </button>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                <div>
-                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Full Name *</label>
-                                    <input
-                                        type="text"
-                                        value={userForm.fullName}
-                                        onChange={(e) => setUserForm({ ...userForm, fullName: e.target.value })}
-                                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                        placeholder="Enter full name"
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Mobile Number *</label>
-                                    <input
-                                        type="tel"
-                                        value={userForm.mobileNumber}
-                                        onChange={(e) => setUserForm({ ...userForm, mobileNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-                                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                        placeholder="10 digit mobile number"
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Role *</label>
-                                    <select
-                                        value={userForm.role}
-                                        onChange={(e) => setUserForm({ ...userForm, role: e.target.value as any })}
-                                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                    >
-                                        <option value="Parent">Parent</option>
-                                        <option value="Staff">Staff</option>
-                                        <option value="Alumni">Alumni</option>
-                                        <option value="Others">Others</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Assigned Campus</label>
-                                    <select
-                                        value={userForm.assignedCampus}
-                                        onChange={(e) => setUserForm({ ...userForm, assignedCampus: e.target.value })}
-                                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                    >
-                                        <option value="">Select Campus (Optional)</option>
-                                        {campuses.map(c => <option key={c.id} value={c.campusName}>{c.campusName}</option>)}
-                                    </select>
-                                </div>
-                                {userForm.role === 'Staff' && (
-                                    <div>
-                                        <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Employee ID *</label>
-                                        <input
-                                            type="text"
-                                            value={userForm.empId}
-                                            onChange={(e) => setUserForm({ ...userForm, empId: e.target.value })}
-                                            style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                            placeholder="Enter Staff Employee ID"
-                                        />
+
+                            {/* Scrollable Body */}
+                            <div style={{ flex: 1, overflowY: 'auto', padding: '32px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                                {/* Section 1: Identity & Credentials */}
+                                <section>
+                                    <h4 style={{ fontSize: '12px', fontWeight: '900', color: '#EF4444', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '16px', borderLeft: '4px solid #EF4444', paddingLeft: '12px' }}>Identity & Credentials</h4>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+                                        <div>
+                                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Full Name *</label>
+                                            <input
+                                                type="text"
+                                                value={userForm.fullName}
+                                                onChange={(e) => setUserForm({ ...userForm, fullName: e.target.value })}
+                                                style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px', transition: 'border-color 0.2s' }}
+                                                placeholder="Legal Name"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Mobile Number *</label>
+                                            <input
+                                                type="tel"
+                                                value={userForm.mobileNumber}
+                                                onChange={(e) => setUserForm({ ...userForm, mobileNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                                                style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px' }}
+                                                placeholder="10-digit number"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>User Role *</label>
+                                            <select
+                                                value={userForm.role}
+                                                onChange={(e) => setUserForm({ ...userForm, role: e.target.value as any })}
+                                                style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px', background: 'white' }}
+                                            >
+                                                <option value="Parent">Parent Ambassador</option>
+                                                <option value="Staff">Staff Ambassador</option>
+                                                <option value="Alumni">Alumni Ambassador</option>
+                                                <option value="Others">General Ambassador</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Account Status</label>
+                                            <select
+                                                value={userForm.status}
+                                                onChange={(e) => setUserForm({ ...userForm, status: e.target.value as any })}
+                                                style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px', background: 'white' }}
+                                            >
+                                                <option value="Active">Active</option>
+                                                <option value="Inactive">Inactive</option>
+                                                <option value="Suspended">Suspended</option>
+                                                <option value="Pending">Pending Approval</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                )}
-                                {userForm.role === 'Parent' && (
-                                    <div>
-                                        <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Child ERP No</label>
-                                        <input
-                                            type="text"
-                                            value={userForm.childEprNo}
-                                            onChange={(e) => setUserForm({ ...userForm, childEprNo: e.target.value })}
-                                            style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                            placeholder="Achariya Child ERP No"
-                                        />
+                                </section>
+
+                                {/* Section 2: Role Specific Meta */}
+                                <section style={{ background: '#F9FAFB', padding: '20px', borderRadius: '16px', border: '1px solid #F3F4F6' }}>
+                                    <h4 style={{ fontSize: '12px', fontWeight: '900', color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '16px' }}>{userForm.role} Profile Details</h4>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                                        {userForm.role === 'Staff' && (
+                                            <div>
+                                                <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Employee ID *</label>
+                                                <input
+                                                    type="text"
+                                                    value={userForm.empId}
+                                                    onChange={(e) => setUserForm({ ...userForm, empId: e.target.value })}
+                                                    style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px' }}
+                                                    placeholder="EMPXXXX"
+                                                />
+                                            </div>
+                                        )}
+                                        {userForm.role === 'Parent' && (
+                                            <>
+                                                <div>
+                                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Child's Name</label>
+                                                    <input
+                                                        type="text"
+                                                        value={userForm.childName}
+                                                        onChange={(e) => setUserForm({ ...userForm, childName: e.target.value })}
+                                                        style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px' }}
+                                                        placeholder="Student Full Name"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Student ERP No</label>
+                                                    <input
+                                                        type="text"
+                                                        value={userForm.childEprNo}
+                                                        onChange={(e) => setUserForm({ ...userForm, childEprNo: e.target.value })}
+                                                        style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px' }}
+                                                        placeholder="STUXXXX"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Grade</label>
+                                                    <input
+                                                        type="text"
+                                                        value={userForm.grade}
+                                                        onChange={(e) => setUserForm({ ...userForm, grade: e.target.value })}
+                                                        style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px' }}
+                                                        placeholder="Class/Grade"
+                                                    />
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingTop: '32px' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        id="childInAchariya"
+                                                        checked={userForm.childInAchariya}
+                                                        onChange={(e) => setUserForm({ ...userForm, childInAchariya: e.target.checked })}
+                                                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                                                    />
+                                                    <label htmlFor="childInAchariya" style={{ fontSize: '14px', fontWeight: '600', color: '#374151', cursor: 'pointer' }}>Studying in Achariya?</label>
+                                                </div>
+                                            </>
+                                        )}
+                                        <div>
+                                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Assigned Campus</label>
+                                            <select
+                                                value={userForm.assignedCampus}
+                                                onChange={(e) => setUserForm({ ...userForm, assignedCampus: e.target.value })}
+                                                style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px', background: 'white' }}
+                                            >
+                                                <option value="">Select Campus</option>
+                                                {campuses.map(c => <option key={c.id} value={c.campusName}>{c.campusName}</option>)}
+                                            </select>
+                                        </div>
                                     </div>
-                                )}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={userForm.isFiveStarMember}
-                                        onChange={(e) => setUserForm({ ...userForm, isFiveStarMember: e.target.checked })}
-                                        id="isFiveStar"
-                                        style={{ width: '16px', height: '16px' }}
-                                    />
-                                    <label htmlFor="isFiveStar" style={{ fontSize: '12px', fontWeight: '600', color: '#374151' }}>5-Star Member Status</label>
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                                    <div>
-                                        <label style={{ fontSize: '11px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Year Fee Benefit %</label>
-                                        <input
-                                            type="number"
-                                            value={userForm.yearFeeBenefitPercent}
-                                            onChange={(e) => setUserForm({ ...userForm, yearFeeBenefitPercent: Number(e.target.value) })}
-                                            style={{ width: '100%', padding: '8px 10px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '13px' }}
-                                        />
+                                </section>
+
+                                {/* Section 3: Professional & Contact */}
+                                <section>
+                                    <h4 style={{ fontSize: '12px', fontWeight: '900', color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '16px', borderLeft: '4px solid #4B5563', paddingLeft: '12px' }}>Personal Information</h4>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+                                        <div>
+                                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Email Address</label>
+                                            <input
+                                                type="email"
+                                                value={userForm.email}
+                                                onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                                                style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px' }}
+                                                placeholder="example@email.com"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Aadhar Number</label>
+                                            <input
+                                                type="text"
+                                                value={userForm.aadharNo}
+                                                onChange={(e) => setUserForm({ ...userForm, aadharNo: e.target.value })}
+                                                style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px' }}
+                                                placeholder="12-digit Aadhar"
+                                            />
+                                        </div>
+                                        <div style={{ gridColumn: '1 / -1' }}>
+                                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Residential Address</label>
+                                            <textarea
+                                                value={userForm.address}
+                                                onChange={(e) => setUserForm({ ...userForm, address: e.target.value })}
+                                                style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px', minHeight: '80px', resize: 'vertical' }}
+                                                placeholder="Full postal address"
+                                            />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label style={{ fontSize: '11px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Long Term Benefit %</label>
-                                        <input
-                                            type="number"
-                                            value={userForm.longTermBenefitPercent}
-                                            onChange={(e) => setUserForm({ ...userForm, longTermBenefitPercent: Number(e.target.value) })}
-                                            style={{ width: '100%', padding: '8px 10px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '13px' }}
-                                        />
-                                    </div>
+                                </section>
+
+                                {/* Section 4: Financial & Benefits */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '32px' }}>
+                                    {/* Bank Details */}
+                                    <section style={{ background: '#F0F9FF', padding: '20px', borderRadius: '16px', border: '1px solid #E0F2FE' }}>
+                                        <h4 style={{ fontSize: '12px', fontWeight: '900', color: '#0284C7', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '16px' }}>Bank Information</h4>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                            <div>
+                                                <label style={{ fontSize: '11px', fontWeight: '700', color: '#0369A1', display: 'block', marginBottom: '4px' }}>Bank Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={userForm.bankName}
+                                                    onChange={(e) => setUserForm({ ...userForm, bankName: e.target.value })}
+                                                    style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #BAE6FD', borderRadius: '10px', fontSize: '13px' }}
+                                                    placeholder="State Bank of India"
+                                                />
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '12px' }}>
+                                                <div>
+                                                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#0369A1', display: 'block', marginBottom: '4px' }}>Account Number</label>
+                                                    <input
+                                                        type="text"
+                                                        value={userForm.accountNumber}
+                                                        onChange={(e) => setUserForm({ ...userForm, accountNumber: e.target.value })}
+                                                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #BAE6FD', borderRadius: '10px', fontSize: '13px' }}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#0369A1', display: 'block', marginBottom: '4px' }}>IFSC Code</label>
+                                                    <input
+                                                        type="text"
+                                                        value={userForm.ifscCode}
+                                                        onChange={(e) => setUserForm({ ...userForm, ifscCode: e.target.value.toUpperCase() })}
+                                                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #BAE6FD', borderRadius: '10px', fontSize: '13px' }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label style={{ fontSize: '11px', fontWeight: '700', color: '#0369A1', display: 'block', marginBottom: '4px' }}>Bank Details & Remarks</label>
+                                                <input
+                                                    type="text"
+                                                    value={userForm.bankAccountDetails}
+                                                    onChange={(e) => setUserForm({ ...userForm, bankAccountDetails: e.target.value })}
+                                                    style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #BAE6FD', borderRadius: '10px', fontSize: '13px' }}
+                                                    placeholder="Branch or any other details"
+                                                />
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    {/* Benefits Control */}
+                                    <section style={{ background: '#FFF7ED', padding: '20px', borderRadius: '16px', border: '1px solid #FFEDD5' }}>
+                                        <h4 style={{ fontSize: '12px', fontWeight: '900', color: '#EA580C', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '16px' }}>Benefits & Incentives</h4>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                                <div>
+                                                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#9A3412', display: 'block', marginBottom: '4px' }}>Year Fee Benefit %</label>
+                                                    <input
+                                                        type="number"
+                                                        value={userForm.yearFeeBenefitPercent}
+                                                        onChange={(e) => setUserForm({ ...userForm, yearFeeBenefitPercent: parseFloat(e.target.value) || 0 })}
+                                                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #FED7AA', borderRadius: '10px', fontSize: '13px' }}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label style={{ fontSize: '11px', fontWeight: '700', color: '#9A3412', display: 'block', marginBottom: '4px' }}>Loyalty Benefit %</label>
+                                                    <input
+                                                        type="number"
+                                                        value={userForm.longTermBenefitPercent}
+                                                        onChange={(e) => setUserForm({ ...userForm, longTermBenefitPercent: parseFloat(e.target.value) || 0 })}
+                                                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #FED7AA', borderRadius: '10px', fontSize: '13px' }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label style={{ fontSize: '11px', fontWeight: '700', color: '#9A3412', display: 'block', marginBottom: '4px' }}>Benefit Status</label>
+                                                <select
+                                                    value={userForm.benefitStatus}
+                                                    onChange={(e) => setUserForm({ ...userForm, benefitStatus: e.target.value as any })}
+                                                    style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #FED7AA', borderRadius: '10px', fontSize: '13px', background: 'white' }}
+                                                >
+                                                    <option value="Active">Active (Incentives Enabled)</option>
+                                                    <option value="Pending">Pending Verification</option>
+                                                    <option value="Suspended">On Hold</option>
+                                                </select>
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingTop: '12px', borderTop: '1px dashed #FED7AA' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    id="isFiveStar"
+                                                    checked={userForm.isFiveStarMember}
+                                                    onChange={(e) => setUserForm({ ...userForm, isFiveStarMember: e.target.checked })}
+                                                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                                                />
+                                                <label htmlFor="isFiveStar" style={{ fontSize: '14px', fontWeight: '700', color: '#C2410C', cursor: 'pointer' }}>Premium 5-Star Member</label>
+                                            </div>
+                                        </div>
+                                    </section>
                                 </div>
-                                <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                                    <button
-                                        onClick={() => { setShowAddUserModal(false); setEditingUser(null) }}
-                                        style={{ flex: 1, padding: '10px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={handleSaveUser}
-                                        disabled={modalLoading}
-                                        style={{ flex: 1, padding: '10px', background: '#DC2626', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}
-                                    >
-                                        {modalLoading ? 'Saving...' : (editingUser ? 'Update Details' : 'Add User')}
-                                    </button>
-                                </div>
+                            </div>
+
+                            {/* Footer - Fixed */}
+                            <div style={{ display: 'flex', gap: '16px', padding: '24px 32px', borderTop: '1px solid #F3F4F6', background: 'white', flexShrink: 0 }}>
+                                <button
+                                    onClick={() => { setShowAddUserModal(false); setEditingUser(null) }}
+                                    style={{ flex: 1, padding: '16px', borderRadius: '16px', border: '1.5px solid #E5E7EB', background: 'white', fontWeight: '800', color: '#6B7280', cursor: 'pointer', fontSize: '14px', transition: 'all 0.2s' }}
+                                    onMouseOver={(e) => e.currentTarget.style.background = '#F9FAFB'}
+                                    onMouseOut={(e) => e.currentTarget.style.background = 'white'}
+                                >
+                                    Discard Changes
+                                </button>
+                                <button
+                                    onClick={handleSaveUser}
+                                    disabled={modalLoading}
+                                    style={{ flex: 1, padding: '16px', borderRadius: '16px', border: 'none', background: '#111827', color: 'white', fontWeight: '800', cursor: modalLoading ? 'not-allowed' : 'pointer', opacity: modalLoading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', transition: 'all 0.2s', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+                                    onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                                >
+                                    {modalLoading ? 'Saving Info...' : editingUser ? 'Update Ambassador' : 'Register Ambassador'}
+                                </button>
                             </div>
                         </div>
                     </div>

@@ -6,6 +6,7 @@ import { useState, useMemo } from 'react'
 
 import { toast } from 'sonner'
 import { bulkRejectReferrals, bulkDeleteReferrals } from '@/app/admin-actions'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 interface ReferralTableProps {
     referrals: any[]
@@ -45,6 +46,10 @@ export function ReferralTable({
 
     // Selection State
     const [selectedIds, setSelectedIds] = useState<number[]>([])
+
+    // Bulk Confirmation States
+    const [showBulkRejectConfirm, setShowBulkRejectConfirm] = useState(false)
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
 
     // Filtered referrals
     const filteredReferrals = useMemo(() => {
@@ -87,8 +92,11 @@ export function ReferralTable({
 
     // Bulk Actions Handlers
     const handleBulkReject = async () => {
-        if (!confirm(`Are you sure you want to REJECT ${selectedIds.length} referrals?`)) return
+        setShowBulkRejectConfirm(true)
+    }
 
+    const executeBulkReject = async () => {
+        setShowBulkRejectConfirm(false)
         const tid = toast.loading('Rejecting referrals...')
         const res = await bulkRejectReferrals(selectedIds)
         if (res.success) {
@@ -100,8 +108,11 @@ export function ReferralTable({
     }
 
     const handleBulkDelete = async () => {
-        if (!confirm(`Are you sure you want to PERMANENTLY DELETE ${selectedIds.length} referrals? This cannot be undone.`)) return
+        setShowBulkDeleteConfirm(true)
+    }
 
+    const executeBulkDelete = async () => {
+        setShowBulkDeleteConfirm(false)
         const tid = toast.loading('Deleting referrals...')
         const res = await bulkDeleteReferrals(selectedIds)
         if (res.success) {
@@ -458,6 +469,26 @@ export function ReferralTable({
                     </div>
                 </div>
             )}
+            {/* Confirmation Modals */}
+            <ConfirmDialog
+                isOpen={showBulkRejectConfirm}
+                title="Reject Referrals?"
+                description={`Are you sure you want to REJECT ${selectedIds.length} referrals?`}
+                confirmText="Yes, Reject"
+                variant="danger"
+                onConfirm={executeBulkReject}
+                onCancel={() => setShowBulkRejectConfirm(false)}
+            />
+
+            <ConfirmDialog
+                isOpen={showBulkDeleteConfirm}
+                title="Delete Referrals?"
+                description={`Are you sure you want to PERMANENTLY DELETE ${selectedIds.length} referrals? This cannot be undone.`}
+                confirmText="Yes, Delete Permanently"
+                variant="danger"
+                onConfirm={executeBulkDelete}
+                onCancel={() => setShowBulkDeleteConfirm(false)}
+            />
         </div>
     )
 }

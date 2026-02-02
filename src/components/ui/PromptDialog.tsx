@@ -1,31 +1,39 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertCircle, X, ShieldAlert, Info } from 'lucide-react'
-import { ReactNode } from 'react'
+import { MessageSquare, X, Edit3, ShieldAlert, AlertCircle, Info } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
-interface ConfirmDialogProps {
+interface PromptDialogProps {
     isOpen: boolean
     title: string
-    description: ReactNode
+    description: string
+    placeholder?: string
     confirmText?: string
     cancelText?: string
     variant?: 'danger' | 'warning' | 'info' | 'success'
-    onConfirm: () => void
+    onConfirm: (value: string) => void
     onCancel: () => void
     isLoading?: boolean
+    initialValue?: string
 }
 
-export function ConfirmDialog({
+export function PromptDialog({
     isOpen,
     title,
     description,
-    confirmText = 'Confirm',
+    placeholder = 'Enter reason...',
+    confirmText = 'Submit',
     cancelText = 'Cancel',
-    variant = 'danger',
+    variant = 'info',
     onConfirm,
     onCancel,
-    isLoading = false
-}: ConfirmDialogProps) {
-    // We handle conditional rendering via AnimatePresence below
+    isLoading = false,
+    initialValue = ''
+}: PromptDialogProps) {
+    const [value, setValue] = useState(initialValue)
+
+    useEffect(() => {
+        if (isOpen) setValue(initialValue)
+    }, [isOpen, initialValue])
 
     const variantConfig = {
         danger: {
@@ -33,28 +41,32 @@ export function ConfirmDialog({
             bg: 'from-rose-500 to-red-600',
             lightBg: 'bg-rose-50',
             textColor: 'text-rose-600',
-            buttonShadow: 'shadow-rose-200'
+            buttonShadow: 'shadow-rose-200',
+            ring: 'focus:ring-rose-50 focus:border-rose-200'
         },
         warning: {
             icon: <AlertCircle size={28} />,
             bg: 'from-amber-500 to-orange-500',
             lightBg: 'bg-amber-50',
             textColor: 'text-amber-600',
-            buttonShadow: 'shadow-amber-200'
+            buttonShadow: 'shadow-amber-200',
+            ring: 'focus:ring-amber-50 focus:border-amber-200'
         },
         info: {
-            icon: <Info size={28} />,
+            icon: <Edit3 size={28} />,
             bg: 'from-indigo-500 to-blue-600',
             lightBg: 'bg-indigo-50',
             textColor: 'text-indigo-600',
-            buttonShadow: 'shadow-indigo-200'
+            buttonShadow: 'shadow-indigo-200',
+            ring: 'focus:ring-indigo-50 focus:border-indigo-200'
         },
         success: {
-            icon: <AlertCircle size={28} />, // Replace with Check if needed
+            icon: <AlertCircle size={28} />,
             bg: 'from-emerald-500 to-teal-600',
             lightBg: 'bg-emerald-50',
             textColor: 'text-emerald-600',
-            buttonShadow: 'shadow-emerald-200'
+            buttonShadow: 'shadow-emerald-200',
+            ring: 'focus:ring-emerald-50 focus:border-emerald-200'
         }
     }
 
@@ -95,17 +107,28 @@ export function ConfirmDialog({
                                     <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">
                                         {title}
                                     </h3>
-                                    <div className="text-sm font-bold text-gray-400 leading-relaxed px-2">
+                                    <p className="text-sm font-bold text-gray-400 leading-relaxed px-2">
                                         {description}
-                                    </div>
+                                    </p>
                                 </div>
                             </div>
 
+                            {/* Input Field */}
+                            <div className="mt-8">
+                                <textarea
+                                    autoFocus
+                                    value={value}
+                                    onChange={(e) => setValue(e.target.value)}
+                                    placeholder={placeholder}
+                                    className={`w-full h-32 p-5 bg-gray-50 border border-gray-100 rounded-[24px] text-sm font-bold text-gray-900 placeholder:text-gray-300 outline-none transition-all resize-none custom-scrollbar-dark ${config.ring}`}
+                                />
+                            </div>
+
                             {/* Actions */}
-                            <div className="mt-10 flex flex-col gap-3">
+                            <div className="mt-8 flex flex-col gap-3">
                                 <button
-                                    onClick={onConfirm}
-                                    disabled={isLoading}
+                                    onClick={() => onConfirm(value)}
+                                    disabled={isLoading || !value.trim()}
                                     className={`w-full py-5 bg-gradient-to-br ${config.bg} text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-xl ${config.buttonShadow} hover:-translate-y-1 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2`}
                                 >
                                     {isLoading && <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />}
@@ -122,7 +145,7 @@ export function ConfirmDialog({
                             </div>
                         </div>
 
-                        {/* Close button icon - optional for confirmation but good for UX */}
+                        {/* Close button icon */}
                         <button
                             onClick={onCancel}
                             className="absolute top-6 right-6 p-2 rounded-xl text-gray-300 hover:text-gray-500 transition-all"

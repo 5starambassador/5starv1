@@ -9,8 +9,16 @@ import { getCampuses, addCampus, updateCampus, deleteCampus, deleteCampuses, tog
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
-export function CampusPanel({ campusComparison = [], mode = 'management' }: { campusComparison?: any[], mode?: 'management' | 'performance' }) {
-    const [campuses, setCampuses] = useState<Campus[]>([])
+export function CampusPanel({
+    campuses: initialCampusesData = [],
+    campusComparison = [],
+    mode = 'management'
+}: {
+    campuses?: Campus[],
+    campusComparison?: any[],
+    mode?: 'management' | 'performance'
+}) {
+    const [campuses, setCampuses] = useState<Campus[]>(initialCampusesData)
 
     // Merge performance data
     const enrichedCampuses = campuses.map(campus => {
@@ -49,6 +57,17 @@ export function CampusPanel({ campusComparison = [], mode = 'management' }: { ca
         force: false
     })
     const [isDeleting, setIsDeleting] = useState(false)
+    const [statusConfirm, setStatusConfirm] = useState<{
+        isOpen: boolean
+        id: number | null
+        currentStatus: boolean
+        campusName: string
+    }>({
+        isOpen: false,
+        id: null,
+        currentStatus: false,
+        campusName: ''
+    })
 
     const loadCampuses = async () => {
         setLoading(true)
@@ -67,8 +86,12 @@ export function CampusPanel({ campusComparison = [], mode = 'management' }: { ca
     }
 
     useEffect(() => {
-        loadCampuses()
-    }, [])
+        if (initialCampusesData.length > 0) {
+            setCampuses(initialCampusesData)
+        } else {
+            loadCampuses()
+        }
+    }, [initialCampusesData])
 
     const handleSaveCampus = async () => {
         if (!campusForm.campusName || !campusForm.campusCode || !campusForm.grades) {
@@ -103,13 +126,21 @@ export function CampusPanel({ campusComparison = [], mode = 'management' }: { ca
 
     const handleToggleStatus = async (id: number, currentStatus: boolean) => {
         // Confirmation for deactivation
+        const c = campuses.find(campus => campus.id === id)
         if (currentStatus === true) {
-            const c = campuses.find(campus => campus.id === id)
-            if (!confirm(`Are you sure you want to DEACTIVATE ${c?.campusName}? \nThis will prevent logins and new admissions.`)) {
-                return
-            }
+            setStatusConfirm({
+                isOpen: true,
+                id,
+                currentStatus,
+                campusName: c?.campusName || 'this campus'
+            })
+            return
         }
 
+        await executeToggleStatus(id, currentStatus)
+    }
+
+    const executeToggleStatus = async (id: number, currentStatus: boolean) => {
         const newStatus = !currentStatus
         // Optimistic update
         setCampuses(prev => prev.map(c => c.id === id ? { ...c, isActive: newStatus } : c))
@@ -434,6 +465,20 @@ export function CampusPanel({ campusComparison = [], mode = 'management' }: { ca
                 onConfirm={executeDelete}
                 onCancel={() => setDeleteState({ isOpen: false, type: 'single', ids: [], force: false })}
                 isLoading={isDeleting}
+            />
+
+            {/* Status Toggle Confirm */}
+            <ConfirmDialog
+                isOpen={statusConfirm.isOpen}
+                title="Deactivate Campus?"
+                description={`Are you sure you want to DEACTIVATE ${statusConfirm.campusName}? This will prevent logins and new admissions.`}
+                confirmText="Yes, Deactivate"
+                variant="warning"
+                onConfirm={() => {
+                    if (statusConfirm.id !== null) executeToggleStatus(statusConfirm.id, statusConfirm.currentStatus)
+                    setStatusConfirm(prev => ({ ...prev, isOpen: false }))
+                }}
+                onCancel={() => setStatusConfirm(prev => ({ ...prev, isOpen: false }))}
             />
         </div>
     )

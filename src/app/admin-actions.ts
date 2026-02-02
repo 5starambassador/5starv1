@@ -5,7 +5,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { getScopeFilter, canEdit, canDelete, hasPermission } from '@/lib/permission-service'
 import { revalidatePath } from 'next/cache'
 import { logAction } from '@/lib/audit-logger'
-import { mapLeadStatus, mapUserRole, mapAccountStatus } from '@/lib/enum-utils'
+import { mapLeadStatus, mapUserRole, mapAccountStatus, toLeadStatus } from '@/lib/enum-utils'
 import { notifyReferralConfirmed, notifyFiveStarAchievement, notifyReferralStatusChanged } from '@/lib/notification-helper'
 import { AdminAnalytics } from '@/types'
 import { buildReferralWhereClause } from '@/lib/filter-utils'
@@ -122,7 +122,9 @@ export async function getAllReferrals(
                 total,
                 page,
                 limit,
-                totalPages: Math.ceil(total / limit)
+                totalPages: Math.ceil(total / limit),
+                totalPending: await prisma.referralLead.count({ where: { ...where, leadStatus: { in: ['New', 'Follow_up'] } } }),
+                totalConfirmed: await prisma.referralLead.count({ where: { ...where, leadStatus: 'Confirmed' } })
             },
             isReadOnly
         }
@@ -274,7 +276,7 @@ export async function getAdminAnalytics(): Promise<{ success: boolean; error?: s
  * @param leadId - The ID of the referral lead to confirm.
  * @returns An object indicating success or failure.
  */
-export async function confirmReferral(leadId: number, admissionNumber: string, selectedFeeType: 'OTP' | 'WOTP') {
+export async function confirmReferral(leadId: number, admissionNumber: string, selectedFeeType: 'OTP' | 'WOTP', admissionFee?: number, donationFee?: number) {
     const admin = await getCurrentUser()
     // Permission handled by matrix Check
     if (!admin || !await canEdit('referralTracking')) {
@@ -285,9 +287,7 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
         return { success: false, error: 'Student ERP/Admission Number is required for confirmation' }
     }
 
-    if (!selectedFeeType) {
-        return { success: false, error: 'Fee Type Selection (OTP or WOTP) is mandatory for confirmation' }
-    }
+    // Validation for fees and fee type moved inside transaction where campus is known
 
     try {
         const result = await prisma.$transaction(async (tx) => {
@@ -303,11 +303,27 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
             // 0. Fetch the correct fee snapshot
             const leadRecord = await tx.referralLead.findUnique({
                 where: { leadId },
-                select: { campusId: true, gradeInterested: true }
+                select: { campusId: true, campus: true, gradeInterested: true }
             })
 
             if (!leadRecord || !leadRecord.campusId || !leadRecord.gradeInterested) {
                 throw new Error('Lead must have a campus and grade assigned before confirmation')
+            }
+
+            // --- Validation for Normal Logic Campuses ---
+            const isSpecialCampus = ['ACET', 'AASC', 'ACCHM'].includes(leadRecord.campus || '')
+
+            if (!selectedFeeType && !isSpecialCampus) {
+                throw new Error('Fee Type Selection (OTP or WOTP) is mandatory for confirmation')
+            }
+
+            if (!isSpecialCampus) {
+                if (admissionFee === undefined || admissionFee === null) {
+                    throw new Error('Admission Fee is mandatory for this campus')
+                }
+                if (donationFee === undefined || donationFee === null) {
+                    throw new Error('Donation Fee is mandatory for this campus')
+                }
             }
 
             const feeRule = await tx.gradeFee.findFirst({
@@ -335,8 +351,10 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
                     confirmedDate: new Date(),
                     admissionNumber: admissionNumber,
                     selectedFeeType: selectedFeeType,
-                    annualFee: annualFee
-                }
+                    annualFee: annualFee,
+                    admissionFeeCollected: admissionFee,
+                    donationFeeCollected: donationFee
+                } as any
             }).then(l => l as any)
 
             // 2. Update User Counts & Benefits (Automation)
@@ -644,11 +662,15 @@ export async function getAdminCampusPerformance() {
 
 // --- Bulk Actions ---
 
-export async function bulkRejectReferrals(leadIds: number[]) {
+export async function bulkRejectReferrals(leadIds: number[], reason?: string) {
     const admin = await getCurrentUser()
     // Permission handled by matrix Check
     if (!admin || !await canEdit('referralTracking')) {
         return { success: false, error: 'Permission Denied' }
+    }
+
+    if (!reason || reason.trim().length < 3) {
+        return { success: false, error: 'A valid rejection reason is mandatory' }
     }
 
     try {
@@ -657,7 +679,10 @@ export async function bulkRejectReferrals(leadIds: number[]) {
                 leadId: { in: leadIds },
                 leadStatus: { not: 'Confirmed' } // Protect confirmed leads
             },
-            data: { leadStatus: 'Rejected' }
+            data: {
+                leadStatus: 'Rejected',
+                rejectionReason: reason
+            }
         })
 
         revalidatePath('/admin')
@@ -670,9 +695,9 @@ export async function bulkRejectReferrals(leadIds: number[]) {
 
 export async function bulkDeleteReferrals(leadIds: number[]) {
     const admin = await getCurrentUser()
-    // Permission handled by matrix Check
-    if (!admin || !await canEdit('referralTracking')) {
-        return { success: false, error: 'Permission Denied: Delete access required' }
+    // STRICT CHECK: Only Super Admin can delete referrals
+    if (!admin || admin.role !== 'Super Admin') {
+        return { success: false, error: 'Permission Denied: Only Super Admin can delete referrals' }
     }
 
     try {
@@ -687,6 +712,29 @@ export async function bulkDeleteReferrals(leadIds: number[]) {
     } catch (e) {
         console.error(e)
         return { success: false, error: 'Bulk delete failed' }
+    }
+}
+
+/**
+ * Triggers deletion of a SINGLE referral.
+ * Restricted to Super Admin.
+ */
+export async function deleteReferral(leadId: number) {
+    const admin = await getCurrentUser()
+    if (!admin || admin.role !== 'Super Admin') {
+        return { success: false, error: 'Permission Denied: Only Super Admin can delete referrals' }
+    }
+
+    try {
+        await prisma.referralLead.delete({
+            where: { leadId }
+        })
+
+        revalidatePath('/admin')
+        return { success: true }
+    } catch (e) {
+        console.error('Delete referral error:', e)
+        return { success: false, error: 'Failed to delete referral' }
     }
 }
 
@@ -716,6 +764,14 @@ export async function getReferralStats(filters?: {
     // Reconstruct Where Clause (Refactored)
     const where = buildReferralWhereClause(filters, scopeFilter)
 
+    const fs = require('fs')
+    const path = require('path')
+    const logFile = path.join(process.cwd(), 'debug_referrals.log')
+    const log = (msg: string) => { try { fs.appendFileSync(logFile, new Date().toISOString() + ': ' + msg + '\n') } catch (e) { } }
+
+    log(`getReferralStats called. Filters: ${JSON.stringify(filters || {})}`)
+    log(`DEBUG: Stats WHERE: ${JSON.stringify(where)}`)
+
     try {
         const total = await prisma.referralLead.count({ where })
 
@@ -723,9 +779,12 @@ export async function getReferralStats(filters?: {
             where: { ...where, leadStatus: 'Confirmed' }
         })
 
+        // Use 'Follow_up' (underscore) to match Prisma Enum / DB Value
         const pending = await prisma.referralLead.count({
-            where: { ...where, leadStatus: { in: ['New', 'Follow-up'] } }
+            where: { ...where, leadStatus: { in: ['New', 'Follow_up'] } }
         })
+
+        log(`DEBUG: getReferralStats Result - Total: ${total}, Confirmed: ${confirmed}, Pending: ${pending}`)
 
         const conversionRate = total > 0 ? parseFloat(((confirmed / total) * 100).toFixed(1)) : 0
 
@@ -777,6 +836,7 @@ export async function exportReferrals(filters?: {
                     select: {
                         fullName: true,
                         role: true,
+                        referralCode: true,
                         assignedCampus: true,
                         mobileNumber: true
                     }
@@ -797,12 +857,17 @@ export async function exportReferrals(filters?: {
             'Status': r => r.leadStatus,
             'Referrer': r => `"${r.user.fullName.replace(/"/g, '""')}"`,
             'Referrer Role': r => r.user.role,
+            'Referrer Code': r => r.user.referralCode || '',
+            'Referrer Campus': r => r.user.assignedCampus || '',
             'Referrer Mobile': r => r.user.mobileNumber,
             'Date Created': r => new Date(r.createdAt).toLocaleDateString(),
+            'Confirmed Date': r => r.confirmedDate ? new Date(r.confirmedDate).toLocaleDateString() : 'N/A',
             'ERP Number': r => r.admissionNumber || '',
             'Academic Year': r => r.admittedYear || '', // [NEW] As requested
             'Fee Plan': r => r.selectedFeeType || '',
             'Annual Fee': r => r.annualFee || '',
+            'Admission Fee': r => r.admissionFeeCollected || 0,
+            'Donation Fee': r => r.donationFeeCollected || 0,
             'Rejection Reason': r => `"${(r.rejectionReason || '').replace(/"/g, '""')}"`
         }
 
@@ -990,6 +1055,8 @@ export async function bulkConvertLeadsToStudents(leadIds: number[]) {
                         ambassadorId: lead.userId,
                         selectedFeeType: lead.selectedFeeType,
                         annualFee: lead.annualFee,
+                        admissionFeeCollected: (lead as any).admissionFeeCollected,
+                        donationFeeCollected: (lead as any).donationFeeCollected,
                         status: 'Active'
                     } as any
                 })
@@ -1037,14 +1104,18 @@ export async function convertLeadToStudent(leadId: number, details: { studentNam
 /**
  * Rejects a single referral lead.
  */
-export async function rejectReferral(leadId: number) {
+export async function rejectReferral(leadId: number, reason: string) {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus'))) return { success: false, error: 'Unauthorized' }
 
     if (!await canEdit('referralTracking')) return { success: false, error: 'Permission Denied' }
 
+    if (!reason || reason.trim().length < 3) {
+        return { success: false, error: 'Rejection reason is required' }
+    }
+
     try {
-        const res = await bulkRejectReferrals([leadId])
+        const res = await bulkRejectReferrals([leadId], reason)
         if (res.success) return { success: true }
         return { success: false, error: res.error || 'Rejection failed' }
     } catch (e: any) {
@@ -1069,6 +1140,9 @@ export async function updateReferral(leadId: number, data: {
     annualFee?: number | null
     selectedFeeType?: 'OTP' | 'WOTP' | null
     admittedYear?: string
+    rejectionReason?: string | null
+    admissionFeeCollected?: number | null
+    donationFeeCollected?: number | null
 }) {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus'))) {
@@ -1087,22 +1161,25 @@ export async function updateReferral(leadId: number, data: {
             if (c) campusId = c.id
         }
 
+        // Check if status is transitioning to Confirmed to set timestamp
+        const currentLead = await prisma.referralLead.findUnique({ where: { leadId }, select: { leadStatus: true } })
+        let extraData: any = {}
+        if (data.leadStatus === 'Confirmed' && currentLead?.leadStatus !== 'Confirmed') {
+            extraData.confirmedAt = new Date()
+        }
+
         await prisma.referralLead.update({
             where: { leadId },
             data: {
-                studentName: data.studentName,
-                parentName: data.parentName,
-                parentMobile: data.parentMobile,
-                gradeInterested: data.gradeInterested,
-                campus: data.campus,
+                ...data,
+                ...extraData,
                 campusId: campusId,
-                admissionNumber: data.admissionNumber,
-                section: data.section,
-                leadStatus: data.leadStatus as any, // Cast to enum
+                leadStatus: data.leadStatus ? toLeadStatus(data.leadStatus) : undefined,
                 annualFee: data.annualFee ? Number(data.annualFee) : null,
-                selectedFeeType: data.selectedFeeType,
-                admittedYear: data.admittedYear
-            }
+                selectedFeeType: (!data.selectedFeeType || (data.selectedFeeType as any) === '') ? null : data.selectedFeeType as any,
+                admissionFeeCollected: data.admissionFeeCollected,
+                donationFeeCollected: data.donationFeeCollected
+            } as any // Cast to any to resolve Prisma type sync issues
         })
 
         revalidatePath('/admin')

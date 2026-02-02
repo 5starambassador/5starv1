@@ -6,10 +6,12 @@ import { ChevronRight, CheckCircle, Filter, ChevronDown, Clock, AlertCircle, Pho
 
 import { DataTable } from '@/components/ui/DataTable'
 import { toast } from 'sonner'
-import { bulkRejectReferrals, bulkDeleteReferrals, bulkConfirmReferrals, bulkConvertLeadsToStudents, exportReferrals, updateReferral, getGradeFee } from '@/app/admin-actions'
+import { bulkRejectReferrals, bulkDeleteReferrals, bulkConfirmReferrals, bulkConvertLeadsToStudents, exportReferrals, updateReferral, getGradeFee, deleteReferral } from '@/app/admin-actions'
 import { getCampuses } from '@/app/campus-actions'
 import { format } from 'date-fns'
 import { GRADES } from '@/lib/constants'
+import { ReferralDetailPanel } from '@/components/superadmin/ReferralDetailPanel'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 interface ReferralManagementTableProps {
     referrals: any[]
@@ -18,14 +20,17 @@ interface ReferralManagementTableProps {
         page: number
         limit: number
         totalPages: number
+        totalPending?: number
+        totalConfirmed?: number
     }
     isReadOnly?: boolean
     onBulkAdd?: () => void
-    confirmReferral?: (leadId: number, erp: string, feeType: 'OTP' | 'WOTP') => Promise<any>
+    confirmReferral?: (leadId: number, erp: string, feeType: 'OTP' | 'WOTP', admFee?: number, donFee?: number) => Promise<any>
     convertLeadToStudent?: (leadId: number, data: any) => Promise<any>
-    rejectReferral?: (leadId: number) => Promise<{ success: boolean; error?: string }>
+    rejectReferral?: (leadId: number, reason: string) => Promise<{ success: boolean; error?: string }>
     campuses?: any[] // Accept campuses list
     onImportCrm?: () => void // New Prop for CRM Import
+    isSuperAdmin?: boolean // New restriction prop
 }
 
 // --- Excel-Like Filter Component ---
@@ -157,7 +162,8 @@ export function ReferralManagementTable({
     convertLeadToStudent, // Added prop for single convert action
     rejectReferral, // Added prop for single reject action
     campuses = [], // Default to empty array
-    onImportCrm // Destructure new prop
+    onImportCrm, // Destructure new prop
+    isSuperAdmin = false // Destructure new restriction prop
 }: ReferralManagementTableProps) {
     // Check if we are filtering out data client side
     // ... existing code ...
@@ -206,12 +212,12 @@ export function ReferralManagementTable({
 
     // Pagination Auto-Correction
     useEffect(() => {
-        if (meta.totalPages > 0 && meta.page > meta.totalPages) {
+        if (!isPending && meta.totalPages > 0 && meta.page > meta.totalPages) {
             const params = new URLSearchParams(searchParams)
             params.set('page', meta.totalPages.toString())
             router.replace(`${pathname}?${params.toString()}`)
         }
-    }, [meta.page, meta.totalPages, searchParams, pathname, router])
+    }, [meta.page, meta.totalPages, searchParams, pathname, router, isPending])
 
     // Dynamic Columns
     const [showColumns, setShowColumns] = useState({
@@ -227,6 +233,12 @@ export function ReferralManagementTable({
 
     // Selection
     const [selectedIds, setSelectedIds] = useState<number[]>([])
+
+    // Bulk Confirmation States
+    const [showBulkApproveConfirm, setShowBulkApproveConfirm] = useState(false)
+    const [showBulkAddToStudentConfirm, setShowBulkAddToStudentConfirm] = useState(false)
+    const [showBulkRejectConfirm, setShowBulkRejectConfirm] = useState(false)
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
 
     // --- Helpers ---
     function updateParam(key: string, value: string | string[]) {
@@ -257,12 +269,11 @@ export function ReferralManagementTable({
 
     // Expanded Row State
 
-    const [confirmingId, setConfirmingId] = useState<number | null>(null)
-    const [erpInput, setErpInput] = useState('')
-    const [selectedFeeType, setSelectedFeeType] = useState<'OTP' | 'WOTP'>('OTP')
-    const [bulkFeeType, setBulkFeeType] = useState<'OTP' | 'WOTP' | 'None'>('None')
     const [editingLead, setEditingLead] = useState<any>(null) // For Edit Modal
-    const [editMode, setEditMode] = useState<'referral' | 'office'>('referral')
+    const [bulkFeeType, setBulkFeeType] = useState<'OTP' | 'WOTP' | 'None'>('None')
+
+    // Detail Panel State
+    const [selectedLeadForDetail, setSelectedLeadForDetail] = useState<any | null>(null)
 
     // Helper to update lead and auto-calc fee
     const handleLeadUpdate = async (updates: any) => {
@@ -303,7 +314,7 @@ export function ReferralManagementTable({
 
     // --- Export State ---
     const [isExportMenuOpen, setIsExportMenuOpen] = useState(false)
-    const ALL_EXPORT_COLUMNS = ['Lead ID', 'Parent Name', 'Parent Mobile', 'Student Name', 'Grade', 'Section', 'Campus', 'Status', 'Referrer', 'Referrer Role', 'Referrer Mobile', 'Date Created', 'ERP Number', 'Academic Year', 'Fee Plan', 'Annual Fee', 'Rejection Reason']
+    const ALL_EXPORT_COLUMNS = ['Lead ID', 'Parent Name', 'Parent Mobile', 'Student Name', 'Grade', 'Section', 'Campus', 'Status', 'Referrer', 'Referrer Role', 'Referrer Code', 'Referrer Campus', 'Referrer Mobile', 'Date Created', 'Confirmed Date', 'ERP Number', 'Academic Year', 'Fee Plan', 'Annual Fee', 'Admission Fee', 'Donation Fee', 'Rejection Reason']
     const [selectedExportColumns, setSelectedExportColumns] = useState<string[]>([...ALL_EXPORT_COLUMNS])
 
     // --- Excel-Like Filter Logic (Headers) ---
@@ -389,13 +400,24 @@ export function ReferralManagementTable({
 
 
 
-    // --- Bulk Actions ---
-    const handleBulkConfirm = async () => {
-        const msg = bulkFeeType !== 'None'
-            ? `Confirm ${selectedIds.length} referrals with ${bulkFeeType} plan?`
-            : `Confirm ${selectedIds.length} referrals? (Only those with pre-assigned plans will be processed)`
+    // --- Contextual Bulk Logic ---
+    const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds])
+    const selectedLeadsMetadata = useMemo(() => {
+        return referrals.filter(r => selectedIdSet.has(r.leadId))
+    }, [selectedIdSet, referrals])
 
-        if (!confirm(msg)) return
+    const canBulkApprove = selectedLeadsMetadata.some(r => ['New', 'Follow-up', 'Interested'].includes(r.leadStatus))
+    const canBulkStudent = selectedLeadsMetadata.some(r => r.leadStatus === 'Confirmed' && !r.student)
+    const canBulkReject = selectedLeadsMetadata.some(r => r.leadStatus !== 'Rejected' && r.leadStatus !== 'Confirmed')
+    const canBulkDelete = selectedIds.length > 0 && isSuperAdmin
+
+    // --- Batch Actions ---
+    const handleBulkConfirm = async () => {
+        setShowBulkApproveConfirm(true)
+    }
+
+    const executeBulkConfirm = async () => {
+        setShowBulkApproveConfirm(false)
         const tid = toast.loading('Processing Confirmations...')
         const res = await bulkConfirmReferrals(selectedIds, bulkFeeType !== 'None' ? bulkFeeType : undefined)
         if (res.success) {
@@ -409,7 +431,11 @@ export function ReferralManagementTable({
     }
 
     const handleBulkAddToStudent = async () => {
-        if (!confirm(`Add ${selectedIds.length} leads to Student Database? This will create student profiles.`)) return
+        setShowBulkAddToStudentConfirm(true)
+    }
+
+    const executeBulkAddToStudent = async () => {
+        setShowBulkAddToStudentConfirm(false)
         const tid = toast.loading('Adding Students...')
         const res = await bulkConvertLeadsToStudents(selectedIds)
         if (res.success) {
@@ -451,7 +477,11 @@ export function ReferralManagementTable({
     }
 
     const handleBulkReject = async () => {
-        if (!confirm(`Reject ${selectedIds.length} referrals?`)) return
+        setShowBulkRejectConfirm(true)
+    }
+
+    const executeBulkReject = async () => {
+        setShowBulkRejectConfirm(false)
         const tid = toast.loading('Rejecting...')
         const res = await bulkRejectReferrals(selectedIds)
         if (res.success) {
@@ -504,7 +534,11 @@ export function ReferralManagementTable({
     }
 
     const handleBulkDelete = async () => {
-        if (!confirm(`Permanently DELETE ${selectedIds.length} referrals?`)) return
+        setShowBulkDeleteConfirm(true)
+    }
+
+    const executeBulkDelete = async () => {
+        setShowBulkDeleteConfirm(false)
         const tid = toast.loading('Deleting...')
         const res = await bulkDeleteReferrals(selectedIds)
         if (res.success) {
@@ -552,19 +586,62 @@ export function ReferralManagementTable({
         {
             header: 'Status',
             accessorKey: 'leadStatus',
-            cell: (row: any) => (
-                <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${row.leadStatus === 'Confirmed' ? 'bg-green-100 text-green-700' :
-                    row.leadStatus === 'Rejected' ? 'bg-red-100 text-red-700' :
-                        'bg-gray-100 text-gray-700'
-                    }`}>
-                    {row.leadStatus}
-                </span>
-            )
+            cell: (row: any) => {
+                const isConfirmed = row.leadStatus === 'Confirmed'
+                const isRejected = row.leadStatus === 'Rejected'
+                const isFollowUp = row.leadStatus === 'Follow-up'
+
+                return (
+                    <div className="relative group/status flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded text-[10px] font-black uppercase transition-all duration-300 border ${isConfirmed ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm shadow-emerald-500/10' :
+                            isRejected ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                isFollowUp ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                    'bg-gray-100 text-gray-700 border-gray-200'
+                            }`}>
+                            {row.leadStatus}
+                        </span>
+
+                    </div>
+                )
+            }
         },
         {
             header: 'Date',
             accessorKey: 'createdAt',
-            cell: (row: any) => <span className="text-xs text-gray-500">{format(new Date(row.createdAt), 'dd MMM yyyy')}</span>
+            cell: (row: any) => {
+                const date = new Date(row.createdAt)
+                const now = new Date()
+                const diffTime = Math.abs(now.getTime() - date.getTime())
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+                const isStale = diffDays > 2 && row.leadStatus === 'New'
+
+                return (
+                    <div className="flex flex-col">
+                        <span className={`text-[11px] font-bold ${isStale ? 'text-rose-600 animate-pulse' : 'text-gray-500'}`}>
+                            {format(date, 'dd MMM yyyy')}
+                        </span>
+                        {isStale && (
+                            <span className="text-[9px] font-black text-rose-500 uppercase tracking-tighter mt-0.5 flex items-center gap-1">
+                                <AlertCircle size={10} /> {diffDays}d Stale
+                            </span>
+                        )}
+                    </div>
+                )
+            }
+        },
+        {
+            header: 'View',
+            accessorKey: 'leadId',
+            cell: (row: any) => (
+                <button
+                    onClick={() => setSelectedLeadForDetail(row)}
+                    className="p-2 rounded-xl text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all border border-gray-100 shadow-sm bg-white hover:scale-110 active:scale-95"
+                    title="View Details"
+                    suppressHydrationWarning
+                >
+                    <ChevronRight size={16} strokeWidth={2.5} />
+                </button>
+            )
         }
     ]
 
@@ -589,6 +666,58 @@ export function ReferralManagementTable({
                     </div>
                 </div>
 
+            </div>
+
+            {/* Live Analytics Summary Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 group hover:border-red-100 hover:shadow-md transition-all duration-300">
+                    <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-red-50 group-hover:text-red-500 transition-all duration-300">
+                        <User size={20} />
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total leads</p>
+                        <h4 className="text-xl font-black text-gray-900 leading-none mt-1">{meta.total}</h4>
+                    </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 group hover:border-amber-100 hover:shadow-md transition-all duration-300">
+                    <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-amber-50 group-hover:text-amber-500 transition-all duration-300">
+                        <Clock size={20} />
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Action Needed</p>
+                        <h4 className="text-xl font-black text-gray-900 leading-none mt-1">
+                            {meta.totalPending !== undefined ? meta.totalPending : referrals.filter(r => ['New', 'Follow_up'].includes(r.leadStatus)).length}
+                        </h4>
+                    </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 group hover:border-emerald-100 hover:shadow-md transition-all duration-300">
+                    <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-emerald-50 group-hover:text-emerald-500 transition-all duration-300">
+                        <CheckCircle size={20} />
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Confirmed</p>
+                        <h4 className="text-xl font-black text-gray-900 leading-none mt-1">
+                            {meta.totalConfirmed !== undefined ? meta.totalConfirmed : referrals.filter(r => r.leadStatus === 'Confirmed').length}
+                        </h4>
+                    </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 group hover:border-indigo-100 hover:shadow-md transition-all duration-300">
+                    <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-all duration-300">
+                        <Filter size={20} />
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Conv. Rate</p>
+                        <h4 className="text-xl font-black text-gray-900 leading-none mt-1">
+                            {meta.totalConfirmed !== undefined && meta.total > 0
+                                ? ((meta.totalConfirmed / meta.total) * 100).toFixed(0)
+                                : (referrals.length > 0 ? Math.round((referrals.filter(r => r.leadStatus === 'Confirmed').length / referrals.length) * 100) : 0)
+                            }%
+                        </h4>
+                    </div>
+                </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -833,312 +962,146 @@ export function ReferralManagementTable({
                         </button>
                     </div>
                 }
-                renderExpandedRow={(r: any) => (
-                    <div className="p-8 bg-gradient-to-br from-gray-50/80 to-white shadow-inner">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                            {/* Section 1: Lead Information */}
-                            <div className="space-y-3">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                    <User size={12} className="text-gray-500" />
-                                    Lead Information
-                                </h4>
-                                <div>
-                                    <p className="text-lg font-bold text-gray-900 uppercase tracking-tight">{r.studentName || 'Not Specified'}</p>
-                                    <p className="text-sm text-gray-500 font-bold flex items-center gap-1.5 mt-1 uppercase tracking-wider">
-                                        <User size={12} className="text-ui-primary" /> {r.parentName}
-                                    </p>
-                                    <p className="text-xs text-gray-400 font-medium flex items-center gap-2 mt-0.5">
-                                        <Phone size={12} /> {r.parentMobile}
-                                    </p>
-                                    {(r.gradeInterested || r.section) && (
-                                        <p className="text-xs text-gray-600 bg-gray-100 inline-block px-2 py-1 rounded mt-2 font-semibold">
-                                            Interested in: {r.gradeInterested} {r.section ? `(${r.section})` : ''}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Section 2: Referrer Information */}
-                            <div className="space-y-3">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                    <User size={12} className="text-blue-500" />
-                                    Referrer
-                                </h4>
-                                <div>
-                                    <p className="text-sm font-bold text-gray-900">{r.user.fullName}</p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${r.user.role === 'Staff' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
-                                            {r.user.role}
-                                        </span>
-                                        <span className="text-xs text-gray-400 font-mono">
-                                            #{r.user.referralCode}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Section 3: Status & Timeline */}
-                            <div className="space-y-3">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                    <Clock size={12} className="text-amber-500" />
-                                    Timeline
-                                </h4>
-                                <div className="space-y-1">
-                                    <div className="flex justify-between text-xs">
-                                        <span className="text-gray-500">Created:</span>
-                                        <span className="font-medium text-gray-900">
-                                            {format(new Date(r.createdAt), 'dd MMM yyyy')}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between text-xs">
-                                        <span className="text-gray-500">Status:</span>
-                                        <span className={`font-bold ${r.leadStatus === 'Confirmed' ? 'text-green-600' : 'text-gray-900'}`}>{r.leadStatus}</span>
-                                    </div>
-                                    {r.admissionNumber && (
-                                        <div className="flex justify-between text-xs pt-1 border-t border-gray-100 mt-1">
-                                            <span className="text-gray-500">ERP No:</span>
-                                            <span className="font-mono font-bold text-gray-900">{r.admissionNumber}</span>
-                                        </div>
-                                    )}
-                                    {r.selectedFeeType && (
-                                        <div className="flex justify-between text-xs pt-1 border-t border-gray-100 mt-1">
-                                            <span className="text-gray-500">Applied Plan:</span>
-                                            <span className="font-bold text-red-600">{r.selectedFeeType} Structure</span>
-                                        </div>
-                                    )}
-                                    {r.annualFee !== null && r.annualFee !== undefined && (
-                                        <div className="flex justify-between text-xs">
-                                            <span className="text-gray-500">Confirmed Fee:</span>
-                                            <span className="font-black text-gray-900">₹{r.annualFee.toLocaleString('en-IN')}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Section 4: Quick Actions */}
-                            <div className="space-y-3 border-l border-gray-100 pl-6">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                    Actions
-                                </h4>
-                                <div className="flex flex-col gap-2">
-                                    {!isReadOnly && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                setEditMode('referral')
-                                                setEditingLead({ ...r }) // Copy data
-                                            }}
-                                            className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2"
-                                        >
-                                            <Pencil size={12} /> Edit Lead
-                                        </button>
-                                    )}
-                                    {!isReadOnly && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                setEditMode('office')
-                                                setEditingLead({ ...r }) // Copy data
-                                            }}
-                                            className="w-full py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 border border-amber-200"
-                                        >
-                                            <Shield size={12} /> Office Use
-                                        </button>
-                                    )}
-                                    {!isReadOnly && r.leadStatus !== 'Confirmed' && confirmReferral && (
-                                        <>
-                                            {confirmingId === r.leadId ? (
-                                                <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-1 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                                    <div>
-                                                        <label className="text-[10px] font-black text-gray-400 uppercase mb-1.5 block">Step 1: ERP Number</label>
-                                                        <input
-                                                            autoFocus
-                                                            type="text"
-                                                            placeholder="Enter Admission/ERP No..."
-                                                            suppressHydrationWarning={true}
-                                                            value={erpInput}
-                                                            onChange={(e) => setErpInput(e.target.value)}
-                                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-mono"
-                                                            onClick={e => e.stopPropagation()}
-                                                        />
-                                                    </div>
-
-                                                    <div>
-                                                        <label className="text-[10px] font-black text-gray-400 uppercase mb-1.5 block">Step 2: Annual Fee Plan</label>
-                                                        <div className="relative group">
-                                                            <select
-                                                                value={selectedFeeType}
-                                                                onChange={(e) => setSelectedFeeType(e.target.value as 'OTP' | 'WOTP')}
-                                                                className="w-full px-3 py-2.5 text-xs font-bold border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 bg-gray-50 text-gray-700 cursor-pointer appearance-none transition-all hover:bg-gray-100"
-                                                                suppressHydrationWarning={true}
-                                                                onClick={e => e.stopPropagation()}
-                                                            >
-                                                                <option value="OTP">OTP - Standard Direct Payment</option>
-                                                                <option value="WOTP">WOTP - Flexible Installment Plan</option>
-                                                            </select>
-                                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-gray-600 transition-colors">
-                                                                <ChevronDown size={14} />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex gap-2 pt-2 border-t border-gray-50">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                if (!erpInput.trim()) return toast.error('ERP Number is required')
-                                                                confirmReferral?.(r.leadId, erpInput, selectedFeeType).then(res => {
-                                                                    if (res.success) {
-                                                                        toast.success('Admission Confirmed!')
-                                                                        setConfirmingId(null)
-                                                                        setErpInput('')
-                                                                        router.refresh()
-                                                                    } else toast.error(res.error)
-                                                                })
-                                                            }}
-                                                            className="flex-1 py-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-lg text-xs font-bold shadow-md shadow-green-500/20 active:scale-95 transition-all"
-                                                        >
-                                                            Complete Confirmation
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                setConfirmingId(null)
-                                                                setErpInput('')
-                                                            }}
-                                                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-xs font-bold transition-all"
-                                                        >
-                                                            Cancel
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        setConfirmingId(r.leadId)
-                                                        setErpInput('')
-                                                    }}
-                                                    className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm hover:translate-x-1"
-                                                >
-                                                    Confirm Admission
-                                                </button>
-                                            )}
-                                        </>
-                                    )}
-                                    {!isReadOnly && r.leadStatus !== 'Confirmed' && rejectReferral && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                if (confirm('Reject this referral? This cannot be undone.')) {
-                                                    rejectReferral(r.leadId).then((res: { success: boolean; error?: string }) => {
-                                                        if (res.success) {
-                                                            toast.success('Referral rejected')
-                                                            router.refresh()
-                                                        } else toast.error(res.error)
-                                                    })
-                                                }
-                                            }}
-                                            className="w-full py-2 bg-white border border-gray-200 text-red-600 hover:bg-red-50 rounded-lg text-xs font-bold transition-all"
-                                        >
-                                            Reject Referral
-                                        </button>
-                                    )}
-                                    {!isReadOnly && r.leadStatus === 'Confirmed' && !r.student && convertLeadToStudent && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                if (confirm('Add to Student Database?')) {
-                                                    convertLeadToStudent(r.leadId, { studentName: r.parentName + "'s Child" }).then(res => {
-                                                        if (res.success) {
-                                                            toast.success('Added to Students!')
-                                                            router.refresh()
-                                                        } else toast.error(res.error)
-                                                    })
-                                                }
-                                            }}
-                                            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm hover:translate-x-1"
-                                        >
-                                            Add to Students
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
             />
 
 
 
             {/* Floating Batch Actions */}
-            {
-                selectedIds.length > 0 && !isReadOnly && (
-                    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5">
-                        <div className="bg-[#0f172a] text-white p-2 pl-6 pr-2 rounded-full shadow-2xl flex items-center gap-4 border border-gray-800 ring-4 ring-black/5">
-                            <div className="font-bold text-sm">
-                                <span className="text-red-400">{selectedIds.length}</span> Selected
+            {/* Bulk Actions Bar */}
+            {selectedIds.length > 0 && (
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-8 duration-500">
+                    <div className="bg-gray-900 border border-white/10 shadow-2xl rounded-2xl px-6 py-4 flex items-center gap-6 backdrop-blur-xl ring-1 ring-white/20">
+                        <div className="flex items-center gap-3 pr-6 border-r border-white/10">
+                            <div className="bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center">
+                                {selectedIds.length}
                             </div>
-                            <div className="h-4 w-px bg-gray-700" />
-                            <div className="flex items-center gap-2">
-                                <select
-                                    value={bulkFeeType}
-                                    onChange={(e) => setBulkFeeType(e.target.value as any)}
-                                    className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-xs font-bold text-gray-300 focus:outline-none focus:ring-1 focus:ring-red-500/50"
-                                    suppressHydrationWarning={true}
-                                >
-                                    <option value="None">Select Plan...</option>
-                                    <option value="OTP">OTP</option>
-                                    <option value="WOTP">WOTP</option>
-                                </select>
-                                <button
-                                    onClick={handleBulkConfirm}
-                                    className="px-3 py-1.5 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-bold transition-colors"
-                                    suppressHydrationWarning={true}
-                                >
-                                    Approve
-                                </button>
+                            <span className="text-xs font-bold text-white uppercase tracking-widest whitespace-nowrap">Selected</span>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            {canBulkApprove && (
+                                <div className="flex items-center gap-2 pr-3 border-r border-white/10">
+                                    <select
+                                        value={bulkFeeType}
+                                        onChange={(e) => setBulkFeeType(e.target.value as any)}
+                                        className="bg-gray-800 text-white text-xs font-bold rounded-lg px-3 py-1.5 outline-none border border-white/5 focus:border-red-500"
+                                    >
+                                        <option value="None">Inherit Plan</option>
+                                        <option value="OTP">Set OTP</option>
+                                        <option value="WOTP">Set WOTP</option>
+                                    </select>
+                                    <button
+                                        onClick={handleBulkConfirm}
+                                        className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all hover:scale-105 flex items-center gap-2"
+                                    >
+                                        <CheckCircle size={14} /> Confirm
+                                    </button>
+                                </div>
+                            )}
+
+                            {canBulkStudent && (
                                 <button
                                     onClick={handleBulkAddToStudent}
-                                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-bold transition-colors"
-                                    suppressHydrationWarning={true}
+                                    className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all hover:scale-105 flex items-center gap-2 border-r border-white/10"
                                 >
-                                    Add to Students
+                                    <User size={14} /> Add Student
                                 </button>
+                            )}
+
+                            {canBulkReject && (
                                 <button
                                     onClick={handleBulkReject}
-                                    className="p-2 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-colors"
-                                    title="Reject"
-                                    suppressHydrationWarning={true}
+                                    className="text-white/60 hover:text-white px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-2"
                                 >
-                                    <XCircle size={18} />
+                                    <XCircle size={14} /> Reject
                                 </button>
+                            )}
+
+                            {canBulkDelete && (
                                 <button
                                     onClick={handleBulkDelete}
-                                    className="p-2 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-colors"
-                                    title="Delete"
-                                    suppressHydrationWarning={true}
+                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all hover:scale-105 flex items-center gap-2"
                                 >
-                                    <Trash size={18} />
+                                    <Trash size={14} /> Delete
                                 </button>
-                            </div>
-                            <button onClick={() => setSelectedIds([])} className="ml-2 w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400">
-                                <X size={14} />
+                            )}
+
+                            <button
+                                onClick={() => setSelectedIds([])}
+                                className="text-white/40 hover:text-white p-2 transition-colors"
+                            >
+                                <X size={18} />
                             </button>
                         </div>
                     </div>
-                )
-            }
+                </div>
+            )}
 
+            {/* Referral Detail Side Panel (Phase 2 UX) */}
+            <ReferralDetailPanel
+                referral={selectedLeadForDetail}
+                onClose={() => setSelectedLeadForDetail(null)}
+                isSuperAdmin={isSuperAdmin}
+                campuses={campusList}
+                onUpdate={async (id, data) => {
+                    const res = await updateReferral(id, data)
+                    if (res.success) router.refresh()
+                    return res
+                }}
+                onConfirm={confirmReferral}
+                onReject={rejectReferral}
+                onDelete={referralId => deleteReferral(referralId)}
+            />
 
-            {/* Edit Modal */}
+            {/* Bulk Confirm Dialogs */}
+            <ConfirmDialog
+                isOpen={showBulkApproveConfirm}
+                title="Confirm Admissions?"
+                description={bulkFeeType !== 'None'
+                    ? `Are you sure you want to confirm ${selectedIds.length} referrals with the ${bulkFeeType} plan?`
+                    : `Are you sure you want to confirm ${selectedIds.length} referrals? (Only those with pre-assigned plans will be processed)`}
+                confirmText="Yes, Confirm All"
+                variant="success"
+                onConfirm={executeBulkConfirm}
+                onCancel={() => setShowBulkApproveConfirm(false)}
+            />
+
+            <ConfirmDialog
+                isOpen={showBulkAddToStudentConfirm}
+                title="Add to Student Database?"
+                description={`Are you sure you want to add ${selectedIds.length} leads to the Student Database? This will create new student profiles.`}
+                confirmText="Yes, Add Students"
+                variant="info"
+                onConfirm={executeBulkAddToStudent}
+                onCancel={() => setShowBulkAddToStudentConfirm(false)}
+            />
+
+            <ConfirmDialog
+                isOpen={showBulkRejectConfirm}
+                title="Reject Referrals?"
+                description={`Are you sure you want to REJECT ${selectedIds.length} referrals?`}
+                confirmText="Yes, Reject"
+                variant="danger"
+                onConfirm={executeBulkReject}
+                onCancel={() => setShowBulkRejectConfirm(false)}
+            />
+
+            <ConfirmDialog
+                isOpen={showBulkDeleteConfirm}
+                title="Delete Referrals?"
+                description={`Are you sure you want to PERMANENTLY DELETE ${selectedIds.length} referrals? This action cannot be undone.`}
+                confirmText="Yes, Delete Permanently"
+                variant="danger"
+                onConfirm={executeBulkDelete}
+                onCancel={() => setShowBulkDeleteConfirm(false)}
+            />
+
             {/* Edit Modal */}
             {editingLead && (
                 <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
                         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                            <h3 className="font-bold text-gray-900">{editMode === 'referral' ? 'Edit Lead Details' : 'Office Use (Admin)'}</h3>
+                            <h3 className="font-bold text-gray-900">Edit Referral Details</h3>
                             <button onClick={() => setEditingLead(null)} className="p-1 hover:bg-gray-200 rounded-full text-gray-500">
                                 <X size={18} />
                             </button>
@@ -1156,12 +1119,16 @@ export function ReferralManagementTable({
                                         gradeInterested: editingLead.gradeInterested || undefined,
                                         campus: editingLead.campus || undefined,
 
-                                        // New Fields
+                                        // Admin Fields
                                         admissionNumber: editingLead.admissionNumber || undefined,
                                         section: editingLead.section || undefined,
                                         leadStatus: editingLead.leadStatus,
-                                        selectedFeeType: editingLead.selectedFeeType,
-                                        annualFee: editingLead.annualFee
+                                        selectedFeeType: editingLead.selectedFeeType || null,
+                                        annualFee: editingLead.annualFee,
+                                        admittedYear: editingLead.admittedYear,
+                                        rejectionReason: editingLead.rejectionReason,
+                                        admissionFeeCollected: editingLead.admissionFeeCollected,
+                                        donationFeeCollected: editingLead.donationFeeCollected
                                     })
 
                                     if (res.success) {
@@ -1175,77 +1142,85 @@ export function ReferralManagementTable({
                                     toast.error('Failed to update', { id: tid })
                                 }
                             }}
-                            className="p-6 space-y-4"
                         >
-                            <div className="space-y-4">
-                                {editMode === 'referral' && (
-                                    <div className="space-y-4">
+                            <div className="p-6 space-y-6 overflow-y-auto max-h-[80vh] scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+                                {/* Section 1: Lead Information */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+                                        <div className="w-1.5 h-4 bg-red-600 rounded-full" />
+                                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Lead & Parent Information</h4>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Parent Name (Lead)</label>
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Parent Name (Lead)</label>
                                             <input
                                                 type="text"
                                                 value={editingLead.parentName}
                                                 onChange={e => setEditingLead({ ...editingLead, parentName: e.target.value })}
-                                                className="w-full px-3 py-2 border rounded-lg text-sm bg-gray-50 font-medium"
+                                                className="w-full px-3 py-2 border rounded-lg text-sm bg-gray-50 font-medium focus:ring-red-500/20"
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Student Name</label>
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Student Name</label>
                                             <input
                                                 type="text"
                                                 value={editingLead.studentName || ''}
                                                 onChange={e => setEditingLead({ ...editingLead, studentName: e.target.value })}
-                                                className="w-full px-3 py-2 border rounded-lg text-sm"
+                                                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-red-500/20"
                                                 placeholder="Student Name..."
                                             />
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <div>
-                                                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Mobile</label>
-                                                <input
-                                                    type="text"
-                                                    value={editingLead.parentMobile}
-                                                    onChange={e => setEditingLead({ ...editingLead, parentMobile: e.target.value })}
-                                                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Grade</label>
-                                                <select
-                                                    value={editingLead.gradeInterested || ''}
-                                                    onChange={e => handleLeadUpdate({ gradeInterested: e.target.value })}
-                                                    className="w-full px-3 py-2 border rounded-lg text-sm bg-white"
-                                                >
-                                                    <option value="">Select Grade</option>
-                                                    {(() => {
-                                                        const selectedCampusName = editingLead.campus || ''
-                                                        const selectedCampus = campuses.find((c: any) => c.campusName === selectedCampusName)
-                                                        let availableGrades: string[] = []
+                                    </div>
 
-                                                        if (selectedCampus && selectedCampus.grades) {
-                                                            availableGrades = selectedCampus.grades.split(',').map((g: string) => g.trim()).filter(Boolean)
-                                                        }
-                                                        if (availableGrades.length === 0) {
-                                                            availableGrades = [...GRADES]
-                                                        }
-                                                        const currentVal = editingLead.gradeInterested
-                                                        const showGrades = [...availableGrades]
-                                                        if (currentVal && !showGrades.includes(currentVal)) {
-                                                            showGrades.unshift(currentVal)
-                                                        }
-                                                        return Array.from(new Set(showGrades)).map(g => (
-                                                            <option key={g} value={g}>{g}</option>
-                                                        ))
-                                                    })()}
-                                                </select>
-                                            </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Mobile</label>
+                                            <input
+                                                type="text"
+                                                value={editingLead.parentMobile}
+                                                onChange={e => setEditingLead({ ...editingLead, parentMobile: e.target.value })}
+                                                className="w-full px-3 py-2 border rounded-lg text-sm font-mono focus:ring-red-500/20"
+                                            />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Campus</label>
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Grade</label>
+                                            <select
+                                                value={editingLead.gradeInterested || ''}
+                                                onChange={e => handleLeadUpdate({ gradeInterested: e.target.value })}
+                                                className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-red-500/20"
+                                            >
+                                                <option value="">Select Grade</option>
+                                                {(() => {
+                                                    const selectedCampusName = editingLead.campus || ''
+                                                    const selectedCampus = campuses.find((c: any) => c.campusName === selectedCampusName)
+                                                    let availableGrades: string[] = []
+
+                                                    if (selectedCampus && selectedCampus.grades) {
+                                                        availableGrades = selectedCampus.grades.split(',').map((g: string) => g.trim()).filter(Boolean)
+                                                    }
+                                                    if (availableGrades.length === 0) {
+                                                        availableGrades = [...GRADES]
+                                                    }
+                                                    const currentVal = editingLead.gradeInterested
+                                                    const showGrades = [...availableGrades]
+                                                    if (currentVal && !showGrades.includes(currentVal)) {
+                                                        showGrades.unshift(currentVal)
+                                                    }
+                                                    return Array.from(new Set(showGrades)).map(g => (
+                                                        <option key={g} value={g}>{g}</option>
+                                                    ))
+                                                })()}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Campus</label>
                                             <select
                                                 value={editingLead.campus || ''}
                                                 onChange={e => handleLeadUpdate({ campus: e.target.value })}
-                                                className="w-full px-3 py-2 border rounded-lg text-sm font-bold bg-white"
+                                                className="w-full px-3 py-2 border rounded-lg text-sm font-bold bg-white focus:ring-red-500/20"
                                                 suppressHydrationWarning={true}
                                             >
                                                 <option value="">Select Campus...</option>
@@ -1255,11 +1230,11 @@ export function ReferralManagementTable({
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Academic Year</label>
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Academic Year</label>
                                             <select
                                                 value={editingLead.admittedYear || '2026-2027'}
                                                 onChange={e => handleLeadUpdate({ admittedYear: e.target.value })}
-                                                className="w-full px-3 py-2 border rounded-lg text-sm font-bold bg-white"
+                                                className="w-full px-3 py-2 border rounded-lg text-sm font-bold bg-white focus:ring-red-500/20"
                                                 suppressHydrationWarning={true}
                                             >
                                                 <option value="2026-2027">2026-2027</option>
@@ -1268,106 +1243,136 @@ export function ReferralManagementTable({
                                             </select>
                                         </div>
                                     </div>
-                                )}
+                                </div>
 
-                                {editMode === 'office' && (
-                                    <div className="space-y-4 border-l pl-4 border-gray-100">
-                                        <div className="bg-amber-50 rounded-lg p-3 space-y-3 border border-amber-100">
-                                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-amber-200/50">
-                                                <Shield size={14} className="text-amber-600" />
-                                                <span className="text-xs font-black text-amber-800 uppercase tracking-widest">Office Use</span>
+                                {/* Section 2: Administrative Details */}
+                                <div className="space-y-4 pt-4 border-t border-gray-100">
+                                    <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+                                        <Shield size={14} className="text-amber-600" />
+                                        <h4 className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Office & Admission Details</h4>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Lead Status</label>
+                                            <select
+                                                value={editingLead.leadStatus}
+                                                onChange={e => setEditingLead({ ...editingLead, leadStatus: e.target.value })}
+                                                className="w-full px-3 py-2 border border-amber-200 rounded-lg text-xs font-bold bg-amber-50/30 focus:ring-amber-500/20"
+                                                suppressHydrationWarning={true}
+                                            >
+                                                <option value="New">New</option>
+                                                <option value="Follow-up">Follow-up</option>
+                                                <option value="Interested">Interested</option>
+                                                <option value="Confirmed">Confirmed</option>
+                                                <option value="Admitted">Admitted</option>
+                                                <option value="Rejected">Rejected</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Admission/ERP No</label>
+                                            <input
+                                                type="text"
+                                                value={editingLead.admissionNumber || ''}
+                                                onChange={e => setEditingLead({ ...editingLead, admissionNumber: e.target.value })}
+                                                className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm font-mono bg-amber-50/30 focus:ring-amber-500/20"
+                                                placeholder="ERP-123"
+                                                suppressHydrationWarning={true}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Fee Plan</label>
+                                            <select
+                                                value={editingLead.selectedFeeType || ''}
+                                                onChange={e => handleLeadUpdate({ selectedFeeType: e.target.value })}
+                                                className="w-full px-3 py-2 border border-amber-200 rounded-lg text-xs font-bold bg-amber-50/30 focus:ring-amber-500/20"
+                                                suppressHydrationWarning={true}
+                                            >
+                                                <option value="">-- Select --</option>
+                                                <option value="OTP">OTP</option>
+                                                <option value="WOTP">WOTP</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Section</label>
+                                            <input
+                                                type="text"
+                                                value={editingLead.section || ''}
+                                                onChange={e => setEditingLead({ ...editingLead, section: e.target.value })}
+                                                className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm bg-amber-50/30 focus:ring-amber-500/20"
+                                                placeholder="A / B..."
+                                                suppressHydrationWarning={true}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Annual Fee</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                                                <input
+                                                    type="number"
+                                                    value={editingLead.annualFee || ''}
+                                                    onChange={e => setEditingLead({ ...editingLead, annualFee: e.target.value ? Number(e.target.value) : null })}
+                                                    className="w-full pl-7 pr-3 py-2 border border-amber-200 rounded-lg text-sm bg-amber-50/30 font-mono font-bold focus:ring-amber-500/20"
+                                                    placeholder="60000"
+                                                    suppressHydrationWarning={true}
+                                                />
                                             </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Rejection Reason</label>
+                                            <input
+                                                type="text"
+                                                value={editingLead.rejectionReason || ''}
+                                                onChange={e => setEditingLead({ ...editingLead, rejectionReason: e.target.value })}
+                                                className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm bg-amber-50/30 focus:ring-amber-500/20"
+                                                placeholder="Reason..."
+                                                suppressHydrationWarning={true}
+                                            />
+                                        </div>
+                                    </div>
 
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <div>
-                                                    <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Admission No</label>
-                                                    <input
-                                                        type="text"
-                                                        value={editingLead.admissionNumber || ''}
-                                                        onChange={e => setEditingLead({ ...editingLead, admissionNumber: e.target.value })}
-                                                        className="w-full px-2 py-1.5 border border-amber-200 rounded text-sm font-mono bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
-                                                        placeholder="ERP-123"
-                                                        suppressHydrationWarning={true}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Status</label>
-                                                    <select
-                                                        value={editingLead.leadStatus}
-                                                        onChange={e => setEditingLead({ ...editingLead, leadStatus: e.target.value })}
-                                                        className="w-full px-2 py-1.5 border border-amber-200 rounded text-xs font-bold bg-white"
-                                                        suppressHydrationWarning={true}
-                                                    >
-                                                        <option value="New">New</option>
-                                                        <option value="Follow-up">Follow-up</option>
-                                                        <option value="Interested">Interested</option>
-                                                        <option value="Confirmed">Confirmed</option>
-                                                        <option value="Admitted">Admitted</option>
-                                                        <option value="Rejected">Rejected</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <div>
-                                                    <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Fee Plan</label>
-                                                    <select
-                                                        value={editingLead.selectedFeeType || ''}
-                                                        onChange={e => handleLeadUpdate({ selectedFeeType: e.target.value })}
-                                                        className="w-full px-2 py-1.5 border border-amber-200 rounded text-xs font-bold bg-white"
-                                                        suppressHydrationWarning={true}
-                                                    >
-                                                        <option value="">-- Select --</option>
-                                                        <option value="OTP">OTP</option>
-                                                        <option value="WOTP">WOTP</option>
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Section</label>
-                                                    <input
-                                                        type="text"
-                                                        value={editingLead.section || ''}
-                                                        onChange={e => setEditingLead({ ...editingLead, section: e.target.value })}
-                                                        className="w-full px-2 py-1.5 border border-amber-200 rounded text-sm bg-white"
-                                                        placeholder="A / B..."
-                                                        suppressHydrationWarning={true}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Academic Year</label>
-                                                    <select
-                                                        value={editingLead.admittedYear || '2026-2027'}
-                                                        onChange={e => handleLeadUpdate({ admittedYear: e.target.value })}
-                                                        className="w-full px-2 py-1.5 border border-amber-200 rounded text-xs font-bold bg-white"
-                                                        suppressHydrationWarning={true}
-                                                    >
-                                                        <option value="2026-2027">2026-2027</option>
-                                                        <option value="2025-2026">2025-2026</option>
-                                                        <option value="2024-2025">2024-2025</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-
+                                    {!['ACET', 'AASC', 'ACCHM'].includes(editingLead.campus || '') && (
+                                        <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Annual Fee</label>
+                                                <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Admission Fee</label>
                                                 <div className="relative">
-                                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
                                                     <input
                                                         type="number"
-                                                        value={editingLead.annualFee || ''}
-                                                        onChange={e => setEditingLead({ ...editingLead, annualFee: e.target.value ? Number(e.target.value) : null })}
-                                                        className="w-full pl-6 pr-2 py-1.5 border border-amber-200 rounded text-sm bg-white font-mono font-bold"
-                                                        placeholder="60000"
+                                                        value={editingLead.admissionFeeCollected ?? ''}
+                                                        onChange={e => setEditingLead({ ...editingLead, admissionFeeCollected: e.target.value ? Number(e.target.value) : null })}
+                                                        className="w-full pl-7 pr-3 py-2 border border-amber-200 rounded-lg text-sm bg-amber-50/30 font-mono font-bold focus:ring-amber-500/20"
+                                                        placeholder="0"
+                                                        suppressHydrationWarning={true}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Donation Fee</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                                                    <input
+                                                        type="number"
+                                                        value={editingLead.donationFeeCollected ?? ''}
+                                                        onChange={e => setEditingLead({ ...editingLead, donationFeeCollected: e.target.value ? Number(e.target.value) : null })}
+                                                        className="w-full pl-7 pr-3 py-2 border border-amber-200 rounded-lg text-sm bg-amber-50/30 font-mono font-bold focus:ring-amber-500/20"
+                                                        placeholder="0"
                                                         suppressHydrationWarning={true}
                                                     />
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
 
-                            <div className="pt-4 flex gap-3 border-t mt-4">
+                            <div className="p-4 flex gap-3 border-t bg-gray-50">
                                 <button
                                     type="button"
                                     onClick={() => setEditingLead(null)}
@@ -1383,10 +1388,9 @@ export function ReferralManagementTable({
                                 </button>
                             </div>
                         </form>
-                    </div >
-                </div >
-            )
-            }
-        </div >
+                    </div>
+                </div>
+            )}
+        </div>
     )
 }

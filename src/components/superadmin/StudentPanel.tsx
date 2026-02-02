@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
 import { Student, User, Campus, BulkStudentData } from '@/types'
 import { StudentTable } from '@/components/superadmin/StudentTable'
+import { StudentDetailPanel } from '@/components/superadmin/StudentDetailPanel'
 import CSVUploader from '@/components/CSVUploader'
 import { addStudent, updateStudent, bulkAddStudents } from '@/app/student-actions'
 import { getGradesForCampus } from '@/lib/grade-utils'
@@ -23,6 +25,7 @@ export function StudentPanel({ students, users, campuses }: StudentPanelProps) {
     const [showBulkUploadModal, setShowBulkUploadModal] = useState(false)
     const [editingStudent, setEditingStudent] = useState<any>(null)
     const [modalLoading, setModalLoading] = useState(false)
+    const [selectedStudentForDetail, setSelectedStudentForDetail] = useState<Student | null>(null)
 
     const [studentForm, setStudentForm] = useState<any>({
         fullName: '',
@@ -33,6 +36,8 @@ export function StudentPanel({ students, users, campuses }: StudentPanelProps) {
         rollNumber: '',
         baseFee: undefined,
         discountPercent: 0,
+        admissionNumber: '',
+        academicYear: '2025-2026',
         isNewParent: false,
         newParentName: '',
         newParentMobile: ''
@@ -50,6 +55,8 @@ export function StudentPanel({ students, users, campuses }: StudentPanelProps) {
             rollNumber: student.rollNumber || '',
             baseFee: student.baseFee,
             discountPercent: student.discountPercent,
+            admissionNumber: student.admissionNumber || '',
+            academicYear: student.academicYear || '2025-2026',
             isNewParent: false, // When editing, we assume parent is existing
             newParentName: '',
             newParentMobile: ''
@@ -90,7 +97,9 @@ export function StudentPanel({ students, users, campuses }: StudentPanelProps) {
                 section: studentForm.section,
                 rollNumber: studentForm.rollNumber,
                 baseFee: studentForm.baseFee,
-                discountPercent: studentForm.discountPercent
+                discountPercent: studentForm.discountPercent,
+                admissionNumber: studentForm.admissionNumber,
+                academicYear: studentForm.academicYear
             })
         } else {
             result = await addStudent({
@@ -102,6 +111,8 @@ export function StudentPanel({ students, users, campuses }: StudentPanelProps) {
                 rollNumber: studentForm.rollNumber,
                 baseFee: studentForm.baseFee,
                 discountPercent: studentForm.discountPercent,
+                admissionNumber: studentForm.admissionNumber,
+                academicYear: studentForm.academicYear,
                 newParent: studentForm.isNewParent ? {
                     fullName: studentForm.newParentName,
                     mobileNumber: studentForm.newParentMobile
@@ -115,6 +126,7 @@ export function StudentPanel({ students, users, campuses }: StudentPanelProps) {
             setEditingStudent(null)
             setStudentForm({
                 fullName: '', parentId: '', campusId: '', grade: '', section: '', rollNumber: '', baseFee: 60000, discountPercent: 0,
+                admissionNumber: '', academicYear: '2025-2026',
                 isNewParent: false, newParentName: '', newParentMobile: ''
             })
             router.refresh()
@@ -138,28 +150,50 @@ export function StudentPanel({ students, users, campuses }: StudentPanelProps) {
     }
 
     return (
-        <div className="space-y-6 animate-fade-in">
-            <StudentTable
-                students={students}
-                searchTerm={searchQuery}
-                onSearchChange={setSearchQuery}
-                onAddStudent={() => {
-                    setEditingStudent(null)
-                    setStudentForm({
-                        fullName: '', parentId: '', campusId: '', grade: '', section: '',
-                        rollNumber: '', baseFee: 60000, discountPercent: 0,
-                        isNewParent: false, newParentName: '', newParentMobile: ''
-                    })
-                    setShowStudentModal(true)
-                }}
-                onEdit={openEditModal}
-                onBulkAdd={() => setShowBulkUploadModal(true)}
-                onViewAmbassador={(code) => {
-                    // This creates a dependency on parent view state. 
-                    // Ideally we navigate via URL.
-                    router.push(`/superadmin?view=users&search=${code}`)
-                }}
-            />
+        <div className="space-y-6 animate-fade-in relative">
+            <div>
+                <StudentTable
+                    students={students}
+                    searchTerm={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    onAddStudent={() => {
+                        setEditingStudent(null)
+                        setStudentForm({
+                            fullName: '', parentId: '', campusId: '', grade: '', section: '',
+                            rollNumber: '', baseFee: 60000, discountPercent: 0,
+                            admissionNumber: '', academicYear: '2025-2026',
+                            isNewParent: false, newParentName: '', newParentMobile: ''
+                        })
+                        setShowStudentModal(true)
+                    }}
+                    onEdit={openEditModal}
+                    onBulkAdd={() => setShowBulkUploadModal(true)}
+                    onViewAmbassador={(code) => {
+                        router.push(`/superadmin?view=users&search=${code}`)
+                    }}
+                    onRowClick={(student) => setSelectedStudentForDetail(student)}
+                />
+            </div>
+
+            {/* Detail Panel */}
+            <AnimatePresence>
+                <StudentDetailPanel
+                    student={selectedStudentForDetail}
+                    users={users}
+                    campuses={campuses}
+                    onClose={() => setSelectedStudentForDetail(null)}
+                    onEdit={(student) => {
+                        setSelectedStudentForDetail(null)
+                        openEditModal(student)
+                    }}
+                    onViewParent={(parentId) => {
+                        const parent = users.find(u => u.userId === parentId)
+                        if (parent) {
+                            router.push(`/superadmin?view=users&search=${parent.mobileNumber}`)
+                        }
+                    }}
+                />
+            </AnimatePresence>
 
             {/* Add Student Modal */}
             {
@@ -277,6 +311,28 @@ export function StudentPanel({ students, users, campuses }: StudentPanelProps) {
                                         style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
                                         placeholder="e.g. 1001"
                                     />
+                                </div>
+                                <div className="col-span-2">
+                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Admission Number</label>
+                                    <input
+                                        type="text"
+                                        value={studentForm.admissionNumber}
+                                        onChange={(e) => setStudentForm({ ...studentForm, admissionNumber: e.target.value })}
+                                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
+                                        placeholder="e.g. ADM-2025-001"
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Academic Year</label>
+                                    <select
+                                        value={studentForm.academicYear}
+                                        onChange={(e) => setStudentForm({ ...studentForm, academicYear: e.target.value })}
+                                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
+                                    >
+                                        <option value="2024-2025">2024-2025</option>
+                                        <option value="2025-2026">2025-2026</option>
+                                        <option value="2026-2027">2026-2027</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Base Fee</label>
