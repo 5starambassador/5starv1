@@ -1,6 +1,8 @@
 /**
- * Role-Based Access Control (RBAC) Configuration
- * Defines permissions for each admin role across dashboard modules
+ * Role-Based Access Control (RBAC) Architecture
+ * This file defines the structure for administrative permissions.
+ * The DEFAULT_ROLE_PERMISSIONS serves as the system's hardcoded fallback
+ * and the template for database-level overrides in the "Access Matrix".
  */
 
 export type AdminRole = 'Super Admin' | 'Campus Head' | 'Finance Admin' | 'Admission Admin' | 'Campus Admin' | 'Staff' | 'Parent' | 'Alumni' | 'Others'
@@ -37,10 +39,16 @@ export interface RolePermissions {
     engagementCentre: ModulePermission
     paymentApproval: ModulePermission
     programLeads: ModulePermission
-    externalPrograms: ModulePermission
+    externalPrograms: ModulePermission & { canCreate?: boolean; canEdit?: boolean; canDelete?: boolean }
+    academicCycles: ModulePermission
+    disasterRecovery: ModulePermission
 }
 
-export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
+/**
+ * System Hardcoded Defaults
+ * These are used during the initial setup of a role or if no database override is found.
+ */
+export const DEFAULT_ROLE_PERMISSIONS: Record<string, RolePermissions> = {
     'Super Admin': {
         analytics: { access: true, scope: 'all' },
         userManagement: { access: true, scope: 'all', canCreate: true, canEdit: true, canDelete: true },
@@ -63,13 +71,14 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         engagementCentre: { access: true, scope: 'all' },
         paymentApproval: { access: true, scope: 'all' },
         programLeads: { access: true, scope: 'all' },
-        externalPrograms: { access: true, scope: 'all', canCreate: true, canEdit: true, canDelete: true }
+        externalPrograms: { access: true, scope: 'all', canCreate: true, canEdit: true, canDelete: true },
+        academicCycles: { access: true, scope: 'all' },
+        disasterRecovery: { access: true, scope: 'all' }
     },
     'Campus Head': {
-        // MANAGER ROLE: Strategy & Oversight (View Only for Operations, Full Analytics)
         analytics: { access: true, scope: 'campus' },
-        userManagement: { access: true, scope: 'campus', canCreate: false, canEdit: false, canDelete: false }, // View Only
-        studentManagement: { access: true, scope: 'campus', canCreate: false, canEdit: false, canDelete: false }, // View Only
+        userManagement: { access: true, scope: 'campus', canCreate: false, canEdit: false, canDelete: false },
+        studentManagement: { access: true, scope: 'campus', canCreate: false, canEdit: false, canDelete: false },
         adminManagement: { access: false, scope: 'none' },
         campusPerformance: { access: false, scope: 'none' },
         reports: { access: true, scope: 'campus', allowedReports: ['users', 'campus', 'performance', 'new-registrations', 'financial-roi', 'monitor-trends'] },
@@ -84,19 +93,21 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         referralTracking: { access: true, scope: 'campus' },
         savingsCalculator: { access: true, scope: 'campus' },
         rulesAccess: { access: true, scope: 'campus' },
-        feeManagement: { access: true, scope: 'campus', canCreate: false, canEdit: false }, // View Only
+        feeManagement: { access: true, scope: 'campus', canCreate: false, canEdit: false },
         engagementCentre: { access: false, scope: 'none' },
         paymentApproval: { access: false, scope: 'none' },
         programLeads: { access: false, scope: 'none' },
-        externalPrograms: { access: false, scope: 'none' }
+        externalPrograms: { access: false, scope: 'none' },
+        academicCycles: { access: false, scope: 'none' },
+        disasterRecovery: { access: false, scope: 'none' }
     },
     'Finance Admin': {
         analytics: { access: true, scope: 'all' },
-        userManagement: { access: true, scope: 'view-only' }, // Changed from false/none
-        studentManagement: { access: true, scope: 'all', canCreate: false, canEdit: false }, // Changed from false/none (View Only)
+        userManagement: { access: true, scope: 'view-only' },
+        studentManagement: { access: true, scope: 'all', canCreate: false, canEdit: false },
         adminManagement: { access: false, scope: 'none' },
         campusPerformance: { access: false, scope: 'none' },
-        reports: { access: true, scope: 'all', allowedReports: ['settlements', 'payments', 'financial-roi'] }, // Added financial-roi
+        reports: { access: true, scope: 'all', allowedReports: ['settlements', 'payments', 'financial-roi'] },
         settlements: { access: true, scope: 'all' },
         marketingKit: { access: false, scope: 'none' },
         auditLog: { access: false, scope: 'none' },
@@ -112,7 +123,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         engagementCentre: { access: false, scope: 'none' },
         paymentApproval: { access: true, scope: 'all' },
         programLeads: { access: false, scope: 'none' },
-        externalPrograms: { access: false, scope: 'none' }
+        externalPrograms: { access: false, scope: 'none' },
+        academicCycles: { access: false, scope: 'none' },
+        disasterRecovery: { access: false, scope: 'none' }
     },
     'Admission Admin': {
         analytics: { access: true, scope: 'view-only' },
@@ -136,16 +149,17 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         engagementCentre: { access: false, scope: 'none' },
         paymentApproval: { access: true, scope: 'view-only' },
         programLeads: { access: false, scope: 'none' },
-        externalPrograms: { access: false, scope: 'none' }
+        externalPrograms: { access: false, scope: 'none' },
+        academicCycles: { access: false, scope: 'none' },
+        disasterRecovery: { access: false, scope: 'none' }
     },
     'Campus Admin': {
-        // OPERATORRole: Execution & Data Entry (Full Edit Access, Basic Reports)
         analytics: { access: true, scope: 'campus' },
         userManagement: { access: true, scope: 'campus', canCreate: true, canEdit: true },
         studentManagement: { access: true, scope: 'campus', canCreate: true, canEdit: true },
         adminManagement: { access: false, scope: 'none' },
         campusPerformance: { access: false, scope: 'none' },
-        reports: { access: true, scope: 'campus', allowedReports: ['users', 'campus', 'performance', 'new-registrations', 'pending-leads', 'lead-pipeline'] }, // No Financial ROI
+        reports: { access: true, scope: 'campus', allowedReports: ['users', 'campus', 'performance', 'new-registrations', 'pending-leads', 'lead-pipeline'] },
         settlements: { access: false, scope: 'none' },
         marketingKit: { access: false, scope: 'none' },
         auditLog: { access: false, scope: 'none' },
@@ -161,7 +175,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         engagementCentre: { access: false, scope: 'none' },
         paymentApproval: { access: false, scope: 'none' },
         programLeads: { access: false, scope: 'none' },
-        externalPrograms: { access: false, scope: 'none' }
+        externalPrograms: { access: false, scope: 'none' },
+        academicCycles: { access: false, scope: 'none' },
+        disasterRecovery: { access: false, scope: 'none' }
     },
     'Staff': {
         analytics: { access: true, scope: 'self' },
@@ -185,7 +201,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         engagementCentre: { access: false, scope: 'none' },
         paymentApproval: { access: false, scope: 'none' },
         programLeads: { access: true, scope: 'self' },
-        externalPrograms: { access: false, scope: 'none' }
+        externalPrograms: { access: false, scope: 'none' },
+        academicCycles: { access: false, scope: 'none' },
+        disasterRecovery: { access: false, scope: 'none' }
     },
     'Parent': {
         analytics: { access: true, scope: 'self' },
@@ -209,7 +227,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         engagementCentre: { access: false, scope: 'none' },
         paymentApproval: { access: false, scope: 'none' },
         programLeads: { access: true, scope: 'self' },
-        externalPrograms: { access: false, scope: 'none' }
+        externalPrograms: { access: false, scope: 'none' },
+        academicCycles: { access: false, scope: 'none' },
+        disasterRecovery: { access: false, scope: 'none' }
     },
     'Alumni': {
         analytics: { access: true, scope: 'self' },
@@ -233,7 +253,9 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         engagementCentre: { access: false, scope: 'none' },
         paymentApproval: { access: false, scope: 'none' },
         programLeads: { access: true, scope: 'self' },
-        externalPrograms: { access: false, scope: 'none' }
+        externalPrograms: { access: false, scope: 'none' },
+        academicCycles: { access: false, scope: 'none' },
+        disasterRecovery: { access: false, scope: 'none' }
     },
     'Others': {
         analytics: { access: true, scope: 'self' },
@@ -257,131 +279,8 @@ export const ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         engagementCentre: { access: false, scope: 'none' },
         paymentApproval: { access: false, scope: 'none' },
         programLeads: { access: true, scope: 'self' },
-        externalPrograms: { access: false, scope: 'none' }
+        externalPrograms: { access: false, scope: 'none' },
+        academicCycles: { access: false, scope: 'none' },
+        disasterRecovery: { access: false, scope: 'none' }
     },
-}
-
-/**
- * Check if a role has access to a specific module
- */
-export function hasModuleAccess(role: string, module: keyof RolePermissions): boolean {
-    const normalizedRole = role.replace(/_/g, ' ')
-    const permissions = ROLE_PERMISSIONS[normalizedRole]
-    if (!permissions) return false
-    return permissions[module]?.access || false
-}
-
-/**
- * Check if a role can perform a specific action on a module
- */
-export function canPerformAction(
-    role: string,
-    module: keyof RolePermissions,
-    action: 'create' | 'edit' | 'delete'
-): boolean {
-    const normalizedRole = role.replace(/_/g, ' ')
-    const permissions = ROLE_PERMISSIONS[normalizedRole]
-    if (!permissions || !permissions[module]?.access) return false
-
-    const modulePermission = permissions[module]
-
-    switch (action) {
-        case 'create':
-            return modulePermission.canCreate || false
-        case 'edit':
-            return modulePermission.canEdit || false
-        case 'delete':
-            return modulePermission.canDelete || false
-        default:
-            return false
-    }
-}
-
-/**
- * Get the data scope for a role and module
- */
-export function getDataScope(role: string, module: keyof RolePermissions): DataScope {
-    const normalizedRole = role.replace(/_/g, ' ')
-    const permissions = ROLE_PERMISSIONS[normalizedRole]
-    if (!permissions) return 'none'
-    return permissions[module]?.scope || 'none'
-}
-
-/**
- * Get allowed reports for a role
- */
-export function getAllowedReports(role: string): string[] {
-    const normalizedRole = role.replace(/_/g, ' ')
-    const permissions = ROLE_PERMISSIONS[normalizedRole]
-    if (!permissions || !permissions.reports?.access) return []
-
-    const allowedReports = permissions.reports.allowedReports || []
-    if (allowedReports.includes('all')) {
-        return [
-            'users', 'campus', 'admins', 'summary',
-            'referral-performance', 'pending-leads', 'monthly-trends',
-            'inactive-users', 'top-performers', 'campus-distribution',
-            'benefit-tier', 'new-registrations', 'staff-vs-parent', 'lead-pipeline',
-            'conversion-funnel', 'financial-roi', 'target-achievement', 'star-milestones'
-        ]
-    }
-
-    return allowedReports
-}
-
-/**
- * Check if a role can access a specific report
- */
-export function canAccessReport(role: string, reportId: string): boolean {
-    const allowedReports = getAllowedReports(role)
-    return allowedReports.includes(reportId)
-}
-
-/**
- * Get human-readable permission description
- */
-export function getPermissionDescription(permission: ModulePermission): string {
-    if (!permission.access) return 'No Access'
-
-    const scope = permission.scope === 'all' ? 'All Data' :
-        permission.scope === 'campus' ? 'Campus Manager' :
-            permission.scope === 'view-only' ? 'Global View' :
-                permission.scope === 'campus-view' ? 'Campus View' : 'No Access'
-
-    const actions = []
-    if (permission.canCreate) actions.push('Create')
-    if (permission.canEdit) actions.push('Edit')
-    if (permission.canDelete) actions.push('Delete')
-
-    if (actions.length === 0) return scope
-    return `${scope} (${actions.join(', ')})`
-}
-/**
- * Generates a Prisma where filter based on user role and module scope.
- */
-export function getPrismaScopeFilter(user: any, module: keyof RolePermissions): any {
-    const scope = getDataScope(user.role, module)
-
-    if (scope === 'all') return {}
-
-    // Default filters for common models
-    if (scope === 'campus' || scope === 'campus-view') {
-        const campusId = user.campusId || (user as any).adminCampusId
-        const campusName = user.assignedCampus
-
-        // Return a multi-field filter to cover different model structures
-        return {
-            OR: [
-                ...(campusId ? [{ campusId }] : []),
-                ...(campusName ? [{ campus: campusName }] : []),
-                ...(campusName ? [{ assignedCampus: campusName }] : [])
-            ]
-        }
-    }
-
-    if (scope === 'self') {
-        return { userId: user.userId }
-    }
-
-    return { userId: -1 } // Force empty result for unauthorized
 }

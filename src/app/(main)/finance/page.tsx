@@ -1,4 +1,5 @@
 import { getCurrentUser } from '@/lib/auth-service'
+import { hasPermission } from '@/lib/permission-service'
 import { redirect } from 'next/navigation'
 
 import { getSettlements, getFinanceStats, getRegistrationTransactions } from '@/app/finance-actions'
@@ -10,11 +11,9 @@ export default async function FinancePage() {
     const user = await getCurrentUser()
     if (!user) redirect('/')
 
-    // RBAC: Only Finance Admin, Super Admin, Campus Head
-    const allowedRoles = ['Super Admin', 'Finance Admin', 'Campus Head']
-    // Campus Admin might be allowed? Let's stick to stricter list for now.
-    if (!allowedRoles.some(r => user.role.includes(r)) && user.role !== 'Finance Admin') {
-        redirect('/dashboard') // or 403
+    // RBAC: Only roles with Finance & Settlements access
+    if (!await hasPermission('settlements')) {
+        redirect('/dashboard')
     }
 
     // Fetch Data

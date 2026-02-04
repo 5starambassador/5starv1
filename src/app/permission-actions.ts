@@ -3,7 +3,7 @@
 import prisma from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
-import { ROLE_PERMISSIONS } from '@/lib/permissions'
+import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/permissions'
 
 import { getCurrentUser } from '@/lib/auth-service'
 import { logAction } from '@/lib/audit-logger'
@@ -66,13 +66,15 @@ export async function getRolePermissions(role: string) {
                     engagementCentre: { access: (dbPerms as any).engagementCentreAccess, scope: (dbPerms as any).engagementCentreScope || 'none' },
                     paymentApproval: { access: (dbPerms as any).paymentApprovalAccess, scope: (dbPerms as any).paymentApprovalScope || 'none' },
                     programLeads: { access: (dbPerms as any).programLeadsAccess, scope: (dbPerms as any).programLeadsScope || 'none' },
-                    externalPrograms: { access: (dbPerms as any).externalProgramsAccess, scope: (dbPerms as any).externalProgramsScope || 'none' }
+                    externalPrograms: { access: (dbPerms as any).externalProgramsAccess, scope: (dbPerms as any).externalProgramsScope || 'none' },
+                    academicCycles: { access: (dbPerms as any).academicCyclesAccess, scope: (dbPerms as any).academicCyclesScope || 'none' },
+                    disasterRecovery: { access: (dbPerms as any).disasterRecoveryAccess, scope: (dbPerms as any).disasterRecoveryScope || 'none' }
                 }
             }
         }
 
         // Fallback to default permissions from code
-        const defaultPerms = ROLE_PERMISSIONS[role]
+        const defaultPerms = DEFAULT_ROLE_PERMISSIONS[role]
         return { success: true, permissions: defaultPerms, isDefault: true }
     } catch (error) {
         console.error('Get permissions error:', error)
@@ -151,6 +153,10 @@ export async function updateRolePermissions(role: string, permissions: RolePermi
                 programLeadsScope: permissions.programLeads?.scope ?? 'none',
                 externalProgramsAccess: permissions.externalPrograms?.access ?? false,
                 externalProgramsScope: permissions.externalPrograms?.scope ?? 'none',
+                academicCyclesAccess: permissions.academicCycles?.access ?? false,
+                academicCyclesScope: permissions.academicCycles?.scope ?? 'none',
+                disasterRecoveryAccess: permissions.disasterRecovery?.access ?? false,
+                disasterRecoveryScope: permissions.disasterRecovery?.scope ?? 'none',
                 updatedBy: admin.fullName
             } as any,
             update: {
@@ -207,6 +213,10 @@ export async function updateRolePermissions(role: string, permissions: RolePermi
                 programLeadsScope: permissions.programLeads?.scope ?? 'none',
                 externalProgramsAccess: permissions.externalPrograms?.access ?? false,
                 externalProgramsScope: permissions.externalPrograms?.scope ?? 'none',
+                academicCyclesAccess: permissions.academicCycles?.access ?? false,
+                academicCyclesScope: permissions.academicCycles?.scope ?? 'none',
+                disasterRecoveryAccess: permissions.disasterRecovery?.access ?? false,
+                disasterRecoveryScope: permissions.disasterRecovery?.scope ?? 'none',
                 updatedBy: admin.fullName
             } as any
         })

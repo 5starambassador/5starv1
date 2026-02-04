@@ -43,7 +43,7 @@ export function StrategicForecastCard({ intelligence }: StrategicForecastCardPro
                     <div className="space-y-1">
                         {intelligence.campuses.slice(0, 4).sort((a, b) => b.predictedYield - a.predictedYield).map((camp: any) => (
                             <div key={camp.campus} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 px-2 rounded-xl transition-all">
-                                <span className="font-black text-sm text-gray-700">{camp.campus}</span>
+                                <span className="font-black text-sm text-gray-700 truncate" title={camp.campus}>{camp.campus}</span>
                                 <div className="flex items-center gap-6">
                                     <div className="text-right">
                                         <p className="text-[9px] font-black text-gray-400 uppercase leading-none mb-1">Pipeline</p>

@@ -1,9 +1,9 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, User, Phone, MapPin, Calendar, CreditCard, Hash, Shield, Key, Clock, AlertCircle, CheckCircle, Pencil, Trash2, IndianRupee } from 'lucide-react'
+import { X, User, Phone, MapPin, Calendar, CreditCard, Hash, Shield, Key, Clock, AlertCircle, CheckCircle, Pencil, Trash2, IndianRupee, RefreshCcw } from 'lucide-react'
 import { format } from 'date-fns'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { getGradeFee } from '@/app/admin-actions'
+import { getGradeFee, revertReferralConfirmation } from '@/app/admin-actions'
 import { GRADES } from '@/lib/constants'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
@@ -11,7 +11,7 @@ interface ReferralDetailPanelProps {
     referral: any | null
     onClose: () => void
     onUpdate: (id: number, data: any) => Promise<any>
-    onConfirm?: (id: number, erp: string, feeType: 'OTP' | 'WOTP', admFee?: number, donFee?: number) => Promise<any>
+    onConfirm?: (id: number, erp: string, feeType: 'OTP' | 'WOTP', admFee?: number, donFee?: number, annualFee?: number) => Promise<any>
     onReject?: (id: number, reason: string) => Promise<any>
     onDelete?: (id: number) => Promise<any>
     campuses?: any[]
@@ -36,14 +36,16 @@ export function ReferralDetailPanel({
         erp: '',
         feeType: 'OTP' as 'OTP' | 'WOTP',
         admFee: 0,
-        donFee: 0
+        donFee: 0,
+        annualFee: 0
     })
     const [editForm, setEditForm] = useState({
         studentName: '',
         parentName: '',
         parentMobile: '',
         gradeInterested: '',
-        campus: ''
+        campus: '',
+        admittedYear: ''
     })
     const [loading, setLoading] = useState(false)
     const [standardFees, setStandardFees] = useState<{ otp: number | null, wotp: number | null }>({ otp: null, wotp: null })
@@ -60,14 +62,16 @@ export function ReferralDetailPanel({
                 erp: referral.admissionNumber || '',
                 feeType: (referral.selectedFeeType as any) || 'OTP',
                 admFee: referral.admissionFeeCollected || 0,
-                donFee: referral.donationFeeCollected || 0
+                donFee: referral.donationFeeCollected || 0,
+                annualFee: referral.annualFee || 0
             })
             setEditForm({
                 studentName: referral.studentName || '',
                 parentName: referral.parentName || '',
                 parentMobile: referral.parentMobile || '',
                 gradeInterested: referral.gradeInterested || '',
-                campus: referral.campus || ''
+                campus: referral.campus || '',
+                admittedYear: referral.admittedYear || '2026-2027'
             })
             setIsConfirming(false)
             setIsRejecting(false)
@@ -77,10 +81,23 @@ export function ReferralDetailPanel({
             // Fetch standard fees for this campus/grade
             if (!isSpecialCampus && referral.campus && referral.gradeInterested) {
                 setFetchingFees(true)
-                getGradeFee(referral.campus, referral.gradeInterested)
+                getGradeFee(referral.campus, referral.gradeInterested, referral.admittedYear || '2026-2027')
                     .then(res => {
+                        console.log('DEBUG: getGradeFee response:', res) // [DEBUG LOG]
                         if (res.success && res.fees) {
                             setStandardFees(res.fees)
+
+                            // AUTO-POPULATE: If current annualFee is 0, set it based on current feeType
+                            setConfirmForm(prev => {
+                                // Only update if annualFee is missing/zero to avoid overwriting user edits (if any)
+                                // But on first open, it's usually 0.
+                                if (!prev.annualFee) {
+                                    const type = prev.feeType as 'OTP' | 'WOTP'
+                                    const autoFee = type === 'OTP' ? (res.fees?.otp || 0) : (res.fees?.wotp || 0)
+                                    return { ...prev, annualFee: autoFee }
+                                }
+                                return prev
+                            })
                         } else {
                             console.warn('Could not fetch standard fees:', res.error)
                         }
@@ -115,7 +132,8 @@ export function ReferralDetailPanel({
 
         setLoading(true)
         try {
-            const res = await onConfirm?.(referral.leadId, confirmForm.erp, confirmForm.feeType, confirmForm.admFee, confirmForm.donFee)
+            // Pass manual annual fee override to action
+            const res = await onConfirm?.(referral.leadId, confirmForm.erp, confirmForm.feeType, confirmForm.admFee, confirmForm.donFee, confirmForm.annualFee)
             if (res?.success) {
                 toast.success('Referral confirmed successfully')
                 onClose()
@@ -227,9 +245,28 @@ export function ReferralDetailPanel({
 
     const currentStep = getStatusStep(referral.leadStatus)
 
+    const handleRevert = async () => {
+        if (!confirm('Are you sure you want to revert this confirmation? The status will be reset to New and the ambassador benefit count will be decreased.')) return
+
+        setLoading(true)
+        try {
+            const res = await revertReferralConfirmation(referral.leadId)
+            if (res.success) {
+                toast.success('Confirmation reverted successfully')
+                window.location.reload()
+            } else {
+                toast.error(res.error || 'Failed to revert')
+            }
+        } catch (error) {
+            toast.error('Revert failed')
+        } finally {
+            setLoading(false)
+        }
+    }
+
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-[60] flex justify-end">
+            <div className="fixed inset-0 z-[60] flex justify-end" key="referral-modal">
                 {/* Backdrop */}
                 <motion.div
                     initial={{ opacity: 0 }}
@@ -395,7 +432,7 @@ export function ReferralDetailPanel({
                                             ))}
                                         </select>
                                     </div>
-                                    <div className="space-y-2 col-span-2">
+                                    <div className="space-y-2">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Interested Campus</label>
                                         <select
                                             value={editForm.campus}
@@ -406,6 +443,18 @@ export function ReferralDetailPanel({
                                             {campuses.map((c: any) => (
                                                 <option key={c.id} value={c.campusName}>{c.campusName}</option>
                                             ))}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Academic Year</label>
+                                        <select
+                                            value={editForm.admittedYear || '2026-2027'}
+                                            onChange={e => setEditForm({ ...editForm, admittedYear: e.target.value })}
+                                            className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                        >
+                                            <option value="2026-2027">2026-2027</option>
+                                            <option value="2025-2026">2025-2026</option>
+                                            <option value="2024-2025">2024-2025</option>
                                         </select>
                                     </div>
                                 </div>
@@ -504,22 +553,34 @@ export function ReferralDetailPanel({
                                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Fee Plan *</label>
                                                         <select
                                                             value={confirmForm.feeType}
-                                                            onChange={e => setConfirmForm({ ...confirmForm, feeType: e.target.value as any })}
+                                                            onChange={e => {
+                                                                const newType = e.target.value as 'OTP' | 'WOTP'
+                                                                let newAnnualFee = confirmForm.annualFee
+                                                                // Only auto-update if standard fees are available
+                                                                if (standardFees.otp || standardFees.wotp) {
+                                                                    newAnnualFee = newType === 'OTP' ? (standardFees.otp || 0) : (standardFees.wotp || 0)
+                                                                }
+                                                                setConfirmForm({ ...confirmForm, feeType: newType, annualFee: newAnnualFee })
+                                                            }}
                                                             className="w-full px-4 py-2.5 bg-white border border-indigo-100 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
                                                         >
                                                             <option value="OTP">OTP Plan</option>
                                                             <option value="WOTP">WOTP Plan</option>
                                                         </select>
                                                     </div>
+
+                                                    {/* [NEW] Editable Annual Fee Override */}
                                                     <div>
-                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Standard Annual Fee</label>
+                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Annual Fee (Override) *</label>
                                                         <div className="relative">
-                                                            <IndianRupee size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
-                                                            <div className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-indigo-50 rounded-xl text-sm font-bold text-gray-400">
-                                                                {fetchingFees ? '---' :
-                                                                    confirmForm.feeType === 'OTP' ? (standardFees.otp ?? 'Not Set') :
-                                                                        (standardFees.wotp ?? 'Not Set')}
-                                                            </div>
+                                                            <IndianRupee size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                            <input
+                                                                type="number"
+                                                                value={confirmForm.annualFee}
+                                                                onChange={e => setConfirmForm({ ...confirmForm, annualFee: parseInt(e.target.value) || 0 })}
+                                                                className="w-full pl-8 pr-4 py-2.5 bg-white border border-indigo-100 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                                                                placeholder="Enter Final Annual Fee"
+                                                            />
                                                         </div>
                                                     </div>
                                                     <div>
@@ -564,21 +625,147 @@ export function ReferralDetailPanel({
                         {/* Confirmation Details (If Confirmed) */}
                         {referral.leadStatus === 'Confirmed' && (
                             <section className="bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100/50 space-y-4">
-                                <h3 className="text-xs font-black text-emerald-600 uppercase tracking-[0.2em]">Admission Details</h3>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-white p-3 rounded-xl border border-emerald-100">
-                                        <p className="text-[9px] font-black text-emerald-500 uppercase">ERP Number</p>
-                                        <p className="text-sm font-black text-emerald-900 font-mono mt-0.5">{referral.admissionNumber}</p>
-                                    </div>
-                                    <div className="bg-white p-3 rounded-xl border border-emerald-100">
-                                        <p className="text-[9px] font-black text-emerald-500 uppercase">Plan Type</p>
-                                        <p className="text-sm font-black text-emerald-900 mt-0.5">{referral.selectedFeeType}</p>
-                                    </div>
-                                    <div className="bg-white p-3 rounded-xl border border-emerald-100">
-                                        <p className="text-[9px] font-black text-emerald-500 uppercase">Fees Collected</p>
-                                        <p className="text-sm font-black text-emerald-900 mt-0.5">₹{((referral.admissionFeeCollected || 0) + (referral.donationFeeCollected || 0)).toLocaleString()}</p>
-                                    </div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-xs font-black text-emerald-600 uppercase tracking-[0.2em]">Admission Details</h3>
+                                    {!isEditing ? (
+                                        <button
+                                            onClick={() => setIsEditing(true)}
+                                            className="text-[10px] font-black text-emerald-500 uppercase tracking-widest hover:bg-emerald-50 px-3 py-1 rounded-lg transition-colors flex items-center gap-1.5"
+                                        >
+                                            <Pencil size={12} />
+                                            Edit
+                                        </button>
+                                    ) : (
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => setIsEditing(false)}
+                                                className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:bg-gray-100 px-3 py-1 rounded-lg transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={async () => {
+                                                    setLoading(true)
+                                                    try {
+                                                        const res = await onUpdate(referral.leadId, {
+                                                            admissionNumber: confirmForm.erp,
+                                                            selectedFeeType: confirmForm.feeType,
+                                                            admissionFeeCollected: confirmForm.admFee,
+                                                            donationFeeCollected: confirmForm.donFee,
+                                                            annualFee: confirmForm.annualFee
+                                                        })
+                                                        if (res?.success) {
+                                                            toast.success('Admission details updated')
+                                                            setIsEditing(false)
+                                                        } else {
+                                                            toast.error(res?.error || 'Update failed')
+                                                        }
+                                                    } catch (error) {
+                                                        toast.error('Update failed')
+                                                    } finally {
+                                                        setLoading(false)
+                                                    }
+                                                }}
+                                                disabled={loading}
+                                                className="text-[10px] font-black text-emerald-500 uppercase tracking-widest hover:bg-emerald-50 px-3 py-1 rounded-lg transition-colors flex items-center gap-1.5"
+                                            >
+                                                {loading ? <Clock size={12} className="animate-spin" /> : <CheckCircle size={12} />}
+                                                Save
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
+
+                                {/* Edit Mode */}
+                                {isEditing ? (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="col-span-2">
+                                            <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 block">ERP Number *</label>
+                                            <input
+                                                type="text"
+                                                value={confirmForm.erp}
+                                                onChange={e => setConfirmForm({ ...confirmForm, erp: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-white border border-emerald-100 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                                                placeholder="Enter ERP Number"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 block">Fee Plan *</label>
+                                            <select
+                                                value={confirmForm.feeType}
+                                                onChange={e => {
+                                                    const newType = e.target.value as 'OTP' | 'WOTP'
+                                                    // Auto-update annual fee based on standard fees if available
+                                                    let newAnnualFee = confirmForm.annualFee
+                                                    if (standardFees.otp || standardFees.wotp) {
+                                                        newAnnualFee = newType === 'OTP' ? (standardFees.otp || 0) : (standardFees.wotp || 0)
+                                                    }
+                                                    setConfirmForm({ ...confirmForm, feeType: newType, annualFee: newAnnualFee })
+                                                }}
+                                                className="w-full px-4 py-2.5 bg-white border border-emerald-100 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                                            >
+                                                <option value="OTP">OTP Plan</option>
+                                                <option value="WOTP">WOTP Plan</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 block">Annual Fee</label>
+                                            <div className="relative">
+                                                <IndianRupee size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                <input
+                                                    type="number"
+                                                    value={confirmForm.annualFee}
+                                                    onChange={e => setConfirmForm({ ...confirmForm, annualFee: parseInt(e.target.value) || 0 })}
+                                                    className="w-full pl-8 pr-4 py-2.5 bg-white border border-emerald-100 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 block">Admission Fee</label>
+                                            <div className="relative">
+                                                <IndianRupee size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                <input
+                                                    type="number"
+                                                    value={confirmForm.admFee}
+                                                    onChange={e => setConfirmForm({ ...confirmForm, admFee: parseInt(e.target.value) || 0 })}
+                                                    className="w-full pl-8 pr-4 py-2.5 bg-white border border-emerald-100 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 block">Donation Fee</label>
+                                            <div className="relative">
+                                                <IndianRupee size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                <input
+                                                    type="number"
+                                                    value={confirmForm.donFee}
+                                                    onChange={e => setConfirmForm({ ...confirmForm, donFee: parseInt(e.target.value) || 0 })}
+                                                    className="w-full pl-8 pr-4 py-2.5 bg-white border border-emerald-100 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {/* Read Only View */}
+                                        <div className="bg-white p-3 rounded-xl border border-emerald-100">
+                                            <p className="text-[9px] font-black text-emerald-500 uppercase">ERP Number</p>
+                                            <p className="text-sm font-black text-emerald-900 font-mono mt-0.5">{referral.admissionNumber}</p>
+                                        </div>
+                                        <div className="bg-white p-3 rounded-xl border border-emerald-100">
+                                            <p className="text-[9px] font-black text-emerald-500 uppercase">Plan Type</p>
+                                            <p className="text-sm font-black text-emerald-900 mt-0.5">{referral.selectedFeeType}</p>
+                                        </div>
+                                        <div className="bg-white p-3 rounded-xl border border-emerald-100">
+                                            <p className="text-[9px] font-black text-emerald-500 uppercase">Annual Fee</p>
+                                            <p className="text-sm font-black text-emerald-900 mt-0.5">₹{(referral.annualFee || 0).toLocaleString()}</p>
+                                        </div>
+                                        <div className="bg-white p-3 rounded-xl border border-emerald-100">
+                                            <p className="text-[9px] font-black text-emerald-500 uppercase">Fees Collected</p>
+                                            <p className="text-sm font-black text-emerald-900 mt-0.5">₹{((referral.admissionFeeCollected || 0) + (referral.donationFeeCollected || 0)).toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                )}
                             </section>
                         )}
 
@@ -660,13 +847,41 @@ export function ReferralDetailPanel({
                         ) : (
                             <>
                                 <div className="grid grid-cols-2 gap-3">
+                                    {/* Confirmed Lead Actions */}
+                                    {referral.leadStatus === 'Confirmed' && (
+                                        <div className="col-span-2 p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center shrink-0">
+                                                    <CheckCircle size={16} className="text-emerald-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-black text-emerald-900 uppercase">Admission Confirmed</p>
+                                                    <p className="text-[10px] font-bold text-emerald-600">
+                                                        {referral.confirmedDate ? format(new Date(referral.confirmedDate), 'MMM dd, yyyy') : ''}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {isSuperAdmin && (
+                                                <button
+                                                    onClick={handleRevert}
+                                                    disabled={loading}
+                                                    className="py-2 px-3 bg-white border border-red-200 text-red-500 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-red-50 transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    {loading ? <Clock size={12} className="animate-spin" /> : <RefreshCcw size={12} />}
+                                                    Revert
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {/* Dynamic Primary Action */}
                                     {referral.leadStatus === 'New' && (
                                         <button
                                             onClick={() => handleStatusUpdate('Contacted')}
-                                            className="col-span-2 py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
+                                            className="py-3 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-md shadow-emerald-200 transition-all flex items-center justify-center gap-2"
                                         >
-                                            Mark Contacted
+                                            Contacted
                                         </button>
                                     )}
 
@@ -674,13 +889,13 @@ export function ReferralDetailPanel({
                                         <>
                                             <button
                                                 onClick={() => handleStatusUpdate('Interested')}
-                                                className="py-3.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2"
+                                                className="py-3 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-md shadow-blue-200 transition-all flex items-center justify-center gap-2"
                                             >
-                                                Mark Interested
+                                                Interested
                                             </button>
                                             <button
                                                 onClick={() => handleStatusUpdate('Follow-up')}
-                                                className="py-3.5 px-4 bg-white border border-gray-200 text-gray-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                                                className="py-3 px-3 bg-white border border-gray-200 text-gray-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
                                             >
                                                 Follow Up
                                             </button>
@@ -691,13 +906,13 @@ export function ReferralDetailPanel({
                                         <>
                                             <button
                                                 onClick={() => setIsConfirming(true)}
-                                                className="py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
+                                                className="py-3 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-2"
                                             >
                                                 Confirm Admission
                                             </button>
                                             <button
                                                 onClick={() => handleStatusUpdate('Follow-up')}
-                                                className="py-3.5 px-4 bg-white border border-gray-200 text-gray-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                                                className="py-3 px-3 bg-white border border-gray-200 text-gray-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
                                             >
                                                 Follow Up
                                             </button>
@@ -708,36 +923,38 @@ export function ReferralDetailPanel({
                                         <>
                                             <button
                                                 onClick={() => handleStatusUpdate('Interested')}
-                                                className="py-3.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2"
+                                                className="py-3 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-md shadow-blue-200 transition-all flex items-center justify-center gap-2"
                                             >
-                                                Mark Interested
+                                                Interested
                                             </button>
                                             <button
                                                 onClick={() => handleStatusUpdate('Contacted')}
-                                                className="py-3.5 px-4 bg-white border border-gray-200 text-gray-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                                                className="py-3 px-3 bg-white border border-gray-200 text-gray-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
                                             >
-                                                Mark Contacted
+                                                Contacted
                                             </button>
                                         </>
                                     )}
 
-                                    {/* Danger Zone */}
+                                    {/* Reject / Close Lead */}
                                     {referral.leadStatus !== 'Rejected' && referral.leadStatus !== 'Confirmed' && (
                                         <button
                                             onClick={() => setIsRejecting(true)}
-                                            className="col-span-2 py-3.5 px-4 bg-white border border-red-100 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-50 transition-all flex items-center justify-center gap-2 shadow-sm"
+                                            className="col-span-1 py-3 px-3 bg-white border border-red-100 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-50 transition-all flex items-center justify-center gap-2"
                                         >
-                                            Reject / Close Lead
+                                            Reject
                                         </button>
                                     )}
                                 </div>
                                 {isSuperAdmin && (
-                                    <button
-                                        onClick={handleDelete}
-                                        className="w-full py-3.5 px-4 bg-white border border-gray-200 text-gray-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:text-red-600 hover:border-red-100 transition-all flex items-center justify-center gap-2 shadow-sm mt-3"
-                                    >
-                                        <Trash2 size={14} /> Permanent Delete
-                                    </button>
+                                    <div className="pt-2 flex justify-center">
+                                        <button
+                                            onClick={handleDelete}
+                                            className="text-gray-400 hover:text-red-600 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 transition-colors py-1"
+                                        >
+                                            <Trash2 size={12} /> Permanent Delete
+                                        </button>
+                                    </div>
                                 )}
                             </>
                         )}

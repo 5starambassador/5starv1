@@ -235,7 +235,14 @@ export async function getCampusReferrals() {
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
-    const whereClause = access.isSuperAdmin ? {} : { campusId: access.campusId }
+    const whereClause = access.isSuperAdmin
+        ? {}
+        : {
+            OR: [
+                { campusId: access.campusId },
+                { campus: { contains: access.campusName || '', mode: 'insensitive' as const } }
+            ]
+        }
 
     try {
         const referrals = await prisma.referralLead.findMany({
@@ -416,7 +423,18 @@ export async function getCampusFinance(days: number = 30) {
 }
 
 // --- Update Lead Status ---
-export async function updateLeadStatus(leadId: number, newStatus: 'New' | 'Follow-up' | 'Confirmed') {
+export async function updateLeadStatus(
+    leadId: number,
+    newStatus: 'New' | 'Follow-up' | 'Confirmed' | 'Rejected' | 'Closed',
+    admissionDetails?: {
+        admissionNumber: string
+        selectedFeeType: string
+        admissionFeeCollected: number
+        donationFeeCollected: number
+        annualFee: number
+        rejectionReason?: string
+    }
+) {
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
@@ -444,11 +462,39 @@ export async function updateLeadStatus(leadId: number, newStatus: 'New' | 'Follo
             }
         }
 
-        // Update the lead status
+        // Initialize Update Data
         const statusEnum = toLeadStatus(newStatus)
         const updateData: any = { leadStatus: statusEnum }
+
         if (statusEnum === LeadStatus.Confirmed) {
+            const isSpecialCampus = ['ACET', 'AASC', 'ACCHM'].includes(lead.campus || '')
+
+            // If admissionDetails provided, merge them
+            const erp = admissionDetails?.admissionNumber || lead.admissionNumber
+            const feeType = admissionDetails?.selectedFeeType || lead.selectedFeeType
+
+            // Validate
+            if (!erp) {
+                return { error: 'Cannot confirm: ERP/Admission Number is required.' }
+            }
+            if (!isSpecialCampus && !feeType) {
+                return { error: 'Cannot confirm: Fee Plan (OTP/WOTP) is required.' }
+            }
+
+            // Update Admission Data
+            if (admissionDetails) {
+                updateData.admissionNumber = admissionDetails.admissionNumber
+                updateData.selectedFeeType = admissionDetails.selectedFeeType
+                updateData.admissionFeeCollected = admissionDetails.admissionFeeCollected || 0
+                updateData.donationFeeCollected = admissionDetails.donationFeeCollected || 0
+                updateData.annualFee = admissionDetails.annualFee || 0
+            }
+
             updateData.confirmedDate = new Date()
+        } else if (newStatus === 'Rejected' || newStatus === 'Closed') {
+            if (newStatus === 'Rejected' && admissionDetails?.rejectionReason) {
+                updateData.rejectionReason = admissionDetails.rejectionReason
+            }
         }
 
         await prisma.referralLead.update({
@@ -490,6 +536,56 @@ export async function updateLeadStatus(leadId: number, newStatus: 'New' | 'Follo
     } catch (error) {
         console.error('updateLeadStatus Error:', error)
         return { error: 'Failed to update lead status' }
+    }
+}
+
+// --- Edit Lead Details (Campus Scoped) ---
+export async function updateCampusLeadDetails(
+    leadId: number,
+    data: {
+        studentName: string
+        gradeInterested: string
+        parentName: string
+        parentMobile: string
+    }
+) {
+    const access = await verifyCampusAccess()
+    if (access.error) return { error: access.error }
+
+    // Strict Permission Check
+    if (!await canEdit('referralTracking')) {
+        return { error: 'Permission Denied' }
+    }
+
+    try {
+        const lead = await prisma.referralLead.findUnique({
+            where: { leadId }
+        })
+
+        if (!lead) return { error: 'Lead not found' }
+
+        // Campus check
+        if (!access.isSuperAdmin && lead.campusId !== access.campusId) {
+            if (lead.campus && !lead.campus.toLowerCase().includes((access.campusName || '').toLowerCase())) {
+                return { error: 'Unauthorized: Lead not in your campus' }
+            }
+        }
+
+        await prisma.referralLead.update({
+            where: { leadId },
+            data: {
+                studentName: data.studentName,
+                gradeInterested: data.gradeInterested,
+                parentName: data.parentName,
+                parentMobile: data.parentMobile
+            }
+        })
+
+        revalidatePath('/campus/referrals')
+        return { success: true, message: 'Lead details updated' }
+    } catch (error) {
+        console.error('updateCampusLeadDetails Error:', error)
+        return { error: 'Failed to update lead details' }
     }
 }
 

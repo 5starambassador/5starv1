@@ -6,19 +6,21 @@ import { toast } from 'sonner'
 import { X } from 'lucide-react'
 import { User, Campus, BulkUserData } from '@/types'
 import { UserTable } from '@/components/superadmin/UserTable'
-import { ResetPasswordModal } from '@/components/superadmin/ResetPasswordModal'
-import CSVUploader from '@/components/CSVUploader'
 import { addUser, updateUser, removeUser, updateUserStatus, bulkAddUsers, purgeUserPermanently } from '@/app/superadmin-actions'
+import dynamic from 'next/dynamic'
 
-interface UserPanelProps {
+// Dynamic imports for bundle optimization
+const ResetPasswordModal = dynamic(() => import('@/components/superadmin/ResetPasswordModal').then(m => m.ResetPasswordModal), { ssr: false })
+const CSVUploader = dynamic(() => import('@/components/CSVUploader').then(m => m.default), { ssr: false })
+const ConfirmDialog = dynamic(() => import('@/components/ui/ConfirmDialog').then(m => m.ConfirmDialog), { ssr: false })
+
+interface UsersPageClientProps {
     users: User[]
     campuses: Campus[]
     currentUserRole?: string
 }
 
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-
-export function UserPanel({ users, campuses, currentUserRole }: UserPanelProps) {
+export default function UsersPageClient({ users, campuses, currentUserRole }: UsersPageClientProps) {
     const router = useRouter()
     const [searchQuery, setSearchQuery] = useState('')
     const [showAddUserModal, setShowAddUserModal] = useState(false)
@@ -64,7 +66,7 @@ export function UserPanel({ users, campuses, currentUserRole }: UserPanelProps) 
         longTermBenefitPercent: 0,
         childName: '',
         childInAchariya: false,
-        assignedCampus: '' // Added assignedCampus to initial state
+        assignedCampus: ''
     })
 
     const openEditUserModal = (user: User) => {
@@ -203,18 +205,24 @@ export function UserPanel({ users, campuses, currentUserRole }: UserPanelProps) 
     })
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-6 animate-fade-in min-h-screen pb-20">
+            <div className="flex justify-between items-center">
+                <h1 className="text-3xl font-black text-gray-900 tracking-tighter">User Operations</h1>
+            </div>
+
             {/* View Toggle */}
             <div className="flex bg-white/50 backdrop-blur-sm p-1 rounded-2xl border border-white/20 w-fit shadow-sm">
                 <button
                     onClick={() => setUserView('active')}
                     className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${userView === 'active' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-500 hover:text-indigo-600'}`}
+                    suppressHydrationWarning
                 >
                     Active Users
                 </button>
                 <button
                     onClick={() => setUserView('archive')}
                     className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${userView === 'archive' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-500 hover:text-red-600'}`}
+                    suppressHydrationWarning
                 >
                     Archived (Recycled)
                 </button>
@@ -222,6 +230,7 @@ export function UserPanel({ users, campuses, currentUserRole }: UserPanelProps) 
 
             <UserTable
                 users={filteredUsers}
+                campuses={campuses}
                 searchTerm={searchQuery}
                 onSearchChange={setSearchQuery}
                 onAddUser={() => {
@@ -240,7 +249,7 @@ export function UserPanel({ users, campuses, currentUserRole }: UserPanelProps) 
                 onToggleStatus={handleToggleUserStatus}
                 onViewReferrals={(code) => {
                     // Navigate to referrals view with filter
-                    router.push(`/superadmin?view=referrals&search=${code}`)
+                    router.push(`/superadmin/referrals?search=${code}`)
                 }}
                 onResetPassword={openResetModal}
                 onEdit={openEditUserModal}
@@ -337,7 +346,7 @@ export function UserPanel({ users, campuses, currentUserRole }: UserPanelProps) 
                                         {userForm.role === 'Parent' && (
                                             <>
                                                 <div>
-                                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Child's Name</label>
+                                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Childs Name</label>
                                                     <input
                                                         type="text"
                                                         value={userForm.childName}

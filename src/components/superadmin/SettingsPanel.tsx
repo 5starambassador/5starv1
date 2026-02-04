@@ -21,8 +21,9 @@ import { toast } from 'sonner'
 import { SecurityPanel } from './SecurityPanel'
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { RolePermissions } from '@/lib/permissions'
 
-export function SettingsPanel() {
+export function SettingsPanel({ permissions }: { permissions?: RolePermissions }) {
     const [activeTab, setActiveTab] = useState<'general' | 'dashboards' | 'security' | 'logic' | 'notifications' | 'data' | 'years'>('general')
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -147,9 +148,9 @@ export function SettingsPanel() {
                     { id: 'security', label: 'Security & Auth', icon: Shield },
                     { id: 'logic', label: 'Lead Logic', icon: Zap },
                     { id: 'notifications', label: 'Notifications', icon: Bell },
-                    { id: 'data', label: 'Data & Compliance', icon: Database },
-                    { id: 'years', label: 'Academic Years', icon: Calendar },
-                ].map((tab) => (
+                    { id: 'data', label: 'Data & Compliance', icon: Database, permission: 'disasterRecovery' },
+                    { id: 'years', label: 'Academic Years', icon: Calendar, permission: 'academicCycles' },
+                ].filter(tab => !tab.permission || (permissions && (permissions as any)[tab.permission]?.access)).map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
@@ -168,7 +169,7 @@ export function SettingsPanel() {
                 {/* Main Content Area */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* Academic Years Settings */}
-                    {activeTab === 'years' && (
+                    {activeTab === 'years' && permissions?.academicCycles?.access && (
                         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-8 space-y-8">
                             <div className="flex justify-between items-center">
                                 <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
@@ -551,7 +552,7 @@ export function SettingsPanel() {
                     )}
 
                     {/* Data & Compliance Center */}
-                    {activeTab === 'data' && (
+                    {activeTab === 'data' && permissions?.disasterRecovery?.access && (
                         <div className="space-y-8 animate-in fade-in">
 
                             {/* 1. Retention Policy */}

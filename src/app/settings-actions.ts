@@ -49,44 +49,79 @@ export async function getRegistrationStatus(): Promise<boolean> {
     }
 }
 
-export async function getSystemSettings() {
-    try {
-        // Fetch global flags
-        const settings = await prisma.systemSettings.findFirst()
+// In-memory cache for system settings to reduce DB load & handle quota limits
+let settingsCache: { data: any; timestamp: number } | null = null;
+const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
 
-        // Fetch current academic year from the consolidated source of truth
+export async function getSystemSettings() {
+    // Default fallback settings
+    const defaultSettings = {
+        allowNewRegistrations: false, // Fail-closed default
+        currentAcademicYear: '2025-2026',
+        defaultStudentFee: 60000,
+        maintenanceMode: false,
+        allowManualPayments: true,
+        id: 0,
+        updatedAt: new Date()
+    }
+
+    // Return cached settings if valid
+    const now = Date.now();
+    if (settingsCache && (now - settingsCache.timestamp < CACHE_TTL)) {
+        return settingsCache.data;
+    }
+
+    try {
+        // Guard against Prisma initialization failures
+        if (!prisma) {
+            console.warn('Prisma client not initialized in getSystemSettings');
+            return settingsCache?.data || defaultSettings;
+        }
+
+        // Fetch global flags
+        const settings = await prisma.systemSettings.findFirst().catch(e => {
+            const isQuotaError = e.message?.includes('quota') || e.code === 'P1001' || e.code === 'P1008';
+            if (isQuotaError) {
+                console.warn('Database quota exceeded or connection timed out. Using fallback/cache.');
+            } else {
+                console.error('Prisma systemSettings.findFirst failed:', e);
+            }
+            return null
+        });
+
+        // Fetch current academic year
         // @ts-ignore - Stale Prisma synchronization issue
         const currentYearRecord = await prisma.academicYear.findFirst({
             where: { isCurrent: true }
-        })
+        }).catch(e => {
+            const isQuotaError = e.message?.includes('quota') || e.code === 'P1001' || e.code === 'P1008';
+            if (!isQuotaError) console.error('Prisma academicYear.findFirst failed:', e);
+            return null
+        });
 
-        const defaultSettings = {
-            allowNewRegistrations: false, // Fail-closed default
-            currentAcademicYear: currentYearRecord?.year || '2025-2026',
-            defaultStudentFee: 60000,
-            maintenanceMode: false,
-            allowManualPayments: true,
-            id: 0,
-            updatedAt: new Date()
+        if (!settings) {
+            // If DB call failed but we have a cache (even if expired), return cache as emergency fallback
+            return settingsCache?.data || defaultSettings;
         }
 
-        if (!settings) return defaultSettings
-
-        return {
+        const consolidatedData = {
             ...settings,
             currentAcademicYear: currentYearRecord?.year || '2025-2026'
-        }
+        };
+
+        // Update cache
+        settingsCache = { data: consolidatedData, timestamp: now };
+
+        return consolidatedData;
     } catch (error) {
-        console.error('Error fetching system settings:', error)
-        return {
-            allowNewRegistrations: false,
-            currentAcademicYear: '2025-2026',
-            defaultStudentFee: 60000,
-            maintenanceMode: false,
-            allowManualPayments: true,
-            id: 0,
-            updatedAt: new Date()
+        // Distinguish quota errors in high-level catch
+        const isQuotaError = (error as any).message?.includes('quota');
+        if (isQuotaError) {
+            console.warn('CRITICAL: Database quota exhausted. Application is running on fallback settings.');
+        } else {
+            console.error('CRITICAL: Unexpected error fetching system settings.', error);
         }
+        return settingsCache?.data || defaultSettings;
     }
 }
 

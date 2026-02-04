@@ -60,6 +60,8 @@ model User {
   @@index([assignedCampus])
   @@index([status])
   @@index([createdAt])
+  @@index([fullName])
+  @@index([referralCode])
   @@map("User")
 }
 
@@ -123,6 +125,7 @@ model ReferralLead {
   @@index([campus])
   @@index([leadStatus])
   @@index([createdAt])
+  @@index([parentMobile])
 }
 
 model BenefitSlab {
@@ -270,6 +273,10 @@ model RolePermissions {
   programLeadsScope        String   @default("none")
   externalProgramsAccess   Boolean  @default(false)
   externalProgramsScope    String   @default("none")
+  academicCyclesAccess      Boolean  @default(false)
+  academicCyclesScope       String   @default("none")
+  disasterRecoveryAccess    Boolean  @default(false)
+  disasterRecoveryScope     String   @default("none")
 }
 
 model Settlement {

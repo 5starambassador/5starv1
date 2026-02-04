@@ -276,7 +276,7 @@ export async function getAdminAnalytics(): Promise<{ success: boolean; error?: s
  * @param leadId - The ID of the referral lead to confirm.
  * @returns An object indicating success or failure.
  */
-export async function confirmReferral(leadId: number, admissionNumber: string, selectedFeeType: 'OTP' | 'WOTP', admissionFee?: number, donationFee?: number) {
+export async function confirmReferral(leadId: number, admissionNumber: string, selectedFeeType: 'OTP' | 'WOTP', admissionFee?: number, donationFee?: number, annualFee?: number) {
     const admin = await getCurrentUser()
     // Permission handled by matrix Check
     if (!admin || !await canEdit('referralTracking')) {
@@ -326,20 +326,25 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
                 }
             }
 
-            const feeRule = await tx.gradeFee.findFirst({
-                where: {
-                    campusId: leadRecord.campusId,
-                    grade: leadRecord.gradeInterested,
-                    academicYear: '2026-2027' // Default for now
-                }
-            })
+            // Calculate Standard Fee (Fallback if not provided)
+            let finalAnnualFee = 0
+            if (annualFee !== undefined && annualFee !== null) {
+                finalAnnualFee = annualFee
+            } else {
+                const feeRule = await tx.gradeFee.findFirst({
+                    where: {
+                        campusId: leadRecord.campusId,
+                        grade: leadRecord.gradeInterested,
+                        academicYear: '2026-2027' // Default for now, ideally dynamic
+                    }
+                })
 
-            let annualFee = 0
-            if (feeRule) {
-                const rule = feeRule as any
-                annualFee = selectedFeeType === 'OTP'
-                    ? (rule.annualFee_otp || 0)
-                    : (rule.annualFee_wotp || 0)
+                /* Fallback logic for fee generation if not provided - kept simple within core logic or could import getGradeFee */
+                if (feeRule) {
+                    finalAnnualFee = selectedFeeType === 'OTP'
+                        ? (feeRule.annualFee_otp || 0)
+                        : (feeRule.annualFee_wotp || 0)
+                }
             }
 
             // 1. Update Lead
@@ -351,7 +356,7 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
                     confirmedDate: new Date(),
                     admissionNumber: admissionNumber,
                     selectedFeeType: selectedFeeType,
-                    annualFee: annualFee,
+                    annualFee: finalAnnualFee,
                     admissionFeeCollected: admissionFee,
                     donationFeeCollected: donationFee
                 } as any
@@ -468,6 +473,103 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
     } catch (e: any) {
         console.error(e)
         return { success: false, error: e.message || 'Failed' }
+    }
+}
+
+/**
+ * Reverts a confirmed referral back to New status.
+ * CRITICAL: Recalculates benefits to ensure system consistency.
+ */
+export async function revertReferralConfirmation(leadId: number) {
+    const admin = await getCurrentUser()
+    if (!admin || !admin.role.includes('Admin')) {
+        return { success: false, error: 'Permission Denied: Only Admins can revert confirmation' }
+    }
+
+    try {
+        await prisma.$transaction(async (tx) => {
+            const lead = await tx.referralLead.findUnique({ where: { leadId } })
+            if (!lead || lead.leadStatus !== 'Confirmed') {
+                throw new Error('Lead is not currently confirmed')
+            }
+
+            // 1. Revert Lead Status & Clear Confirmation Data
+            await tx.referralLead.update({
+                where: { leadId },
+                data: {
+                    leadStatus: 'New',
+                    confirmedDate: null,
+                    admissionNumber: null,
+                    selectedFeeType: null, // Clear choice so they select new one
+                    annualFee: null,
+                    admissionFeeCollected: 0,
+                    donationFeeCollected: 0
+                } as any
+            })
+
+            // 2. RECALCULATE Benefits (CRITICAL STEP)
+            const userId = lead.userId
+            const currentYearStart = new Date(new Date().getFullYear(), 0, 1);
+
+            // Recount AFTER revert
+            const currentYearCount = await tx.referralLead.count({
+                where: {
+                    userId,
+                    leadStatus: 'Confirmed',
+                    confirmedDate: { gte: currentYearStart }
+                }
+            })
+
+            const count = await tx.referralLead.count({
+                where: {
+                    userId,
+                    leadStatus: 'Confirmed'
+                }
+            })
+
+            // --- Benefit Logic (Identical to Confirm Logic) ---
+            const shortTermSlabs: Record<number, number> = { 1: 5, 2: 10, 3: 25, 4: 30, 5: 50 };
+            const lookupCount = Math.min(currentYearCount, 5);
+            let yearFeeBenefit = shortTermSlabs[lookupCount] || 0;
+
+            let longTermTotal = 0;
+            const user = await tx.user.findUnique({ where: { userId } });
+
+            if (user?.isFiveStarMember) {
+                const priorYearCount = count - currentYearCount;
+                if (currentYearCount >= 1) {
+                    const cumulativeBase = priorYearCount * 3;
+                    const currentYearBoost = currentYearCount * 5;
+                    longTermTotal = cumulativeBase + currentYearBoost;
+                    if (longTermTotal > yearFeeBenefit) {
+                        yearFeeBenefit = longTermTotal;
+                    }
+                }
+            }
+
+            // Update User with CORRECTED benefit state
+            await tx.user.update({
+                where: { userId },
+                data: {
+                    confirmedReferralCount: count,
+                    yearFeeBenefitPercent: yearFeeBenefit,
+                    longTermBenefitPercent: longTermTotal,
+                    benefitStatus: count >= 1 ? 'Active' : 'Inactive',
+                    // Note: We don't revoke isFiveStarMember if they drop below 5, it's sticky
+                }
+            })
+        })
+
+        revalidatePath('/admin')
+        revalidatePath('/dashboard')
+        revalidatePath('/referrals')
+
+        await logAction('UPDATE', 'referral', `Reverted confirmation for lead: ${leadId}`, leadId.toString())
+
+        return { success: true }
+    } catch (e: any) {
+        console.error('Revert Error:', e)
+        return { success: false, error: e.message || 'Revert failed' }
     }
 }
 
@@ -1200,37 +1302,105 @@ export async function updateReferral(leadId: number, data: {
  */
 export async function getGradeFee(campusName: string, grade: string, academicYear: string = '2026-2027') {
     const user = await getCurrentUser()
-    if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus') && !user.role.includes('Head'))) {
+
+    if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus') && !user.role.includes('Head') && !user.role.includes('Super'))) {
         return { success: false, error: 'Unauthorized' }
     }
 
     try {
-        const campus = await prisma.campus.findUnique({ where: { campusName } })
+        const cleanCampusName = campusName.trim()
+
+        // 1. ROBUST CAMPUS LOOKUP
+        let campus = await prisma.campus.findUnique({ where: { campusName: cleanCampusName } })
+
+        if (!campus) {
+            campus = await prisma.campus.findFirst({
+                where: { campusName: { equals: cleanCampusName, mode: 'insensitive' } }
+            })
+        }
+
+        // If no hyphen match found, try suffix matching but be careful with multiples
+        if (!campus && cleanCampusName.includes('-')) {
+            const parts = cleanCampusName.split('-')
+            const suffix = parts[parts.length - 1].trim()
+            if (suffix.length > 3) {
+                const campusMatches = await prisma.campus.findMany({
+                    where: { campusName: { contains: suffix, mode: 'insensitive' } }
+                })
+
+                if (campusMatches.length > 0) {
+                    // Try to pick the one that also matches the prefix
+                    const prefix = parts[0].trim().toLowerCase()
+                    campus = campusMatches.find(c => c.campusName.toLowerCase().includes(prefix)) || campusMatches[0]
+                }
+            }
+        }
+
+        // Final Loose Match (contains anywhere)
+        if (!campus) {
+            campus = await prisma.campus.findFirst({
+                where: { campusName: { contains: cleanCampusName, mode: 'insensitive' } }
+            })
+        }
+
         if (!campus) return { success: false, error: 'Campus not found' }
 
-        // Normalize matching (handle "Grade-8" vs "Grade - 8" vs "Grade 8")
-        // Database seems to use "Grade - 8" format
-        // We will try finding exact match first, then normalized
+        // 2. GRADE NORMALIZATION & MATCHING
+        const normalizeGrade = (g: string) => {
+            let s = g.trim().replace(/\s+/g, ' ') // Standardize to single space
+            // Roman Numeral Conversion
+            const romanMap: Record<string, string> = {
+                ' - I': ' - 1', ' - II': ' - 2', ' - III': ' - 3', ' - IV': ' - 4', ' - V': ' - 5',
+                ' - VI': ' - 6', ' - VII': ' - 7', ' - VIII': ' - 8', ' - IX': ' - 9', ' - X': ' - 10',
+                ' - XI': ' - 11', ' - XII': ' - 12'
+            }
+            Object.entries(romanMap).forEach(([roman, num]) => {
+                if (s.endsWith(roman)) s = s.replace(roman, num)
+            })
+
+            // Ensure standard format "Grade - N" or "Mont - N"
+            if (s.toLowerCase().includes('grade')) {
+                const num = s.toLowerCase().replace(/grade/g, '').replace(/-/g, '').trim()
+                return `Grade - ${num}`
+            }
+            if (s.toLowerCase().includes('mont') && !s.toLowerCase().includes('pre')) {
+                const num = s.toLowerCase().replace(/mont/g, '').replace(/-/g, '').trim()
+                return `Mont - ${num}`
+            }
+            return s
+        }
+
+        const normalizedGrade = normalizeGrade(grade)
+        const targetSimple = grade.toLowerCase().replace(/[^a-z0-9]/g, '')
 
         let feeRecord = await prisma.gradeFee.findFirst({
             where: {
                 campusId: campus.id,
-                grade: grade,
+                grade: normalizedGrade,
                 academicYear: academicYear
             }
         })
 
         if (!feeRecord) {
-            // Try formatting: "Grade-8" -> "Grade - 8"
-            const spacedGrade = grade.replace('Grade-', 'Grade - ').replace('Grade8', 'Grade - 8') // Basic heuristics
-            // Better: Search all fees for this campus/year and find fuzzy match
-            const allFees = await prisma.gradeFee.findMany({
+            // Try exact or fuzzy match in all fees for this campus/year
+            const allFeesForYear = await prisma.gradeFee.findMany({
                 where: { campusId: campus.id, academicYear: academicYear }
             })
 
-            // Fuzzy finder: Ignore spaces and case
-            const targetSimple = grade.toLowerCase().replace(/[^a-z0-9]/g, '')
-            feeRecord = allFees.find(f =>
+            feeRecord = allFeesForYear.find(f =>
+                f.grade === grade ||
+                f.grade.toLowerCase().replace(/[^a-z0-9]/g, '') === targetSimple
+            ) || null
+        }
+
+        // Final Year Fallback
+        if (!feeRecord) {
+            const allYearsFees = await prisma.gradeFee.findMany({
+                where: { campusId: campus.id },
+                orderBy: { academicYear: 'desc' }
+            })
+            feeRecord = allYearsFees.find(f =>
+                f.grade === grade ||
                 f.grade.toLowerCase().replace(/[^a-z0-9]/g, '') === targetSimple
             ) || null
         }

@@ -6,10 +6,10 @@ import { X, Plus, Trash } from 'lucide-react'
 import { Campus } from '@/types'
 import { CampusManagementTable } from '@/components/superadmin/CampusManagementTable'
 import { getCampuses, addCampus, updateCampus, deleteCampus, deleteCampuses, toggleCampusStatus } from '@/app/campus-actions'
-
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { useRouter } from 'next/navigation'
 
-export function CampusPanel({
+export default function CampusesPageClient({
     campuses: initialCampusesData = [],
     campusComparison = [],
     mode = 'management'
@@ -18,6 +18,7 @@ export function CampusPanel({
     campusComparison?: any[],
     mode?: 'management' | 'performance'
 }) {
+    const router = useRouter()
     const [campuses, setCampuses] = useState<Campus[]>(initialCampusesData)
 
     // Merge performance data
@@ -111,6 +112,7 @@ export function CampusPanel({
             toast.success(editingCampus ? 'Campus updated' : 'Campus added')
             setShowCampusModal(false)
             loadCampuses()
+            router.refresh()
         } else {
             toast.error(res.error || 'Failed to save campus')
         }
@@ -148,6 +150,7 @@ export function CampusPanel({
         const res = await toggleCampusStatus(id, newStatus)
         if (res.success) {
             toast.success(`Campus ${newStatus ? 'activated' : 'deactivated'}`)
+            router.refresh()
         } else {
             toast.error(res.error || 'Failed to update status')
             // Revert on failure
@@ -171,6 +174,7 @@ export function CampusPanel({
                 toast.success(force ? 'Campus(es) FORCE DELETED successfully' : 'Campus(es) deleted successfully')
                 setDeleteState({ isOpen: false, type: 'single', ids: [], force: false })
                 loadCampuses()
+                router.refresh()
             } else {
                 if (result.requiresForce && !force) {
                     // Switch to force delete mode
@@ -193,7 +197,11 @@ export function CampusPanel({
     }
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-6 animate-fade-in min-h-screen pb-20">
+            <div className="flex justify-between items-center">
+                <h1 className="text-3xl font-black text-gray-900 tracking-tighter">Campus Control</h1>
+            </div>
+
             <CampusManagementTable
                 mode={mode}
                 campuses={enrichedCampuses}

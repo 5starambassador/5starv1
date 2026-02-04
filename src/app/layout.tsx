@@ -72,8 +72,15 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const settings = await getSystemSettings();
-  const user = await getCurrentUser();
+  let settings;
+  try {
+    settings = await getSystemSettings();
+  } catch (error) {
+    console.error('RootLayout: Failed to load settings', error);
+    settings = { maintenanceMode: false }; // Fallback
+  }
+
+  const user = await getCurrentUser().catch(() => null);
   const headersList = await headers();
   const pathname = headersList.get("x-invoke-path") || "";
 

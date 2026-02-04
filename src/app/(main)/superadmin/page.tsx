@@ -1,10 +1,10 @@
 import { getCurrentUser } from '@/lib/auth-service'
+import { hasPermission, getMyPermissions } from '@/lib/permission-service'
 import { getSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { isIpWhitelisted } from '@/lib/security'
-import { getSystemAnalytics, getCampusComparison, getAllUsers, getAllAdmins, getAllStudents, getUserGrowthTrend } from '@/app/superadmin-actions'
-import { getAllReferrals } from '@/app/admin-actions' // Added import
+import { getSystemAnalytics, getCampusComparison, getAllAdmins, getUserGrowthTrend } from '@/app/superadmin-actions'
 import { getAdminMarketingAssets } from '@/app/marketing-actions'
 import { getSystemSettings, getSecuritySettings } from '@/app/settings-actions'
 import SuperadminClient from './superadmin-client' // Client component
@@ -40,10 +40,16 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
         redirect('/')
     }
 
-    // Check if user is Super Admin (strict check)
-    if (user.role !== 'Super Admin') {
-        redirect('/dashboard')
-    }
+    const permissions = await getMyPermissions()
+    if (!permissions) redirect('/dashboard')
+
+    // Allow access if they have access to ANY admin module
+    const hasAdminAccess = Object.keys(permissions).some(key => {
+        const p = (permissions as any)[key]
+        return p && p.access === true && !['referralSubmission', 'referralTracking', 'savingsCalculator', 'rulesAccess', 'programLeads'].includes(key)
+    })
+
+    if (!hasAdminAccess) redirect('/dashboard')
 
     // --- SECURITY ENFORCEMENT: IP WHITELIST ---
     const securitySettings = await getSecuritySettings() as any
@@ -126,30 +132,8 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
         // Pre-fetch users for search? checking getAllUsers... it's heavy.
     }
 
-    if (initialView === 'users') {
-        usersPromise = getAllUsers()
-    }
-
     if (initialView === 'admins') {
         adminsPromise = getAllAdmins()
-    }
-
-    if (initialView === 'students') {
-        studentsPromise = getAllStudents()
-        usersPromise = getAllUsers() // Needed for parent/ambassador lookup?
-    }
-
-    if (initialView === 'referrals') {
-        const page = parseInt(getString(params.page) || '1')
-        const limit = parseInt(getString(params.limit) || '50')
-        const filters = {
-            status: getString(params.status),
-            role: getString(params.role),
-            campus: getString(params.campus),
-            search: getString(params.search),
-            dateRange: (params.from && params.to) ? { from: getString(params.from)!, to: getString(params.to)! } : undefined
-        }
-        referralDataPromise = getAllReferrals(page, limit, filters)
     }
 
     if (initialView === 'marketing') {
@@ -224,9 +208,9 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
                     deepTrends={deepTrends.success ? deepTrends : null}
                     urgentTicketCount={urgentTicketCount}
 
-                    // Referral Props
                     referrals={serializeData(referralData.referrals || [])}
                     referralMeta={referralData.meta || { page: 1, limit: 50, total: 0, totalPages: 1 }}
+                    permissions={permissions}
                 />
             </Suspense>
         </ErrorBoundary>

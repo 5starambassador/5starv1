@@ -228,6 +228,16 @@ export function ProgramManager() {
                                         />
                                     </div>
 
+                                    <div className="space-y-2 col-span-2">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Program Description (Ambassador Tagline)</label>
+                                        <textarea
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 h-24 resize-none"
+                                            placeholder="Detailed description or tagline for ambassadors..."
+                                            value={form.description}
+                                            onChange={e => setForm({ ...form, description: e.target.value })}
+                                        />
+                                    </div>
+
                                     {/* Date Parsers - Moved to Top */}
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Start Date (Optional)</label>

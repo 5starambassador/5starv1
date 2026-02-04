@@ -1,20 +1,19 @@
 import { PrismaClient } from '@prisma/client'
-import { ROLE_PERMISSIONS } from '../lib/permissions'
+import { DEFAULT_ROLE_PERMISSIONS } from '../lib/permissions'
 
 const prisma = new PrismaClient()
 
 async function main() {
     console.log('🔄 Syncing Permission Matrix from Code to Database...')
 
-    const roles = Object.keys(ROLE_PERMISSIONS)
+    const roles = Object.keys(DEFAULT_ROLE_PERMISSIONS)
 
     for (const role of roles) {
-        const perms = ROLE_PERMISSIONS[role]
+        const perms = DEFAULT_ROLE_PERMISSIONS[role]
 
         console.log(`Processing Role: ${role}...`)
 
         // Construct the update payload based on schema columns
-        // We manually map nesting to flat structure for now to be safe
         const updateData = {
             analyticsAccess: perms.analytics.access,
             analyticsScope: perms.analytics.scope,
@@ -80,7 +79,22 @@ async function main() {
             feeManagementScope: perms.feeManagement.scope,
 
             engagementCentreAccess: perms.engagementCentre.access,
-            engagementCentreScope: perms.engagementCentre.scope
+            engagementCentreScope: perms.engagementCentre.scope,
+
+            paymentApprovalAccess: perms.paymentApproval.access,
+            paymentApprovalScope: perms.paymentApproval.scope,
+
+            programLeadsAccess: perms.programLeads.access,
+            programLeadsScope: perms.programLeads.scope,
+
+            externalProgramsAccess: perms.externalPrograms.access,
+            externalProgramsScope: perms.externalPrograms.scope,
+
+            academicCyclesAccess: perms.academicCycles.access,
+            academicCyclesScope: perms.academicCycles.scope,
+
+            disasterRecoveryAccess: perms.disasterRecovery.access,
+            disasterRecoveryScope: perms.disasterRecovery.scope
         }
 
         try {

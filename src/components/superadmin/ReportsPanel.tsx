@@ -32,7 +32,9 @@ import {
     generateLeadPipelineReport,
     generateStarMilestoneReport,
     generateAuditTrailReport,
-    generateSettlementIntegrityReport
+    generateSettlementIntegrityReport,
+    generateMasterPipelineExport,
+    generateMasterReferralReport
 } from '@/app/report-actions'
 
 interface ReportsPanelProps {
@@ -225,6 +227,32 @@ export function ReportsPanel({
             text: 'text-pink-700',
             border: 'border-pink-200',
             action: generateSettlementIntegrityReport,
+            canEmail: false
+        },
+        {
+            id: 'master-pipeline',
+            title: 'Master Pipeline',
+            count: 'Full History Export',
+            desc: 'Detailed CSV of every lead in the system with all status and referral data.',
+            icon: FileDown,
+            color: 'from-gray-700 to-gray-800',
+            bg: 'bg-gray-50',
+            text: 'text-gray-900',
+            border: 'border-gray-200',
+            action: generateMasterPipelineExport,
+            canEmail: false
+        },
+        {
+            id: 'master-referral',
+            title: 'Master Referral Report',
+            count: 'Detailed Audit Export',
+            desc: 'Combined report of Ambassador details joined with all their Referral Leads.',
+            icon: Users,
+            color: 'from-blue-700 to-blue-800',
+            bg: 'bg-blue-50',
+            text: 'text-blue-900',
+            border: 'border-blue-200',
+            action: generateMasterReferralReport,
             canEmail: false
         }
     ]

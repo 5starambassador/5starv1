@@ -9,7 +9,7 @@ const _LeadStatus = {
     New: 'New',
     Interested: 'Interested',
     Contacted: 'Contacted',
-    Follow_up: 'Follow-up',
+    Follow_up: 'Follow_up',
     Confirmed: 'Confirmed',
     Admitted: 'Admitted',
     Rejected: 'Rejected'
@@ -1049,3 +1049,135 @@ export async function generateSettlementIntegrityReport() {
         return { success: false, error: 'Failed' }
     }
 }
+
+// ===================== REPORT #14: MASTER PIPELINE EXPORT =====================
+export async function generateMasterPipelineExport(filters?: { startDate?: string, endDate?: string, campus?: string }) {
+    const admin = await getCurrentUser()
+    if (!admin || !admin.role.includes('Super Admin')) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        const whereClause: any = {}
+        if (filters?.startDate || filters?.endDate) {
+            whereClause.createdAt = {}
+            if (filters.startDate) whereClause.createdAt.gte = new Date(filters.startDate)
+            if (filters.endDate) whereClause.createdAt.lte = new Date(filters.endDate)
+        }
+        if (filters?.campus && filters.campus !== 'All') {
+            whereClause.campus = filters.campus
+        }
+
+        const leads = await prisma.referralLead.findMany({
+            where: whereClause,
+            include: {
+                user: {
+                    select: { fullName: true, mobileNumber: true, referralCode: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        })
+
+        let csv = 'Lead ID,Created Date,Lead Name,Parent Mobile,Campus,Grade,Status,Referred By,Ambassador Mobile,Referral Code,Confirmed Date,Annual Fee,Admission Fee,Donation Fee,Rejection Reason\n'
+
+        leads.forEach(lead => {
+            const row = [
+                lead.leadId,
+                new Date(lead.createdAt).toLocaleDateString(),
+                `"${(lead.parentName || '').replace(/"/g, '""')}"`,
+                `"${lead.parentMobile || ''}"`,
+                `"${(lead.campus || 'Not Specified').replace(/"/g, '""')}"`,
+                `"${(lead.gradeInterested || 'N/A').replace(/"/g, '""')}"`,
+                lead.leadStatus,
+                `"${(lead.user?.fullName || 'N/A').replace(/"/g, '""')}"`,
+                `"${lead.user?.mobileNumber || ''}"`,
+                `"${lead.user?.referralCode || ''}"`,
+                lead.confirmedDate ? new Date(lead.confirmedDate).toLocaleDateString() : '-',
+                lead.annualFee || 0,
+                lead.admissionFeeCollected || 0,
+                lead.donationFeeCollected || 0,
+                `"${(lead.rejectionReason || '').replace(/"/g, '""')}"`
+            ]
+            csv += row.join(',') + '\n'
+        })
+
+        return {
+            success: true,
+            csv,
+            filename: `master-pipeline-export-${new Date().toISOString().split('T')[0]}.csv`
+        }
+    } catch (error) {
+        console.error('Master Pipeline Export Error:', error)
+        return { success: false, error: 'Failed to generate report' }
+    }
+}
+
+// ===================== REPORT #15: MASTER REFERRAL REPORT (AMBASSADORS + LEADS) =====================
+export async function generateMasterReferralReport(filters?: { startDate?: string, endDate?: string, campus?: string }) {
+    const admin = await getCurrentUser()
+    if (!admin || !admin.role.includes('Super Admin')) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        const whereClause: any = {}
+        if (filters?.startDate || filters?.endDate) {
+            whereClause.createdAt = {}
+            if (filters.startDate) whereClause.createdAt.gte = new Date(filters.startDate)
+            if (filters.endDate) whereClause.createdAt.lte = new Date(filters.endDate)
+        }
+        if (filters?.campus && filters.campus !== 'All') {
+            whereClause.campus = filters.campus
+        }
+
+        const leads = await prisma.referralLead.findMany({
+            where: whereClause,
+            include: {
+                user: true
+            },
+            orderBy: { createdAt: 'desc' }
+        })
+
+        const headers = [
+            'Lead ID', 'Lead Name', 'Lead Mobile', 'Lead Campus', 'Lead Grade', 'Lead Status', 'Lead Created Date', 'Lead Confirmed Date',
+            'Annual Fee', 'Admission Fee Collected', 'Donation Fee Collected',
+            'Ambassador ID', 'Ambassador Name', 'Ambassador Mobile', 'Ambassador Role', 'Ambassador Campus', 'Ambassador Referral Code', 'Ambassador Joined Date'
+        ]
+
+        let csv = headers.join(',') + '\n'
+
+        leads.forEach(lead => {
+            const row = [
+                lead.leadId,
+                `"${(lead.parentName || '').replace(/"/g, '""')}"`,
+                `"${lead.parentMobile || ''}"`,
+                `"${(lead.campus || 'N/A').replace(/"/g, '""')}"`,
+                `"${(lead.gradeInterested || 'N/A').replace(/"/g, '""')}"`,
+                lead.leadStatus,
+                new Date(lead.createdAt).toLocaleDateString(),
+                lead.confirmedDate ? new Date(lead.confirmedDate).toLocaleDateString() : '-',
+                lead.annualFee || 0,
+                lead.admissionFeeCollected || 0,
+                lead.donationFeeCollected || 0,
+                lead.user?.userId || 'N/A',
+                `"${(lead.user?.fullName || 'N/A').replace(/"/g, '""')}"`,
+                `"${lead.user?.mobileNumber || ''}"`,
+                `"${lead.user?.role || ''}"`,
+                `"${(lead.user?.assignedCampus || 'Global').replace(/"/g, '""')}"`,
+                `"${lead.user?.referralCode || ''}"`,
+                lead.user?.createdAt ? new Date(lead.user.createdAt).toLocaleDateString() : '-'
+            ]
+            csv += row.join(',') + '\n'
+        })
+
+        return {
+            success: true,
+            csv,
+            filename: `master-referral-report-${new Date().toISOString().split('T')[0]}.csv`
+        }
+    } catch (error) {
+        console.error('Master Referral Report Error:', error)
+        return { success: false, error: 'Failed to generate report' }
+    }
+}
+

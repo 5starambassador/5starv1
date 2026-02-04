@@ -11,31 +11,6 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { getCampuses } from '@/app/campus-actions'
 import { getBenefitSlabs, updateBenefitSlab, addBenefitSlab, deleteBenefitSlab } from '@/app/benefit-actions'
 import { getAllProgramLeads } from '@/app/superadmin-actions'
-import { ProgramLeadsTable } from '@/components/superadmin/ProgramLeadsTable'
-import { getSettlements, processSettlement, deleteSettlement } from '@/app/settlement-actions'
-import { getRolePermissions, updateRolePermissions, resetRolePermissions } from '@/app/permission-actions'
-import { confirmReferral, convertLeadToStudent, rejectReferral } from '@/app/admin-actions'
-
-// ... existing imports ...
-
-import { ProgramManager } from '@/components/superadmin/ProgramManager'
-
-import { MarketingManager } from '@/components/MarketingManager'
-import { Modal } from '@/components/ui/Modal'
-// Report actions are handled within ReportsPanel, superadmin-client just executes the passed function
-
-// Modular Components (Static Imports for core panels)
-import { AnalyticsDashboard } from '@/components/superadmin/AnalyticsDashboard'
-import { CampusPanel } from '@/components/superadmin/CampusPanel'
-import { UserPanel } from '@/components/superadmin/UserPanel'
-import { AdminPanel } from '@/components/superadmin/AdminPanel'
-import { StudentPanel } from '@/components/superadmin/StudentPanel'
-// import { ReferralPanel } from '@/components/superadmin/ReferralPanel' // Removing old panel
-import { ReferralManagementTable } from '@/app/(main)/admin/referral-table-advanced' // New Table
-import { ReportsPanel } from '@/components/superadmin/ReportsPanel'
-import CSVUploader from '@/components/CSVUploader' // Re-added CSVUploader
-
-// Dynamic Imports
 const PermissionsMatrix = dynamic(() => import('@/components/superadmin/PermissionsMatrix').then(m => m.PermissionsMatrix), { ssr: false, loading: () => <div className="h-96 w-full animate-pulse bg-gray-100 rounded-lg" /> })
 const BenefitSlabTable = dynamic(() => import('@/components/superadmin/BenefitSlabTable').then(m => m.BenefitSlabTable), { ssr: false })
 const FeeManagementTable = dynamic(() => import('@/components/superadmin/FeeManagementTable').then(m => m.FeeManagementTable), { ssr: false })
@@ -44,6 +19,18 @@ const AuditLogPanel = dynamic(() => import('@/components/superadmin/AuditLogPane
 const SettingsPanel = dynamic(() => import('@/components/superadmin/SettingsPanel').then(m => m.SettingsPanel), { ssr: false })
 const SettlementTable = dynamic(() => import('@/components/superadmin/SettlementTable').then(m => m.SettlementTable), { ssr: false })
 const SettlementCalculatorModal = dynamic(() => import('@/components/superadmin/SettlementCalculatorModal').then(m => m.SettlementCalculatorModal), { ssr: false })
+const AdminPanel = dynamic(() => import('@/components/superadmin/AdminPanel').then(m => m.AdminPanel), { ssr: false })
+const ProgramLeadsTable = dynamic(() => import('@/components/superadmin/ProgramLeadsTable').then(m => m.ProgramLeadsTable), { ssr: false })
+const ProgramManager = dynamic(() => import('@/components/superadmin/ProgramManager').then(m => m.ProgramManager), { ssr: false })
+const MarketingManager = dynamic(() => import('@/components/MarketingManager').then(m => m.MarketingManager), { ssr: false })
+const AnalyticsDashboard = dynamic(() => import('@/components/superadmin/AnalyticsDashboard').then(m => m.AnalyticsDashboard), { ssr: false })
+const ReportsPanel = dynamic(() => import('@/components/superadmin/ReportsPanel').then(m => m.ReportsPanel), { ssr: false })
+const CSVUploader = dynamic(() => import('@/components/CSVUploader').then(m => m.default), { ssr: false })
+
+import { getSettlements, processSettlement, deleteSettlement } from '@/app/settlement-actions'
+import { getRolePermissions, updateRolePermissions, resetRolePermissions } from '@/app/permission-actions'
+import { confirmReferral, convertLeadToStudent, rejectReferral } from '@/app/admin-actions'
+import { Modal } from '@/components/ui/Modal'
 
 import { User, Student, SystemAnalytics, CampusPerformance, Admin, SystemSettings, MarketingAsset, Campus, BenefitSlab, RolePermissions } from '@/types'
 
@@ -54,7 +41,7 @@ type ViewType = 'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settin
 // ... in SuperadminClient
 
 const mapViewParam = (view: string): ViewType => {
-    const validViews = ['home', 'analytics', 'users', 'admins', 'campuses', 'settings', 'reports', 'students', 'settlements', 'marketing', 'audit', 'support', 'permissions', 'staff-dash', 'parent-dash', 'referrals', 'fees', 'engagement', 'programs', 'program-leads']
+    const validViews = ['home', 'analytics', 'admins', 'settings', 'reports', 'settlements', 'marketing', 'audit', 'support', 'permissions', 'staff-dash', 'parent-dash', 'fees', 'engagement', 'programs', 'program-leads']
     return validViews.includes(view) ? (view as ViewType) : 'home'
 }
 
@@ -78,6 +65,7 @@ interface Props {
     referralMeta?: any
     campuses?: Campus[]
     initialReportMode?: 'classic' | 'visual'
+    permissions?: RolePermissions
 }
 
 export default function SuperadminClient({ analytics, campusComparison = [], users = [], admins = [], students = [], initialView = 'analytics', marketingAssets = [],
@@ -88,7 +76,8 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     referrals = [],
     referralMeta,
     campuses: initialCampuses = [],
-    initialReportMode = 'classic'
+    initialReportMode = 'classic',
+    permissions
 }: Props) {
     const searchParams = useSearchParams()
     const router = useRouter()
@@ -106,7 +95,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
 
     // View State
     const mapViewParam = (view: string): ViewType => {
-        const validViews = ['home', 'analytics', 'users', 'admins', 'campuses', 'settings', 'reports', 'students', 'settlements', 'marketing', 'audit', 'support', 'permissions', 'staff-dash', 'parent-dash', 'referrals', 'fees', 'engagement', 'programs', 'program-leads']
+        const validViews = ['home', 'analytics', 'admins', 'settings', 'reports', 'settlements', 'marketing', 'audit', 'support', 'permissions', 'staff-dash', 'parent-dash', 'fees', 'engagement', 'programs', 'program-leads']
         return validViews.includes(view) ? (view as ViewType) : 'home'
     }
     const [selectedView, setSelectedView] = useState<ViewType>(mapViewParam(initialView))
@@ -294,21 +283,9 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                     />
                 )}
 
-                {selectedView === 'campuses' && (
-                    <CampusPanel
-                        campuses={campuses}
-                        campusComparison={campusCompData}
-                        mode="management"
-                    />
-                )}
 
-                {selectedView === 'users' && (
-                    <UserPanel
-                        users={users}
-                        campuses={campuses}
-                        currentUserRole={currentUser?.role}
-                    />
-                )}
+
+
 
                 {selectedView === 'admins' && (
                     <AdminPanel
@@ -317,42 +294,9 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                     />
                 )}
 
-                {selectedView === 'students' && (
-                    <StudentPanel
-                        students={students}
-                        users={users}
-                        campuses={campuses}
-                    />
-                )}
 
-                {selectedView === 'referrals' && (
-                    <div className="space-y-6">
-                        <div className="flex justify-between items-center">
-                            <h1 className="text-3xl font-black text-gray-900 tracking-tighter">Referral Management</h1>
-                        </div>
-                        <ReferralManagementTable
-                            referrals={referrals}
-                            meta={referralMeta || { page: 1, limit: 50, total: referrals.length, totalPages: 1 }}
-                            onBulkAdd={() => { setUploadType('referrals'); setShowBulkUpload(true); }}
-                            onImportCrm={() => { setUploadType('crm-leads'); setShowBulkUpload(true); }}
-                            confirmReferral={confirmReferral}
-                            convertLeadToStudent={convertLeadToStudent}
-                            rejectReferral={rejectReferral}
-                            campuses={campuses}
-                            isSuperAdmin={true}
-                        />
-                        {showBulkUpload && (
-                            <CSVUploader
-                                type={uploadType}
-                                onClose={() => setShowBulkUpload(false)}
-                                onUpload={async () => {
-                                    router.refresh()
-                                    return { success: true, added: 0, failed: 0, errors: [] }
-                                }}
-                            />
-                        )}
-                    </div>
-                )}
+
+
 
                 {selectedView === 'reports' && (
                     <ReportsPanel
@@ -375,8 +319,9 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                 {/* Audit Trail View */}
                 {selectedView === 'audit' && <AuditLogPanel />}
 
+
                 {/* Settings View */}
-                {selectedView === 'settings' && <SettingsPanel />}
+                {selectedView === 'settings' && <SettingsPanel permissions={permissions} />}
 
                 {/* External Programs View */}
                 {selectedView === 'programs' && <ProgramManager />}

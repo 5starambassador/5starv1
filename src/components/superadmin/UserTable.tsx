@@ -1,4 +1,4 @@
-import { UserPlus, Download, CheckCircle, XCircle, Calendar, CreditCard, Smartphone, Hash, Building, Trash2, Key, Shield, Star, ArrowRight } from 'lucide-react'
+import { UserPlus, Download, CheckCircle, XCircle, Calendar, CreditCard, Smartphone, Hash, Building, Trash2, Key, Shield, Star, ArrowRight, ChevronDown, CheckSquare } from 'lucide-react'
 import Image from 'next/image'
 
 import { ActivityHistory } from './ActivityHistory'
@@ -8,7 +8,7 @@ import { User } from '@/types'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import { calculateStars } from '@/lib/gamification'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { bulkUserAction } from '@/app/bulk-actions'
@@ -25,6 +25,7 @@ interface UserTableProps {
     onResetPassword?: (id: number, name: string, type: 'user' | 'admin') => void
     onEdit?: (user: User) => void
     onPurge?: (userId: number, name: string) => void
+    campuses?: { id: number; campusName: string }[]
 }
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -40,7 +41,8 @@ export function UserTable({
     onViewReferrals,
     onResetPassword,
     onEdit,
-    onPurge
+    onPurge,
+    campuses = []
 }: UserTableProps) {
     const [selectedUsers, setSelectedUsers] = useState<User[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
@@ -48,6 +50,20 @@ export function UserTable({
     const [selectedUserForAudit, setSelectedUserForAudit] = useState<User | null>(null)
     const [selectedUserForDetail, setSelectedUserForDetail] = useState<User | null>(null)
     const router = useRouter()
+
+    const [showCampusDropdown, setShowCampusDropdown] = useState(false)
+    const campusDropdownRef = useRef<HTMLDivElement>(null)
+
+    // Click outside handler for campus dropdown
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (campusDropdownRef.current && !campusDropdownRef.current.contains(event.target as Node)) {
+                setShowCampusDropdown(false)
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside)
+        return () => document.removeEventListener("mousedown", handleClickOutside)
+    }, [])
 
     // Bulk Confirmation State
     const [bulkConfirmation, setBulkConfirmation] = useState<{ isOpen: boolean, action: 'activate' | 'suspend' | 'delete' | 'deactivate' | null }>({
@@ -240,6 +256,10 @@ export function UserTable({
 
 
     // Export State
+    const [roleFilter, setRoleFilter] = useState<string[]>([])
+    const [campusFilter, setCampusFilter] = useState<string[]>([])
+    const [statusFilter, setStatusFilter] = useState<string[]>([])
+
     const [showExportModal, setShowExportModal] = useState(false)
     const [exportDateRange, setExportDateRange] = useState({
         from: '',
@@ -279,16 +299,27 @@ export function UserTable({
     })
 
     const handleExport = () => {
-        // Filter data based on search and date range
-        let filteredData = users.filter(user =>
-            user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.mobileNumber?.includes(searchTerm) ||
-            user.referralCode?.toLowerCase().includes(searchTerm.toLowerCase())
-        )
+        // Filter data based on search, date range, and new dynamic filters
+        let filteredData = users.filter(user => {
+            // 1. Search Term
+            const matchesSearch = !searchTerm ||
+                user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.mobileNumber?.includes(searchTerm) ||
+                user.referralCode?.toLowerCase().includes(searchTerm.toLowerCase())
 
-        // Apply Date Range Filter if set
-        if (exportDateRange.from || exportDateRange.to) {
-            filteredData = filteredData.filter(user => {
+            if (!matchesSearch) return false
+
+            // 2. Role Filter
+            if (roleFilter.length > 0 && !roleFilter.includes(user.role)) return false
+
+            // 3. Campus Filter
+            if (campusFilter.length > 0 && !campusFilter.includes(user.assignedCampus || 'Global')) return false
+
+            // 4. Status Filter
+            if (statusFilter.length > 0 && !statusFilter.includes(user.status)) return false
+
+            // 5. Date Range Filter
+            if (exportDateRange.from || exportDateRange.to) {
                 const userDate = new Date(user.createdAt)
                 const fromDate = exportDateRange.from ? new Date(exportDateRange.from) : null
                 const toDate = exportDateRange.to ? new Date(exportDateRange.to) : null
@@ -301,9 +332,10 @@ export function UserTable({
                     toDate.setHours(23, 59, 59, 999)
                     if (userDate > toDate) return false
                 }
-                return true
-            })
-        }
+            }
+
+            return true
+        })
 
         const headers = []
         if (selectedColumns.fullName) headers.push('Full Name')
@@ -453,6 +485,113 @@ export function UserTable({
                 </div>
             </div>
 
+            {/* Dynamic Filter Bar */}
+            <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-wrap gap-4 items-center">
+                <div className="flex items-center gap-2">
+                    <Smartphone size={16} className="text-gray-400" />
+                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Quick Filters:</span>
+                </div>
+
+                {/* Role Filter */}
+                <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100 items-center gap-1">
+                    {['Parent', 'Staff', 'Alumni', 'Others'].map(role => (
+                        <button
+                            key={role}
+                            onClick={() => {
+                                setRoleFilter(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role])
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${roleFilter.includes(role) ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                            suppressHydrationWarning
+                        >
+                            {role}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Status Filter */}
+                <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100 items-center gap-1">
+                    {['Active', 'Inactive', 'Suspended', 'Pending', 'Deleted'].map(status => (
+                        <button
+                            key={status}
+                            onClick={() => {
+                                setStatusFilter(prev => prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status])
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${statusFilter.includes(status) ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                            suppressHydrationWarning
+                        >
+                            {status}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Campus Filter Dropdown */}
+                <div className="relative" ref={campusDropdownRef}>
+                    <button
+                        onClick={() => setShowCampusDropdown(!showCampusDropdown)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${showCampusDropdown || campusFilter.length > 0 ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' : 'bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100'}`}
+                        suppressHydrationWarning
+                    >
+                        <Building size={12} />
+                        Filter Campus {campusFilter.length > 0 && `(${campusFilter.length})`}
+                        <ChevronDown size={12} className={`ml-1 transition-transform ${showCampusDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showCampusDropdown && (
+                        <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 z-50 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="max-h-60 overflow-y-auto space-y-1 custom-scrollbar">
+                                <button
+                                    onClick={() => {
+                                        setCampusFilter(prev => prev.includes('Global') ? prev.filter(c => c !== 'Global') : [...prev, 'Global'])
+                                    }}
+                                    className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-between ${campusFilter.includes('Global') ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                    suppressHydrationWarning
+                                >
+                                    Global / Unknown
+                                    {campusFilter.includes('Global') && <CheckSquare size={12} />}
+                                </button>
+                                {campuses.map(c => (
+                                    <button
+                                        key={c.id}
+                                        onClick={() => {
+                                            setCampusFilter(prev => prev.includes(c.campusName) ? prev.filter(cn => cn !== c.campusName) : [...prev, c.campusName])
+                                        }}
+                                        className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-between ${campusFilter.includes(c.campusName) ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                        suppressHydrationWarning
+                                    >
+                                        {c.campusName}
+                                        {campusFilter.includes(c.campusName) && <CheckSquare size={12} />}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Clear All Filters */}
+                {(roleFilter.length > 0 || campusFilter.length > 0 || statusFilter.length > 0) && (
+                    <button
+                        onClick={() => {
+                            setRoleFilter([]);
+                            setCampusFilter([]);
+                            setStatusFilter([]);
+                        }}
+                        className="text-[10px] font-black uppercase text-red-500 hover:text-red-700 tracking-widest pl-2"
+                        suppressHydrationWarning
+                    >
+                        Clear All
+                    </button>
+                )}
+
+                <div className="ml-auto text-[10px] font-black text-gray-300 uppercase tracking-widest">
+                    Showing {users.filter(u => {
+                        if (roleFilter.length > 0 && !roleFilter.includes(u.role)) return false
+                        if (campusFilter.length > 0 && !campusFilter.includes(u.assignedCampus || 'Global')) return false
+                        if (statusFilter.length > 0 && !statusFilter.includes(u.status)) return false
+                        return true
+                    }).length} results
+                </div>
+            </div>
+
             {/* Bulk Action Bar (Floating) */}
             {selectedUsers.length > 0 && (
                 <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
@@ -501,7 +640,13 @@ export function UserTable({
             <div className="w-full xl:max-w-[calc(100vw-340px)] mx-auto overflow-hidden">
                 <div className="overflow-x-auto pb-4 custom-scrollbar">
                     <DataTable
-                        data={users}
+                        data={users.filter(u => {
+                            // Apply dynamic filters to table view as well
+                            if (roleFilter.length > 0 && !roleFilter.includes(u.role)) return false
+                            if (campusFilter.length > 0 && !campusFilter.includes(u.assignedCampus || 'Global')) return false
+                            if (statusFilter.length > 0 && !statusFilter.includes(u.status)) return false
+                            return true
+                        })}
                         columns={columns as any}
                         searchKey={['fullName', 'referralCode', 'mobileNumber']}
                         searchValue={searchTerm}
@@ -509,7 +654,7 @@ export function UserTable({
                         searchPlaceholder="Search ambassadors by name, code or mobile..."
                         pageSize={10}
                         enableMultiSelection={true}
-                        onSelectionChange={(selected) => setSelectedUsers(selected)}
+                        onSelectionChange={(selected: User[]) => setSelectedUsers(selected)}
                         uniqueKey="userId"
                     />
                 </div>

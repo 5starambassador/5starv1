@@ -34,8 +34,15 @@ export function MobileMenu({ navItems, user, logoutAction, onNavigate: propOnNav
     const isMobile = viewMode === 'mobile-grid'
     const pathname = usePathname() || ''
     const searchParams = useSearchParams()
+    const [pendingLabel, setPendingLabel] = React.useState<string | null>(null)
 
-    const handleNavigate = () => {
+    // Reset pending state when navigation completes
+    React.useEffect(() => {
+        setPendingLabel(null)
+    }, [pathname, searchParams])
+
+    const handleNavigate = (label: string) => {
+        setPendingLabel(label)
         if (sidebarContext) {
             sidebarContext.setIsOpen(false)
         }
@@ -80,15 +87,15 @@ export function MobileMenu({ navItems, user, logoutAction, onNavigate: propOnNav
                         <Link
                             key={item.label}
                             href={item.href}
-                            onClick={handleNavigate}
+                            onClick={() => handleNavigate(item.label)}
                             className={isMobile
                                 // Mobile: Royal Glass Theme - Compact Grid (2 Cols)
                                 ? `flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all duration-300 group no-underline relative overflow-hidden ${isActive
                                     ? 'bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.15)]'
                                     : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
-                                }`
+                                } ${pendingLabel === item.label ? 'animate-pulse bg-white/10' : ''}`
                                 // Desktop List Item Styles (Premium Sidebar)
-                                : `flex items-center gap-3 px-4 py-3.5 rounded-2xl hover:bg-white/[0.05] transition-all group relative overflow-hidden no-underline ${isActive ? 'text-amber-500 bg-white/[0.05] font-black shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' : 'text-gray-400 hover:text-white'}`
+                                : `flex items-center gap-3 px-4 py-3.5 rounded-2xl hover:bg-white/[0.05] transition-all group relative overflow-hidden no-underline ${isActive ? 'text-amber-500 bg-white/[0.05] font-black shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' : 'text-gray-400 hover:text-white'} ${pendingLabel === item.label ? 'animate-pulse bg-white/10' : ''}`
                             }
                         >
                             {/* Mobile Active Shine */}
@@ -111,10 +118,9 @@ export function MobileMenu({ navItems, user, logoutAction, onNavigate: propOnNav
                             }) : item.icon}
 
                             <span style={{
-                                fontSize: isMobile ? '13px' : '14px',
-                                fontWeight: isActive ? '900' : '600',
-                                letterSpacing: '0.04em',
-                                marginLeft: '0',
+                                fontSize: isMobile ? '13px' : '12px',
+                                fontWeight: isActive ? '900' : '700',
+                                letterSpacing: '0.02em',
                                 color: isMobile ? (isActive ? '#f59e0b' : 'rgba(255,255,255,0.4)') : 'inherit',
                                 textTransform: 'uppercase',
                                 overflow: 'hidden',
@@ -131,7 +137,7 @@ export function MobileMenu({ navItems, user, logoutAction, onNavigate: propOnNav
             {/* Compact Footer (Profile + Logout) */}
             <div className={`mt-auto px-4 py-6 border-t border-white/10 ${isMobile ? 'bg-black/20 backdrop-blur-lg' : 'bg-black/20'}`}>
                 <div className={`flex items-center justify-between gap-4 ${isMobile ? '' : 'flex-col items-stretch'}`}>
-                    <Link href="/profile" onClick={handleNavigate} className={`flex items-center gap-4 bg-white/5 hover:bg-white/10 rounded-2xl p-3 border border-white/5 transition-all no-underline text-inherit ${isMobile ? 'flex-1' : ''}`}>
+                    <Link href="/profile" onClick={() => handleNavigate('Profile')} className={`flex items-center gap-4 bg-white/5 hover:bg-white/10 rounded-2xl p-3 border border-white/5 transition-all no-underline text-inherit ${isMobile ? 'flex-1' : ''} ${pendingLabel === 'Profile' ? 'animate-pulse bg-white/20' : ''}`}>
                         <div
                             className="w-[48px] h-[48px] rounded-xl flex items-center justify-center text-lg font-black text-white shadow-2xl flex-shrink-0 ring-2 ring-white/10 relative overflow-hidden"
                             style={{

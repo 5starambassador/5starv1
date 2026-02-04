@@ -7,13 +7,12 @@ import { logAction } from "@/lib/audit-logger"
 import { registerSchema, mobileSchema } from "@/lib/validators"
 import { z } from "zod"
 import bcrypt from "bcryptjs"
-import { hasModuleAccess, getDataScope, getPrismaScopeFilter } from "@/lib/permissions"
-import { hasPermission, getMyPermissions } from "@/lib/permission-service"
+import { hasPermission, getMyPermissions, canPerformAction, getScopeFilter, getPermissionScope } from "@/lib/permission-service"
 import { generateSmartReferralCode } from "@/lib/referral-service"
 import { UserRole, AdminRole, AccountStatus, LeadStatus, Prisma } from "@prisma/client"
 import { revalidatePath } from 'next/cache'
 import { toAdminRole, toLeadStatus, toUserRole, toAccountStatus } from "@/lib/enum-utils"
-
+import { User, Student } from "@/types"
 
 interface SystemAnalytics {
     totalAmbassadors: number
@@ -104,115 +103,132 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
         prevDateFilter = { createdAt: { gte: prevStart, lt: start } };
     }
 
-    const scopeFilterUsers = getPrismaScopeFilter(user, 'userManagement')
-    const scopeFilterLeads = getPrismaScopeFilter(user, 'analytics')
+    const { filter: scopeFilterUsers } = await getScopeFilter('userManagement')
+    const { filter: scopeFilterLeads } = await getScopeFilter('analytics')
 
-    const [
-        totalAmbassadors,
-        totalLeads,
-        totalConfirmedRecords,
-        prevAmbassadors,
-        prevLeads,
-        prevConfirmedRecords,
-        legacyLeadSummary,
-        totalActiveCampuses
-    ] = await Promise.all([
-        prisma.user.count({ where: { ...dateFilter, ...scopeFilterUsers } }),
-        prisma.referralLead.count({ where: { ...dateFilter, ...scopeFilterLeads } }),
-        prisma.referralLead.count({ where: { leadStatus: LeadStatus.Confirmed, ...dateFilter, ...scopeFilterLeads } }),
-        prevDateFilter ? prisma.user.count({ where: { ...prevDateFilter, ...scopeFilterUsers } }) : Promise.resolve(undefined),
-        prevDateFilter ? prisma.referralLead.count({ where: { ...prevDateFilter, ...scopeFilterLeads } }) : Promise.resolve(undefined),
-        prevDateFilter ? prisma.referralLead.count({ where: { leadStatus: LeadStatus.Confirmed, ...prevDateFilter, ...scopeFilterLeads } }) : Promise.resolve(undefined),
-        prisma.user.aggregate({
-            where: { ...dateFilter, ...scopeFilterUsers },
-            _sum: { confirmedReferralCount: true }
-        }),
-        prisma.campus.count({ where: { isActive: true } })
-    ])
+    if (!scopeFilterUsers || !scopeFilterLeads) {
+        throw new Error('Unauthorized')
+    }
 
-    // Use legacy count if it's higher (fallback for imported data missing detailed lead records)
-    const legacyConfirmedCount = legacyLeadSummary._sum.confirmedReferralCount || 0
-    const totalConfirmed = Math.max(totalConfirmedRecords, legacyConfirmedCount)
-    const totalCampuses = totalActiveCampuses
+    try {
+        const [
+            totalAmbassadors,
+            totalLeads,
+            totalConfirmedRecords,
+            prevAmbassadors,
+            prevLeads,
+            prevConfirmedRecords,
+            legacyLeadSummary,
+            totalActiveCampuses
+        ] = await Promise.all([
+            prisma.user.count({ where: { ...dateFilter, ...scopeFilterUsers } }),
+            prisma.referralLead.count({ where: { ...dateFilter, ...scopeFilterLeads } }),
+            prisma.referralLead.count({ where: { leadStatus: LeadStatus.Confirmed, ...dateFilter, ...scopeFilterLeads } }),
+            prevDateFilter ? prisma.user.count({ where: { ...prevDateFilter, ...scopeFilterUsers } }) : Promise.resolve(undefined),
+            prevDateFilter ? prisma.referralLead.count({ where: { ...prevDateFilter, ...scopeFilterLeads } }) : Promise.resolve(undefined),
+            prevDateFilter ? prisma.referralLead.count({ where: { leadStatus: LeadStatus.Confirmed, ...prevDateFilter, ...scopeFilterLeads } }) : Promise.resolve(undefined),
+            prisma.user.aggregate({
+                where: { ...dateFilter, ...scopeFilterUsers },
+                _sum: { confirmedReferralCount: true }
+            }),
+            prisma.campus.count({ where: { isActive: true } })
+        ])
 
-    // Total Leads should at least be equal to confirmed if no detailed leads exist
-    const finalTotalLeads = Math.max(totalLeads, totalConfirmed)
+        // Use legacy count if it's higher (fallback for imported data missing detailed lead records)
+        const legacyConfirmedCount = legacyLeadSummary._sum.confirmedReferralCount || 0
+        const totalConfirmed = Math.max(totalConfirmedRecords, legacyConfirmedCount)
+        const totalCampuses = totalActiveCampuses
 
-    const globalConversionRate = finalTotalLeads > 0
-        ? (totalConfirmed / finalTotalLeads) * 100
-        : 0
+        // Total Leads should at least be equal to confirmed if no detailed leads exist
+        const finalTotalLeads = Math.max(totalLeads, totalConfirmed)
 
-    // Calculate system-wide benefits
-    // Optimized: Calculate system-wide benefits via DB Aggregation (O(1) memory)
-    const result: any[] = await prisma.$queryRaw`
-        SELECT SUM("studentFee" * ("yearFeeBenefitPercent" / 100.0) * "confirmedReferralCount") as total
-        FROM "User"
-        WHERE "confirmedReferralCount" > 0
-        ${dateFilter.createdAt ? Prisma.sql`AND "createdAt" >= ${dateFilter.createdAt.gte}` : Prisma.empty}
-    `
-    const systemWideBenefits = result[0]?.total ? Number(result[0].total) : 0
+        const globalConversionRate = finalTotalLeads > 0
+            ? (totalConfirmed / finalTotalLeads) * 100
+            : 0
 
-    // Previous benefits
-    let prevBenefits;
-    if (prevDateFilter && prevDateFilter.createdAt) {
-        const prevResult: any[] = await prisma.$queryRaw`
+        // Calculate system-wide benefits
+        const result: any[] = await prisma.$queryRaw`
             SELECT SUM("studentFee" * ("yearFeeBenefitPercent" / 100.0) * "confirmedReferralCount") as total
             FROM "User"
             WHERE "confirmedReferralCount" > 0
-            AND "createdAt" >= ${prevDateFilter.createdAt.gte}
-            AND "createdAt" < ${prevDateFilter.createdAt.lt}
+            ${dateFilter.createdAt ? Prisma.sql`AND "createdAt" >= ${dateFilter.createdAt.gte}` : Prisma.empty}
         `
-        prevBenefits = prevResult[0]?.total ? Number(prevResult[0].total) : 0
-    }
+        const systemWideBenefits = result[0]?.total ? Number(result[0].total) : 0
 
-    // User Role Distribution
-    const userRoles = await prisma.user.groupBy({
-        by: ['role'],
-        _count: { role: true },
-        where: dateFilter
-    })
+        // Previous benefits
+        let prevBenefits;
+        if (prevDateFilter && prevDateFilter.createdAt) {
+            const prevResult: any[] = await prisma.$queryRaw`
+                SELECT SUM("studentFee" * ("yearFeeBenefitPercent" / 100.0) * "confirmedReferralCount") as total
+                FROM "User"
+                WHERE "confirmedReferralCount" > 0
+                AND "createdAt" >= ${prevDateFilter.createdAt.gte}
+                AND "createdAt" < ${prevDateFilter.createdAt.lt}
+            `
+            prevBenefits = prevResult[0]?.total ? Number(prevResult[0].total) : 0
+        }
 
-    const userRoleDistribution = userRoles.map(u => ({
-        name: u.role,
-        value: u._count.role
-    }))
+        // User Role Distribution
+        const userRoles = await prisma.user.groupBy({
+            by: ['role'],
+            _count: { role: true },
+            where: dateFilter
+        })
 
-    const totalStudents = await prisma.student.count()
-    const staffCount = userRoles.find(u => u.role === UserRole.Staff)?._count.role || 0
-    const parentCount = userRoles.find(u => u.role === UserRole.Parent)?._count.role || 0
-    const alumniCount = userRoles.find(u => u.role === UserRole.Alumni)?._count.role || 0
-    const othersCount = userRoles.find(u => u.role === UserRole.Others || (u.role as string) === 'Other')?._count.role || 0
+        const userRoleDistribution = userRoles.map(u => ({
+            name: u.role,
+            value: u._count.role
+        }))
 
-    // --- Phase 2: Enhanced Analytics ---
-    const avgLeadsPerAmbassador = totalAmbassadors > 0 ? Number((finalTotalLeads / totalAmbassadors).toFixed(2)) : 0
-    const totalEstimatedRevenue = totalConfirmed * 60000
-    const conversionFunnel = [
-        { stage: 'Site Visitors', count: finalTotalLeads * 3 },
-        { stage: 'Total Leads', count: finalTotalLeads },
-        { stage: 'Follow-ups', count: Math.round(finalTotalLeads * 0.6) },
-        { stage: 'Admissions', count: totalConfirmed }
-    ]
+        const totalStudents = await prisma.student.count()
+        const staffCount = userRoles.find(u => u.role === UserRole.Staff)?._count.role || 0
+        const parentCount = userRoles.find(u => u.role === UserRole.Parent)?._count.role || 0
+        const alumniCount = userRoles.find(u => u.role === UserRole.Alumni)?._count.role || 0
+        const othersCount = userRoles.find(u => u.role === UserRole.Others)?._count.role || 0
 
-    return {
-        totalAmbassadors,
-        totalLeads: finalTotalLeads,
-        totalConfirmed,
-        globalConversionRate: Number(globalConversionRate.toFixed(2)),
-        totalCampuses,
-        systemWideBenefits: Math.round(systemWideBenefits),
-        totalStudents,
-        staffCount,
-        parentCount,
-        alumniCount,
-        othersCount,
-        userRoleDistribution,
-        prevAmbassadors,
-        prevLeads,
-        prevConfirmed: prevConfirmedRecords,
-        prevBenefits,
-        avgLeadsPerAmbassador,
-        totalEstimatedRevenue,
-        conversionFunnel
+        return {
+            totalAmbassadors,
+            totalLeads: finalTotalLeads,
+            totalConfirmed,
+            globalConversionRate: Number(globalConversionRate.toFixed(2)),
+            totalCampuses,
+            systemWideBenefits,
+            totalStudents,
+            staffCount,
+            parentCount,
+            alumniCount,
+            othersCount,
+            userRoleDistribution,
+            avgLeadsPerAmbassador: totalAmbassadors > 0 ? Number((finalTotalLeads / totalAmbassadors).toFixed(2)) : 0,
+            totalEstimatedRevenue: totalConfirmed * 60000,
+            prevAmbassadors,
+            prevLeads,
+            prevConfirmed: prevConfirmedRecords,
+            prevBenefits,
+            conversionFunnel: [
+                { stage: 'Leads', count: finalTotalLeads },
+                { stage: 'Confirmed', count: totalConfirmed }
+            ]
+        }
+    } catch (err) {
+        console.error('SYSTEM ANALYTICS ERROR (Possible Quota Limit):', err)
+        return {
+            totalAmbassadors: 0,
+            totalLeads: 0,
+            totalConfirmed: 0,
+            globalConversionRate: 0,
+            totalCampuses: 0,
+            systemWideBenefits: 0,
+            totalStudents: 0,
+            staffCount: 0,
+            parentCount: 0,
+            alumniCount: 0,
+            othersCount: 0,
+            userRoleDistribution: [],
+            avgLeadsPerAmbassador: 0,
+            totalEstimatedRevenue: 0,
+            conversionFunnel: []
+        }
     }
 }
 
@@ -517,11 +533,11 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
 }
 
 // getCampusDetails removed (not used)
-export async function getAllUsers(): Promise<UserRecord[]> {
+export async function getAllUsers(): Promise<User[]> {
     const user = await getCurrentUser()
     if (!user) throw new Error('Unauthorized')
 
-    const scopeFilter = getPrismaScopeFilter(user, 'userManagement')
+    const { filter: scopeFilter } = await getScopeFilter('userManagement')
 
     const users = await prisma.user.findMany({
         where: {
@@ -571,20 +587,22 @@ export async function getAllUsers(): Promise<UserRecord[]> {
 
     return users.map(u => ({
         ...u,
+        role: u.role as string,
+        referralCode: u.referralCode || '',
         assignedCampus: u.assignedCampus || (u.campusId ? campusMap.get(u.campusId) || null : null),
         referralCount: u.confirmedReferralCount,
         studentFee: u.studentFee || 0
-    }))
+    })) as User[]
 }
 
 export async function getAllAdmins() {
     const user = await getCurrentUser()
     if (!user) throw new Error('Unauthorized')
 
-    const scopeFilter = getPrismaScopeFilter(user, 'adminManagement')
+    const { filter: scopeFilter } = await getScopeFilter('adminManagement')
 
     return await prisma.admin.findMany({
-        where: scopeFilter,
+        where: scopeFilter || { adminId: -1 },
         orderBy: { createdAt: 'desc' }
     })
 }
@@ -593,14 +611,14 @@ export async function getAllAdmins() {
  * Retrieves all registered students with parent, ambassador, and campus details.
  * @returns Array of Student records with inclusions
  */
-export async function getAllStudents() {
+export async function getAllStudents(): Promise<Student[]> {
     const user = await getCurrentUser()
     if (!user) throw new Error('Unauthorized')
 
-    const scopeFilter = getPrismaScopeFilter(user, 'studentManagement')
+    const { filter: scopeFilter } = await getScopeFilter('studentManagement')
 
-    return await prisma.student.findMany({
-        where: scopeFilter,
+    const students = await prisma.student.findMany({
+        where: scopeFilter || { id: -1 },
         include: {
             parent: { select: { fullName: true, mobileNumber: true } },
             ambassador: { select: { fullName: true, mobileNumber: true, referralCode: true, role: true } },
@@ -608,6 +626,8 @@ export async function getAllStudents() {
         },
         orderBy: { createdAt: 'desc' }
     })
+
+    return students as unknown as Student[]
 }
 
 /**
@@ -672,8 +692,10 @@ export async function updateAdminRole(adminId: number, role: string, campus: str
  */
 export async function deleteUser(userId: number) {
     const user = await getCurrentUser()
-    if (!user || !user.role.includes('Super Admin')) {
-        throw new Error('Unauthorized')
+    if (!user) return { success: false, message: 'Unauthorized' }
+
+    if (!(await canPerformAction('userManagement', 'delete'))) {
+        return { success: false, message: 'Forbidden' }
     }
 
     // Soft Delete: Mark as Deleted to preserve financial records
@@ -722,7 +744,7 @@ export async function addUser(data: {
     const admin = await getCurrentUser()
     const allowedRoles = ['Super Admin', 'Admission Admin', 'Campus Head']
 
-    if (!admin || !allowedRoles.includes(admin.role)) {
+    if (!admin || !(await canPerformAction('userManagement', 'create'))) {
         return { success: false, error: 'Unauthorized: Insufficient permissions' }
     }
 
@@ -816,7 +838,7 @@ export async function updateUser(userId: number, data: {
         const admin = await getCurrentUser()
         const allowedRoles = ['Super Admin', 'Admission Admin', 'Campus Head']
 
-        if (!admin || !allowedRoles.includes(admin.role)) {
+        if (!admin || !(await canPerformAction('userManagement', 'edit'))) {
             return { success: false, error: 'Unauthorized: Insufficient permissions' }
         }
 
@@ -845,12 +867,8 @@ export async function getAllProgramLeads() {
         throw new Error('Unauthorized')
     }
 
-    const permissions = await getMyPermissions()
-    if (!permissions || !permissions.programLeads?.access) {
-        // Fallback for Super Admin if permissions fail to load (safety net)
-        if (!user.role.includes('Super Admin')) {
-            throw new Error('Unauthorized')
-        }
+    if (!(await hasPermission('programLeads'))) {
+        throw new Error('Unauthorized')
     }
 
     const leads = await prisma.programLead.findMany({
@@ -867,8 +885,8 @@ export async function getAllProgramLeads() {
 // ===================== DELETE USER (with return object) =====================
 export async function removeUser(userId: number) {
     const admin = await getCurrentUser()
-    if (!admin || admin.role !== 'Super Admin') {
-        return { success: false, error: 'Only Super Admin can delete users' }
+    if (!admin || !(await canPerformAction('userManagement', 'delete'))) {
+        return { success: false, error: 'Unauthorized: Insufficient permissions to delete users' }
     }
 
     try {
@@ -905,8 +923,8 @@ export async function removeUser(userId: number) {
  */
 export async function purgeUserPermanently(userId: number) {
     const admin = await getCurrentUser()
-    if (!admin || admin.role !== 'Super Admin') {
-        return { success: false, error: 'Only Super Admin can purge users' }
+    if (!admin || !(await canPerformAction('userManagement', 'delete'))) {
+        return { success: false, error: 'Unauthorized: Insufficient permissions to purge users' }
     }
 
     try {
@@ -1062,8 +1080,8 @@ export async function addAdmin(data: {
     password?: string
 }) {
     const admin = await getCurrentUser()
-    if (!admin || admin.role !== 'Super Admin') {
-        return { success: false, error: 'Only Super Admin can add admins' }
+    if (!admin || !(await canPerformAction('adminManagement', 'create'))) {
+        return { success: false, error: 'Unauthorized: Insufficient permissions to add admins' }
     }
 
     try {
@@ -1104,8 +1122,8 @@ export async function updateAdmin(adminId: number, data: {
     assignedCampus?: string
 }) {
     const requester = await getCurrentUser()
-    if (!requester || requester.role !== 'Super Admin') {
-        return { success: false, error: 'Unauthorized: Only Super Admin can edit admins' }
+    if (!requester || !(await canPerformAction('adminManagement', 'edit'))) {
+        return { success: false, error: 'Unauthorized: Insufficient permissions to edit admins' }
     }
 
     try {
@@ -1146,8 +1164,8 @@ export async function updateAdmin(adminId: number, data: {
  */
 export async function deleteAdmin(adminId: number) {
     const admin = await getCurrentUser()
-    if (!admin || admin.role !== 'Super Admin') {
-        return { success: false, error: 'Only Super Admin can delete admins' }
+    if (!admin || !(await canPerformAction('adminManagement', 'delete'))) {
+        return { success: false, error: 'Unauthorized: Insufficient permissions to delete admins' }
     }
 
     if ('adminId' in admin && admin.adminId === adminId) {
@@ -1169,14 +1187,14 @@ export async function deleteAdmin(adminId: number) {
  */
 export async function adminResetPassword(targetId: number, targetType: 'user' | 'admin', newPassword: string) {
     const admin = await getCurrentUser()
-    const canReset = admin && hasModuleAccess(admin.role, 'passwordReset')
+    const canReset = await hasPermission('passwordReset')
 
     if (!canReset || !admin) {
         return { success: false, error: 'Unauthorized: Insufficient permissions' }
     }
 
     // Check Data Scope
-    const scope = getDataScope(admin.role, 'passwordReset')
+    const scope = await getPermissionScope('passwordReset')
     if (scope === 'campus' && admin.assignedCampus) {
         // Verify target belongs to same campus
         if (targetType === 'user') {
@@ -1283,9 +1301,11 @@ export async function bulkAddAdmins(admins: Array<{
  * @returns Object indicating success.
  */
 export async function updateUserStatus(userId: number, status: AccountStatus) {
-    const admin = await getCurrentUser()
-    if (!admin || !admin.role.includes('Admin')) {
-        return { success: false, error: 'Unauthorized' }
+    const user = await getCurrentUser()
+    if (!user) return { success: false, message: 'Unauthorized' }
+
+    if (!(await canPerformAction('userManagement', 'edit'))) {
+        return { success: false, message: 'Forbidden' }
     }
 
     try {
@@ -1309,8 +1329,8 @@ export async function updateUserStatus(userId: number, status: AccountStatus) {
  */
 export async function updateAdminStatus(adminId: number, status: AccountStatus) {
     const admin = await getCurrentUser()
-    if (!admin || admin.role !== 'Super Admin') {
-        return { success: false, error: 'Only Super Admin can update admin status' }
+    if (!admin || !(await canPerformAction('adminManagement', 'edit'))) {
+        return { success: false, error: 'Unauthorized: Insufficient permissions to update admin status' }
     }
 
     try {
@@ -1332,8 +1352,8 @@ export async function updateAdminStatus(adminId: number, status: AccountStatus) 
  */
 export async function triggerWeeklyKPIReport(email?: string) {
     const admin = await getCurrentUser()
-    if (!admin || admin.role !== 'Super Admin') {
-        return { success: false, error: 'Only Super Admin can trigger reports' }
+    if (!admin || !(await hasPermission('reports'))) {
+        return { success: false, error: 'Unauthorized: Insufficient permissions to trigger reports' }
     }
 
     try {

@@ -10,25 +10,24 @@ import { getMyPermissions } from '@/lib/permission-service'
  */
 export async function getActivePrograms() {
     try {
+        const now = new Date()
+        // Create a date for the start of today (midnight) to make endDate inclusive
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
         const programs = await prisma.externalProgram.findMany({
             where: {
                 isActive: true,
-                // Filter: Show only if started (or no start date) and not ended (or no end date)
-                // Actually, for "Active" list, we might want to see upcoming ones?
-                // User requirement: "when it is closed or ended, it should not displayed in ambassador dashbaord"
-                // So we hide ended ones.
-                // We also hide ones that haven't started yet? Usually "Coming Soon" is good, but let's be strict for now based on "Active".
                 AND: [
                     {
                         OR: [
                             { endDate: null },
-                            { endDate: { gt: new Date() } }
+                            { endDate: { gte: startOfToday } }
                         ]
                     },
                     {
                         OR: [
                             { startDate: null },
-                            { startDate: { lte: new Date() } }
+                            { startDate: { lte: now } }
                         ]
                     }
                 ]
@@ -174,10 +173,12 @@ export async function captureProgramLead(data: {
 
         // Check Validity Dates
         const now = new Date()
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
         if (program.startDate && now < program.startDate) {
             return { success: false, error: 'Program has not started yet' }
         }
-        if (program.endDate && now > program.endDate) {
+        if (program.endDate && startOfToday > program.endDate) {
             return { success: false, error: 'Program has ended' }
         }
 

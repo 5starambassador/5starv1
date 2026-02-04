@@ -2,7 +2,7 @@
 
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
-import { hasModuleAccess, getPrismaScopeFilter } from '@/lib/permissions'
+import { hasPermission, getScopeFilter } from '@/lib/permission-service'
 import { startOfDay, endOfDay, subDays } from 'date-fns'
 
 export interface ExplorationFilters {
@@ -29,7 +29,7 @@ export async function getExplorationData(reportId: string, filters: ExplorationF
     const user = await getCurrentUser()
     if (!user) return { success: false, error: 'Unauthorized' }
 
-    if (!hasModuleAccess(user.role, 'analytics')) return { success: false, error: 'Unauthorized' }
+    if (!(await hasPermission('analytics'))) return { success: false, error: 'Unauthorized' }
 
     try {
         // 1. Calculate Date Filters
@@ -46,7 +46,8 @@ export async function getExplorationData(reportId: string, filters: ExplorationF
 
         const dateFilter = startDate ? { gte: startDate, lte: endDate } : undefined
 
-        const scopeFilter = getPrismaScopeFilter(user, 'analytics')
+        const { filter: scopeFilter } = await getScopeFilter('analytics')
+        if (!scopeFilter) return { success: false, error: 'Unauthorized: Access denied' }
 
         // 2. Fetch Data based on Report ID
         if (reportId === 'users') {
@@ -123,11 +124,14 @@ export interface CohortRetention {
  */
 export async function getRetentionData(filters?: { campus?: string }): Promise<CohortRetention[]> {
     const admin = await getCurrentUser()
-    if (!admin || !admin.role.includes('Admin')) {
+    if (!admin || !(await hasPermission('analytics'))) {
         throw new Error('Unauthorized')
     }
 
     try {
+        const { filter: scopeFilter } = await getScopeFilter('analytics')
+        if (!scopeFilter) throw new Error('Unauthorized: Access denied')
+
         // 1. Define time window (Last 6 months)
         const monthsCount = 6
         const now = new Date()
@@ -139,6 +143,7 @@ export async function getRetentionData(filters?: { campus?: string }): Promise<C
         // 2. Fetch all ambassadors joined in the last 6 months
         const ambassadors = await prisma.user.findMany({
             where: {
+                ...scopeFilter,
                 role: { in: ['Staff', 'Parent', 'Alumni', 'Others'] },
                 createdAt: { gte: startOfWindow },
                 ...(filters?.campus && filters.campus !== 'All' && filters.campus !== 'all' && { assignedCampus: filters.campus })

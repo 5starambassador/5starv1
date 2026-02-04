@@ -7,13 +7,10 @@ import { MobileMenu } from '@/components/MobileMenu'
 import { NotificationDropdown } from '@/components/NotificationDropdown'
 import MobileSidebarWrapper from '@/components/MobileSidebarWrapper'
 import { BottomNav } from '@/components/BottomNav'
-import { InstallPrompt } from '@/components/InstallPrompt'
-import { MobileConfig } from '@/components/MobileConfig'
-import { OfflineAlert } from '@/components/OfflineAlert'
 import { getMyPermissions } from '@/lib/permission-service'
 import { RolePermissions } from '@/lib/permissions'
 import { deleteSession } from '@/lib/session'
-import { CommandPalette } from '@/components/superadmin/CommandPalette'
+import { LayoutOverlays } from '@/components/LayoutOverlays'
 
 async function logout() {
     'use server'
@@ -74,10 +71,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         if (permissions.engagementCentre?.access) navItems.push({ label: 'Engagement Center', href: `${baseAdminPath}?view=engagement`, icon: <Zap /> })
         if (isSuperAdmin) {
             navItems.push({ label: 'System Overview', href: '/superadmin?view=analytics', icon: <LayoutDashboard /> })
-            navItems.push({ label: 'Campus Control', href: '/superadmin?view=campuses', icon: <Building2 /> })
-            navItems.push({ label: 'User Operations', href: '/superadmin?view=users', icon: <Users /> })
-            navItems.push({ label: 'Student Records', href: '/superadmin?view=students', icon: <GraduationCap /> })
-            navItems.push({ label: 'Referral Pipeline', href: '/superadmin?view=referrals', icon: <GitFork /> })
+            navItems.push({ label: 'Campus Control', href: '/superadmin/campuses', icon: <Building2 /> })
+            navItems.push({ label: 'User Operations', href: '/superadmin/users', icon: <Users /> })
+            navItems.push({ label: 'Student Records', href: '/superadmin/students', icon: <GraduationCap /> })
+            navItems.push({ label: 'Referral Pipeline', href: '/superadmin/referrals', icon: <GitFork /> })
             navItems.push({ label: 'External Programs', href: '/superadmin?view=programs', icon: <ExternalLink /> })
             navItems.push({ label: 'Program Leads', href: '/superadmin?view=program-leads', icon: <MousePointerClick /> }) // New Link
             navItems.push({ label: 'Revenue & Payouts', href: '/superadmin?view=settlements', icon: <IndianRupee /> })
@@ -183,7 +180,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/30 to-transparent blur-md"></div>
                     </div>
                 </div>
-                <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar -mr-2 pr-2">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none">
                     <MobileMenu navItems={navItems} user={{ fullName: user.fullName, role: user.role }} logoutAction={logout} />
                 </div>
             </aside>
@@ -226,10 +223,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                 </main>
 
                 <BottomNav role={user.role} />
-                <InstallPrompt />
-                <MobileConfig />
-                <OfflineAlert />
-                <CommandPalette />
+                <LayoutOverlays />
             </div>
         </div>
     )

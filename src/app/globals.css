@@ -992,6 +992,15 @@ a {
   background: rgba(0, 0, 0, 0.6);
 }
 
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Forceful Sidebar/Topbar Visibility Overrides */
 /* Default: Mobile Style */
 .desktop-sidebar {

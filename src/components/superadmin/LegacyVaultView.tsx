@@ -3,11 +3,10 @@
 import React, { useMemo } from 'react'
 import { BenefitSlabData } from '@/app/benefit-actions'
 import {
-    ShieldCheck, History, AlertCircle, Coins,
-    ChevronRight, Save, History as HistoryIcon,
-    Cpu, Activity, Calculator, Target, Info
+    ShieldCheck, History, DollarSign, Calculator,
+    TrendingUp, Coins, Save, Percent, Award
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { PolicyVisualizer } from './PolicyVisualizer'
 
@@ -42,50 +41,48 @@ export function LegacyVaultView({
 }: Props) {
 
     const simResult = useMemo(() => {
-        // Enforce "1 Referral Activation" requirement
         if (simState.count <= 0 || !slabs.length) return { percent: 0, amount: 0, breakdown: [], longTermBase: 0 }
 
         const sorted = [...slabs].sort((a, b) => a.referralCount - b.referralCount)
         const getPercent = (count: number) => {
-            // Long Term Linear Slab: 5% per referral (1=5, 2=10, 3=15, 4=20, 5=25)
-            // We use the count directly * 5
-            return Math.min(count, 5) * 5
+            const slab = sorted.find(s => s.referralCount === count) || sorted[sorted.length - 1]
+            return slab?.baseLongTermPercent || 0
         }
 
         let totalAmount = 0
         const breakdown: string[] = []
-
-        // 1. Fixed Historic Base (Sum of 3%s from previous year)
+        let applicablePercent = 0
         const longTermBaseAmount = globalHistoricBase
-        breakdown.push(`🏛️ HISTORIC BASE: ₹${longTermBaseAmount.toLocaleString()} (Sum of 3% of Top 5 Prev. Year Fees)`)
 
         const isGroupAWaiver = simState.role === 'Parent' || (simState.role === 'Staff' && simState.hasChild)
 
         if (isGroupAWaiver) {
-            // Category A: Fee Discount
-            const slabPercent = getPercent(simState.count)
-            totalAmount = (simState.fee * slabPercent) / 100
-            breakdown.push(`⚡ WAIVER GROUP A: Discounting Tuition Fee`)
-            breakdown.push(`📈 TIER YIELD [Ref: ${Math.min(simState.count, 5)}]: ${slabPercent}% of Child Fee ₹${simState.fee.toLocaleString()}`)
-            breakdown.push(`💰 BASE WAIVER: ₹${totalAmount.toLocaleString()}`)
-            breakdown.push(`📱 APP BONUS: 0% (Protocol: Long Term Excluded)`)
+            applicablePercent = getPercent(Math.min(simState.count, 5))
+            totalAmount = (simState.fee * applicablePercent) / 100
+            breakdown.push(`🏛️ LEGACY GROUP A: Long-Term Benefit (Child Fees)`)
+            breakdown.push(`💎 HISTORIC BASE: ₹${longTermBaseAmount.toLocaleString()} (Applied Global Floor)`)
+            breakdown.push(`📈 TIER YIELD [Ref: ${Math.min(simState.count, 5)}]: ${applicablePercent}% of ₹${simState.fee.toLocaleString()}`)
+            breakdown.push(`💰 CURRENT YIELD: ₹${totalAmount.toLocaleString()}`)
         } else {
-            // Category B: Cash Payout
-            breakdown.push(`💧 PAYOUT GROUP B: Current Year Liquidity Yield`)
+            breakdown.push(`🏛️ LEGACY GROUP B: Long-Term Payout (Cash Yield)`)
+            breakdown.push(`💎 HISTORIC BASE: ₹${longTermBaseAmount.toLocaleString()} (Applied Global Floor)`)
 
-            // For Payout, each referral contributes 5% of its Grade-1 fee.
-            // In the simulator, we assume simState.fee is the representative Grade-1 Fee.
+            const getMarginalPercent = (n: number) => {
+                const current = getPercent(n)
+                const prev = n === 1 ? 0 : getPercent(n - 1)
+                return Math.max(0, current - prev)
+            }
+
             for (let i = 1; i <= Math.min(simState.count, 5); i++) {
-                const slicePercent = 5 // Exactly 5% per referral for Long Term
+                const slicePercent = getMarginalPercent(i)
                 const sliceAmount = (simState.fee * slicePercent) / 100
                 totalAmount += sliceAmount
-                breakdown.push(`🔥 REF-${i} YIELD: 5% of ₹${simState.fee.toLocaleString()} (₹${sliceAmount.toLocaleString()})`)
+                breakdown.push(`🔥 MARGINAL REF-${i}: ${slicePercent}% yield (₹${sliceAmount.toLocaleString()})`)
             }
-            breakdown.push(`📱 APP BONUS: 0% (Protocol: Long Term Excluded)`)
         }
 
         return {
-            percent: isGroupAWaiver ? getPercent(simState.count) : (simState.count * 5),
+            percent: applicablePercent,
             amount: totalAmount + longTermBaseAmount,
             breakdown,
             longTermBase: longTermBaseAmount
@@ -94,33 +91,7 @@ export function LegacyVaultView({
 
     return (
         <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* COMPLIANCE CARD */}
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-red-50 p-10 rounded-[56px] border border-red-100 shadow-xl relative overflow-hidden group"
-            >
-                <div className="absolute top-0 right-0 w-64 h-64 bg-red-100/50 rounded-full blur-3xl -mr-32 -mt-32" />
-                <div className="relative z-10 flex flex-col lg:flex-row justify-between items-center gap-8">
-                    <div className="flex items-center gap-6">
-                        <div className="p-5 bg-red-600 text-white rounded-[32px] shadow-lg group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500">
-                            <AlertCircle size={32} strokeWidth={2.5} />
-                        </div>
-                        <div className="space-y-1">
-                            <h3 className="text-2xl font-black text-red-900 uppercase tracking-tighter italic leading-none">Activity Protocol</h3>
-                            <p className="text-[9px] font-black text-red-400 uppercase tracking-[0.3em] font-mono">Mandatory Compliance Rule</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-8 rounded-[40px] border border-red-100 shadow-sm flex flex-col items-center text-center max-w-sm">
-                        <p className="text-[14px] font-bold text-slate-800 leading-snug">
-                            "Long term benefits activate <span className="text-red-600 font-black">from next year onward</span> for 5-Star Partners who have completed 5 referrals. Secure at least one new referral every Academic Year to retain eligibility."
-                        </p>
-                    </div>
-                </div>
-            </motion.div>
-
-            {/* STRATEGIC OVERRIDES */}
+            {/* HISTORIC OVERRIDE */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -129,12 +100,12 @@ export function LegacyVaultView({
                 <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-100/50 rounded-full blur-3xl -mr-32 -mt-32" />
                 <div className="relative z-10 flex flex-col lg:flex-row justify-between items-center gap-8">
                     <div className="flex items-center gap-6">
-                        <div className="p-5 bg-slate-900 text-white rounded-[32px] shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
-                            <ShieldCheck size={32} strokeWidth={2.5} />
+                        <div className="p-5 bg-emerald-600 text-white rounded-[32px] shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                            <History size={32} strokeWidth={2.5} />
                         </div>
                         <div className="space-y-1">
-                            <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">Vault Parameters</h3>
-                            <p className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.3em] font-mono">Long-Term Fixed Yields</p>
+                            <h3 className="text-2xl font-black text-emerald-900 uppercase tracking-tighter italic leading-none">Legacy Shield</h3>
+                            <p className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em] font-mono">Institutional Sustainability Layer</p>
                         </div>
                     </div>
 
@@ -142,7 +113,7 @@ export function LegacyVaultView({
                         <div className="space-y-3">
                             <div className="flex items-center gap-2">
                                 <Coins size={14} className="text-emerald-500" />
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Historic Base (SUM of 3%)</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Historic Base Floor</label>
                             </div>
                             <div className="flex items-center gap-3">
                                 <span className="text-xl font-black text-slate-300 font-mono">₹</span>
@@ -151,15 +122,22 @@ export function LegacyVaultView({
                                     value={globalHistoricBase}
                                     onChange={(e) => setGlobalHistoricBase(parseFloat(e.target.value) || 0)}
                                     className="w-32 bg-emerald-50 border-none rounded-xl p-3 font-black text-emerald-600 text-2xl text-center outline-none focus:ring-4 focus:ring-emerald-100 transition-all font-mono"
-                                    placeholder="6,940"
                                 />
                             </div>
+                        </div>
+
+                        <div className="h-10 w-[1px] bg-slate-100 hidden lg:block" />
+
+                        <div className="max-w-[300px]">
+                            <p className="text-[9px] font-bold text-slate-400 leading-relaxed uppercase tracking-wider">
+                                This sum is automatically added to all 5-Star ambassadors as a floor benefit, derived from their historic status.
+                            </p>
                         </div>
 
                         <button
                             onClick={onSaveGlobal}
                             disabled={isSaving}
-                            className="p-5 bg-slate-900 text-white rounded-[24px] hover:scale-110 active:scale-95 transition-all shadow-lg hover:shadow-slate-200 disabled:opacity-50"
+                            className="p-5 bg-emerald-600 text-white rounded-[24px] hover:scale-110 active:scale-95 transition-all shadow-lg hover:shadow-emerald-200 disabled:opacity-50"
                         >
                             <Save size={24} strokeWidth={2.5} />
                         </button>
@@ -173,10 +151,10 @@ export function LegacyVaultView({
                     <div className="bg-white rounded-[56px] border border-gray-100 shadow-2xl overflow-hidden relative border-t-4 border-t-emerald-600">
                         <div className="p-10 border-b border-gray-100 bg-gray-50/30">
                             <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter italic flex items-center gap-3">
-                                <Coins className="text-emerald-600" size={24} />
-                                Legacy Yield Matrix
+                                <Award className="text-emerald-600" size={24} />
+                                Institutional Yield Matrix
                             </h3>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mt-1 italic">5-Star Elite Partner Slab Configuration</p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mt-1 italic">Long Term Partner Slab Configuration</p>
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-2">
@@ -187,8 +165,8 @@ export function LegacyVaultView({
                                 <div className="space-y-6">
                                     <div className="grid grid-cols-4 px-4 py-2 text-[10px] font-black text-gray-400 uppercase tracking-widest font-mono">
                                         <div className="col-span-1">Slot</div>
-                                        <div className="col-span-1 text-center">Elite %</div>
-                                        <div className="col-span-1 text-center">Incr.</div>
+                                        <div className="col-span-1 text-center">Stability %</div>
+                                        <div className="col-span-1 text-center">Delta</div>
                                         <div className="col-span-1 text-right">Commit</div>
                                     </div>
                                     <div className="space-y-3">
@@ -212,7 +190,7 @@ export function LegacyVaultView({
                                                     </div>
                                                     <div className="flex justify-center">
                                                         <Badge variant="default" className="bg-emerald-50 text-emerald-600 font-mono text-[9px] px-2 py-0.5 font-black">
-                                                            +{delta}%
+                                                            +{delta.toFixed(1)}%
                                                         </Badge>
                                                     </div>
                                                     <div className="flex justify-end">
@@ -230,26 +208,60 @@ export function LegacyVaultView({
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <div className="p-6 bg-slate-900 border-t border-slate-800 flex items-center gap-4">
-                            <Info size={16} className="text-emerald-400" />
-                            <p className="text-[10px] font-bold text-white/50 uppercase tracking-tight">
-                                Total Yield = (Current Yield % * Fee Base) + Historic Base Sum (₹{globalHistoricBase.toLocaleString()})
-                            </p>
+                    {/* DYNAMIC CARDS (Legacy Versions) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="bg-white p-8 rounded-[48px] border border-gray-100 shadow-xl border-b-8 border-b-emerald-500 group">
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="p-4 bg-emerald-600 text-white rounded-[24px]">
+                                    <ShieldCheck size={24} />
+                                </div>
+                                <h4 className="text-xl font-black text-gray-900 uppercase tracking-tighter italic">Vault Waiver</h4>
+                            </div>
+                            <ul className="space-y-3 px-2">
+                                <li className="flex items-center gap-3 text-[11px] font-black text-gray-500 uppercase tracking-tight">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                    <span>Locked-in Historic Base Floor</span>
+                                </li>
+                                <li className="flex items-center gap-3 text-[11px] font-black text-gray-500 uppercase tracking-tight">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                    <span>Lower Volatility Yield Model</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div className="bg-white p-8 rounded-[48px] border border-gray-100 shadow-xl border-b-8 border-b-teal-500 group">
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="p-4 bg-teal-600 text-white rounded-[24px]">
+                                    <TrendingUp size={24} />
+                                </div>
+                                <h4 className="text-xl font-black text-gray-900 uppercase tracking-tighter italic">Vault Payout</h4>
+                            </div>
+                            <ul className="space-y-3 px-2">
+                                <li className="flex items-center gap-3 text-[11px] font-black text-gray-500 uppercase tracking-tight">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-teal-400" />
+                                    <span>Guaranteed Historic Minimums</span>
+                                </li>
+                                <li className="flex items-center gap-3 text-[11px] font-black text-gray-500 uppercase tracking-tight">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-teal-400" />
+                                    <span>Compound Institutional Bonus</span>
+                                </li>
+                            </ul>
                         </div>
                     </div>
                 </div>
 
-                {/* ORACLE (Legacy) */}
+                {/* ORACLE (Vault) */}
                 <div className="xl:col-span-4">
                     <div className="bg-slate-900 rounded-[56px] p-8 text-white shadow-2xl border border-slate-800">
                         <div className="flex items-center gap-4 mb-8">
                             <div className="p-4 bg-emerald-600 text-white rounded-2xl">
-                                <Cpu size={24} />
+                                <Calculator size={24} />
                             </div>
                             <div>
                                 <h3 className="text-xl font-black uppercase tracking-tighter italic">Vault Oracle</h3>
-                                <p className="text-[8px] font-black text-emerald-400/60 uppercase tracking-[0.3em] font-mono">5-Star Branch</p>
+                                <p className="text-[8px] font-black text-emerald-400/60 uppercase tracking-[0.3em] font-mono">Legacy Branch</p>
                             </div>
                         </div>
 
@@ -268,7 +280,7 @@ export function LegacyVaultView({
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-[8px] font-black text-white/30 uppercase tracking-widest font-mono">Referrals</label>
+                                    <label className="text-[8px] font-black text-white/30 uppercase tracking-widest font-mono">Active Referrals</label>
                                     <input
                                         type="number"
                                         value={simState.count}
@@ -277,13 +289,10 @@ export function LegacyVaultView({
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[8px] font-black text-white/30 uppercase tracking-widest font-mono">Fee Base</label>
-                                    <input
-                                        type="number"
-                                        value={simState.fee}
-                                        onChange={(e) => setSimState({ ...simState, fee: parseFloat(e.target.value) || 0 })}
-                                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-black text-center font-mono outline-none focus:ring-2 focus:ring-emerald-500"
-                                    />
+                                    <label className="text-[8px] font-black text-white/30 uppercase tracking-widest font-mono">Historic Base</label>
+                                    <div className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-emerald-400 text-xl font-black text-center font-mono">
+                                        ₹{globalHistoricBase.toLocaleString()}
+                                    </div>
                                 </div>
                             </div>
 
@@ -298,8 +307,8 @@ export function LegacyVaultView({
                                     ))}
                                 </div>
 
-                                <div className="mt-6 p-6 rounded-[32px] bg-gradient-to-br from-slate-800 to-slate-950 border border-white/5 text-center">
-                                    <p className="text-[9px] font-black text-emerald-400/50 uppercase tracking-widest mb-2">Validated Yield</p>
+                                <div className="mt-6 p-6 rounded-[32px] bg-gradient-to-br from-emerald-600 to-teal-700 text-center">
+                                    <p className="text-[9px] font-black text-white/50 uppercase tracking-widest mb-2">Compounded Yield</p>
                                     <h4 className="text-4xl font-black text-white font-mono italic tracking-tighter">
                                         ₹{Math.round(simResult.amount).toLocaleString()}
                                     </h4>

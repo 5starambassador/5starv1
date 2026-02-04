@@ -61,11 +61,11 @@ const filterReferralsByYear = (referrals: any[], yearRecord: any) => {
     }
 }
 
-import { ClientUser } from '@/types/client-types'
-
 import { BenefitSlabData } from '@/app/benefit-actions'
+import { ClientUser } from '@/types/client-types'
+import nextDynamic from 'next/dynamic'
 
-import { ProgramGallery } from './ProgramGallery'
+const ProgramGallery = nextDynamic(() => import('./ProgramGallery').then(m => m.ProgramGallery), { ssr: false })
 
 interface DashboardClientProps {
     user: ClientUser

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BarChart3, Users, BookOpen, ShieldCheck, Building2, Download, IndianRupee, Database, GanttChartSquare, MessageSquare, Settings, UserPlus, Edit, Trash, List, Wallet, ChevronDown, ChevronRight, CheckCircle2, Eye, Key, RotateCcw, ExternalLink } from 'lucide-react'
+import { BarChart3, Users, BookOpen, ShieldCheck, Building2, Download, IndianRupee, Database, GanttChartSquare, MessageSquare, Settings, UserPlus, Edit, Trash, List, Wallet, ChevronDown, ChevronRight, CheckCircle2, Eye, Key, RotateCcw, ExternalLink, Globe, CreditCard, Percent, Calendar, RefreshCw, FileText, ShieldAlert } from 'lucide-react'
 
 import { RolePermissions } from '@/types'
 
@@ -35,17 +35,32 @@ const SECTIONS = [
             { key: 'reports', label: 'Reports & Exports', icon: Download },
             { key: 'settlements', label: 'Finance & Settlements', icon: IndianRupee },
             { key: 'marketingKit', label: 'Marketing Kit', icon: Database },
-            { key: 'auditLog', label: 'Audit Trail', icon: GanttChartSquare },
             { key: 'supportDesk', label: 'Support Desk', icon: MessageSquare },
             { key: 'passwordReset', label: 'Admin Password Reset', icon: Key },
-            { key: 'settings', label: 'System Settings', icon: Settings },
-            { key: 'deletionHub', label: 'Account Deletion Hub', icon: Trash },
             { key: 'referralTracking', label: 'Global Referral Module', icon: List },
-            { key: 'feeManagement', label: 'Fee Management', icon: Wallet },
             { key: 'engagementCentre', label: 'Engagement Centre', icon: Users },
-            { key: 'paymentApproval', label: 'Payment Approval', icon: IndianRupee },
             { key: 'programLeads', label: 'Program Leads Manager', icon: List },
-            { key: 'externalPrograms', label: 'External Programs Manager', icon: ExternalLink },
+            { key: 'externalPrograms', label: 'External Programs', icon: Globe, isSub: true, canCreate: true, canEdit: true, canDelete: true },
+        ]
+    },
+    {
+        id: 'finance',
+        title: 'Financials & Revenue',
+        modules: [
+            { key: 'settlements', label: 'Settlements & Payouts', icon: CreditCard },
+            { key: 'paymentApproval', label: 'Payment Verification', icon: CheckCircle2 },
+            { key: 'feeManagement', label: 'Fee Slab Management', icon: Percent, canCreate: true, canEdit: true },
+        ]
+    },
+    {
+        id: 'system',
+        title: 'System & Governance',
+        modules: [
+            { key: 'settings', label: 'Global Configurations', icon: Settings },
+            { key: 'academicCycles', label: 'Academic Cycles', icon: Calendar, isSub: true },
+            { key: 'disasterRecovery', label: 'Disaster Recovery', icon: RefreshCw, isSub: true },
+            { key: 'auditLog', label: 'Audit Trail', icon: FileText },
+            { key: 'deletionHub', label: 'Privacy & Deletion', icon: ShieldAlert },
         ]
     },
     {
@@ -75,37 +90,52 @@ export function PermissionsMatrix({
     }
 
     const handleToggle = (role: string, moduleKey: string) => {
-        const isSubKey = moduleKey.includes('.')
         const newMatrix = { ...rolePermissionsMatrix }
-
-        // Safety check for role existence
         if (!newMatrix[role]) return
 
+        // Deep clone the role permissions to avoid direct mutation
+        newMatrix[role] = { ...newMatrix[role] }
+
+        const isSubKey = moduleKey.includes('.')
         if (isSubKey) {
             const [parentKey, subKey] = moduleKey.split('.')
-            if (newMatrix[role][parentKey] && typeof newMatrix[role][parentKey] === 'object') {
-                newMatrix[role][parentKey][subKey] = !newMatrix[role][parentKey][subKey]
+            const parent = newMatrix[role][parentKey as keyof RolePermissions]
+            if (parent && typeof parent === 'object') {
+                (newMatrix[role] as any)[parentKey] = {
+                    ...parent,
+                    [subKey]: !(parent as any)[subKey]
+                }
             }
         } else {
-            if (newMatrix[role][moduleKey]) {
-                newMatrix[role][moduleKey].access = !newMatrix[role][moduleKey].access
+            const mk = moduleKey as keyof RolePermissions
+            if (newMatrix[role][mk]) {
+                newMatrix[role][mk] = {
+                    ...newMatrix[role][mk],
+                    access: !newMatrix[role][mk].access
+                }
             }
         }
-
         onChange(newMatrix)
     }
 
     const handleScopeCycle = (role: string, moduleKey: string, currentScope: string) => {
         const newMatrix = { ...rolePermissionsMatrix }
-        if (!newMatrix[role]?.[moduleKey]) return
+        const mk = moduleKey as keyof RolePermissions
+        if (!newMatrix[role]?.[mk]) return
 
         const scopes = ['all', 'campus', 'campus-view', 'self', 'view-only']
-
         const currentIndex = scopes.indexOf(currentScope)
         const nextIndex = (currentIndex + 1) % scopes.length
         const nextScope = scopes[nextIndex]
 
-        newMatrix[role][moduleKey].scope = nextScope
+        newMatrix[role] = {
+            ...newMatrix[role],
+            [mk]: {
+                ...newMatrix[role][mk],
+                scope: nextScope as any
+            }
+        }
+
         onChange(newMatrix)
     }
 

@@ -1,7 +1,7 @@
 import 'server-only'
 import { getRolePermissions } from '@/app/permission-actions'
 import { getCurrentUser } from './auth-service'
-import { ROLE_PERMISSIONS, RolePermissions } from './permissions'
+import { DEFAULT_ROLE_PERMISSIONS, RolePermissions } from './permissions'
 
 /**
  * Get permissions for the currently logged-in admin
@@ -16,7 +16,7 @@ export async function getMyPermissions() {
     }
 
     // Fallback to coded defaults if DB fetch fails or role not in DB
-    return ROLE_PERMISSIONS[user.role] as RolePermissions || null
+    return DEFAULT_ROLE_PERMISSIONS[user.role] as RolePermissions || null
 }
 
 /**
@@ -117,19 +117,67 @@ export async function getScopeFilter(
 }
 
 /**
- * Quick check if user can edit (scope is not view-only or none)
+ * Quick check if user can edit (checks both scope and granular canEdit flag)
  */
 export async function canEdit(module: keyof RolePermissions): Promise<boolean> {
-    const scope = await getPermissionScope(module)
-    return scope !== 'none' && scope !== 'view-only' && scope !== 'campus-view'
+    const perms = await getMyPermissions()
+    if (!perms || !perms[module]?.access) return false
+
+    const scope = perms[module].scope
+    const isReadOnlyScope = scope === 'view-only' || scope === 'campus-view' || scope === 'none'
+
+    // If the module has an explicit canEdit flag, honor it. Otherwise, rely on scope.
+    if (perms[module].canEdit !== undefined) {
+        return perms[module].canEdit && !isReadOnlyScope
+    }
+
+    return !isReadOnlyScope
 }
 
 /**
- * Quick check if user can delete (scope must allow deletion logic if applicable)
- * For now, same as Edit but we might want stricter scope later.
+ * Quick check if user can delete (checks both scope and granular canDelete flag)
  */
 export async function canDelete(module: keyof RolePermissions): Promise<boolean> {
-    const scope = await getPermissionScope(module)
-    return scope !== 'none' && scope !== 'view-only' && scope !== 'campus-view'
+    const perms = await getMyPermissions()
+    if (!perms || !perms[module]?.access) return false
+
+    const scope = perms[module].scope
+    const isReadOnlyScope = scope === 'view-only' || scope === 'campus-view' || scope === 'none'
+
+    // If the module has an explicit canDelete flag, honor it. Otherwise, rely on scope.
+    if (perms[module].canDelete !== undefined) {
+        return perms[module].canDelete && !isReadOnlyScope
+    }
+
+    return !isReadOnlyScope
+}
+
+/**
+ * Check if the current user can perform a specific action on a module
+ * This is the primary utility for granular actions like create/edit/delete.
+ */
+export async function canPerformAction(
+    module: keyof RolePermissions,
+    action: 'create' | 'edit' | 'delete'
+): Promise<boolean> {
+    const perms = await getMyPermissions()
+    if (!perms || !perms[module]?.access) return false
+
+    const modulePermission = perms[module]
+    const scope = modulePermission.scope
+    const isReadOnlyScope = scope === 'view-only' || scope === 'campus-view' || scope === 'none'
+
+    if (isReadOnlyScope) return false
+
+    switch (action) {
+        case 'create':
+            return modulePermission.canCreate ?? true // Default to true if flag missing but access granted
+        case 'edit':
+            return modulePermission.canEdit ?? true
+        case 'delete':
+            return modulePermission.canDelete ?? true
+        default:
+            return false
+    }
 }
 

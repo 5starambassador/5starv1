@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
 import { Student, User, Campus, BulkStudentData } from '@/types'
@@ -11,14 +10,15 @@ import { StudentDetailPanel } from '@/components/superadmin/StudentDetailPanel'
 import CSVUploader from '@/components/CSVUploader'
 import { addStudent, updateStudent, bulkAddStudents } from '@/app/student-actions'
 import { getGradesForCampus } from '@/lib/grade-utils'
+import { AnimatePresence } from 'framer-motion'
 
-interface StudentPanelProps {
+interface StudentsPageClientProps {
     students: Student[]
     users: User[]
     campuses: Campus[]
 }
 
-export function StudentPanel({ students, users, campuses }: StudentPanelProps) {
+export default function StudentsPageClient({ students, users, campuses }: StudentsPageClientProps) {
     const router = useRouter()
     const [searchQuery, setSearchQuery] = useState('')
     const [showStudentModal, setShowStudentModal] = useState(false)
@@ -150,7 +150,11 @@ export function StudentPanel({ students, users, campuses }: StudentPanelProps) {
     }
 
     return (
-        <div className="space-y-6 animate-fade-in relative">
+        <div className="space-y-6 animate-fade-in relative min-h-screen pb-20">
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-black text-gray-900 tracking-tighter">Student Management</h1>
+            </div>
+
             <div>
                 <StudentTable
                     students={students}

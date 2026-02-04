@@ -25,12 +25,13 @@ interface ReferralManagementTableProps {
     }
     isReadOnly?: boolean
     onBulkAdd?: () => void
-    confirmReferral?: (leadId: number, erp: string, feeType: 'OTP' | 'WOTP', admFee?: number, donFee?: number) => Promise<any>
+    confirmReferral?: (leadId: number, erp: string, feeType: 'OTP' | 'WOTP', admFee?: number, donFee?: number, annualFee?: number) => Promise<any>
     convertLeadToStudent?: (leadId: number, data: any) => Promise<any>
     rejectReferral?: (leadId: number, reason: string) => Promise<{ success: boolean; error?: string }>
     campuses?: any[] // Accept campuses list
     onImportCrm?: () => void // New Prop for CRM Import
     isSuperAdmin?: boolean // New restriction prop
+    showCampusFilter?: boolean // New toggle prop
 }
 
 // --- Excel-Like Filter Component ---
@@ -163,7 +164,8 @@ export function ReferralManagementTable({
     rejectReferral, // Added prop for single reject action
     campuses = [], // Default to empty array
     onImportCrm, // Destructure new prop
-    isSuperAdmin = false // Destructure new restriction prop
+    isSuperAdmin = false, // Destructure new restriction prop
+    showCampusFilter = true
 }: ReferralManagementTableProps) {
     // Check if we are filtering out data client side
     // ... existing code ...
@@ -550,40 +552,95 @@ export function ReferralManagementTable({
         }
     }
 
+    // Assuming ReferralManagementTableProps is defined here or imported
+    // For the purpose of this edit, we'll add the property to the inferred props.
+    // If ReferralManagementTableProps is an interface, it should be updated there.
+    // Example:
+    // interface ReferralManagementTableProps {
+    //     referrals: ReferralWithUserAndStudent[]
+    //     meta: PaginationMeta
+    //     isReadOnly?: boolean
+    //     onBulkAdd: (ids: string[]) => void
+    //     confirmReferral: (id: string, feeType?: FeeType) => Promise<any>
+    //     convertLeadToStudent: (id: string) => Promise<any>
+    //     rejectReferral: (id: string) => Promise<any>
+    //     campuses?: string[]
+    //     isSuperAdmin?: boolean
+    //     campaigns?: any[]
+    //     showCampusFilter?: boolean // Added this line
+    // }
 
     // --- Columns Definition ---
-    const columns = [
-        {
-            header: 'Lead Details',
-            accessorKey: 'studentName',
-            cell: (row: any) => (
-                <div>
-                    <div className="font-bold text-gray-900">{row.studentName || 'N/A'}</div>
-                    <div className="text-xs text-gray-500">{row.parentName}</div>
-                </div>
-            )
-        },
-        {
-            header: 'Referrer',
-            accessorKey: 'user',
-            cell: (row: any) => (
-                <div>
-                    <div className="font-bold text-gray-900">{row.user?.fullName}</div>
-                    <div className="text-xs text-gray-500">{row.user?.role}</div>
-                </div>
-            )
-        },
-        {
-            header: 'Mobile',
-            accessorKey: 'parentMobile',
-            cell: (row: any) => <span className="font-mono text-xs">{row.parentMobile}</span>
-        },
-        {
-            header: 'Campus',
-            accessorKey: 'campus',
-            sortable: true
-        },
-        {
+    const columns = useMemo(() => {
+        const cols = []
+
+        if (showColumns.leadDetails) {
+            cols.push({
+                header: 'Lead Details',
+                accessorKey: 'studentName',
+                cell: (row: any) => (
+                    <div>
+                        <div className="font-bold text-gray-900">{row.studentName || 'N/A'}</div>
+                        <div className="text-xs text-gray-500">{row.parentName}</div>
+                    </div>
+                )
+            })
+        }
+
+        if (showColumns.role) {
+            cols.push({
+                header: 'Referrer',
+                accessorKey: 'user',
+                cell: (row: any) => (
+                    <div>
+                        <div className="font-bold text-gray-900">{row.user?.fullName}</div>
+                        <div className="text-xs text-gray-500">{row.user?.role}</div>
+                    </div>
+                )
+            })
+        }
+
+        if (showColumns.parentMobile) {
+            cols.push({
+                header: 'Mobile',
+                accessorKey: 'parentMobile',
+                cell: (row: any) => <span className="font-mono text-xs">{row.parentMobile}</span>
+            })
+        }
+
+        if (showColumns.campus && showCampusFilter) { // Conditional rendering based on showCampusFilter
+            cols.push({
+                header: 'Campus',
+                accessorKey: 'campus',
+                sortable: true
+            })
+        }
+
+        if (showColumns.fee) {
+            cols.push({
+                header: 'Plan',
+                accessorKey: 'selectedFeeType',
+                cell: (row: any) => (
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${row.selectedFeeType === 'OTP' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
+                        row.selectedFeeType === 'WOTP' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                            'bg-gray-50 text-gray-400 border-gray-100'
+                        }`}>
+                        {row.selectedFeeType || 'N/A'}
+                    </span>
+                )
+            })
+            cols.push({
+                header: 'Annual Fee',
+                accessorKey: 'annualFee',
+                cell: (row: any) => (
+                    <span className="font-black text-gray-900" suppressHydrationWarning>
+                        {row.annualFee ? `₹${row.annualFee.toLocaleString()}` : 'N/A'}
+                    </span>
+                )
+            })
+        }
+
+        cols.push({
             header: 'Status',
             accessorKey: 'leadStatus',
             cell: (row: any) => {
@@ -604,32 +661,36 @@ export function ReferralManagementTable({
                     </div>
                 )
             }
-        },
-        {
-            header: 'Date',
-            accessorKey: 'createdAt',
-            cell: (row: any) => {
-                const date = new Date(row.createdAt)
-                const now = new Date()
-                const diffTime = Math.abs(now.getTime() - date.getTime())
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-                const isStale = diffDays > 2 && row.leadStatus === 'New'
+        })
 
-                return (
-                    <div className="flex flex-col">
-                        <span className={`text-[11px] font-bold ${isStale ? 'text-rose-600 animate-pulse' : 'text-gray-500'}`}>
-                            {format(date, 'dd MMM yyyy')}
-                        </span>
-                        {isStale && (
-                            <span className="text-[9px] font-black text-rose-500 uppercase tracking-tighter mt-0.5 flex items-center gap-1">
-                                <AlertCircle size={10} /> {diffDays}d Stale
+        if (showColumns.date) {
+            cols.push({
+                header: 'Date',
+                accessorKey: 'createdAt',
+                cell: (row: any) => {
+                    const date = new Date(row.createdAt)
+                    const now = new Date()
+                    const diffTime = Math.abs(now.getTime() - date.getTime())
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+                    const isStale = diffDays > 2 && row.leadStatus === 'New'
+
+                    return (
+                        <div className="flex flex-col">
+                            <span className={`text-[11px] font-bold ${isStale ? 'text-rose-600 animate-pulse' : 'text-gray-500'}`}>
+                                {format(date, 'dd MMM yyyy')}
                             </span>
-                        )}
-                    </div>
-                )
-            }
-        },
-        {
+                            {isStale && (
+                                <span className="text-[9px] font-black text-rose-500 uppercase tracking-tighter mt-0.5 flex items-center gap-1">
+                                    <AlertCircle size={10} /> {diffDays}d Stale
+                                </span>
+                            )}
+                        </div>
+                    )
+                }
+            })
+        }
+
+        cols.push({
             header: 'View',
             accessorKey: 'leadId',
             cell: (row: any) => (
@@ -642,8 +703,10 @@ export function ReferralManagementTable({
                     <ChevronRight size={16} strokeWidth={2.5} />
                 </button>
             )
-        }
-    ]
+        })
+
+        return cols
+    }, [showColumns, setSelectedLeadForDetail])
 
     return (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 max-w-[100vw] overflow-x-hidden">
@@ -797,17 +860,19 @@ export function ReferralManagementTable({
                     {isColumnMenuOpen && (
                         <div className="absolute right-0 top-12 bg-white border border-gray-100 shadow-xl rounded-xl p-3 w-48 z-50 animate-in fade-in slide-in-from-top-2">
                             <h4 className="text-[10px] font-black uppercase text-gray-400 mb-2">Toggle Columns</h4>
-                            {Object.keys(showColumns).map(key => (
-                                <label key={key} className="flex items-center gap-2 text-sm p-1.5 hover:bg-gray-50 rounded cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={(showColumns as any)[key]}
-                                        onChange={(e) => setShowColumns({ ...showColumns, [key]: e.target.checked })}
-                                        className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                                    />
-                                    <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                                </label>
-                            ))}
+                            {Object.keys(showColumns)
+                                .filter(key => showCampusFilter || key !== 'campus')
+                                .map(key => (
+                                    <label key={key} className="flex items-center gap-2 text-sm p-1.5 hover:bg-gray-50 rounded cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={(showColumns as any)[key]}
+                                            onChange={(e) => setShowColumns({ ...showColumns, [key]: e.target.checked })}
+                                            className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                                        />
+                                        <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                    </label>
+                                ))}
                         </div>
                     )}
                 </div>
@@ -860,17 +925,19 @@ export function ReferralManagementTable({
                     <option value="Staff">Staff</option>
                 </select>
 
-                <select
-                    value={searchParams.get('campus') || ''}
-                    onChange={(e) => updateParam('campus', e.target.value)}
-                    className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-red-500/20"
-                    suppressHydrationWarning={true}
-                >
-                    <option value="">All Campuses</option>
-                    {campusList.map(c => (
-                        <option key={c.id} value={c.campusName}>{c.campusName}</option>
-                    ))}
-                </select>
+                {showCampusFilter && (
+                    <select
+                        value={searchParams.get('campus') || ''}
+                        onChange={(e) => updateParam('campus', e.target.value)}
+                        className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-red-500/20"
+                        suppressHydrationWarning={true}
+                    >
+                        <option value="">All Campuses</option>
+                        {campusList.map(c => (
+                            <option key={c.id} value={c.campusName}>{c.campusName}</option>
+                        ))}
+                    </select>
+                )}
 
                 <select
                     value={searchParams.get('feeType') || ''}
@@ -1207,7 +1274,7 @@ export function ReferralManagementTable({
                                                         showGrades.unshift(currentVal)
                                                     }
                                                     return Array.from(new Set(showGrades)).map(g => (
-                                                        <option key={g} value={g}>{g}</option>
+                                                        <option key={g || 'empty-grade'} value={g}>{g}</option>
                                                     ))
                                                 })()}
                                             </select>

@@ -3,7 +3,7 @@
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { getCurrentUser } from '@/lib/auth-service'
-import { hasModuleAccess } from '@/lib/permissions'
+import { hasPermission } from '@/lib/permission-service'
 import { notifyReferralStatusChanged } from '@/lib/notification-helper'
 import { logAction } from '@/lib/audit-logger'
 
@@ -11,7 +11,7 @@ export async function approveManualPayment(orderId: string) {
     try {
         // 1. Auth Check (Must have paymentApproval permission)
         const user = await getCurrentUser()
-        if (!user || !hasModuleAccess(user.role, 'paymentApproval')) {
+        if (!user || !(await hasPermission('paymentApproval'))) {
             return { success: false, error: 'Unauthorized' }
         }
 
@@ -79,7 +79,7 @@ export async function rejectManualPayment(orderId: string, reason: string) {
     try {
         // 1. Auth Check
         const user = await getCurrentUser()
-        if (!user || !hasModuleAccess(user.role, 'paymentApproval')) {
+        if (!user || !(await hasPermission('paymentApproval'))) {
             return { success: false, error: 'Unauthorized' }
         }
 
@@ -153,7 +153,7 @@ export async function rejectManualPayment(orderId: string, reason: string) {
 export async function approveBulkManualPayments(orderIds: string[]) {
     try {
         const user = await getCurrentUser()
-        if (!user || !require('@/lib/permissions').hasModuleAccess(user.role, 'paymentApproval')) {
+        if (!user || !(await hasPermission('paymentApproval'))) {
             return { success: false, error: 'Unauthorized' }
         }
 
@@ -180,7 +180,7 @@ export async function approveBulkManualPayments(orderIds: string[]) {
 export async function rejectBulkManualPayments(orderIds: string[], reason: string) {
     try {
         const user = await getCurrentUser()
-        if (!user || !require('@/lib/permissions').hasModuleAccess(user.role, 'paymentApproval')) {
+        if (!user || !(await hasPermission('paymentApproval'))) {
             return { success: false, error: 'Unauthorized' }
         }
 
@@ -204,7 +204,7 @@ export async function rejectBulkManualPayments(orderIds: string[], reason: strin
 export async function getPaymentsForExport(search?: string) {
     try {
         const user = await getCurrentUser()
-        if (!user || !require('@/lib/permissions').hasModuleAccess(user.role, 'paymentApproval')) {
+        if (!user || !(await hasPermission('paymentApproval'))) {
             return { success: false, error: 'Unauthorized' }
         }
 
@@ -251,7 +251,7 @@ export async function getPaymentsForExport(search?: string) {
 export async function getRejectedPayments(search?: string) {
     try {
         const user = await getCurrentUser()
-        if (!user || !hasModuleAccess(user.role, 'paymentApproval')) {
+        if (!user || !(await hasPermission('paymentApproval'))) {
             return { success: false, error: 'Unauthorized' }
         }
 

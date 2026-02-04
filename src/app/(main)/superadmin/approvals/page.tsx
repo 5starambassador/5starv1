@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma'
 import { PaymentApprovalTable } from './PaymentApprovalTable'
 import { format } from 'date-fns'
 import { getCurrentUser } from '@/lib/auth-service'
-import { hasModuleAccess } from '@/lib/permissions'
+import { hasPermission } from '@/lib/permission-service'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { History } from 'lucide-react'
@@ -15,7 +15,7 @@ export default async function ApprovalsPage(props: { searchParams: Promise<{ pag
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
-    const hasAccess = hasModuleAccess(user.role, 'paymentApproval')
+    const hasAccess = await hasPermission('paymentApproval')
     if (!hasAccess) redirect('/dashboard')
 
     const page = Number(searchParams.page) || 1

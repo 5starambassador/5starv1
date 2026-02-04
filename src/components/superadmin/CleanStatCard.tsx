@@ -1,43 +1,52 @@
-import { LucideIcon } from 'lucide-react'
+'use client'
+
+import { LucideIcon, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 interface CleanStatCardProps {
     title: string
     value: string | number
     icon: LucideIcon
-    subtext?: string
-    change?: { value: number; isIncrease: boolean }
-    iconColor?: string
-    trend?: 'up' | 'down' | 'neutral'
+    iconColor: string
+    change?: {
+        value: number
+        isIncrease: boolean
+    }
+    subtext: string | React.ReactNode
 }
 
-export function CleanStatCard({ title, value, icon: Icon, subtext, change, iconColor = "text-gray-500", trend }: CleanStatCardProps) {
+export function CleanStatCard({ title, value, icon: Icon, iconColor, change, subtext }: CleanStatCardProps) {
     return (
-        <div className="bg-white/80 backdrop-blur-md p-6 rounded-[32px] border border-white/50 shadow-xl shadow-gray-200/50 hover:shadow-2xl hover:shadow-gray-200/80 transition-all duration-300 group">
-            <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">{title}</p>
-                    <div className="flex items-baseline gap-2">
-                        <h3 className="text-3xl font-black text-gray-900 tracking-tighter italic">
-                            {typeof value === 'number' ? value.toLocaleString() : value}
-                        </h3>
-                    </div>
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="group bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+        >
+            <div className="flex justify-between items-start mb-6">
+                <div className={`w-12 h-12 rounded-2xl ${iconColor} flex items-center justify-center transition-transform duration-500 group-hover:scale-110 shadow-sm`}>
+                    <Icon size={24} strokeWidth={2.5} />
                 </div>
-                <div className={`p-3 rounded-2xl bg-white shadow-inner border border-gray-50 ${iconColor} group-hover:scale-110 transition-transform duration-500`}>
-                    <Icon size={22} strokeWidth={2.5} />
+                {change && (
+                    <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${change.isIncrease ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                        }`}>
+                        {change.isIncrease ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                        {change.value.toFixed(1)}%
+                    </div>
+                )}
+            </div>
+
+            <div className="space-y-1">
+                <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">{title}</p>
+                <h3 className="text-3xl font-black text-gray-900 tracking-tight italic">
+                    {value}
+                </h3>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-gray-50">
+                <div className="text-[11px] font-bold text-gray-500 min-h-[20px]">
+                    {subtext}
                 </div>
             </div>
-            {(subtext || change) && (
-                <div className="mt-6 flex items-center justify-between">
-                    {change && (
-                        <div className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 ${change.isIncrease ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-                            {change.isIncrease ? '↑' : '↓'} {change.value}%
-                        </div>
-                    )}
-                    {subtext && (
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{subtext}</span>
-                    )}
-                </div>
-            )}
-        </div>
+        </motion.div>
     )
 }

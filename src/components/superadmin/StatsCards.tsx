@@ -35,7 +35,17 @@ export function StatsCards({ analytics, growthTrend }: StatsCardsProps) {
         {
             label: 'Total Ambassadors',
             value: analytics.totalAmbassadors,
-            sub: `${analytics.staffCount} Staff | ${analytics.parentCount} Parent | ${analytics.alumniCount} Alumni | ${analytics.othersCount} Other`,
+            sub: (
+                <div className="flex flex-wrap gap-2 leading-relaxed">
+                    <span className="whitespace-nowrap">{analytics.staffCount} Staff</span>
+                    <span className="text-gray-300">•</span>
+                    <span className="whitespace-nowrap">{analytics.parentCount} Parent</span>
+                    <span className="text-gray-300">•</span>
+                    <span className="whitespace-nowrap">{analytics.alumniCount} Alumni</span>
+                    <span className="text-gray-300">•</span>
+                    <span className="whitespace-nowrap">{analytics.othersCount} Other</span>
+                </div>
+            ),
             icon: Users,
             grad: 'bg-grad-crimson',
             change: calculateChange(analytics.totalAmbassadors, analytics.prevAmbassadors),
@@ -56,7 +66,7 @@ export function StatsCards({ analytics, growthTrend }: StatsCardsProps) {
         {
             label: 'Total Leads',
             value: analytics.totalLeads,
-            sub: 'Generated so far',
+            sub: 'All-time CRM Pipeline',
             icon: UserPlus,
             grad: 'bg-grad-sapphire',
             change: calculateChange(analytics.totalLeads, analytics.prevLeads)
@@ -92,9 +102,9 @@ export function StatsCards({ analytics, growthTrend }: StatsCardsProps) {
             grad: 'bg-grad-rose'
         },
         {
-            label: 'Referral Velocity',
+            label: 'Avg. Lead Rate',
             value: analytics.avgLeadsPerAmbassador,
-            sub: 'Leads per Ambassador',
+            sub: 'Leads / Active Ambassador',
             icon: Target,
             grad: 'bg-grad-violet'
         },
