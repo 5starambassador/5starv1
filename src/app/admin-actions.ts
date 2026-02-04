@@ -306,12 +306,20 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
                 select: { campusId: true, campus: true, gradeInterested: true }
             })
 
-            if (!leadRecord || !leadRecord.campusId || !leadRecord.gradeInterested) {
-                throw new Error('Lead must have a campus and grade assigned before confirmation')
+            if (!leadRecord || !leadRecord.gradeInterested) {
+                throw new Error('Lead must have a grade assigned before confirmation')
+            }
+
+            // Fix for "Special Logic" campuses (AASC, etc.) which might not have campusId mapped
+            const isSpecialCampus = ['ACET', 'AASC', 'ACCHM'].includes(leadRecord.campus || '')
+            const hasValidCampus = leadRecord.campusId || (isSpecialCampus && leadRecord.campus)
+
+            if (!hasValidCampus) {
+                throw new Error('Lead must have a campus assigned before confirmation')
             }
 
             // --- Validation for Normal Logic Campuses ---
-            const isSpecialCampus = ['ACET', 'AASC', 'ACCHM'].includes(leadRecord.campus || '')
+            // isSpecialCampus is already defined above
 
             if (!selectedFeeType && !isSpecialCampus) {
                 throw new Error('Fee Type Selection (OTP or WOTP) is mandatory for confirmation')
@@ -331,19 +339,28 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
             if (annualFee !== undefined && annualFee !== null) {
                 finalAnnualFee = annualFee
             } else {
-                const feeRule = await tx.gradeFee.findFirst({
-                    where: {
-                        campusId: leadRecord.campusId,
-                        grade: leadRecord.gradeInterested,
-                        academicYear: '2026-2027' // Default for now, ideally dynamic
+                // FALLBACK: If special campus, auto-inject fixed "Annual Fee" (Commission Base)
+                if (isSpecialCampus) {
+                    if (leadRecord.campus === 'ACET') {
+                        finalAnnualFee = 5000 // Commission Base for ACET
+                    } else if (['AASC', 'ACCHM'].includes(leadRecord.campus || '')) {
+                        finalAnnualFee = 2000 // Commission Base for AASC/ACCHM
                     }
-                })
+                } else {
+                    const feeRule = await tx.gradeFee.findFirst({
+                        where: {
+                            campusId: leadRecord.campusId || 0, // Fallback to 0 or handle missing campusId better
+                            grade: leadRecord.gradeInterested,
+                            academicYear: '2026-2027' // Default for now, ideally dynamic
+                        }
+                    })
 
-                /* Fallback logic for fee generation if not provided - kept simple within core logic or could import getGradeFee */
-                if (feeRule) {
-                    finalAnnualFee = selectedFeeType === 'OTP'
-                        ? (feeRule.annualFee_otp || 0)
-                        : (feeRule.annualFee_wotp || 0)
+                    /* Fallback logic for fee generation if not provided - kept simple within core logic or could import getGradeFee */
+                    if (feeRule) {
+                        finalAnnualFee = selectedFeeType === 'OTP'
+                            ? (feeRule.annualFee_otp || 0)
+                            : (feeRule.annualFee_wotp || 0)
+                    }
                 }
             }
 
