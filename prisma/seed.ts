@@ -8,7 +8,7 @@ const prisma = new PrismaClient({
 const STAFF_NAMES = ["Suresh Chandran", "Amit Patel", "Deepa Thomas", "Karan Johar", "Priya Menon"]
 const PARENT_NAMES = ["Vikram Rathore", "Anjali Gupta", "Rohit Sharma", "Sneha Reddy", "Manish Malhotra"]
 
-const SLABS = { 1: 5, 2: 10, 3: 25, 4: 30, 5: 50 } as const
+const SLABS = { 1: 5, 2: 10, 3: 20, 4: 30, 5: 50 } as const
 
 async function main() {
     console.log('Starting seed...')
@@ -27,7 +27,7 @@ async function main() {
     const benefits = [
         { referralCount: 1, yearFeeBenefitPercent: 5, longTermExtraPercent: 5, baseLongTermPercent: 15 },
         { referralCount: 2, yearFeeBenefitPercent: 10, longTermExtraPercent: 10, baseLongTermPercent: 15 },
-        { referralCount: 3, yearFeeBenefitPercent: 25, longTermExtraPercent: 15, baseLongTermPercent: 15 },
+        { referralCount: 3, yearFeeBenefitPercent: 20, longTermExtraPercent: 15, baseLongTermPercent: 15 },
         { referralCount: 4, yearFeeBenefitPercent: 30, longTermExtraPercent: 20, baseLongTermPercent: 15 },
         { referralCount: 5, yearFeeBenefitPercent: 50, longTermExtraPercent: 25, baseLongTermPercent: 15 },
     ]

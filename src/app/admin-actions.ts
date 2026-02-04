@@ -404,8 +404,8 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
 
             // Determine Benefit % based on the 5-Star system logic (1.5)
             // TRACK 1: New Referrals This Year (Reset annually)
-            // 1: 5%, 2: 10%, 3: 25%, 4: 30%, 5: 50%
-            const shortTermSlabs: Record<number, number> = { 1: 5, 2: 10, 3: 25, 4: 30, 5: 50 };
+            // 1: 5%, 2: 10%, 3: 20%, 4: 30%, 5: 50%
+            const shortTermSlabs: Record<number, number> = { 1: 5, 2: 10, 3: 20, 4: 30, 5: 50 };
             const lookupCount = Math.min(currentYearCount, 5); // Use currentYearCount, NOT lifetime count
             let yearFeeBenefit = shortTermSlabs[lookupCount] || 0;
 
@@ -545,7 +545,7 @@ export async function revertReferralConfirmation(leadId: number) {
             })
 
             // --- Benefit Logic (Identical to Confirm Logic) ---
-            const shortTermSlabs: Record<number, number> = { 1: 5, 2: 10, 3: 25, 4: 30, 5: 50 };
+            const shortTermSlabs: Record<number, number> = { 1: 5, 2: 10, 3: 20, 4: 30, 5: 50 };
             const lookupCount = Math.min(currentYearCount, 5);
             let yearFeeBenefit = shortTermSlabs[lookupCount] || 0;
 

@@ -425,8 +425,8 @@ export async function confirmCampusReferral(leadId: number, campusName: string, 
         })
 
         // Track 1: Short-term slabs for new/regular users
-        // 1: 5%, 2: 10%, 3: 25%, 4: 30%, 5: 50%
-        const slabs = { 1: 5, 2: 10, 3: 25, 4: 30, 5: 50 }
+        // 1: 5%, 2: 10%, 3: 20%, 4: 30%, 5: 50%
+        const slabs = { 1: 5, 2: 10, 3: 20, 4: 30, 5: 50 }
         const lookupCount = Math.min(currentYearCount, 5) // Use currentYearCount
         let yearFeeBenefit = slabs[lookupCount as keyof typeof slabs] || 0
 

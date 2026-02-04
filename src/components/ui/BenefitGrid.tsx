@@ -8,7 +8,7 @@ interface BenefitGridProps {
 const tiers = [
     { count: 1, percent: 5 },
     { count: 2, percent: 10 },
-    { count: 3, percent: 25 },
+    { count: 3, percent: 20 },
     { count: 4, percent: 30 },
     { count: 5, percent: 50 }
 ]
