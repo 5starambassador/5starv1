@@ -92,7 +92,7 @@ export function MobileMenu({ navItems, user, logoutAction, onNavigate: propOnNav
                                 // Mobile: Royal Glass Theme - Compact Grid (2 Cols)
                                 ? `flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all duration-300 group no-underline relative overflow-hidden ${isActive
                                     ? 'bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.15)]'
-                                    : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
+                                    : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20 text-blue-200/60'
                                 } ${pendingLabel === item.label ? 'animate-pulse bg-white/10' : ''}`
                                 // Desktop List Item Styles (Premium Sidebar)
                                 : `flex items-center gap-3 px-4 py-3.5 rounded-2xl hover:bg-white/[0.05] transition-all group relative overflow-hidden no-underline ${isActive ? 'text-amber-500 bg-white/[0.05] font-black shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' : 'text-gray-400 hover:text-white'} ${pendingLabel === item.label ? 'animate-pulse bg-white/10' : ''}`
