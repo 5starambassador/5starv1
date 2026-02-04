@@ -29,7 +29,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     // Check Payment Status (Skip for Admins and Active legacy users)
     const isSpecialRole = user.role === 'Super Admin' || user.role === 'Finance Admin' || user.role.includes('Admin') || user.role.includes('Campus')
 
-    if (!isSpecialRole && user.status !== 'Active') {
+    if (!isSpecialRole && (user as any).status !== 'Active') {
         redirect('/complete-payment')
     }
 
@@ -106,8 +106,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         }
 
         // Shared Tooling (Available to all who have permission, but hidden for Super Admin who has dedicated management views)
-        if (permissions.marketingKit.access && !isSuperAdmin) navItems.push({ label: 'Promo Kit', href: '/marketing', icon: <Share2 className="text-amber-400" /> })
-        if (permissions.supportDesk.access && !isSuperAdmin) navItems.push({ label: 'Support Desk', href: '/support', icon: <MessageSquare className="text-amber-400" /> })
+        if (permissions.marketingKit.access && !isSuperAdmin) navItems.push({ label: 'Promo Kit', href: '/marketing', icon: <Share2 /> })
+        if (permissions.supportDesk.access && !isSuperAdmin) navItems.push({ label: 'Support Desk', href: '/support', icon: <MessageSquare /> })
 
         // Admin-specific shared modules (Hide from Ambassadors)
         if (!isAmbassadorRole) {
@@ -126,7 +126,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
     }
 
     // Always accessible
-    navItems.push({ label: 'Profile', href: '/profile', icon: <User className="text-amber-400" /> })
+    navItems.push({ label: 'Profile', href: '/profile', icon: <User /> })
 
     // Theme Selection
     const isDarkTheme = isAmbassadorRole
