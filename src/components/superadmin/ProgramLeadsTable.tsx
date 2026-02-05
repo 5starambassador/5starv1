@@ -11,6 +11,7 @@ interface ProgramLead {
     visitorName: string | null
     visitorMobile: string
     studentName: string | null
+    paymentStatus: string | null
     status: string
     clickedAt: Date
     registeredAt: Date | null
@@ -44,7 +45,7 @@ export function ProgramLeadsTable({ leads }: ProgramLeadsTableProps) {
     })
 
     const downloadCSV = () => {
-        const headers = ['Date', 'Program', 'Referrer', 'Referral Code', 'Visitor Name', 'Visitor Mobile', 'Student Name', 'Status']
+        const headers = ['Date', 'Program', 'Referrer', 'Referral Code', 'Visitor Name', 'Visitor Mobile', 'Student Name', 'Payment Status', 'Status']
         const rows = filteredLeads.map(l => [
             new Date(l.clickedAt).toLocaleDateString(),
             l.program.title,
@@ -53,6 +54,7 @@ export function ProgramLeadsTable({ leads }: ProgramLeadsTableProps) {
             l.visitorName || '-',
             l.visitorMobile,
             l.studentName || '-',
+            l.paymentStatus || '-',
             l.status
         ])
 
@@ -121,6 +123,7 @@ export function ProgramLeadsTable({ leads }: ProgramLeadsTableProps) {
                                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Referrer</th>
                                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Visitor Info</th>
                                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Student Name</th>
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Payment</th>
                                 <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
                             </tr>
                         </thead>
@@ -159,6 +162,18 @@ export function ProgramLeadsTable({ leads }: ProgramLeadsTableProps) {
                                             <span className="text-sm font-bold text-emerald-600">{lead.studentName}</span>
                                         ) : (
                                             <span className="text-xs text-slate-300 italic">Not synced</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        {lead.paymentStatus ? (
+                                            <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${lead.paymentStatus === 'SUCCESS' || lead.paymentStatus === 'PAID' || lead.paymentStatus === 'CONFIRMED'
+                                                    ? 'bg-green-50 text-green-600'
+                                                    : 'bg-orange-50 text-orange-600'
+                                                }`}>
+                                                {lead.paymentStatus}
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs text-slate-300 italic">-</span>
                                         )}
                                     </td>
                                     <td className="px-6 py-4">

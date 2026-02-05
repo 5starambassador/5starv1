@@ -616,6 +616,7 @@ model ProgramLead {
   visitorName   String?
   visitorMobile String
   studentName   String?   // New field for separating Parent/Student
+  paymentStatus String?   // Track status from external sync (e.g., PENDING, SUCCESS)
 
   // Status
   status        String          @default("CLICKED") // CLICKED, REGISTERED

@@ -464,13 +464,43 @@ export function CampaignManager() {
                                 <div className="space-y-2">
                                     <div className="flex justify-between px-1">
                                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Payload Content</label>
-                                        <div className="flex gap-4">
-                                            <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest font-mono">{"{userName}"}</span>
-                                            <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest font-mono">{"{referralCode}"}</span>
+                                        <div className="flex flex-wrap gap-x-4 gap-y-2 justify-end">
+                                            {[
+                                                { tag: '{userName}', label: 'Name' },
+                                                { tag: '{referralCode}', label: 'Code' },
+                                                { tag: '{campus}', label: 'Campus' },
+                                                { tag: '{role}', label: 'Role' },
+                                                { tag: '{referralCount}', label: 'Count' },
+                                                { tag: '{mobile}', label: 'Mobile' }
+                                            ].map(item => (
+                                                <button
+                                                    key={item.tag}
+                                                    onClick={() => {
+                                                        const textarea = document.getElementById('payload-textarea') as HTMLTextAreaElement;
+                                                        if (textarea) {
+                                                            const start = textarea.selectionStart;
+                                                            const end = textarea.selectionEnd;
+                                                            const text = form.templateBody;
+                                                            const before = text.substring(0, start);
+                                                            const after = text.substring(end, text.length);
+                                                            const newText = before + item.tag + after;
+                                                            setForm({ ...form, templateBody: newText });
+                                                            setTimeout(() => {
+                                                                textarea.focus();
+                                                                textarea.setSelectionRange(start + item.tag.length, start + item.tag.length);
+                                                            }, 0);
+                                                        }
+                                                    }}
+                                                    className="text-[9px] font-black text-blue-400 hover:text-blue-600 uppercase tracking-widest font-mono transition-colors"
+                                                >
+                                                    {item.tag}
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
                                     <textarea
-                                        className="w-full bg-gray-50 border border-gray-100 rounded-3xl px-6 py-5 text-sm font-bold text-gray-900 h-48 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 transition-all font-mono leading-relaxed"
+                                        id="payload-textarea"
+                                        className="w-full bg-gray-50 border border-gray-100 rounded-[32px] px-6 py-5 text-sm font-bold text-gray-900 h-48 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all font-mono leading-relaxed resize-none shadow-inner"
                                         placeholder="Inject HTML or standard text template here..."
                                         value={form.templateBody}
                                         onChange={e => setForm({ ...form, templateBody: e.target.value })}
@@ -538,7 +568,12 @@ export function CampaignManager() {
                                         <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1 italic">Subject:</p>
                                         <p className="text-sm font-black text-gray-900">
                                             {previewCampaign.subject
-                                                .replace(/{userName}|{Ambassador}/gi, 'Prof. John Doe')}
+                                                .replace(/{userName}|{Ambassador}/gi, 'Prof. John Doe')
+                                                .replace(/{campus}/gi, 'ASM - VILLIANUR')
+                                                .replace(/{role}/gi, 'Staff')
+                                                .replace(/{referralCount}/gi, '12')
+                                                .replace(/{mobile}/gi, '+91 98765 43210')
+                                            }
                                         </p>
                                     </div>
                                 </div>
@@ -548,7 +583,12 @@ export function CampaignManager() {
                                     <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm min-h-[200px] max-h-[300px] overflow-y-auto font-mono text-sm leading-relaxed text-gray-700 scrollbar-hide text-wrap break-words">
                                         {previewCampaign.templateBody
                                             .replace(/{userName}|{Ambassador}/gi, 'Prof. John Doe')
-                                            .replace(/{referralCode}|{code}/gi, 'AMB_X99P')}
+                                            .replace(/{referralCode}|{code}/gi, 'AMB_X99P')
+                                            .replace(/{campus}/gi, 'ASM - VILLIANUR')
+                                            .replace(/{role}/gi, 'Staff')
+                                            .replace(/{referralCount}/gi, '12')
+                                            .replace(/{mobile}/gi, '+91 98765 43210')
+                                        }
                                     </div>
                                 </div>
 

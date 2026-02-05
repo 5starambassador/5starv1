@@ -117,7 +117,7 @@ export function ActionHomeDesign({ user, recentReferrals, whatsappUrl, monthStat
                         <div className="relative group cursor-pointer">
                             <div className="absolute inset-0 bg-amber-500/30 blur-[40px] rounded-full animate-pulse z-0" />
                             <Image
-                                src="/images/ambassador-badge.png"
+                                src="/images/ambassador-badge.webp"
                                 alt="5-Star Ambassador"
                                 width={120}
                                 height={120}

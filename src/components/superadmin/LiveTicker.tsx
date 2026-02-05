@@ -31,7 +31,7 @@ export function LiveTicker() {
         }
 
         fetchLatest()
-        const interval = setInterval(fetchLatest, 30000) // Refresh every 30s
+        const interval = setInterval(fetchLatest, 60000) // Refresh every 60s (reduced from 30s)
         return () => clearInterval(interval)
     }, [])
 

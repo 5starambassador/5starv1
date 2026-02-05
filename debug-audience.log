@@ -1,0 +1,10 @@
+2026-02-05T07:30:32.086Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-05T07:30:33.005Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-05T07:30:33.005Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-05T07:31:48.856Z Raw DB count: 3697
+2026-02-05T07:31:48.857Z Resulting Count: 3697
+2026-02-05T07:35:27.609Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-05T07:35:28.336Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-05T07:35:28.337Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-05T07:36:31.707Z Raw DB count: 3697
+2026-02-05T07:36:31.707Z Resulting Count: 3697

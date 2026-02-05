@@ -1,0 +1,95 @@
+{
+    "ci": {
+        "collect": {
+            "url": [
+                "http://localhost:3001/",
+                "http://localhost:3001/dashboard",
+                "http://localhost:3001/profile"
+            ],
+            "numberOfRuns": 3,
+            "settings": {
+                "preset": "desktop",
+                "throttling": {
+                    "rttMs": 40,
+                    "throughputKbps": 10240,
+                    "cpuSlowdownMultiplier": 1
+                },
+                "screenEmulation": {
+                    "mobile": false,
+                    "width": 1350,
+                    "height": 940,
+                    "deviceScaleFactor": 1
+                }
+            }
+        },
+        "assert": {
+            "preset": "lighthouse:recommended",
+            "assertions": {
+                "categories:performance": [
+                    "error",
+                    {
+                        "minScore": 0.85
+                    }
+                ],
+                "categories:accessibility": [
+                    "warn",
+                    {
+                        "minScore": 0.90
+                    }
+                ],
+                "categories:best-practices": [
+                    "warn",
+                    {
+                        "minScore": 0.90
+                    }
+                ],
+                "categories:seo": [
+                    "warn",
+                    {
+                        "minScore": 0.90
+                    }
+                ],
+                "first-contentful-paint": [
+                    "error",
+                    {
+                        "maxNumericValue": 2000
+                    }
+                ],
+                "largest-contentful-paint": [
+                    "error",
+                    {
+                        "maxNumericValue": 2500
+                    }
+                ],
+                "cumulative-layout-shift": [
+                    "error",
+                    {
+                        "maxNumericValue": 0.1
+                    }
+                ],
+                "total-blocking-time": [
+                    "warn",
+                    {
+                        "maxNumericValue": 300
+                    }
+                ],
+                "speed-index": [
+                    "warn",
+                    {
+                        "maxNumericValue": 3500
+                    }
+                ],
+                "modern-image-formats": "error",
+                "uses-responsive-images": "warn",
+                "offscreen-images": "warn",
+                "unminified-css": "error",
+                "unminified-javascript": "error",
+                "unused-css-rules": "warn",
+                "unused-javascript": "warn"
+            }
+        },
+        "upload": {
+            "target": "temporary-public-storage"
+        }
+    }
+}

@@ -65,62 +65,45 @@ export async function getSystemSettings() {
         updatedAt: new Date()
     }
 
-    // Return cached settings if valid
-    const now = Date.now();
-    if (settingsCache && (now - settingsCache.timestamp < CACHE_TTL)) {
-        return settingsCache.data;
-    }
-
     try {
+        // Return cached settings if valid
+        const now = Date.now();
+        if (settingsCache && (now - settingsCache.timestamp < CACHE_TTL)) {
+            return settingsCache.data;
+        }
+
         // Guard against Prisma initialization failures
         if (!prisma) {
             console.warn('Prisma client not initialized in getSystemSettings');
             return settingsCache?.data || defaultSettings;
         }
 
-        // Fetch global flags
-        const settings = await prisma.systemSettings.findFirst().catch(e => {
-            const isQuotaError = e.message?.includes('quota') || e.code === 'P1001' || e.code === 'P1008';
-            if (isQuotaError) {
-                console.warn('Database quota exceeded or connection timed out. Using fallback/cache.');
-            } else {
-                console.error('Prisma systemSettings.findFirst failed:', e);
-            }
-            return null
-        });
-
-        // Fetch current academic year
-        // @ts-ignore - Stale Prisma synchronization issue
-        const currentYearRecord = await prisma.academicYear.findFirst({
-            where: { isCurrent: true }
-        }).catch(e => {
-            const isQuotaError = e.message?.includes('quota') || e.code === 'P1001' || e.code === 'P1008';
-            if (!isQuotaError) console.error('Prisma academicYear.findFirst failed:', e);
-            return null
-        });
-
-        if (!settings) {
-            // If DB call failed but we have a cache (even if expired), return cache as emergency fallback
-            return settingsCache?.data || defaultSettings;
-        }
+        // Fetch global flags and current academic year in parallel with individual catches
+        const [settings, currentYearRecord] = await Promise.all([
+            prisma.systemSettings.findFirst().catch(e => {
+                console.warn('getSystemSettings: settings fetch failed, using fallback.', e.message || e);
+                return null;
+            }),
+            // @ts-ignore
+            prisma.academicYear.findFirst({ where: { isCurrent: true } }).catch(e => {
+                console.warn('getSystemSettings: academicYear fetch failed, using fallback.', e.message || e);
+                return null;
+            })
+        ]);
 
         const consolidatedData = {
-            ...settings,
+            ...(settings || (settingsCache?.data || defaultSettings)),
             currentAcademicYear: currentYearRecord?.year || '2025-2026'
         };
 
-        // Update cache
-        settingsCache = { data: consolidatedData, timestamp: now };
+        // Update cache if we got real data or already have cache
+        if (settings || settingsCache) {
+            settingsCache = { data: consolidatedData, timestamp: now };
+        }
 
         return consolidatedData;
     } catch (error) {
-        // Distinguish quota errors in high-level catch
-        const isQuotaError = (error as any).message?.includes('quota');
-        if (isQuotaError) {
-            console.warn('CRITICAL: Database quota exhausted. Application is running on fallback settings.');
-        } else {
-            console.error('CRITICAL: Unexpected error fetching system settings.', error);
-        }
+        console.warn('CRITICAL: Unexpected error in getSystemSettings. Using safety defaults.', (error as any).message);
         return settingsCache?.data || defaultSettings;
     }
 }

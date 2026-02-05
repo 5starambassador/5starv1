@@ -34,6 +34,8 @@ export interface RolePermissions {
     paymentApproval: ModulePermission
     programLeads: ModulePermission
     externalPrograms: ModulePermission
+    academicCycles: ModulePermission
+    disasterRecovery: ModulePermission
 }
 
 export interface User {

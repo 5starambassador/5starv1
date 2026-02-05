@@ -41,10 +41,10 @@ export async function sendOtp(mobileInput: string, forceOtp: boolean = false, fl
     console.log('[DEBUG] sendOtp input:', mobileInput, 'Sanitized:', mobile)
 
     try {
-        // Check User & Admin existence
+        // Check User & Admin existence with resilience
         const [user, admin] = await Promise.all([
-            prisma.user.findUnique({ where: { mobileNumber: mobile } }),
-            prisma.admin.findUnique({ where: { adminMobile: mobile } })
+            prisma.user.findUnique({ where: { mobileNumber: mobile } }).catch(() => null),
+            prisma.admin.findUnique({ where: { adminMobile: mobile } }).catch(() => null)
         ])
 
         // Check Rate Limit (1 OTP every 30 seconds)

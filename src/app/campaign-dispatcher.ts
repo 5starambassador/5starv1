@@ -74,10 +74,12 @@ export async function dispatchCampaignBatch(campaignId: number) {
         const aliasTokens = (text: string) => {
             if (!text) return ''
             return text
-                .replace(/{userName}/gi, user.fullName)
-                .replace(/{Ambassador}/gi, user.fullName)
-                .replace(/{referralCode}/gi, user.referralCode || '')
-                .replace(/{code}/gi, user.referralCode || '')
+                .replace(/{userName}|{Ambassador}/gi, user.fullName)
+                .replace(/{referralCode}|{code}/gi, user.referralCode || '')
+                .replace(/{campus}/gi, user.assignedCampus || 'Global')
+                .replace(/{role}/gi, user.role)
+                .replace(/{referralCount}/gi, (user.confirmedReferralCount || 0).toString())
+                .replace(/{mobile}/gi, user.mobileNumber || '')
         }
 
         // A. Email (Async Collect)

@@ -251,9 +251,20 @@ export async function syncProgramLeads() {
             if (!program.autoSyncUrl) continue;
 
             try {
-                // 1. Fetch CSV
-                const response = await fetch(program.autoSyncUrl)
+                // 1. Fetch CSV with browser-like User-Agent to avoid HTML redirects
+                const response = await fetch(program.autoSyncUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    }
+                })
                 let text = await response.text()
+
+                // Check if we received HTML (redirection/login page) instead of CSV
+                if (text.includes('<html') || text.includes('DOCTYPE html')) {
+                    console.error(`Sync aborted for "${program.title}": Received HTML content instead of CSV. Check sheet publishing.`)
+                    results.push({ program: program.title, status: 'Failed', error: 'Sheet returned HTML (Not Published/Auth Issue)' })
+                    continue
+                }
 
                 // Remove UTF-8 BOM if present
                 if (text.charCodeAt(0) === 0xFEFF) {
@@ -273,10 +284,16 @@ export async function syncProgramLeads() {
                     h.includes('mobile') || h.includes('phone number') || h.includes('contact number')
                 )
 
-                // Better Name detection
+                // Better Name detection (Handle various common column names)
                 const nameIndex = headers.findIndex(h =>
                     h === 'name' || h === 'student' || h === 'student name' || h === 'full name' ||
-                    h.includes('student') || h.includes('child') || h.includes('candidate') || h.includes('name of')
+                    h === 'studentname' || h === 'name of student' ||
+                    h.includes('student') || h.includes('child') || h.includes('candidate') || (h.includes('name') && !h.includes('parent'))
+                )
+
+                // detect Payment Status column
+                const paymentStatusIndex = headers.findIndex(h =>
+                    h.includes('payment status') || h.includes('paymentstatus') || h.includes('order status')
                 )
 
                 if (mobileIndex === -1) {
@@ -298,8 +315,13 @@ export async function syncProgramLeads() {
                         studentName = row[nameIndex].trim()
                     }
 
-                    return { mobile, studentName }
-                }).filter((l): l is { mobile: string, studentName: string | null } => l !== null)
+                    let paymentStatus = null
+                    if (paymentStatusIndex !== -1 && row[paymentStatusIndex]) {
+                        paymentStatus = row[paymentStatusIndex].trim().toUpperCase()
+                    }
+
+                    return { mobile, studentName, paymentStatus }
+                }).filter((l): l is { mobile: string, studentName: string | null, paymentStatus: string | null } => l !== null)
 
                 if (leadsToUpdate.length === 0) {
                     results.push({ program: program.title, status: 'Success', synced: 0, message: 'No valid leads in file' })
@@ -307,33 +329,41 @@ export async function syncProgramLeads() {
                 }
 
                 // 5. Update Database
-                // We need to update individually because studentName varies
                 let updatedCount = 0
 
-                // Fetch relevant leads first to minimize queries
+                // Fetch relevant leads first to minimize queries (fetch even REGISTERED ones if we want to sync names)
                 const targetMobiles = leadsToUpdate.map(l => l.mobile)
                 const potentialLeads = await prisma.programLead.findMany({
                     where: {
                         programId: program.id,
-                        status: 'CLICKED',
                         visitorMobile: { in: targetMobiles }
                     }
                 })
 
                 // Create a map for quick access
-                const leadMap = new Map(potentialLeads.map(l => [l.visitorMobile, l.id]))
+                const leadMap = new Map(potentialLeads.map(l => [l.visitorMobile, l]))
 
                 // Perform updates
                 const updates = leadsToUpdate.map(async (leadData) => {
-                    const leadId = leadMap.get(leadData.mobile)
-                    if (leadId) {
+                    const existingLead = leadMap.get(leadData.mobile)
+                    if (existingLead) {
                         try {
+                            // Determine internal status based on sheets payment status
+                            let newInternalStatus = existingLead.status
+                            const ps = leadData.paymentStatus || ""
+
+                            // If payment is successful, mark as REGISTERED
+                            if (ps === 'SUCCESS' || ps === 'PAID' || ps === 'CONFIRMED' || ps === 'COMPLETED') {
+                                newInternalStatus = 'REGISTERED'
+                            }
+
                             await prisma.programLead.update({
-                                where: { id: leadId },
+                                where: { id: existingLead.id },
                                 data: {
-                                    status: 'REGISTERED',
-                                    registeredAt: new Date(),
-                                    studentName: leadData.studentName // Save the name from sheet
+                                    status: newInternalStatus,
+                                    registeredAt: newInternalStatus === 'REGISTERED' && existingLead.status !== 'REGISTERED' ? new Date() : existingLead.registeredAt,
+                                    studentName: leadData.studentName,
+                                    paymentStatus: leadData.paymentStatus
                                 }
                             })
                             return 1

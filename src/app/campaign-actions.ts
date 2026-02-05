@@ -107,17 +107,31 @@ export async function deleteCampaign(id: number) {
 import { EmailService } from '@/lib/email-service'
 import { UserRole } from '@prisma/client'
 
+import fs from 'fs'
+import path from 'path'
+
+function writeDebug(msg: string) {
+    try {
+        const logPath = path.join(process.cwd(), 'debug-audience.log')
+        fs.appendFileSync(logPath, `${new Date().toISOString()} ${msg}\n`)
+    } catch (e) { }
+}
+
 export async function getAudienceCount(audience: { role: string, campus: string, activityStatus: string }) {
     try {
+        writeDebug(`Incoming Audience: ${JSON.stringify(audience)}`)
         await checkAdmin()
         const users = await getFilteredUsers(audience)
+        writeDebug(`Resulting Count: ${users.length}`)
         return { success: true, count: users.length }
     } catch (error) {
+        writeDebug(`Error: ${error}`)
         return { success: false, error: 'Failed to count audience' }
     }
 }
 
 async function getFilteredUsers(audience: { role: string, campus: string, activityStatus: string }) {
+    writeDebug(`Filtering with: ${JSON.stringify(audience)}`)
     const where: any = {
         status: 'Active',
         email: { not: null }
@@ -130,6 +144,8 @@ async function getFilteredUsers(audience: { role: string, campus: string, activi
     if (audience.campus !== 'All') {
         where.assignedCampus = audience.campus
     }
+
+    writeDebug(`Prisma WHERE clause: ${JSON.stringify(where)}`)
 
     const fourteenDaysAgo = new Date()
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14)
@@ -144,13 +160,18 @@ async function getFilteredUsers(audience: { role: string, campus: string, activi
         }
     })
 
+    writeDebug(`Raw DB count: ${users.length}`)
+
     if (audience.activityStatus === 'All') return users
 
-    return users.filter(u => {
+    const filtered = users.filter(u => {
         const lastActivity = u.referrals[0]?.createdAt || u.createdAt
         const isDormant = new Date(lastActivity) < fourteenDaysAgo
         return audience.activityStatus === 'Dormant' ? isDormant : !isDormant
     })
+
+    writeDebug(`Activity filtered count: ${filtered.length}`)
+    return filtered
 }
 
 export async function runCampaign(id: number) {
@@ -173,14 +194,22 @@ export async function runCampaign(id: number) {
         for (const user of targetUsers) {
             if (!user.email) continue
 
-            // Simple template mapping
+            // Unified placeholder replacement
             const personalizedSubject = campaign.subject
-                .replace(/{userName}/g, user.fullName)
-                .replace(/{referralCode}/g, user.referralCode || '')
+                .replace(/{userName}|{Ambassador}/gi, user.fullName)
+                .replace(/{referralCode}|{code}/gi, user.referralCode || '')
+                .replace(/{campus}/gi, user.assignedCampus || 'Global')
+                .replace(/{role}/gi, user.role)
+                .replace(/{referralCount}/gi, user.confirmedReferralCount.toString())
+                .replace(/{mobile}/gi, user.mobileNumber)
 
             const personalizedBody = campaign.templateBody
-                .replace(/{userName}/g, user.fullName)
-                .replace(/{referralCode}/g, user.referralCode || '')
+                .replace(/{userName}|{Ambassador}/gi, user.fullName)
+                .replace(/{referralCode}|{code}/gi, user.referralCode || '')
+                .replace(/{campus}/gi, user.assignedCampus || 'Global')
+                .replace(/{role}/gi, user.role)
+                .replace(/{referralCount}/gi, user.confirmedReferralCount.toString())
+                .replace(/{mobile}/gi, user.mobileNumber)
 
             // In a real high-volume app, consider a queue. Here we iterate small/medium sets.
             const res = await EmailService.sendCampaignEmail(user.email, personalizedSubject, personalizedBody)

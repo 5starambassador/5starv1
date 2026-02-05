@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createExternalProgram, getAllPrograms, updateExternalProgram } from '@/app/program-actions'
+import { createExternalProgram, getAllPrograms, updateExternalProgram, syncProgramLeads } from '@/app/program-actions'
 import { toast } from 'sonner'
-import { Plus, Link2, DollarSign, Database, Loader2, Save, X, ExternalLink, RefreshCw, Edit, Calendar } from 'lucide-react'
+import { Plus, Link2, DollarSign, Database, Loader2, Save, X, ExternalLink, RefreshCw, Edit, Calendar, CheckCheck } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export function ProgramManager() {
@@ -12,6 +12,7 @@ export function ProgramManager() {
     const [showModal, setShowModal] = useState(false)
     const [isProcessing, setIsProcessing] = useState(false)
     const [editingProgram, setEditingProgram] = useState<any | null>(null)
+    const [isSyncing, setIsSyncing] = useState(false)
 
     // Form State
     const [form, setForm] = useState({
@@ -45,6 +46,26 @@ export function ProgramManager() {
             setForm(prev => ({ ...prev, slug }))
         }
     }, [form.title])
+
+    const handleSync = async () => {
+        setIsSyncing(true)
+        const toastId = toast.loading('Synchronizing leads from Google Sheets...')
+        try {
+            const res = await syncProgramLeads()
+            setIsSyncing(false)
+            if (res.success) {
+                const results = res.results || []
+                const totalSynced = results.reduce((acc: number, r: any) => acc + (r.synced || 0), 0)
+                toast.success(`Sync Complete: ${totalSynced} leads updated`, { id: toastId })
+                loadPrograms() // Refresh views
+            } else {
+                toast.error(res.error || 'Sync failed', { id: toastId })
+            }
+        } catch (error) {
+            setIsSyncing(false)
+            toast.error('Sync failed', { id: toastId })
+        }
+    }
 
     const handleSubmit = async () => {
         if (!form.title || !form.slug || !form.targetUrl) {
@@ -98,20 +119,30 @@ export function ProgramManager() {
                     </h2>
                     <p className="text-sm text-gray-500 font-medium">Manage tracked links & commission structures</p>
                 </div>
-                <button
-                    onClick={() => {
-                        setEditingProgram(null)
-                        setForm({
-                            title: '', slug: '', targetUrl: '', description: '',
-                            commissionAmount: 0, rewardType: 'NONE', autoSyncUrl: '',
-                            startDate: '', endDate: ''
-                        })
-                        setShowModal(true)
-                    }}
-                    className="relative z-10 flex items-center justify-center gap-2 px-6 py-3 bg-gray-900 border border-white/10 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-gray-200"
-                >
-                    <Plus size={16} /> New Program
-                </button>
+                <div className="relative z-10 flex gap-4">
+                    <button
+                        onClick={handleSync}
+                        disabled={isSyncing}
+                        className="flex items-center justify-center gap-2 px-6 py-3 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-100 transition-all shadow-sm"
+                    >
+                        {isSyncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                        Sync All Leads
+                    </button>
+                    <button
+                        onClick={() => {
+                            setEditingProgram(null)
+                            setForm({
+                                title: '', slug: '', targetUrl: '', description: '',
+                                commissionAmount: 0, rewardType: 'NONE', autoSyncUrl: '',
+                                startDate: '', endDate: ''
+                            })
+                            setShowModal(true)
+                        }}
+                        className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-900 border border-white/10 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-gray-200"
+                    >
+                        <Plus size={16} /> New Program
+                    </button>
+                </div>
             </div>
 
             {/* List */}

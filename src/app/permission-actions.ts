@@ -18,6 +18,9 @@ import { RolePermissions } from '@/types'
  * @returns Object containing success status and the permission matrix
  */
 export async function getRolePermissions(role: string) {
+    if (!role) {
+        return { success: false, error: 'Role is required' }
+    }
     try {
         const dbPerms = await prisma.rolePermissions.findUnique({
             where: { role }
@@ -77,8 +80,10 @@ export async function getRolePermissions(role: string) {
         const defaultPerms = DEFAULT_ROLE_PERMISSIONS[role]
         return { success: true, permissions: defaultPerms, isDefault: true }
     } catch (error) {
-        console.error('Get permissions error:', error)
-        return { success: false, error: 'Failed to get permissions' }
+        console.warn('getRolePermissions: Database unreachable. Falling back to code-based defaults.', (error as any).message)
+        // EMERGENCY FALLBACK: Return defaults to prevent app-wide crash
+        const defaultPerms = DEFAULT_ROLE_PERMISSIONS[role]
+        return { success: true, permissions: defaultPerms, isDefault: true, isDegraded: true }
     }
 }
 

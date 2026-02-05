@@ -66,7 +66,7 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
             }
         }
 
-        const intervalId = setInterval(pollMessages, 4000)
+        const intervalId = setInterval(pollMessages, 10000) // Reduced from 4s to 10s
         return () => clearInterval(intervalId)
     }, [ticket.id, ticket.status, onStatusChange])
 

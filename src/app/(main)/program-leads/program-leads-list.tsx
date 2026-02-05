@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import { PageAnimate } from '@/components/PageAnimate'
 import { CheckCircle2, Clock, ExternalLink, MessageSquare, IndianRupee, Star, MousePointerClick } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface ProgramLeadsListProps {
     leads: any[]
@@ -99,6 +99,11 @@ export function ProgramLeadsList({ leads, programs = [] }: ProgramLeadsListProps
 
 function LeadCard({ lead }: { lead: any }) {
     const isRegistered = lead.status === 'REGISTERED'
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
 
     return (
         <motion.div
@@ -116,11 +121,11 @@ function LeadCard({ lead }: { lead: any }) {
                             </span>
                         </div>
                         <h3 className="font-bold text-lg text-white group-hover:text-amber-300 transition-colors">
-                            {lead.studentName || lead.visitorName || 'Visitor'}
+                            {lead.studentName || lead.visitorName || 'Prospective Student'}
                         </h3>
                         <div className="flex flex-col gap-0.5 mt-0.5">
                             <p className="text-white/60 text-xs font-medium flex items-center gap-1.5">
-                                <span className="text-white/30 uppercase tracking-wide text-[9px]">Parent:</span> {lead.visitorName || 'N/A'}
+                                <span className="text-white/30 uppercase tracking-wide text-[9px]">Contact:</span> {lead.visitorName || 'Lead'}
                             </p>
                             <p className="text-white/60 text-xs font-medium flex items-center gap-1.5">
                                 <span className="text-white/30 uppercase tracking-wide text-[9px]">Mobile:</span> {lead.visitorMobile}
@@ -137,7 +142,7 @@ function LeadCard({ lead }: { lead: any }) {
                 <div className="flex items-center justify-between mt-4 text-white/40 text-xs font-medium border-t border-white/5 pt-3">
                     <div className="flex items-center gap-4">
                         <span className="flex items-center gap-1.5">
-                            <Clock size={12} /> {new Date(lead.clickedAt).toLocaleDateString()}
+                            <Clock size={12} /> {mounted ? new Date(lead.clickedAt).toLocaleDateString() : 'Loading...'}
                         </span>
                         {lead.program?.commissionAmount > 0 && (
                             <span className={`flex items-center gap-1 ${isRegistered ? 'text-emerald-400' : 'text-white/40'}`}>
