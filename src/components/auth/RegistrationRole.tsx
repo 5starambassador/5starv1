@@ -254,6 +254,16 @@ export const RegistrationRole = ({ formData, setFormData, campuses, onNext, onBa
                                         autoFocus
                                     />
                                 </div>
+                                <div>
+                                    <label className="text-blue-200/70 text-[10px] font-bold uppercase tracking-[0.2em] mb-2 block ml-1">Campus (Optional)</label>
+                                    <input
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 h-12 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-sm font-medium"
+                                        placeholder="Enter your school/college/institution name"
+                                        value={formData.assignedCampus || ''}
+                                        onChange={(e) => setFormData({ ...formData, assignedCampus: e.target.value })}
+                                    />
+                                    <p className="text-blue-200/40 text-[9px] mt-1.5 ml-1">Leave blank if not affiliated with any institution</p>
+                                </div>
                             </div>
                         )}
                     </div>

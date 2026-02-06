@@ -356,6 +356,15 @@ export async function registerUser(formData: any) {
         return { success: false, error: 'Registration is currently closed.' }
     }
 
+    // Mandatory campus validation for specific roles
+    // Others role is allowed to register without campus
+    if ((role === 'Parent' || role === 'Staff' || role === 'Alumni') && !campusId) {
+        return {
+            success: false,
+            error: `Campus selection is mandatory for ${role} role. Please select a campus to continue.`
+        }
+    }
+
     // Fetch fee based on campus and grade
     let studentFee = 60000
     let assignedCampusName = null

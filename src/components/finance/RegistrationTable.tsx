@@ -31,6 +31,7 @@ interface Registration {
         bankReference: string | null
         paidAt: Date | string | null
         settlementDate: Date | string | null
+        adminRemarks: string | null
     }[]
 }
 
@@ -50,7 +51,8 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
             transactionId: row.transactionId,
             bankReference: null,
             paidAt: row.createdAt,
-            settlementDate: null
+            settlementDate: null,
+            adminRemarks: null
         }
     }
 
@@ -145,6 +147,26 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
                     <div className="flex items-center gap-1 text-xs text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded-lg">
                         <BadgeCheck size={12} />
                         {format(new Date(details.settlementDate), 'dd MMM')}
+                    </div>
+                )
+            }
+        },
+        {
+            header: 'Refund Status',
+            accessorKey: 'refundStatus',
+            cell: (row: Registration) => {
+                const details = getPaymentDetails(row)
+                const isRefunded = details.adminRemarks?.includes('REFUNDED')
+                if (!isRefunded) {
+                    return <span className="text-xs text-gray-400 italic">Not Refunded</span>
+                }
+                // Extract refund date from adminRemarks
+                const remarkMatch = details.adminRemarks?.match(/on ([\d-T:.Z]+)/)
+                const refundDate = remarkMatch ? new Date(remarkMatch[1]) : null
+                return (
+                    <div className="flex items-center gap-1 text-xs text-green-700 font-bold bg-green-50 px-2 py-1 rounded-lg border border-green-200">
+                        <BadgeCheck size={12} />
+                        {refundDate ? format(refundDate, 'dd MMM yyyy') : 'Refunded'}
                     </div>
                 )
             }

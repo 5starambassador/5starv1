@@ -49,7 +49,8 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
                         transactionId: true, // Use this for UTR if not in User
                         bankReference: true,
                         paidAt: true,
-                        settlementDate: true
+                        settlementDate: true,
+                        adminRemarks: true
                     },
                     where: { paymentStatus: 'Success' },
                     take: 1
@@ -336,21 +337,47 @@ export async function processPayout(settlementId: number, transactionId: string,
             include: { user: true }
         })
 
-        // 2. Log Action
+        // 2. Check if this is a registration fee refund
+        const isRefund = (settlement.remarks || '').toLowerCase().includes('refund')
+
+        if (isRefund) {
+            // Find the user's registration payment and mark it as refunded
+            const registrationPayment = await prisma.payment.findFirst({
+                where: {
+                    userId: settlement.userId,
+                    orderStatus: 'SUCCESS',
+                    orderAmount: 25 // Registration fee amount
+                },
+                orderBy: { createdAt: 'asc' } // Get the first/oldest payment
+            })
+
+            if (registrationPayment) {
+                await prisma.payment.update({
+                    where: { id: registrationPayment.id },
+                    data: {
+                        adminRemarks: `REFUNDED via Settlement #${settlementId} on ${new Date().toISOString()} | Ref: ${transactionId} | ${settlement.remarks || ''}`
+                    }
+                })
+            }
+        }
+
+        // 3. Log Action
         await logAction('UPDATE', 'finance', `Processed payout of ₹${settlement.amount} for ${settlement.user.fullName}`, String(settlementId))
 
-        // 3. Create In-App Notification
+        // 4. Create In-App Notification
         await prisma.notification.create({
             data: {
                 userId: settlement.userId,
-                title: 'Payment Processed',
-                message: `Your payout of ₹${settlement.amount.toLocaleString()} has been processed. transaction Ref: ${transactionId}`,
-                type: 'payment',
-                link: '/finance' // Or dashboard
+                title: isRefund ? '💰 Refund Processed' : 'Payment Processed',
+                message: isRefund
+                    ? `Your registration fee refund of ₹${settlement.amount.toLocaleString()} has been processed.`
+                    : `Your payout of ₹${settlement.amount.toLocaleString()} has been processed. transaction Ref: ${transactionId}`,
+                type: isRefund ? 'success' : 'payment',
+                link: '/finance'
             }
         })
 
-        // 4. Send Email
+        // 5. Send Email
         if (settlement.user.email) {
             await EmailService.sendPaymentConfirmation(
                 settlement.user.email,
@@ -368,6 +395,38 @@ export async function processPayout(settlementId: number, transactionId: string,
     }
 }
 
+// Check for existing UTRs in database
+export async function checkExistingUTRs(utrs: string[]) {
+    'use server'
+    const admin = await getCurrentUser()
+    if (!admin) return { success: false, error: 'Unauthorized', existing: [] }
+
+    try {
+        const existing = await prisma.settlement.findMany({
+            where: {
+                bankReference: { in: utrs, not: null }
+            },
+            select: {
+                bankReference: true,
+                id: true,
+                user: { select: { fullName: true } }
+            }
+        })
+
+        return {
+            success: true,
+            existing: existing.map(s => ({
+                utr: s.bankReference,
+                settlementId: s.id,
+                userName: s.user.fullName
+            }))
+        }
+    } catch (error: any) {
+        console.error('Check UTR Error:', error)
+        return { success: false, error: error.message, existing: [] }
+    }
+}
+
 export async function processBulkPayouts(payouts: { id: number, transactionId: string, remarks?: string }[]) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
@@ -375,17 +434,47 @@ export async function processBulkPayouts(payouts: { id: number, transactionId: s
     try {
         let successCount = 0
         let failureCount = 0
+        const errors: string[] = []
 
-        // We process sequentially or in parallel batches. 
-        // A transaction for ALL might be too aggressive if one fails. 
-        // Let's do partial success strategy but return stats.
+        // Validate for duplicate UTRs before processing
+        const utrs = payouts.map(p => p.transactionId).filter(Boolean)
+        const duplicatesInBatch = utrs.filter((utr, index) => utrs.indexOf(utr) !== index)
 
+        if (duplicatesInBatch.length > 0) {
+            return {
+                success: false,
+                error: `Duplicate UTRs found in CSV: ${[...new Set(duplicatesInBatch)].join(', ')}`,
+                processed: 0,
+                failed: payouts.length
+            }
+        }
+
+        // Check against existing database records
+        const existingCheck = await checkExistingUTRs(utrs)
+        if (existingCheck.existing && existingCheck.existing.length > 0) {
+            const duplicateList = existingCheck.existing
+                .map(e => `${e.utr} (Settlement #${e.settlementId} - ${e.userName})`)
+                .join(', ')
+            return {
+                success: false,
+                error: `UTRs already exist in database: ${duplicateList}`,
+                processed: 0,
+                failed: payouts.length
+            }
+        }
+
+        const results: { id: number, transactionId: string, status: 'Success' | 'Failed', message: string }[] = []
+
+        // Process each payout
         for (const p of payouts) {
             try {
                 // Check if already processed to avoid double processing
                 const existing = await prisma.settlement.findUnique({ where: { id: p.id } })
                 if (!existing || existing.status === 'Processed') {
                     failureCount++
+                    const msg = `Settlement #${p.id}: Already processed or not found`
+                    errors.push(msg)
+                    results.push({ id: p.id, transactionId: p.transactionId, status: 'Failed', message: msg })
                     continue
                 }
 
@@ -409,17 +498,29 @@ export async function processBulkPayouts(payouts: { id: number, transactionId: s
                         link: '/finance'
                     }
                 })
+
+                results.push({ id: p.id, transactionId: p.transactionId, status: 'Success', message: 'Processed successfully' })
                 successCount++
-            } catch (e) {
+            } catch (e: any) {
                 console.error(`Failed to process settlement ${p.id}`, e)
+                const msg = e.message || 'Unknown error'
                 failureCount++
+                errors.push(`Settlement #${p.id}: ${msg}`)
+                results.push({ id: p.id, transactionId: p.transactionId, status: 'Failed', message: msg })
             }
         }
 
         await logAction('BULK_UPDATE', 'finance', `Bulk processed ${successCount} payouts. Failed: ${failureCount}`, 'Bulk')
 
         revalidatePath('/finance')
-        return { success: true, message: `Processed ${successCount} payouts. Failed: ${failureCount}` }
+        return {
+            success: true,
+            message: `Processed ${successCount} payouts. Failed: ${failureCount}`,
+            processed: successCount,
+            failed: failureCount,
+            errors: errors.length > 0 ? errors : undefined,
+            results
+        }
 
     } catch (error: any) {
         console.error('Bulk Process Error:', error)

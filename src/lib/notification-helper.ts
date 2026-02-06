@@ -1,4 +1,6 @@
 import { createNotification } from '@/app/notification-actions'
+import prisma from '@/lib/prisma'
+import { getSession } from '@/lib/session'
 
 /**
  * Centralized notification helper for the 5-Star Ambassador program
@@ -178,6 +180,32 @@ export async function notifyTicketResponse(userId: number, ticketDetails: { subj
 }
 
 /**
+ * Notify all users (Broadcast) about a new external program/campaign
+ */
+export async function notifyProgramLaunch(programTitle: string, slug: string) {
+    const { createNotification } = await import('@/app/notification-actions')
+
+    // We fetch all active users
+    const activeUsers = await prisma.user.findMany({
+        where: { status: 'Active' },
+        select: { userId: true }
+    })
+
+    if (activeUsers.length === 0) return
+
+    // Batch create notifications for all active users
+    return prisma.notification.createMany({
+        data: activeUsers.map((user: { userId: number }) => ({
+            userId: user.userId,
+            title: '🚀 New Program Launched!',
+            message: `A new program "${programTitle}" is now live in the gallery. Start referring and earn rewards!`,
+            type: 'success',
+            link: `/dashboard/gallery/${slug}`
+        }))
+    })
+}
+
+/**
  * Notify new user with a Welcome Message
  */
 export async function notifyWelcome(userId: number, userName: string) {
@@ -187,5 +215,20 @@ export async function notifyWelcome(userId: number, userName: string) {
         message: `Welcome ${userName}! We're thrilled to have you. Complete your profile and start referring to earn rewards!`,
         type: 'success',
         link: '/marketing'
+    })
+}
+
+/**
+ * Notify user that campus update is required to activate benefits
+ */
+export async function notifyCampusUpdateRequired(userId: number, userName: string) {
+    const { createNotification } = await import('@/app/notification-actions')
+
+    return createNotification({
+        userId,
+        title: '⚠️ Campus Information Required',
+        message: `Dear ${userName}, please update your child's campus in Profile Settings to activate your referral benefits.`,
+        type: 'warning',
+        link: '/profile'
     })
 }

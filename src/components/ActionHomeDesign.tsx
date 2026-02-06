@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { Share2, UserPlus, BarChart3, ChevronRight, Clock, Star, TrendingUp, Wallet, Copy, Check } from 'lucide-react'
 import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { toast } from 'sonner'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 import { PageAnimate, PageItem } from '@/components/PageAnimate'
 import { StatCard } from '@/components/ui/StatCard'
@@ -70,9 +70,15 @@ import { encryptReferralCode } from '@/lib/crypto'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://5starambassador.com'
 
 export function ActionHomeDesign({ user, recentReferrals, whatsappUrl, monthStats }: ActionHomeDesignProps) {
+    const [greeting, setGreeting] = useState('Welcome')
     const firstName = user.fullName.split(' ')[0]
-    const greeting = getGreeting()
     const [copied, setCopied] = useState(false)
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setGreeting(getGreeting())
+        setMounted(true)
+    }, [])
 
     const displayCount = user.confirmedReferralCount
 
@@ -307,7 +313,7 @@ export function ActionHomeDesign({ user, recentReferrals, whatsappUrl, monthStat
                                         <p className="font-bold text-sm text-gray-900 dark:text-white truncate">{referral.parentName}</p>
                                         <p className="text-xs text-gray-500 dark:text-white/50 flex items-center gap-1">
                                             <Clock size={12} />
-                                            {new Date(referral.createdAt).toLocaleDateString()}
+                                            {mounted ? new Date(referral.createdAt).toLocaleDateString() : ''}
                                         </p>
                                     </div>
                                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${referral.status === 'Confirmed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>

@@ -14,7 +14,7 @@ interface FinanceClientTabsProps {
 }
 
 export function FinanceClientTabs({ settlements, registrations }: FinanceClientTabsProps) {
-    const [activeTab, setActiveTab] = useState<'payouts' | 'registrations'>('payouts')
+    const [activeTab, setActiveTab] = useState<'payouts' | 'registrations' | 'refunds'>('payouts')
     const [isSyncing, setIsSyncing] = useState(false)
     const [isAutoSyncing, setIsAutoSyncing] = useState(false)
 
@@ -114,6 +114,13 @@ export function FinanceClientTabs({ settlements, registrations }: FinanceClientT
                     >
                         Registration Fees (Incoming)
                     </button>
+                    <button
+                        onClick={() => setActiveTab('refunds')}
+                        suppressHydrationWarning={true}
+                        className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'refunds' ? 'bg-white text-blue-700 shadow-md shadow-blue-900/10 scale-105' : 'text-gray-500 hover:text-blue-600'}`}
+                    >
+                        Refunds Processed
+                    </button>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -159,8 +166,10 @@ export function FinanceClientTabs({ settlements, registrations }: FinanceClientT
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {activeTab === 'payouts' ? (
                     <SettlementTable data={settlements || []} />
-                ) : (
+                ) : activeTab === 'registrations' ? (
                     <RegistrationTable data={registrations || []} />
+                ) : (
+                    <RegistrationTable data={(registrations || []).filter(r => r.payments?.[0]?.adminRemarks?.includes('REFUNDED'))} />
                 )}
             </div>
         </div>

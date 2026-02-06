@@ -51,6 +51,42 @@ export function ImportDataPanel({ type, userRole, onSuccess }: ImportDataPanelPr
         }
     }
 
+    const downloadResultsCSV = (results: any[]) => {
+        if (!results || results.length === 0) return
+
+        // Extract all unique data keys from the 'data' field to build headers
+        const dataKeys = new Set<string>()
+        results.forEach(r => {
+            if (r.data) {
+                Object.keys(r.data).forEach(k => dataKeys.add(k))
+            }
+        })
+
+        const headers = ["Row", "Status", "Message", ...Array.from(dataKeys)]
+        const csvRows = results.map(r => {
+            const rowData = Array.from(dataKeys).map(k => {
+                const val = r.data?.[k]
+                return `"${(val === null || val === undefined ? '' : val).toString().replace(/"/g, '""')}"`
+            })
+            return [
+                r.row,
+                r.status,
+                `"${(r.reason || '').replace(/"/g, '""')}"`,
+                ...rowData
+            ].join(",")
+        })
+
+        const csvContent = [headers.join(","), ...csvRows].join("\n")
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement("a")
+        link.setAttribute("href", url)
+        link.setAttribute("download", `import_status_${type}_${new Date().toISOString().split('T')[0]}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
     const handleUpload = async () => {
         if (!file) return
 
@@ -85,6 +121,9 @@ export function ImportDataPanel({ type, userRole, onSuccess }: ImportDataPanelPr
                 if (res.success) {
                     toast.success(`Successfully processed ${res.processed} records`)
                     setResults(res)
+                    if (res.results && res.results.length > 0) {
+                        downloadResultsCSV(res.results)
+                    }
                     if (onSuccess) onSuccess()
                 } else {
                     toast.error(res.error || 'Import failed')

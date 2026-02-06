@@ -98,8 +98,16 @@ export async function createExternalProgram(data: {
                 isActive: true
             }
         })
+
         revalidatePath('/dashboard')
         revalidatePath('/superadmin')
+
+        // Trigger broadcast notification to all active users
+        const { notifyProgramLaunch } = await import('@/lib/notification-helper')
+        notifyProgramLaunch(program.title, program.slug).catch(err => {
+            console.error('Failed to broadcast program launch notification:', err)
+        })
+
         return { success: true, program }
     } catch (error) {
         console.error('Error creating program:', error)

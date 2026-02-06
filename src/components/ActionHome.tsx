@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { Share2, UserPlus, BarChart3, ChevronRight, Clock, Star, TrendingUp, Wallet, Copy, Check } from 'lucide-react'
 import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { toast } from 'sonner'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 import { PageAnimate, PageItem } from '@/components/PageAnimate'
 import { StatCard } from '@/components/ui/StatCard'
@@ -45,8 +45,14 @@ const buttonVariants: Variants = {
 
 export function ActionHome({ user, recentReferrals, whatsappUrl, monthStats }: ActionHomeProps) {
     const firstName = user.fullName.split(' ')[0]
-    const greeting = getGreeting()
+    const [greeting, setGreeting] = useState('Welcome')
     const [copied, setCopied] = useState(false)
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setGreeting(getGreeting())
+        setMounted(true)
+    }, [])
 
     const calculateChange = (current: number, previous: number) => {
         if (previous === 0) return null
@@ -259,7 +265,7 @@ export function ActionHome({ user, recentReferrals, whatsappUrl, monthStats }: A
                                     <div>
                                         <p className="font-bold text-ui-text-main text-sm mb-0.5">{ref.parentName}</p>
                                         <p className="text-[11px] text-gray-500 flex items-center gap-1 font-semibold uppercase tracking-wide">
-                                            <Clock size={10} /> {new Date(ref.createdAt).toLocaleDateString('en-IN')}
+                                            <Clock size={10} /> {mounted ? new Date(ref.createdAt).toLocaleDateString('en-IN') : ''}
                                         </p>
                                     </div>
                                 </div>

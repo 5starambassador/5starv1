@@ -154,7 +154,9 @@ export async function exportPayouts(startDate: Date, endDate: Date, status?: str
                         bankName: true,
                         accountNumber: true,
                         ifscCode: true,
-                        email: true
+                        email: true,
+                        campusId: true,
+                        assignedCampus: true
                     }
                 }
             },
@@ -206,6 +208,7 @@ export async function exportPayouts(startDate: Date, endDate: Date, status?: str
                     return 'N/A'
                 }
             },
+            'campus': { header: 'Campus', accessor: (s) => s.user.assignedCampus || 'N/A' },
             'remarks': { header: 'Remarks', accessor: (s) => s.remarks }
         }
 

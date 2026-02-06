@@ -17,6 +17,7 @@ interface Settlement {
     status: 'Pending' | 'Processed'
     createdAt: string | Date
     payoutDate: string | Date | null
+    remarks?: string | null
     user: {
         fullName: string
         mobileNumber: string
@@ -55,7 +56,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
         }
 
         // Expanded Headers for better bank processing compatibility
-        const headers = ['Beneficiary Name,Mobile,Bank Name,Account Number,IFSC Code,Amount,Ref ID,Date,Bank Transaction Ref']
+        const headers = ['Beneficiary Name,Mobile,Bank Name,Account Number,IFSC Code,Amount,Ref ID,Date,Remarks,Bank Transaction Ref']
         const rows = pendingPayouts.map(s => {
             // Clean strings for CSV
             const name = s.user.fullName.replace(/,/g, ' ')
@@ -64,6 +65,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
             let bankName = (s.user.bankName || 'N/A').replace(/,/g, ' ')
             let accNo = (s.user.accountNumber || 'N/A').replace(/,/g, ' ')
             let ifsc = (s.user.ifscCode || 'N/A').replace(/,/g, ' ')
+            let remarks = (s.remarks || '').replace(/,/g, ';')
 
             // Fallback: If structured data missing but legacy string exists, try to use it or just dump it in bankName
             if ((!s.user.bankName || !s.user.accountNumber) && s.user.bankAccountDetails && s.user.bankAccountDetails !== 'N/A') {
@@ -73,7 +75,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 ifsc = ''
             }
 
-            return `${name},${s.user.mobileNumber},${bankName},${accNo},${ifsc},${s.amount},${s.id},${format(new Date(s.createdAt), 'yyyy-MM-dd')},`
+            return `${name},${s.user.mobileNumber},${bankName},${accNo},${ifsc},${s.amount},${s.id},${format(new Date(s.createdAt), 'yyyy-MM-dd')},${remarks},`
         })
 
         const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n")
@@ -87,9 +89,9 @@ export function SettlementTable({ data }: SettlementTableProps) {
     }
 
     const handleDownloadTemplate = () => {
-        const headers = ['Beneficiary Name,Mobile,Bank Details,Amount,Ref ID,Date,Bank Transaction Ref']
+        const headers = ['Beneficiary Name,Mobile,Bank Name,Account Number,IFSC Code,Amount,Ref ID,Date,Remarks,Bank Transaction Ref']
         // Add a sample row to guide the user
-        const sampleRow = 'John Doe,9876543210,"Bank Name; Acc: 123456789; IFSC: ABCD0001234",1500,101,2026-01-01,'
+        const sampleRow = 'John Doe,9876543210,Bank Name,123456789,ABCD0001234,1500,101,01-01-2026,Registration Fee Refund,'
 
         const csvContent = "data:text/csv;charset=utf-8," + [headers, sampleRow].join("\n")
         const encodedUri = encodeURI(csvContent)
@@ -113,9 +115,10 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 const text = event.target?.result as string
                 const rows = text.split('\n').filter(r => r.trim() !== '')
 
+
                 // Skip header logic: Assume header exists.
-                // Headers: Name,Mobile,Bank,Amount,Ref ID,Date,Bank Transaction Ref
-                // Index: 4 = Ref ID (Settlement ID), 6 = Transaction Ref
+                // Updated Headers: Name,Mobile,Bank Name,Account Number,IFSC Code,Amount,Ref ID,Date,Remarks,Bank Transaction Ref
+                // Index: 6 = Ref ID (Settlement ID), 8 = Remarks, 9 = Bank Transaction Ref
 
                 const payoutsToProcess: { id: number, transactionId: string }[] = []
 
@@ -123,16 +126,15 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 for (let i = 1; i < rows.length; i++) {
                     const cols = rows[i].split(',')
                     // Basic check to ensure row has enough columns
-                    if (cols.length < 5) continue
+                    if (cols.length < 7) continue
 
-                    const id = parseInt(cols[4]?.trim())
-                    // Transaction ID is typically the last column we added empty in export
-                    // but in upload, we expect it to be filled.
-                    // Let's assume user fills the LAST column or the column named 'Bank Transaction Ref' (index 6)
-                    const txnId = cols[6]?.trim() || cols[cols.length - 1]?.trim()
+                    const id = parseInt(cols[6]?.trim()) // Ref ID column
+                    // Bank Transaction Ref is the last column (index 9)
+                    const txnId = cols[9]?.trim() || cols[cols.length - 1]?.trim()
 
                     if (!isNaN(id) && txnId && txnId.length > 3) {
                         payoutsToProcess.push({ id, transactionId: txnId })
+
                     }
                 }
 
@@ -157,6 +159,28 @@ export function SettlementTable({ data }: SettlementTableProps) {
         reader.readAsText(file)
     }
 
+    const downloadStatusCSV = (results: any[]) => {
+        const headers = ["Settlement ID", "Transaction ID", "Status", "Message"]
+        const csvContent = [
+            headers.join(","),
+            ...results.map(r => [
+                r.id,
+                r.transactionId,
+                r.status,
+                `"${(r.message || '').replace(/"/g, '""')}"`
+            ].join(","))
+        ].join("\n")
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement("a")
+        link.setAttribute("href", url)
+        link.setAttribute("download", `payout_status_${new Date().toISOString().split('T')[0]}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
     const confirmBulkProcess = async () => {
         setShowBulkConfirm(false)
         setIsUploading(true)
@@ -164,6 +188,9 @@ export function SettlementTable({ data }: SettlementTableProps) {
             const res = await processBulkPayouts(pendingPayoutsToProcess)
             if (res.success) {
                 toast.success(res.message)
+                if (res.results && res.results.length > 0) {
+                    downloadStatusCSV(res.results)
+                }
             } else {
                 toast.error(res.error)
             }

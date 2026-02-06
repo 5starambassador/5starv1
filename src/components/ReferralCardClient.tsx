@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Clock, CheckCircle, UserCheck, ChevronDown, ChevronUp, MapPin, GraduationCap, Phone, User } from 'lucide-react'
 
 interface ReferralCardClientProps {
@@ -30,6 +30,11 @@ function StatusBadge({ status }: { status: string }) {
 
 export function ReferralCardClient({ referral }: ReferralCardClientProps) {
     const [isExpanded, setIsExpanded] = useState(false)
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
 
     return (
         <div className="glass-panel rounded-[24px] border border-white/20 shadow-xl overflow-hidden transition-all hover:scale-[1.01] hover:shadow-2xl group">
@@ -72,7 +77,7 @@ export function ReferralCardClient({ referral }: ReferralCardClientProps) {
                     )}
                     {referral.leadStatus === 'Confirmed' && referral.confirmedDate && (
                         <p className="text-[10px] text-emerald-500 font-black bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20 uppercase tracking-widest hidden md:block">
-                            {new Date(referral.confirmedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                            {mounted ? new Date(referral.confirmedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}
                         </p>
                     )}
                 </div>
@@ -116,7 +121,7 @@ export function ReferralCardClient({ referral }: ReferralCardClientProps) {
                             <div>
                                 <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Timestamp</h4>
                                 <p className="text-sm font-bold text-gray-900 dark:text-white">
-                                    {new Date(referral.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                    {mounted ? new Date(referral.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
                                 </p>
                             </div>
                             <div>

@@ -132,6 +132,11 @@ export function ActionHomeBlueUnified({
 
     const [longTermExpanded, setLongTermExpanded] = useState(false)
     const [copied, setCopied] = useState(false)
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
 
     const handleCopy = () => {
         navigator.clipboard.writeText(referralLink)
@@ -871,7 +876,7 @@ export function ActionHomeBlueUnified({
                                                                     </span>
                                                                     <span className="text-[10px] text-slate-500 font-mono">
                                                                         <Clock size={10} className="inline mr-1" />
-                                                                        {new Date(notif.createdAt).toLocaleDateString()}
+                                                                        {mounted ? new Date(notif.createdAt).toLocaleDateString() : ''}
                                                                     </span>
                                                                 </div>
                                                                 <h4 className="text-white font-bold text-sm mb-1 group-hover/item:text-teal-300 transition-colors pr-4">{notif.title}</h4>
