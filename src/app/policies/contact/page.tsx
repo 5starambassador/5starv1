@@ -39,8 +39,8 @@ export default function ContactPage() {
                         <div>
                             <h3 className="text-lg font-bold text-white mb-2">Phone Support</h3>
                             <p className="text-white/60 mb-1">General Inquiries:</p>
-                            <a href="tel:+919442255279" className="text-xl font-bold text-white hover:text-emerald-400 transition-colors block mb-4">
-                                +91-94422 55279
+                            <a href="tel:+919363494745" className="text-xl font-bold text-white hover:text-emerald-400 transition-colors block mb-4">
+                                +91-93634 94745
                             </a>
                             <p className="text-xs text-white/40 uppercase tracking-wider">Mon - Sat, 9:00 AM - 6:00 PM</p>
                         </div>

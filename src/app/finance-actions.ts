@@ -527,3 +527,208 @@ export async function processBulkPayouts(payouts: { id: number, transactionId: s
         return { success: false, error: error.message || 'Failed to bulk process' }
     }
 }
+
+export async function getUsersReadyForRefund() {
+    const admin = await getCurrentUser()
+    if (!admin) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const where: any = {
+            paymentStatus: { in: ['Success', 'Completed'] },
+            paymentAmount: { gt: 0 },
+            AND: [
+                { accountNumber: { not: null } },
+                { accountNumber: { not: '' } },
+                { ifscCode: { not: null } },
+                { ifscCode: { not: '' } }
+            ]
+        }
+
+        // Campus Head restriction
+        if (admin.role.includes('Campus') && (admin as any).campusId) {
+            where.campusId = (admin as any).campusId
+        }
+
+        // Find users who have paid but don't have a settlement of 25 yet
+        const users = await prisma.user.findMany({
+            where,
+            select: {
+                userId: true,
+                fullName: true,
+                mobileNumber: true,
+                role: true,
+                paymentAmount: true,
+                createdAt: true,
+                campusId: true,
+                bankName: true,
+                accountNumber: true,
+                ifscCode: true,
+                settlements: {
+                    where: {
+                        amount: 25,
+                        status: { not: 'Rejected' }
+                    },
+                    take: 1
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        })
+
+        // Filter out users who already have a settlement
+        const eligibleUsers = users.filter(u => u.settlements.length === 0)
+
+        // Enrich with campus names
+        const campusIds = Array.from(new Set(eligibleUsers.map(u => u.campusId).filter(Boolean))) as number[]
+        const campuses = await prisma.campus.findMany({
+            where: { id: { in: campusIds } },
+            select: { id: true, campusName: true }
+        })
+        const campusMap = new Map(campuses.map(c => [c.id, c.campusName]))
+
+        const mappedUsers = eligibleUsers.map(u => ({
+            ...u,
+            campusName: u.campusId ? campusMap.get(u.campusId) || 'Unknown' : 'Not Assigned',
+            settlements: undefined // Remove the helper relation
+        }))
+
+        return { success: true, data: mappedUsers }
+    } catch (error) {
+        console.error('Error fetching users ready for refund:', error)
+        return { success: false, error: 'Failed to fetch eligible users' }
+    }
+}
+
+export async function initiateBulkRefunds(userIds: number[]) {
+    const admin = await getCurrentUser()
+    if (!admin) return { success: false, error: 'Unauthorized' }
+
+    try {
+        // Strict validation: Ensure each user is actually eligible before creating settlement
+        const eligibleUsers = await prisma.user.findMany({
+            where: {
+                userId: { in: userIds },
+                paymentStatus: { in: ['Success', 'Completed'] },
+                AND: [
+                    { accountNumber: { not: null } },
+                    { accountNumber: { not: '' } },
+                    { ifscCode: { not: null } },
+                    { ifscCode: { not: '' } }
+                ]
+            },
+            include: {
+                settlements: {
+                    where: { amount: 25, status: { not: 'Rejected' } }
+                }
+            }
+        })
+
+        const usersToRefund = eligibleUsers.filter(u => u.settlements.length === 0)
+
+        if (usersToRefund.length === 0) {
+            return { success: false, error: 'No eligible users found for refund initiation.' }
+        }
+
+        // Create settlements in a transaction
+        const result = await prisma.$transaction(
+            usersToRefund.map(u =>
+                prisma.settlement.create({
+                    data: {
+                        userId: u.userId,
+                        amount: 25,
+                        status: 'Pending',
+                        remarks: 'Registration Fee Refund Request (Auto-Initiated)',
+                    }
+                })
+            )
+        )
+
+        await logAction('BULK_CREATE', 'finance', `Initiated registration fee refunds for ${result.length} users.`, 'Bulk Refund')
+
+        revalidatePath('/finance')
+        return { success: true, message: `Successfully initiated ${result.length} refund requests.` }
+    } catch (error: any) {
+        console.error('Error initiating bulk refunds:', error)
+        return { success: false, error: error.message || 'Failed to initiate refunds' }
+    }
+}
+
+export async function syncPastRefunds(records: { mobile: string, utr: string }[]) {
+    const admin = await getCurrentUser()
+    if (!admin) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const results = {
+            success: 0,
+            skipped: 0,
+            alreadyRefunded: 0,
+            notFound: 0,
+            details: [] as string[]
+        }
+
+        // Process in chunks to be database-friendly
+        const chunkSize = 100
+        for (let i = 0; i < records.length; i += chunkSize) {
+            const chunk = records.slice(i, i + chunkSize)
+
+            await prisma.$transaction(async (tx) => {
+                for (const record of chunk) {
+                    const mobile = record.mobile.trim()
+                    const utr = record.utr.trim()
+
+                    if (!mobile || !utr) {
+                        results.skipped++
+                        continue
+                    }
+
+                    // 1. Find the user
+                    const user = await tx.user.findFirst({
+                        where: { mobileNumber: mobile },
+                        include: {
+                            settlements: {
+                                where: { amount: 25, status: { not: 'Rejected' } }
+                            }
+                        }
+                    })
+
+                    if (!user) {
+                        results.notFound++
+                        results.details.push(`${mobile}: User not found`)
+                        continue
+                    }
+
+                    // 2. Check if already refunded
+                    if (user.settlements.length > 0) {
+                        results.alreadyRefunded++
+                        // No error message needed for already refunded to keep it clean
+                        continue
+                    }
+
+                    // 3. Create processed settlement
+                    await tx.settlement.create({
+                        data: {
+                            userId: user.userId,
+                            amount: 25,
+                            status: 'Processed',
+                            bankReference: utr,
+                            payoutDate: new Date(),
+                            remarks: 'Historical Registration Fee Refund Sync'
+                        }
+                    })
+                    results.success++
+                }
+            }, { timeout: 30000 })
+        }
+
+        await logAction('BULK_SYNC', 'finance', `Synced ${results.success} past refunds.`, 'Auto-Sync')
+        revalidatePath('/finance')
+
+        return {
+            success: true,
+            message: `Processed ${records.length} records.`,
+            stats: results
+        }
+    } catch (error: any) {
+        console.error('Error syncing past refunds:', error)
+        return { success: false, error: error.message || 'Sync failed' }
+    }
+}

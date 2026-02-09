@@ -5,7 +5,7 @@ import { CheckCircle, Clock, Download, Upload, Loader2, FileDown } from 'lucide-
 import { exportToCSV } from '@/lib/export-utils'
 
 import { format } from 'date-fns'
-import { processBulkPayouts } from '@/app/finance-actions'
+import { processBulkPayouts, syncPastRefunds } from '@/app/finance-actions'
 import { toast } from 'sonner'
 import { exportPayouts } from '@/app/export-actions'
 import { ExportDateRangeModal } from './ExportDateRangeModal'
@@ -45,6 +45,8 @@ export function SettlementTable({ data }: SettlementTableProps) {
     const [alertConfig, setAlertConfig] = useState({ title: '', description: '' })
     const [showBulkConfirm, setShowBulkConfirm] = useState(false)
     const [pendingPayoutsToProcess, setPendingPayoutsToProcess] = useState<{ id: number, transactionId: string }[]>([])
+    const [pastPayoutsToSync, setPastPayoutsToSync] = useState<{ mobile: string, utr: string }[]>([])
+    const [syncMode, setSyncMode] = useState<'ref_id' | 'mobile'>('ref_id')
 
     // Export for Bank Processing
     const handleBankExport = () => {
@@ -56,7 +58,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
         }
 
         // Expanded Headers for better bank processing compatibility
-        const headers = ['Beneficiary Name,Mobile,Bank Name,Account Number,IFSC Code,Amount,Ref ID,Date,Remarks,Bank Transaction Ref']
+        const headers = ['Beneficiary Name,Mobile,Bank Name (Optional),Account Number,IFSC Code,Amount,Ref ID,Date,Remarks,Bank Transaction Ref']
         const rows = pendingPayouts.map(s => {
             // Clean strings for CSV
             const name = s.user.fullName.replace(/,/g, ' ')
@@ -89,7 +91,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
     }
 
     const handleDownloadTemplate = () => {
-        const headers = ['Beneficiary Name,Mobile,Bank Name,Account Number,IFSC Code,Amount,Ref ID,Date,Remarks,Bank Transaction Ref']
+        const headers = ['Beneficiary Name,Mobile,Bank Name (Optional),Account Number,IFSC Code,Amount,Ref ID,Date,Remarks,Bank Transaction Ref']
         // Add a sample row to guide the user
         const sampleRow = 'John Doe,9876543210,Bank Name,123456789,ABCD0001234,1500,101,01-01-2026,Registration Fee Refund,'
 
@@ -116,37 +118,57 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 const rows = text.split('\n').filter(r => r.trim() !== '')
 
 
-                // Skip header logic: Assume header exists.
-                // Updated Headers: Name,Mobile,Bank Name,Account Number,IFSC Code,Amount,Ref ID,Date,Remarks,Bank Transaction Ref
-                // Index: 6 = Ref ID (Settlement ID), 8 = Remarks, 9 = Bank Transaction Ref
+                // Index 0 = Mobile/Name (we will check mobile), Index 9 = UTR
+                // For "Sync Past Data" mode, we'll try to find a mobile number in the first two columns
+                if (syncMode === 'mobile') {
+                    const toSync: { mobile: string, utr: string }[] = []
+                    for (let i = 1; i < rows.length; i++) {
+                        const cols = rows[i].split(',')
+                        if (cols.length < 2) continue
 
-                const payoutsToProcess: { id: number, transactionId: string }[] = []
+                        const mobile = cols[1]?.trim() // Priority on index 1
+                        const utr = cols[cols.length - 1]?.trim() // Last column is usually UTR
 
-                // Start from index 1 to skip header
-                for (let i = 1; i < rows.length; i++) {
-                    const cols = rows[i].split(',')
-                    // Basic check to ensure row has enough columns
-                    if (cols.length < 7) continue
-
-                    const id = parseInt(cols[6]?.trim()) // Ref ID column
-                    // Bank Transaction Ref is the last column (index 9)
-                    const txnId = cols[9]?.trim() || cols[cols.length - 1]?.trim()
-
-                    if (!isNaN(id) && txnId && txnId.length > 3) {
-                        payoutsToProcess.push({ id, transactionId: txnId })
-
+                        if (mobile && utr && utr.length > 3) {
+                            toSync.push({ mobile, utr })
+                        }
                     }
+
+                    if (toSync.length === 0) {
+                        toast.error("No valid records found. Ensure 'Mobile' and 'Bank Transaction Ref' columns are present.")
+                        setIsUploading(false)
+                        return
+                    }
+
+                    setPastPayoutsToSync(toSync)
+                    setShowBulkConfirm(true)
+                } else {
+                    const payoutsToProcess: { id: number, transactionId: string }[] = []
+
+                    // Start from index 1 to skip header
+                    for (let i = 1; i < rows.length; i++) {
+                        const cols = rows[i].split(',')
+                        // Basic check to ensure row has enough columns
+                        if (cols.length < 7) continue
+
+                        const id = parseInt(cols[6]?.trim()) // Ref ID column
+                        // Bank Transaction Ref is the last column (index 9)
+                        const txnId = cols[9]?.trim() || cols[cols.length - 1]?.trim()
+
+                        if (!isNaN(id) && txnId && txnId.length > 3) {
+                            payoutsToProcess.push({ id, transactionId: txnId })
+                        }
+                    }
+
+                    if (payoutsToProcess.length === 0) {
+                        toast.error("No valid rows found. Ensure 'Ref ID' and 'Bank Transaction Ref' are present.")
+                        setIsUploading(false)
+                        return
+                    }
+
+                    setPendingPayoutsToProcess(payoutsToProcess)
+                    setShowBulkConfirm(true)
                 }
-
-                if (payoutsToProcess.length === 0) {
-                    toast.error("No valid rows found. Ensure 'Ref ID' and 'Bank Transaction Ref' are present.")
-                    setIsUploading(false)
-                    return
-                }
-
-                setPendingPayoutsToProcess(payoutsToProcess)
-                setShowBulkConfirm(true)
-
             } catch (err) {
                 console.error(err)
                 toast.error("Failed to parse CSV file.")
@@ -185,14 +207,27 @@ export function SettlementTable({ data }: SettlementTableProps) {
         setShowBulkConfirm(false)
         setIsUploading(true)
         try {
-            const res = await processBulkPayouts(pendingPayoutsToProcess)
-            if (res.success) {
-                toast.success(res.message)
-                if (res.results && res.results.length > 0) {
-                    downloadStatusCSV(res.results)
+            if (syncMode === 'mobile') {
+                const res = await syncPastRefunds(pastPayoutsToSync)
+                if (res.success && res.stats) {
+                    const { success, alreadyRefunded, notFound } = res.stats
+                    toast.success(`Sync Complete: ${success} processed, ${alreadyRefunded} already done, ${notFound} not found.`)
+                    if (res.stats.details.length > 0) {
+                        // Optional: download error details
+                    }
+                } else {
+                    toast.error(res.error)
                 }
             } else {
-                toast.error(res.error)
+                const res = await processBulkPayouts(pendingPayoutsToProcess)
+                if (res.success) {
+                    toast.success(res.message)
+                    if (res.results && res.results.length > 0) {
+                        downloadStatusCSV(res.results)
+                    }
+                } else {
+                    toast.error(res.error)
+                }
             }
         } catch (err) {
             toast.error("Bulk processing failed.")
@@ -329,14 +364,32 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 <h3 className="text-lg font-black text-gray-900 dark:text-gray-100">Settlements</h3>
                 <div className="flex gap-2">
                     <button
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => {
+                            setSyncMode('ref_id')
+                            fileInputRef.current?.click()
+                        }}
                         disabled={isUploading}
                         suppressHydrationWarning={true}
                         className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-900/20 disabled:opacity-50"
                     >
-                        {isUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                        {isUploading && syncMode === 'ref_id' ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
                         Import Payouts
                     </button>
+
+                    <button
+                        onClick={() => {
+                            setSyncMode('mobile')
+                            fileInputRef.current?.click()
+                        }}
+                        disabled={isUploading}
+                        suppressHydrationWarning={true}
+                        className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-all shadow-lg shadow-amber-900/20 disabled:opacity-50"
+                        title="Sync past payouts using Mobile Numbers"
+                    >
+                        {isUploading && syncMode === 'mobile' ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                        Sync Past Data
+                    </button>
+
                     {/* Template Download (Small icon button or text) */}
                     <button
                         onClick={handleDownloadTemplate}
@@ -405,9 +458,12 @@ export function SettlementTable({ data }: SettlementTableProps) {
 
             <ConfirmDialog
                 isOpen={showBulkConfirm}
-                title="Confirm Bulk Payouts"
-                description={`Found ${pendingPayoutsToProcess.length} valid records to process. Are you sure you want to proceed with bulk processing?`}
-                confirmText="Proceed Bulk"
+                title={syncMode === 'mobile' ? "Confirm Past Payout Sync" : "Confirm Bulk Payouts"}
+                description={syncMode === 'mobile'
+                    ? `Found ${pastPayoutsToSync.length} records to sync by Mobile Number. This will mark them as PAID immediately. Proceed?`
+                    : `Found ${pendingPayoutsToProcess.length} valid records to process by Ref ID. Are you sure you want to proceed?`
+                }
+                confirmText={syncMode === 'mobile' ? "Sync Now" : "Proceed Bulk"}
                 onConfirm={confirmBulkProcess}
                 onCancel={() => {
                     setShowBulkConfirm(false)

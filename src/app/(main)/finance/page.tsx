@@ -2,7 +2,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { hasPermission } from '@/lib/permission-service'
 import { redirect } from 'next/navigation'
 
-import { getSettlements, getFinanceStats, getRegistrationTransactions } from '@/app/finance-actions'
+import { getSettlements, getFinanceStats, getRegistrationTransactions, getUsersReadyForRefund } from '@/app/finance-actions'
 import { Wallet, CheckCircle, Clock, CreditCard } from 'lucide-react'
 import { FinanceClientTabs } from '@/components/finance/FinanceClientTabs'
 import { FinanceOverviewChart } from '@/components/finance/FinanceOverviewChart'
@@ -17,19 +17,21 @@ export default async function FinancePage() {
     }
 
     // Fetch Data
-    const [settlementsRes, statsRes, registrationsRes] = await Promise.all([
+    const [settlementsRes, statsRes, registrationsRes, readyForRefundRes] = await Promise.all([
         getSettlements('All'),
         getFinanceStats(),
-        getRegistrationTransactions('All')
+        getRegistrationTransactions('All'),
+        getUsersReadyForRefund()
     ])
 
     const settlements = (settlementsRes.success && settlementsRes.data) ? settlementsRes.data : []
     const registrations = (registrationsRes.success && registrationsRes.data) ? registrationsRes.data : []
+    const eligibleRefunds = (readyForRefundRes.success && readyForRefundRes.data) ? readyForRefundRes.data : []
     const stats: any = statsRes.success ? statsRes.stats : { pending: 0, processed: 0, totalCount: 0, totalRevenue: 0 }
 
     return (
         <div className="space-y-8 animate-fade-in pb-10">
-            {/* Header */}
+            {/* ... existing header and stats ... */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <div className="flex items-center gap-4">
                     <div className="p-3 bg-emerald-50 text-emerald-700 rounded-xl shadow-sm border border-emerald-100">
@@ -44,7 +46,6 @@ export default async function FinancePage() {
 
             {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {/* Revenue Card */}
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider">Total Revenue</h3>
@@ -103,19 +104,10 @@ export default async function FinancePage() {
                 <FinanceOverviewChart />
             </div>
 
-            {/* Main Content with Tabs */}
-            {/* Using a simple custom tab implementation since I cannot be sure ui/tabs exists in this project structure logic */}
-            {/* Actually, let's stick to a client component wrapper or just use searchParams? */}
-            {/* For simplicity and speed, I will use a simple Client Component wrapper for the tabs part if needed, 
-                BUT since this is a Server Component page, I'll pass the data to a client-side 'FinanceTabs' component
-                OR just inline the tabs logic using searchParams if I want server rendering for tabs. 
-                
-                BETTER: Let's make a 'FinanceTabs' client component that holds the state.
-            */}
-
             <FinanceClientTabs
                 settlements={settlements}
                 registrations={registrations}
+                eligibleRefunds={eligibleRefunds}
             />
         </div>
     )

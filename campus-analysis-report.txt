@@ -1,0 +1,55 @@
+
+=== TOTAL USERS BY ROLE ===
+Staff: 871 users
+Alumni: 24 users
+Others: 44 users
+Parent: 4333 users
+TOTAL: 5272 users
+
+=== CAMPUS ASSIGNMENT STATUS ===
+Users with NULL campusId: 452
+Users with NULL assignedCampus: 338
+Users with BOTH empty: 336
+
+=== EMPTY CAMPUS BY ROLE ===
+Staff: 0/871 (0.0%)
+Alumni: 0/24 (0.0%)
+Others: 27/44 (61.4%)
+Parent: 309/4333 (7.1%)
+
+=== SAMPLE USERS WITH EMPTY CAMPUS (10 per role) ===
+
+--- Staff ---
+  (All have campus assigned)
+
+--- Alumni ---
+  (All have campus assigned)
+
+--- Others ---
+  ID:8982 | Preamkumar  | Status:Active | ChildInAchariya:true | 2026-02-05
+  ID:8897 | M N Sridharan  | Status:Active | ChildInAchariya:true | 2026-02-04
+  ID:8858 | K.ayyanarappan | Status:Active | ChildInAchariya:true | 2026-02-04
+  ID:8552 | Kalyan | Status:Pending | ChildInAchariya:true | 2026-01-31
+  ID:8286 | Durga Devi.s | Status:Pending | ChildInAchariya:true | 2026-01-30
+  ID:8147 | Perumal B | Status:Pending | ChildInAchariya:true | 2026-01-29
+  ID:6671 | Karthigeyan KS  | Status:Pending | ChildInAchariya:true | 2026-01-25
+  ID:6324 | Muthtamil Vendhan  | Status:Pending | ChildInAchariya:true | 2026-01-24
+  ID:6209 | K Durga shyamala  | Status:Pending | ChildInAchariya:true | 2026-01-24
+  ID:5746 | mareeswari | Status:Active | ChildInAchariya:true | 2026-01-23
+
+--- Parent ---
+  ID:8052 | Lalitha Ganapathi subramanian  | Status:Pending | ChildInAchariya:true | 2026-01-29
+  ID:8038 | A saranya  | Status:Active | ChildInAchariya:true | 2026-01-29
+  ID:8021 | Dakshin Abinav | Status:Pending | ChildInAchariya:true | 2026-01-29
+  ID:7880 | Sharini Rani | Status:Pending | ChildInAchariya:true | 2026-01-28
+  ID:7826 | S.Naveen Balaji | Status:Active | ChildInAchariya:true | 2026-01-28
+  ID:7680 | Gopika Devi | Status:Pending | ChildInAchariya:true | 2026-01-28
+  ID:7671 | Mani Rathnam | Status:Active | ChildInAchariya:true | 2026-01-27
+  ID:7600 | Divya karthick | Status:Pending | ChildInAchariya:true | 2026-01-27
+  ID:7588 | Gayathri  | Status:Pending | ChildInAchariya:true | 2026-01-27
+  ID:7584 | Rangaramanujam vijaiyaraghavan  | Status:Active | ChildInAchariya:true | 2026-01-27
+
+
+=== REGISTRATION LOGIC CHECK ===
+Checking recent registrations (last 30 days) with empty campus...
+Recent registrations (last 30 days) with empty campus: 336
