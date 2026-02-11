@@ -22,7 +22,12 @@ export function FinanceClientTabs({ settlements, registrations, eligibleRefunds 
     const [isAutoSyncing, setIsAutoSyncing] = useState(false)
 
     // Filter refund history from registrations
-    const refundHistory = registrations.filter(r => r.payments?.[0]?.adminRemarks?.includes('REFUNDED'))
+    // Filter refund history: either has 'REFUNDED' in remarks OR has a processed 25-rupee settlement
+    const refundHistory = registrations.filter(r => {
+        const hasRefundRemark = r.payments?.[0]?.adminRemarks?.includes('REFUNDED')
+        const hasProcessedSettlement = r.settlements?.some((s: any) => s.amount === 25 && s.status === 'Processed')
+        return hasRefundRemark || hasProcessedSettlement
+    })
 
     // Auto-Sync on Mount (Smart Mode)
     useEffect(() => {

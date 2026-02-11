@@ -95,6 +95,8 @@ export interface Student {
     ambassador?: { fullName: string; mobileNumber: string; referralCode?: string; role?: string }
     admissionNumber?: string | null
     academicYear?: string | null
+    admissionFeeCollected?: number | null
+    donationFeeCollected?: number | null
     createdAt: Date
 }
 

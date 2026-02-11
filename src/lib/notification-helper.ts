@@ -180,6 +180,58 @@ export async function notifyTicketResponse(userId: number, ticketDetails: { subj
 }
 
 /**
+ * Notify ambassador when their verification is approved
+ */
+export async function notifyVerificationApproved(userId: number) {
+    return createNotification({
+        userId,
+        title: '✅ Verification Approved',
+        message: 'Congratulations! Your ambassador verification has been approved. You are now eligible to earn referral benefits and track your performance.',
+        type: 'success',
+        link: '/dashboard'
+    })
+}
+
+/**
+ * Notify ambassador when their verification is rejected
+ */
+export async function notifyVerificationRejected(userId: number, reason?: string) {
+    return createNotification({
+        userId,
+        title: '❌ Verification Update',
+        message: `Your ambassador verification was not successful${reason ? `: ${reason}` : ''}. Please review your profile details and contact support if you have questions.`,
+        type: 'error',
+        link: '/profile'
+    })
+}
+
+/**
+ * Notify ambassador when a refund is processed (including historical syncs)
+ */
+export async function notifyRefundProcessed(userId: number, studentName?: string) {
+    return createNotification({
+        userId,
+        title: '💰 Refund Processed',
+        message: `Great news! The registration fee refund for ${studentName || 'your referral'} has been successfully processed.`,
+        type: 'success',
+        link: '/finance'
+    })
+}
+
+/**
+ * Notify ambassador when a lead is successfully admitted (converted to student)
+ */
+export async function notifyReferralAdmitted(userId: number, studentName: string) {
+    return createNotification({
+        userId,
+        title: '🎓 Student Admitted!',
+        message: `Excellent work! ${studentName} has been officially admitted. This referral is now active in your student list.`,
+        type: 'success',
+        link: '/referrals'
+    })
+}
+
+/**
  * Notify all users (Broadcast) about a new external program/campaign
  */
 export async function notifyProgramLaunch(programTitle: string, slug: string) {
@@ -193,12 +245,15 @@ export async function notifyProgramLaunch(programTitle: string, slug: string) {
 
     if (activeUsers.length === 0) return
 
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ambassador.achariya.in'
+    const programUrl = `${baseUrl}/dashboard/gallery/${slug}`
+
     // Batch create notifications for all active users
     return prisma.notification.createMany({
         data: activeUsers.map((user: { userId: number }) => ({
             userId: user.userId,
             title: '🚀 New Program Launched!',
-            message: `A new program "${programTitle}" is now live in the gallery. Start referring and earn rewards!`,
+            message: `A new program "${programTitle}" is now live in the gallery. Start referring and earn rewards! Check it out here: ${programUrl}`,
             type: 'success',
             link: `/dashboard/gallery/${slug}`
         }))

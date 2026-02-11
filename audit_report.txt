@@ -1,0 +1,18 @@
+--- STARTING DATA AUDIT ---
+
+Total Confirmed Referral Leads: 322
+Total Students with linked Referral Lead ID: 314
+
+⚠️ DISCREPANCY: Found 8 Confirmed Leads NOT linked to a Student record via ID.
+
+Attempting soft match by Parent Mobile for missing leads...
+- ❌ Lead #627 (Lakshmi, Parent: 9345608106) has NO corresponding Student record found.
+- ❌ Lead #744 (Dilakshi.G, Parent: 82209 02750) has NO corresponding Student record found.
+- ❌ Lead #745 (Test, Parent: 9345917012) has NO corresponding Student record found.
+- ❌ Lead #755 (Aric Jeffrin Paul, Parent: 6369821919) has NO corresponding Student record found.
+- ❌ Lead #754 (Faaz, Parent: 6382956969) has NO corresponding Student record found.
+- ❌ Lead #743 (Harshita Jain, Parent: 9944432211) has NO corresponding Student record found.
+- ❌ Lead #742 (Ridhi Jain, Parent: 9789666618) has NO corresponding Student record found.
+- ❌ Lead #676 (K S Heman, Parent: 9047787794) has NO corresponding Student record found.
+
+--- AUDIT COMPLETE ---

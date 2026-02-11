@@ -6,7 +6,7 @@ import { getScopeFilter, canEdit, canDelete, hasPermission } from '@/lib/permiss
 import { revalidatePath } from 'next/cache'
 import { logAction } from '@/lib/audit-logger'
 import { mapLeadStatus, mapUserRole, mapAccountStatus, toLeadStatus } from '@/lib/enum-utils'
-import { notifyReferralConfirmed, notifyFiveStarAchievement, notifyReferralStatusChanged } from '@/lib/notification-helper'
+import { notifyReferralConfirmed, notifyFiveStarAchievement, notifyReferralStatusChanged, notifyReferralRejected, notifyReferralAdmitted } from '@/lib/notification-helper'
 import { AdminAnalytics } from '@/types'
 import { buildReferralWhereClause } from '@/lib/filter-utils'
 
@@ -583,6 +583,19 @@ export async function revertReferralConfirmation(leadId: number) {
 
         await logAction('UPDATE', 'referral', `Reverted confirmation for lead: ${leadId}`, leadId.toString())
 
+        // 5. Send Notification
+        try {
+            const lead = await prisma.referralLead.findUnique({ where: { leadId }, include: { user: true } })
+            if (lead) {
+                await notifyReferralStatusChanged(lead.userId, {
+                    parentName: lead.parentName,
+                    leadId: lead.leadId
+                }, 'Confirmed', 'New')
+            }
+        } catch (notifError) {
+            console.error('Revert notification error:', notifError)
+        }
+
         return { success: true }
     } catch (e: any) {
         console.error('Revert Error:', e)
@@ -803,6 +816,22 @@ export async function bulkRejectReferrals(leadIds: number[], reason?: string) {
                 rejectionReason: reason
             }
         })
+
+        // 2. Send Notifications
+        try {
+            const rejectedLeads = await prisma.referralLead.findMany({
+                where: { leadId: { in: leadIds }, leadStatus: 'Rejected' },
+                select: { userId: true, parentName: true, leadId: true }
+            })
+            for (const lead of rejectedLeads) {
+                await notifyReferralRejected(lead.userId, {
+                    parentName: lead.parentName,
+                    leadId: lead.leadId
+                }, reason)
+            }
+        } catch (notifError) {
+            console.error('Bulk reject notification error:', notifError)
+        }
 
         revalidatePath('/admin')
         return { success: true }
@@ -1174,6 +1203,7 @@ export async function bulkConvertLeadsToStudents(leadIds: number[]) {
                         ambassadorId: lead.userId,
                         selectedFeeType: lead.selectedFeeType,
                         annualFee: lead.annualFee,
+                        baseFee: lead.annualFee || 0,
                         admissionFeeCollected: (lead as any).admissionFeeCollected,
                         donationFeeCollected: (lead as any).donationFeeCollected,
                         status: 'Active'
@@ -1185,6 +1215,9 @@ export async function bulkConvertLeadsToStudents(leadIds: number[]) {
                     where: { leadId: lead.leadId },
                     data: { leadStatus: 'Admitted' }
                 })
+
+                // Notify Ambassador
+                await notifyReferralAdmitted(lead.userId, lead.studentName || lead.parentName)
 
                 processed++
             } catch (err: any) {
@@ -1301,6 +1334,42 @@ export async function updateReferral(leadId: number, data: {
             } as any // Cast to any to resolve Prisma type sync issues
         })
 
+        // SYNC: Automatically update linked Student record to maintain consistency
+        try {
+            const linkedStudent = await prisma.student.findUnique({ where: { referralLeadId: leadId } })
+            if (linkedStudent) {
+                const studentUpdateData: any = {}
+
+                if (data.studentName) studentUpdateData.fullName = data.studentName
+                if (data.gradeInterested) studentUpdateData.grade = data.gradeInterested
+                if (data.campus && campusId) studentUpdateData.campusId = campusId
+                if (data.admissionNumber) studentUpdateData.admissionNumber = data.admissionNumber
+                if (data.section) studentUpdateData.section = data.section
+                if (data.selectedFeeType) studentUpdateData.selectedFeeType = data.selectedFeeType
+
+                // Sync financial details
+                if (data.annualFee !== undefined) {
+                    studentUpdateData.annualFee = data.annualFee ? Number(data.annualFee) : null
+                    studentUpdateData.baseFee = data.annualFee ? Number(data.annualFee) : 0 // Sync exactly with lead fee
+                }
+
+                // If any relevant fields changed, update the student record
+                if (Object.keys(studentUpdateData).length > 0) {
+                    await prisma.student.update({
+                        where: { studentId: linkedStudent.studentId },
+                        data: studentUpdateData
+                    })
+
+                    // Revalidate student pages
+                    revalidatePath('/students')
+                    revalidatePath('/superadmin/students')
+                }
+            }
+        } catch (syncErr) {
+            console.error('Warning: Failed to sync changes to Student record:', syncErr)
+            // Non-blocking error
+        }
+
         revalidatePath('/admin')
         revalidatePath('/referrals')
 
@@ -1312,6 +1381,7 @@ export async function updateReferral(leadId: number, data: {
         return { success: false, error: e.message || 'Failed to update referral' }
     }
 }
+
 
 /**
  * Fetches the annual fee for a given campus, grade, and academic year.

@@ -1,11 +1,11 @@
+'use client'
+
 import { useState, useRef } from 'react'
 import { DataTable } from '@/components/ui/DataTable'
 import { PaymentModal } from './PaymentModal'
 import { CheckCircle, Clock, Download, Upload, Loader2, FileDown } from 'lucide-react'
-import { exportToCSV } from '@/lib/export-utils'
-
 import { format } from 'date-fns'
-import { processBulkPayouts, syncPastRefunds } from '@/app/finance-actions'
+import { processBulkPayouts, syncPastRefunds, bulkProcessPayoutsById, processPayout } from '@/app/finance-actions'
 import { toast } from 'sonner'
 import { exportPayouts } from '@/app/export-actions'
 import { ExportDateRangeModal } from './ExportDateRangeModal'
@@ -44,21 +44,37 @@ export function SettlementTable({ data }: SettlementTableProps) {
     const [showAlert, setShowAlert] = useState(false)
     const [alertConfig, setAlertConfig] = useState({ title: '', description: '' })
     const [showBulkConfirm, setShowBulkConfirm] = useState(false)
-    const [pendingPayoutsToProcess, setPendingPayoutsToProcess] = useState<{ id: number, transactionId: string }[]>([])
-    const [pastPayoutsToSync, setPastPayoutsToSync] = useState<{ mobile: string, utr: string }[]>([])
-    const [syncMode, setSyncMode] = useState<'ref_id' | 'mobile'>('ref_id')
+    const [pendingPayoutsToProcess, setPendingPayoutsToProcess] = useState<{
+        mobile: string,
+        amount: number,
+        transactionId: string,
+        bankName?: string,
+        accountNumber?: string,
+        ifscCode?: string,
+        date?: string
+    }[]>([])
+    const [pastPayoutsToSync, setPastPayoutsToSync] = useState<{
+        mobile: string,
+        utr: string,
+        bankName?: string,
+        accountNumber?: string,
+        ifscCode?: string,
+        date?: string
+    }[]>([])
+    const [syncMode, setSyncMode] = useState<'mobile'>('mobile')
+    const [selectedIds, setSelectedIds] = useState<number[]>([])
 
     // Export for Bank Processing
-    const handleBankExport = () => {
-        const pendingPayouts = data.filter(s => s.status === 'Pending')
+    const handleBankExport = (itemsToExport?: Settlement[]) => {
+        const pendingPayouts = itemsToExport || data.filter(s => s.status === 'Pending')
         if (pendingPayouts.length === 0) {
             setAlertConfig({ title: 'No Pending Payouts', description: 'There are no pending payouts to export at this time.' })
             setShowAlert(true)
             return
         }
 
-        // Expanded Headers for better bank processing compatibility
-        const headers = ['Beneficiary Name,Mobile,Bank Name (Optional),Account Number,IFSC Code,Amount,Ref ID,Date,Remarks,Bank Transaction Ref']
+        // Updated Headers (Removed Ref ID and Bank Transaction Ref)
+        const headers = ['Beneficiary Name,Mobile,Bank Name (Optional),Account Number,IFSC Code,Amount,Date,Remarks']
         const rows = pendingPayouts.map(s => {
             // Clean strings for CSV
             const name = s.user.fullName.replace(/,/g, ' ')
@@ -71,13 +87,12 @@ export function SettlementTable({ data }: SettlementTableProps) {
 
             // Fallback: If structured data missing but legacy string exists, try to use it or just dump it in bankName
             if ((!s.user.bankName || !s.user.accountNumber) && s.user.bankAccountDetails && s.user.bankAccountDetails !== 'N/A') {
-                // If we only have the blob string, put it in Bank Name for awareness, or leave split fields empty
                 bankName = s.user.bankAccountDetails.replace(/,/g, ';')
                 accNo = ''
                 ifsc = ''
             }
 
-            return `${name},${s.user.mobileNumber},${bankName},${accNo},${ifsc},${s.amount},${s.id},${format(new Date(s.createdAt), 'yyyy-MM-dd')},${remarks},`
+            return `${name},${s.user.mobileNumber},${bankName},${accNo},${ifsc},${s.amount},${format(new Date(s.createdAt), 'yyyy-MM-dd')},${remarks}`
         })
 
         const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n")
@@ -90,11 +105,41 @@ export function SettlementTable({ data }: SettlementTableProps) {
         document.body.removeChild(link)
     }
 
-    const handleDownloadTemplate = () => {
-        const headers = ['Beneficiary Name,Mobile,Bank Name (Optional),Account Number,IFSC Code,Amount,Ref ID,Date,Remarks,Bank Transaction Ref']
-        // Add a sample row to guide the user
-        const sampleRow = 'John Doe,9876543210,Bank Name,123456789,ABCD0001234,1500,101,01-01-2026,Registration Fee Refund,'
+    const handleBulkExportSelected = () => {
+        const selectedPending = data.filter(s => selectedIds.includes(s.id) && s.status === 'Pending')
+        if (selectedPending.length === 0) {
+            toast.error("Please select pending payouts to export.")
+            return
+        }
+        handleBankExport(selectedPending)
+    }
 
+    const handleBulkPaySelected = () => {
+        const selectedPending = data.filter(s => selectedIds.includes(s.id) && s.status === 'Pending')
+        if (selectedPending.length === 0) {
+            toast.error("Please select pending payouts to pay.")
+            return
+        }
+        setSelectedSettlement({
+            id: -1, // Special ID for bulk
+            amount: selectedPending.reduce((sum, s) => sum + s.amount, 0),
+            status: 'Pending',
+            createdAt: new Date(),
+            payoutDate: null,
+            remarks: `Bulk payout for ${selectedPending.length} items`,
+            user: {
+                fullName: 'Multiple Selected',
+                mobileNumber: 'Bulk',
+                role: 'N/A',
+                bankAccountDetails: null
+            }
+        } as any)
+        setIsModalOpen(true)
+    }
+
+    const handleDownloadTemplate = () => {
+        const headers = ['Beneficiary Name,Mobile,Bank Name (Optional),Account Number,IFSC Code,Amount,Date,Remarks']
+        const sampleRow = 'John Doe,9876543210,Bank Name,123456789,ABCD0001234,25,2026-01-19,Registration Fee Refund'
         const csvContent = "data:text/csv;charset=utf-8," + [headers, sampleRow].join("\n")
         const encodedUri = encodeURI(csvContent)
         const link = document.createElement("a")
@@ -117,56 +162,131 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 const text = event.target?.result as string
                 const rows = text.split('\n').filter(r => r.trim() !== '')
 
-
-                // Index 0 = Mobile/Name (we will check mobile), Index 9 = UTR
-                // For "Sync Past Data" mode, we'll try to find a mobile number in the first two columns
-                if (syncMode === 'mobile') {
-                    const toSync: { mobile: string, utr: string }[] = []
-                    for (let i = 1; i < rows.length; i++) {
-                        const cols = rows[i].split(',')
-                        if (cols.length < 2) continue
-
-                        const mobile = cols[1]?.trim() // Priority on index 1
-                        const utr = cols[cols.length - 1]?.trim() // Last column is usually UTR
-
-                        if (mobile && utr && utr.length > 3) {
-                            toSync.push({ mobile, utr })
+                const parseCSVLine = (line: string) => {
+                    const result = []
+                    let current = ''
+                    let inQuotes = false
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i]
+                        if (char === '"') {
+                            inQuotes = !inQuotes
+                        } else if (char === ',' && !inQuotes) {
+                            result.push(current.trim())
+                            current = ''
+                        } else {
+                            current += char
                         }
                     }
+                    result.push(current.trim())
+                    return result
+                }
 
-                    if (toSync.length === 0) {
-                        toast.error("No valid records found. Ensure 'Mobile' and 'Bank Transaction Ref' columns are present.")
-                        setIsUploading(false)
-                        return
+                const cleanVal = (val: string | undefined) => {
+                    if (!val) return ""
+                    let cleaned = val.replace(/^"|"$/g, '').trim()
+                    // Handle Scientific Notation in Account Numbers (Excel issue)
+                    if (cleaned.toLowerCase().includes('e+')) {
+                        const num = Number(cleaned)
+                        if (!isNaN(num)) return num.toLocaleString('fullwide', { useGrouping: false })
+                    }
+                    return cleaned
+                }
+
+                const parsedRecords = []
+                for (let i = 1; i < rows.length; i++) {
+                    const cols = parseCSVLine(rows[i])
+                    if (cols.length < 2) continue
+
+                    const mobile = cleanVal(cols[1])
+                    if (!mobile) continue
+
+                    let bankName = '', accountNumber = '', ifscCode = '', utr = '', dateStr = '', amountStr = ''
+
+                    const getBestUTR = (candidates: string[]) => {
+                        const skipTerms = ['refund', 'fee', 'registration', 'remarks', 'payout', 'payment']
+                        // 1. Try to find a value that doesn't contain skip terms and is alphanumeric
+                        for (const v of candidates) {
+                            if (!v || v.length < 5) continue
+                            const lower = v.toLowerCase()
+                            if (!skipTerms.some(t => lower.includes(t)) && /[0-9]/.test(v)) return v
+                        }
+                        // 2. Fallback to anything non-empty and non-remark
+                        for (const v of candidates) {
+                            if (!v) continue
+                            if (!skipTerms.some(t => v.toLowerCase().includes(t))) return v
+                        }
+                        // 3. Absolute fallback to the first possible value
+                        return candidates[0] || candidates[1] || candidates[candidates.length - 1] || ""
                     }
 
-                    setPastPayoutsToSync(toSync)
+                    if (cols.length >= 10) {
+                        bankName = cleanVal(cols[3])
+                        accountNumber = cleanVal(cols[4])
+                        ifscCode = cleanVal(cols[5])
+                        amountStr = cleanVal(cols[6])
+                        dateStr = cleanVal(cols[7])
+                        utr = getBestUTR([cleanVal(cols[8]), cleanVal(cols[9]), cleanVal(cols[cols.length - 1])])
+                    } else if (cols.length >= 8) {
+                        bankName = cleanVal(cols[3]) || cleanVal(cols[2])
+                        accountNumber = cleanVal(cols[4]) || cleanVal(cols[3])
+                        ifscCode = cleanVal(cols[5]) || cleanVal(cols[4])
+                        amountStr = cleanVal(cols[6]) || cleanVal(cols[5])
+                        dateStr = cleanVal(cols[7]) || cleanVal(cols[6])
+                        utr = getBestUTR([cleanVal(cols[8]), cleanVal(cols[cols.length - 1])])
+                    } else {
+                        utr = cleanVal(cols[cols.length - 1])
+                    }
+
+                    if (!utr || utr.length < 3) {
+                        const prefix = syncMode === 'mobile' ? 'Bulk-Synced' : 'Bulk'
+                        utr = `${prefix}-${format(new Date(), 'yyyyMMdd')}`
+                    }
+
+                    parsedRecords.push({
+                        mobile,
+                        utr,
+                        bankName,
+                        accountNumber,
+                        ifscCode,
+                        date: dateStr,
+                        amount: parseFloat(amountStr) || 0
+                    })
+                }
+
+                if (parsedRecords.length === 0) {
+                    toast.error("No valid records found.")
+                    setIsUploading(false)
+                    return
+                }
+
+                if (syncMode === 'mobile') {
+                    setPastPayoutsToSync(parsedRecords.map(r => ({
+                        mobile: r.mobile,
+                        utr: r.utr,
+                        bankName: r.bankName,
+                        accountNumber: r.accountNumber,
+                        ifscCode: r.ifscCode,
+                        date: r.date
+                    })))
                     setShowBulkConfirm(true)
                 } else {
-                    const payoutsToProcess: { id: number, transactionId: string }[] = []
+                    const toProcess = parsedRecords.filter(r => r.amount > 0).map(r => ({
+                        mobile: r.mobile,
+                        amount: r.amount,
+                        transactionId: r.utr,
+                        bankName: r.bankName,
+                        accountNumber: r.accountNumber,
+                        ifscCode: r.ifscCode,
+                        date: r.date
+                    }))
 
-                    // Start from index 1 to skip header
-                    for (let i = 1; i < rows.length; i++) {
-                        const cols = rows[i].split(',')
-                        // Basic check to ensure row has enough columns
-                        if (cols.length < 7) continue
-
-                        const id = parseInt(cols[6]?.trim()) // Ref ID column
-                        // Bank Transaction Ref is the last column (index 9)
-                        const txnId = cols[9]?.trim() || cols[cols.length - 1]?.trim()
-
-                        if (!isNaN(id) && txnId && txnId.length > 3) {
-                            payoutsToProcess.push({ id, transactionId: txnId })
-                        }
-                    }
-
-                    if (payoutsToProcess.length === 0) {
-                        toast.error("No valid rows found. Ensure 'Ref ID' and 'Bank Transaction Ref' are present.")
+                    if (toProcess.length === 0) {
+                        toast.error("No valid records with amount > 0 found.")
                         setIsUploading(false)
                         return
                     }
 
-                    setPendingPayoutsToProcess(payoutsToProcess)
+                    setPendingPayoutsToProcess(toProcess)
                     setShowBulkConfirm(true)
                 }
             } catch (err) {
@@ -177,17 +297,16 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 if (fileInputRef.current) fileInputRef.current.value = ''
             }
         }
-
         reader.readAsText(file)
     }
 
     const downloadStatusCSV = (results: any[]) => {
-        const headers = ["Settlement ID", "Transaction ID", "Status", "Message"]
+        const headers = ["Mobile", "Amount", "Status", "Message"]
         const csvContent = [
             headers.join(","),
             ...results.map(r => [
-                r.id,
-                r.transactionId,
+                r.mobile,
+                r.amount,
                 r.status,
                 `"${(r.message || '').replace(/"/g, '""')}"`
             ].join(","))
@@ -212,9 +331,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 if (res.success && res.stats) {
                     const { success, alreadyRefunded, notFound } = res.stats
                     toast.success(`Sync Complete: ${success} processed, ${alreadyRefunded} already done, ${notFound} not found.`)
-                    if (res.stats.details.length > 0) {
-                        // Optional: download error details
-                    }
+                    setTimeout(() => window.location.reload(), 2000)
                 } else {
                     toast.error(res.error)
                 }
@@ -225,6 +342,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
                     if (res.results && res.results.length > 0) {
                         downloadStatusCSV(res.results)
                     }
+                    setTimeout(() => window.location.reload(), 1500)
                 } else {
                     toast.error(res.error)
                 }
@@ -244,7 +362,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
             sortable: true,
             filterable: true,
             cell: (row: Settlement) => (
-                <div>
+                <div suppressHydrationWarning>
                     <div className="font-bold text-gray-900 dark:text-white">{row.user.fullName}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">{row.user.role} • {row.user.mobileNumber}</div>
                 </div>
@@ -252,9 +370,9 @@ export function SettlementTable({ data }: SettlementTableProps) {
         },
         {
             header: 'Bank Details',
-            accessorKey: 'user.bankName', // loose accessor for sort, mostly visual
+            accessorKey: 'user.bankName',
             cell: (row: Settlement) => (
-                <div className="max-w-[150px] text-xs">
+                <div className="max-w-[150px] text-xs" suppressHydrationWarning>
                     {(row.user.bankName && row.user.accountNumber) ? (
                         <div className="flex flex-col">
                             <span className="font-bold text-gray-700 dark:text-gray-300 truncate" title={row.user.bankName}>{row.user.bankName}</span>
@@ -273,7 +391,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
             header: 'Amount',
             accessorKey: 'amount',
             sortable: true,
-            cell: (row: Settlement) => <span className="font-bold font-mono text-primary-red dark:text-red-400">₹{row.amount.toLocaleString()}</span>
+            cell: (row: Settlement) => <span suppressHydrationWarning className="font-bold font-mono text-primary-red dark:text-red-400">₹{row.amount.toLocaleString()}</span>
         },
         {
             header: 'Status',
@@ -297,7 +415,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
             header: 'Date',
             accessorKey: 'createdAt',
             sortable: true,
-            cell: (row: Settlement) => format(new Date(row.createdAt), 'dd MMM yyyy')
+            cell: (row: Settlement) => <span suppressHydrationWarning>{format(new Date(row.createdAt), 'dd MMM yyyy')}</span>
         },
         {
             header: 'Action',
@@ -313,6 +431,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
                             setSelectedSettlement(row)
                             setIsModalOpen(true)
                         }}
+                        suppressHydrationWarning
                         className="bg-black text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-gray-800 transition-colors shadow-sm dark:bg-white dark:text-black dark:hover:bg-gray-200"
                     >
                         Pay Now
@@ -327,15 +446,13 @@ export function SettlementTable({ data }: SettlementTableProps) {
         if (res.success && res.csv) {
             const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
             const link = document.createElement('a')
-            if (link.download !== undefined) {
-                const url = URL.createObjectURL(blob)
-                link.setAttribute('href', url)
-                link.setAttribute('download', res.filename || 'payouts.csv')
-                link.style.visibility = 'hidden'
-                document.body.appendChild(link)
-                link.click()
-                document.body.removeChild(link)
-            }
+            const url = URL.createObjectURL(blob)
+            link.setAttribute('href', url)
+            link.setAttribute('download', res.filename || 'payouts.csv')
+            link.style.visibility = 'hidden'
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
             toast.success('Payout Report downloaded')
         } else {
             toast.error(res.error || 'Failed to export')
@@ -363,34 +480,44 @@ export function SettlementTable({ data }: SettlementTableProps) {
             <div className="flex justify-between items-center px-1">
                 <h3 className="text-lg font-black text-gray-900 dark:text-gray-100">Settlements</h3>
                 <div className="flex gap-2">
+                    {selectedIds.length > 0 && (
+                        <div className="flex items-center gap-2 mr-2 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-xl">
+                            <span className="text-xs font-bold text-blue-700">{selectedIds.length} Selected</span>
+                            <button
+                                onClick={handleBulkExportSelected}
+                                title="Export Selected for Bank"
+                                className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                            >
+                                <FileDown size={14} />
+                            </button>
+                            <button
+                                onClick={handleBulkPaySelected}
+                                title="Bulk Process Selected"
+                                className="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
+                            >
+                                <CheckCircle size={14} />
+                            </button>
+                            <button
+                                onClick={() => setSelectedIds([])}
+                                className="text-[10px] text-blue-400 hover:text-blue-600 underline ml-1"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                    )}
                     <button
                         onClick={() => {
-                            setSyncMode('ref_id')
-                            fileInputRef.current?.click()
-                        }}
-                        disabled={isUploading}
-                        suppressHydrationWarning={true}
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-900/20 disabled:opacity-50"
-                    >
-                        {isUploading && syncMode === 'ref_id' ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                        Import Payouts
-                    </button>
-
-                    <button
-                        onClick={() => {
-                            setSyncMode('mobile')
                             fileInputRef.current?.click()
                         }}
                         disabled={isUploading}
                         suppressHydrationWarning={true}
                         className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-all shadow-lg shadow-amber-900/20 disabled:opacity-50"
-                        title="Sync past payouts using Mobile Numbers"
+                        title="Import & Sync Past Data"
                     >
-                        {isUploading && syncMode === 'mobile' ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-                        Sync Past Data
+                        {isUploading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                        Import & Sync Past Data
                     </button>
 
-                    {/* Template Download (Small icon button or text) */}
                     <button
                         onClick={handleDownloadTemplate}
                         suppressHydrationWarning={true}
@@ -420,11 +547,16 @@ export function SettlementTable({ data }: SettlementTableProps) {
 
             <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 <DataTable
-                    data={data}
+                    data={data.filter(s => s.status === 'Pending')}
                     columns={columns as any}
-                    searchKey={"user.fullName" as any}
-                    searchPlaceholder="Search ambassador..."
+                    searchKey={["user.fullName", "user.mobileNumber"] as any}
+                    searchPlaceholder="Search by name or mobile..."
                     pageSize={10}
+                    enableMultiSelection={true}
+                    onSelectionChange={(items) => {
+                        setSelectedIds(items.map((i: any) => i.id))
+                    }}
+                    uniqueKey="id"
                 />
             </div>
 
@@ -432,8 +564,9 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 settlement={selectedSettlement}
+                selectedIds={selectedSettlement?.id === -1 ? selectedIds : undefined}
                 onSuccess={() => {
-                    // Server action revalidates the path
+                    setSelectedIds([])
                 }}
             />
 
@@ -461,7 +594,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 title={syncMode === 'mobile' ? "Confirm Past Payout Sync" : "Confirm Bulk Payouts"}
                 description={syncMode === 'mobile'
                     ? `Found ${pastPayoutsToSync.length} records to sync by Mobile Number. This will mark them as PAID immediately. Proceed?`
-                    : `Found ${pendingPayoutsToProcess.length} valid records to process by Ref ID. Are you sure you want to proceed?`
+                    : `Found ${pendingPayoutsToProcess.length} valid records to process by Mobile Number. Are you sure you want to proceed?`
                 }
                 confirmText={syncMode === 'mobile' ? "Sync Now" : "Proceed Bulk"}
                 onConfirm={confirmBulkProcess}

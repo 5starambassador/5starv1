@@ -8,3 +8,30 @@
 2026-02-05T07:35:28.337Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
 2026-02-05T07:36:31.707Z Raw DB count: 3697
 2026-02-05T07:36:31.707Z Resulting Count: 3697
+2026-02-11T15:39:42.267Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-11T15:39:42.782Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-11T15:39:42.783Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-11T15:40:09.552Z Raw DB count: 4193
+2026-02-11T15:40:09.553Z Resulting Count: 4193
+2026-02-11T15:46:40.759Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-11T15:46:41.003Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-11T15:46:41.003Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-11T15:46:52.681Z Raw DB count: 4193
+2026-02-11T15:46:52.682Z Resulting Count: 4193
+2026-02-11T15:47:40.425Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-11T15:47:41.106Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-11T15:47:41.106Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-11T15:48:11.487Z Error: PrismaClientKnownRequestError: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["default"].user.findMany()` invocation in
+F:\5 star\.next\dev\server\chunks\ssr\[root-of-the-server]__ed16b145._.js:9701:158
+
+  9698 writeDebug(`Prisma WHERE clause: ${JSON.stringify(where)}`);
+  9699 const fourteenDaysAgo = new Date();
+  9700 fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+→ 9701 const users = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["default"].user.findMany(
+Server has closed the connection.
+2026-02-11T15:48:12.853Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-11T15:48:13.364Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-11T15:48:13.364Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-11T15:48:24.015Z Raw DB count: 4193
+2026-02-11T15:48:24.016Z Resulting Count: 4193

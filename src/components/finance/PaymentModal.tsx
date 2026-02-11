@@ -3,21 +3,24 @@
 import { useState } from 'react'
 import { X, CheckCircle, CreditCard, Lock } from 'lucide-react'
 import { toast } from 'sonner'
-import { processPayout } from '@/app/finance-actions'
+import { processPayout, bulkProcessPayoutsById } from '@/app/finance-actions'
 
 interface PaymentModalProps {
     isOpen: boolean
     onClose: () => void
     settlement: any
+    selectedIds?: number[]
     onSuccess: () => void
 }
 
-export function PaymentModal({ isOpen, onClose, settlement, onSuccess }: PaymentModalProps) {
+export function PaymentModal({ isOpen, onClose, settlement, selectedIds, onSuccess }: PaymentModalProps) {
     const [step, setStep] = useState<'confirm' | 'processing' | 'success'>('confirm')
     const [txnId, setTxnId] = useState('')
     const [remarks, setRemarks] = useState('')
 
     if (!isOpen || !settlement) return null
+
+    const isBulk = settlement.id === -1
 
     const handleProcess = async () => {
         if (!txnId) {
@@ -30,7 +33,12 @@ export function PaymentModal({ isOpen, onClose, settlement, onSuccess }: Payment
         // Simulate network delay for "Gateway" feel
         await new Promise(r => setTimeout(r, 1500))
 
-        const res = await processPayout(settlement.id, txnId, remarks)
+        let res;
+        if (isBulk && selectedIds) {
+            res = await bulkProcessPayoutsById(selectedIds, txnId, remarks)
+        } else {
+            res = await processPayout(settlement.id, txnId, remarks)
+        }
 
         if (res.success) {
             setStep('success')
@@ -39,6 +47,7 @@ export function PaymentModal({ isOpen, onClose, settlement, onSuccess }: Payment
                 onClose()
                 setStep('confirm') // Reset for next time
                 setTxnId('')
+                setRemarks('')
             }, 2000)
         } else {
             toast.error(res.error)
@@ -68,8 +77,13 @@ export function PaymentModal({ isOpen, onClose, settlement, onSuccess }: Payment
                                 <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-3 text-blue-600 dark:text-blue-400">
                                     <CreditCard size={32} />
                                 </div>
-                                <h3 className="text-lg font-bold">Confirm Payout</h3>
-                                <p className="text-gray-500 text-sm  dark:text-gray-400">Processing payment for <span className="font-semibold text-gray-900 dark:text-gray-100">{settlement.user.fullName}</span></p>
+                                <h3 className="text-lg font-bold">{isBulk ? 'Bulk Payout Authorization' : 'Confirm Payout'}</h3>
+                                <p className="text-gray-500 text-sm  dark:text-gray-400">
+                                    {isBulk
+                                        ? `Processing payments for ${selectedIds?.length || 0} selected ambassadors`
+                                        : <>Processing payment for <span className="font-semibold text-gray-900 dark:text-gray-100">{settlement.user.fullName}</span></>
+                                    }
+                                </p>
                             </div>
 
                             <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl space-y-2 border border-dashed border-gray-200 dark:border-gray-700">

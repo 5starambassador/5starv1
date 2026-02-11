@@ -1,44 +1,83 @@
-import { Search, UserPlus, Filter, Download, MoreHorizontal, Edit, Trash, ChevronRight, Phone, CreditCard, Calendar, User, Building, GraduationCap, Percent, Hash, Trash2, CheckCircle, XCircle, ArrowRight } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import {
+    Search, UserPlus, Filter, Download, Edit, Trash2,
+    CheckCircle, XCircle, ArrowRight, Building, GraduationCap,
+    User, Phone, Calendar, CreditCard, Hash, Copy, Eye,
+    RefreshCcw, Layout, MoreHorizontal, FileSpreadsheet, FileText
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { FilterDropdown } from '@/components/ui/FilterDropdown'
 import { Student } from '@/types'
 import { exportToCSV } from '@/lib/export-utils'
-import { useState } from 'react'
-import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
 import { bulkStudentAction } from '@/app/bulk-student-actions'
 
 interface StudentTableProps {
     students: Student[]
-    searchTerm: string
-    onSearchChange: (value: string) => void
+    searchTerm: string // Kept for prop compatibility/initial state
+    onSearchChange: (value: string) => void // Kept for prop compatibility
     onAddStudent: () => void
     onBulkAdd: () => void
     onEdit: (student: Student) => void
     onViewAmbassador: (referralCode: string) => void
     onRowClick?: (student: Student) => void
     campuses?: any[]
+    onBackfillFees?: () => void
+    isBackfilling?: boolean
+    onGenerateReport?: () => void
 }
 
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-
 export function StudentTable({
-    students,
-    searchTerm,
+    students: initialStudents,
+    searchTerm: initialSearch,
     onSearchChange,
     onAddStudent,
     onBulkAdd,
     onEdit,
     onViewAmbassador,
     onRowClick,
-    campuses = []
+    campuses = [],
+    onBackfillFees,
+    isBackfilling = false,
+    onGenerateReport
 }: StudentTableProps) {
     const router = useRouter()
+
+    // --- State ---
+    const [searchTerm, setSearchTerm] = useState(initialSearch || '')
     const [selectedStudents, setSelectedStudents] = useState<Student[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
     const [showTransferModal, setShowTransferModal] = useState(false)
     const [targetCampusId, setTargetCampusId] = useState<number | null>(null)
     const [deleteId, setDeleteId] = useState<number | null>(null)
+    const [showColumnMenu, setShowColumnMenu] = useState(false)
+    const [liveMode, setLiveMode] = useState(false)
+
+    // Filters
+    const [filters, setFilters] = useState({
+        campus: [] as string[],
+        grade: [] as string[],
+        status: [] as string[],
+        feeType: [] as string[]
+    })
+
+    const [activeFilter, setActiveFilter] = useState<string | null>(null)
+
+    // Column Visibility
+    const [visibleColumns, setVisibleColumns] = useState({
+        details: true,
+        campus: true,
+        grade: true,
+        guardian: true,
+        ambassador: true,
+        fee: true,
+        status: true,
+        stats: true
+    })
 
     // Bulk Confirmation State
     const [bulkConfirmation, setBulkConfirmation] = useState<{ isOpen: boolean, action: 'activate' | 'suspend' | 'delete' | null }>({
@@ -46,7 +85,65 @@ export function StudentTable({
         action: null
     })
 
-    // Bulk Action Handler
+    // --- Derived Data ---
+
+    // Filter Logic
+    const filteredStudents = useMemo(() => {
+        return initialStudents.filter(s => {
+            // Search
+            const searchLower = searchTerm.toLowerCase()
+            const matchesSearch =
+                !searchLower ||
+                (s.fullName || '').toLowerCase().includes(searchLower) ||
+                (s.parent?.mobileNumber || '').includes(searchLower) ||
+                (s.admissionNumber || '').toLowerCase().includes(searchLower) ||
+                (s.rollNumber || '').toLowerCase().includes(searchLower)
+
+            if (!matchesSearch) return false
+
+            // Filters
+            if (filters.campus.length > 0 && !filters.campus.includes(s.campus?.campusName || 'N/A')) return false
+            if (filters.grade.length > 0 && !filters.grade.includes(s.grade || 'N/A')) return false
+            if (filters.status.length > 0 && !filters.status.includes(s.status || 'Active')) return false
+            if (filters.feeType.length > 0) {
+                const type = (s as any).selectedFeeType || 'WOTP'
+                if (!filters.feeType.includes(type === 'OTP' ? 'One Time' : 'Installment')) return false
+            }
+
+            return true
+        })
+    }, [initialStudents, searchTerm, filters])
+
+    // Stats Logic
+    const stats = useMemo(() => {
+        const total = initialStudents.length
+        const active = initialStudents.filter(s => s.status === 'Active').length
+        const inactive = initialStudents.filter(s => s.status !== 'Active').length
+        // Simulated "Graduated" or other stat if needed, for now just Fee Collection Rate?
+        const otpCount = initialStudents.filter(s => (s as any).selectedFeeType === 'OTP').length
+        return { total, active, inactive, otpCount }
+    }, [initialStudents])
+
+    // Filter Options Generation
+    const filterOptions = useMemo(() => ({
+        campus: Array.from(new Set(initialStudents.map(s => s.campus?.campusName || 'N/A'))).sort(),
+        grade: Array.from(new Set(initialStudents.map(s => s.grade || 'N/A'))).sort(),
+        status: ['Active', 'Suspended', 'Inactive', 'Deleted'],
+        feeType: ['One Time', 'Installment']
+    }), [initialStudents])
+
+    // --- Actions ---
+
+    // Polling for Live Mode
+    useEffect(() => {
+        if (!liveMode) return
+        const interval = setInterval(() => {
+            router.refresh()
+            toast.success('Synced with database', { duration: 1000, icon: <RefreshCcw size={12} /> })
+        }, 15000)
+        return () => clearInterval(interval)
+    }, [liveMode, router])
+
     const handleBulkAction = (action: 'activate' | 'suspend' | 'delete') => {
         setBulkConfirmation({ isOpen: true, action })
     }
@@ -119,403 +216,549 @@ export function StudentTable({
             setIsProcessing(false)
         }
     }
-    const columns = [
-        {
-            header: 'Student Detail',
-            accessorKey: 'fullName' as keyof Student,
-            sortable: true,
-            filterable: true,
-            cell: (student: Student) => (
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-600 to-red-500 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-red-200">
-                        {(student.fullName || 'S').charAt(0)}
+
+    // --- Columns Definition ---
+    const columns = useMemo(() => {
+        const cols: any[] = []
+
+        if (visibleColumns.details) {
+            cols.push({
+                header: 'Student Profile',
+                accessorKey: 'fullName',
+                sortable: true,
+                cell: (student: Student) => (
+                    <div className="flex items-center gap-4 py-1">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-indigo-200">
+                            {(student.fullName || 'S').charAt(0)}
+                        </div>
+                        <div>
+                            <p className="font-extrabold text-gray-900 text-sm uppercase tracking-tight">{student.fullName}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                                    ID: {student.admissionNumber || student.studentId}
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <p className="font-extrabold text-gray-900 text-[15px] uppercase tracking-tight">{student.fullName}</p>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-0.5">ID: {student.studentId.toString().padStart(6, '0')}</p>
-                    </div>
-                </div>
-            ),
-        },
-        {
-            header: 'Enrolled Academic',
-            accessorKey: (s: Student) => s.campus?.campusName || 'N/A',
-            sortable: true,
-            filterable: true,
-            cell: (student: Student) => (
-                <div className="space-y-1">
-                    <div className="flex items-center gap-1.5 text-gray-700 font-bold text-sm">
-                        <Building size={14} className="text-gray-400" />
+                )
+            })
+        }
+
+        if (visibleColumns.campus) {
+            cols.push({
+                header: 'Campus',
+                accessorKey: (s: Student) => s.campus?.campusName || 'N/A',
+                sortable: true,
+                cell: (student: Student) => (
+                    <div className="flex items-center gap-1.5 text-gray-700 font-bold text-xs">
+                        {/* <Building size={12} className="text-gray-400" /> */}
                         {student.campus?.campusName || 'N/A'}
                     </div>
-                    <div className="flex items-center gap-1.5 text-gray-500 font-medium text-xs">
-                        <GraduationCap size={14} className="text-gray-400" />
-                        Grade {student.grade}
+                )
+            })
+        }
+
+        if (visibleColumns.grade) {
+            cols.push({
+                header: 'Grade & Section',
+                accessorKey: 'grade',
+                sortable: true,
+                cell: (student: Student) => (
+                    <div className="space-y-1">
+                        <Badge variant="outline" className="font-bold text-[10px] bg-gray-50">
+                            {student.grade}
+                        </Badge>
+                        {(student.section || student.rollNumber) && (
+                            <p className="text-[10px] font-bold text-gray-500 flex items-center gap-1">
+                                <Hash size={10} />
+                                {student.section ? `Sec ${student.section}` : ''}
+                                {student.section && student.rollNumber ? ' • ' : ''}
+                                {student.rollNumber ? `Roll ${student.rollNumber}` : ''}
+                            </p>
+                        )}
                     </div>
-                </div>
-            )
-        },
-        {
-            header: 'Parent/Guardian',
-            accessorKey: (s: Student) => s.parent?.fullName || '',
-            sortable: true,
-            filterable: true,
-            cell: (student: Student) => (
-                <div className="space-y-1">
-                    <p className="font-bold text-gray-700 text-sm flex items-center gap-1.5">
-                        <User size={14} className="text-gray-400" />
-                        {student.parent?.fullName || 'N/A'}
-                    </p>
-                    <p className="text-xs text-blue-600 font-black flex items-center gap-1.5">
-                        <Phone size={12} className="text-blue-400" />
-                        {student.parent?.mobileNumber || 'No Contact'}
-                    </p>
-                </div>
-            )
-        },
-        {
-            header: 'Ambassador',
-            accessorKey: (s: Student) => s.ambassador?.fullName || '',
-            sortable: true,
-            filterable: true,
-            cell: (student: Student) => student.ambassador ? (
-                <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></div>
-                        <p className="text-sm font-black text-red-600 uppercase tracking-tight">{student.ambassador.fullName}</p>
+                )
+            })
+        }
+
+        if (visibleColumns.guardian) {
+            cols.push({
+                header: 'Guardian',
+                accessorKey: (s: Student) => s.parent?.fullName || '',
+                sortable: true,
+                cell: (student: Student) => (
+                    <div className="space-y-1">
+                        <p className="font-bold text-gray-700 text-xs flex items-center gap-1.5">
+                            {student.parent?.fullName || 'N/A'}
+                        </p>
+                        <p className="text-[10px] text-blue-600 font-bold flex items-center gap-1 cursor-pointer hover:underline"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                if (student.parent?.mobileNumber) {
+                                    navigator.clipboard.writeText(student.parent.mobileNumber)
+                                    toast.success('Copied')
+                                }
+                            }}
+                        >
+                            <Phone size={10} />
+                            {student.parent?.mobileNumber || 'No Contact'}
+                        </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                )
+            })
+        }
+
+        if (visibleColumns.ambassador) {
+            cols.push({
+                header: 'Referral',
+                accessorKey: (s: Student) => s.ambassador?.fullName || '',
+                sortable: true,
+                cell: (student: Student) => student.ambassador ? (
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span className="text-xs font-bold text-emerald-700 truncate max-w-[120px]" title={student.ambassador.fullName}>
+                                {student.ambassador.fullName}
+                            </span>
+                        </div>
+                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-3">
                             {student.ambassador.referralCode}
                         </span>
                     </div>
-                </div>
-            ) : (
-                <span className="text-xs font-bold text-gray-400 italic">Direct Admission</span>
-            )
-        },
-        {
-            header: 'Status',
-            accessorKey: 'status' as keyof Student,
-            sortable: true,
-            filterable: true,
-            cell: (student: Student) => (
-                <Badge variant={student.status === 'Active' ? 'success' : 'error'} className="font-black text-[10px] tracking-wider uppercase">
-                    {student.status}
-                </Badge>
-            )
-        },
-        {
+                ) : (
+                    <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Organic</span>
+                )
+            })
+        }
+
+        if (visibleColumns.fee) {
+            cols.push({
+                header: 'Plan',
+                accessorKey: (s: Student) => (s as any).selectedFeeType,
+                sortable: true,
+                cell: (student: Student) => {
+                    const plan = (student as any).selectedFeeType || 'WOTP'
+                    const annualFee = (student as any).annualFee ?? student.baseFee ?? 0
+                    return (
+                        <div className="space-y-1">
+                            <Badge
+                                variant={plan === 'OTP' ? 'purple' : 'warning'}
+                                className={`font-black text-[9px] tracking-wider uppercase ${plan === 'OTP'
+                                    ? 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                                    : 'bg-amber-50 text-amber-700 border-amber-100'
+                                    }`}
+                            >
+                                {plan}
+                            </Badge>
+                            <p className="text-[11px] font-black text-gray-900" suppressHydrationWarning>
+                                {annualFee > 0 ? `₹${annualFee.toLocaleString()}` : 'N/A'}
+                            </p>
+                        </div>
+                    )
+                }
+            })
+        }
+
+        if (visibleColumns.status) {
+            cols.push({
+                header: 'Status',
+                accessorKey: 'status',
+                sortable: true,
+                cell: (student: Student) => (
+                    <Badge variant={student.status === 'Active' ? 'success' : 'error'} className="font-black text-[10px] tracking-wider uppercase">
+                        {student.status}
+                    </Badge>
+                )
+            })
+        }
+
+        cols.push({
             header: 'Actions',
-            accessorKey: (student: Student) => student.studentId,
+            accessorKey: 'studentId',
             cell: (student: Student) => (
-                <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                     <button
                         onClick={() => onEdit(student)}
-                        className="p-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all shadow-sm bg-white hover:scale-110"
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+                        title="Edit Student"
+                        suppressHydrationWarning
                     >
-                        <Edit size={16} strokeWidth={2.5} />
+                        <Edit size={14} />
                     </button>
                     <button
                         onClick={() => setDeleteId(student.studentId)}
-                        className="p-2 rounded-xl border border-red-100 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm bg-white hover:scale-110"
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                        title="Delete Student"
+                        suppressHydrationWarning
                     >
-                        <Trash2 size={16} strokeWidth={2.5} />
+                        <Trash2 size={14} />
+                    </button>
+                    <button
+                        onClick={() => onRowClick && onRowClick(student)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                        title="View Details"
+                        suppressHydrationWarning
+                    >
+                        <Eye size={14} />
                     </button>
                 </div>
             )
-        }
-    ]
+        })
+
+        return cols
+    }, [visibleColumns, onEdit, onRowClick])
 
     const renderExpandedRow = (student: Student) => (
-        <div className="p-8 bg-gradient-to-br from-gray-50 to-white border-x border-b border-gray-100">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                <div className="space-y-1.5">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <Calendar size={12} className="text-red-500" />
-                        Registration Date
-                    </p>
-                    <p className="text-sm font-bold text-gray-900">
-                        {new Date(student.createdAt).toLocaleDateString('en-US', {
-                            month: 'long',
-                            day: 'numeric',
-                            year: 'numeric'
-                        })}
-                    </p>
-                </div>
-                <div className="space-y-1.5">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <CreditCard size={12} className="text-emerald-500" />
-                        Fee Structure
-                    </p>
-                    <p className="text-sm font-bold text-gray-700">
-                        ₹{student.baseFee.toLocaleString()} <span className="text-[10px] text-gray-400">/ YEAR</span>
-                    </p>
-                </div>
-                <div className="space-y-1.5">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <Hash size={12} className="text-purple-500" />
-                        Roll Number / Section
-                    </p>
-                    <p className="text-sm font-bold text-gray-900">
-                        {student.section || 'N/A'} - {student.rollNumber || 'N/A'}
-                    </p>
-                </div>
-            </div>
-
-            {student.ambassador && (
-                <div className="mt-8 p-6 bg-red-50/50 rounded-[24px] border border-red-100 border-dashed">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-red-600 rounded-2xl shadow-lg shadow-red-200">
-                                <GraduationCap size={20} className="text-white" />
-                            </div>
-                            <div>
-                                <h4 className="text-[10px] font-black text-red-600 uppercase tracking-widest">Referral Source Details</h4>
-                                <p className="text-sm font-black text-gray-900">{student.ambassador.fullName} ({student.ambassador.role})</p>
-                            </div>
+        <div className="p-6 bg-gray-50/50 border-t border-b border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-6 animate-in slide-in-from-top-2">
+            <div className="space-y-4">
+                <div>
+                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Academic Info</h4>
+                    <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm space-y-2">
+                        <div className="flex justify-between text-xs">
+                            <span className="text-gray-500 font-medium">Admission Number</span>
+                            <span className="font-bold text-gray-900">{student.admissionNumber || 'Not Assigned'}</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <button className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm">
-                                <Phone size={14} /> {student.ambassador.mobileNumber}
-                            </button>
-                            <button
-                                onClick={() => student.ambassador?.referralCode && onViewAmbassador(student.ambassador.referralCode)}
-                                className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg shadow-red-200 hover:bg-red-700 transition-all uppercase tracking-widest"
-                            >
-                                View Profile
-                            </button>
+                        <div className="flex justify-between text-xs">
+                            <span className="text-gray-500 font-medium">Academic Year</span>
+                            <span className="font-bold text-gray-900">{student.academicYear || '2026-2027'}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                            <span className="text-gray-500 font-medium">Roll Number</span>
+                            <span className="font-bold text-gray-900">{student.rollNumber || 'N/A'}</span>
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
+
+            <div className="space-y-4">
+                <div>
+                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Financial Status</h4>
+                    <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm space-y-2">
+                        <div className="flex justify-between text-xs">
+                            <span className="text-gray-500 font-medium">Total Fee</span>
+                            <span className="font-bold text-gray-900" suppressHydrationWarning>₹{(student.baseFee || (student as any).annualFee || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                            <span className="text-gray-500 font-medium">Collected (Adm)</span>
+                            <span className="font-bold text-emerald-600" suppressHydrationWarning>₹{(student.admissionFeeCollected || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                            <span className="text-gray-500 font-medium">Collected (Donation)</span>
+                            <span className="font-bold text-emerald-600" suppressHydrationWarning>₹{(student.donationFeeCollected || 0).toLocaleString()}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                <div>
+                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Quick Actions</h4>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => student.ambassador?.referralCode && onViewAmbassador(student.ambassador.referralCode)}
+                            disabled={!student.ambassador}
+                            className="flex-1 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-50 transition-all disabled:opacity-50"
+                        >
+                            View Ambassador
+                        </button>
+                        <button
+                            onClick={() => onEdit(student)}
+                            className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+                        >
+                            Full Edit
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     )
 
-    const filteredStudents = students.filter(s =>
-        (s.fullName || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
-        (s.parent?.fullName || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
-        (s.parent?.mobileNumber || '').includes(searchTerm || '')
-    )
-
     return (
-        <div className="space-y-6 animate-fade-in">
-            {/* Header */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-r from-white to-gray-50/50">
-                    <div>
-                        <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
-                            Student Enrollment
-                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-emerald-100">
-                                Directory
-                            </span>
-                        </h3>
-                        <p className="text-sm font-medium text-gray-400 mt-1">Directory of all admitted students and referral mapping.</p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        <div className="relative group">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-600 transition-colors" size={16} />
-                            <input
-                                type="text"
-                                placeholder="Search students..."
-                                value={searchTerm}
-                                onChange={(e) => onSearchChange(e.target.value)}
-                                className="w-full sm:w-64 pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-emerald-600/5 focus:border-emerald-600 transition-all text-sm font-bold shadow-sm"
-                                suppressHydrationWarning
-                            />
+        <div className="space-y-6 animate-fade-in pb-20">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                    { label: 'Total Students', value: stats.total, color: 'indigo', icon: User },
+                    { label: 'Active Students', value: stats.active, color: 'emerald', icon: CheckCircle },
+                    { label: 'One-Time Plan', value: stats.otpCount, color: 'purple', icon: CreditCard },
+                    { label: 'Inactive/Left', value: stats.inactive, color: 'red', icon: XCircle }
+                ].map((stat, i) => (
+                    <div key={i} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between group hover:border-indigo-100 transition-all">
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stat.label}</p>
+                            <p className={`text-2xl font-black text-gray-900 mt-1 group-hover:text-${stat.color}-600 transition-colors`}>{stat.value}</p>
                         </div>
-                        <button
-                            onClick={() => {
-                                const headers = ['Full Name', 'Parent Name', 'Parent Mobile', 'Campus Name', 'Grade', 'Section', 'Roll Number', 'Student ERP No', 'Ambassador Mobile', 'Ambassador Name', 'AY']
-                                const csvContent = headers.join(',') + '\n' + 'John Doe,Jane Doe,9876543210,Main Campus,Grade 10,A,24AG123,ERP001,9876543211,Jane Amb,2024-25'
-                                const blob = new Blob([csvContent], { type: 'text/csv' })
-                                const url = window.URL.createObjectURL(blob)
-                                const link = document.createElement('a')
-                                link.href = url
-                                link.setAttribute('download', 'student_template.csv')
-                                document.body.appendChild(link)
-                                link.click()
-                                document.body.removeChild(link)
-                            }}
-                            className="px-4 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold text-xs hover:bg-gray-50 hover:shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
-                        >
-                            <Filter size={16} /> Template
-                        </button>
-                        <button
-                            onClick={onBulkAdd}
-                            className="px-4 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold text-xs hover:bg-gray-50 hover:shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
-                        >
-                            <Download size={16} /> Import
-                        </button>
-                        <button
-                            onClick={() => exportToCSV(filteredStudents, 'Student_List', [
-                                { header: 'Full Name', accessor: (s) => s.fullName },
-                                { header: 'Campus', accessor: (s) => s.campus?.campusName },
-                                { header: 'Grade', accessor: (s) => s.grade },
-                                { header: 'Parent', accessor: (s) => s.parent?.fullName },
-                                { header: 'Mobile', accessor: (s) => s.parent?.mobileNumber },
-                                { header: 'Status', accessor: (s) => s.status }
-                            ])}
-                            className="px-4 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl font-bold text-xs hover:bg-gray-50 hover:shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
-                        >
-                            <Download size={16} /> Export
-                        </button>
-                        <button
-                            onClick={onAddStudent}
-                            className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-emerald-200 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2 whitespace-nowrap"
-                        >
-                            <UserPlus size={16} strokeWidth={2.5} />
-                            New Student
-                        </button>
+                        <div className={`w-10 h-10 rounded-xl bg-${stat.color}-50 flex items-center justify-center text-${stat.color}-500 group-hover:scale-110 transition-transform`}>
+                            <stat.icon size={20} className={`text-${stat.color}-600`} />
+                        </div>
                     </div>
+                ))}
+            </div>
+
+            {/* Toolbar */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col md:flex-row gap-4 items-center justify-between sticky top-4 z-30">
+                <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto items-center">
+                    {/* Search */}
+                    <div className="relative w-full md:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                        <input
+                            type="text"
+                            placeholder="Search students..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                            suppressHydrationWarning
+                        />
+                    </div>
+
+                    {/* Filters */}
+                    <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 hide-scrollbar">
+                        <div className="relative">
+                            <button
+                                onClick={() => setActiveFilter(activeFilter === 'campus' ? null : 'campus')}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 whitespace-nowrap ${filters.campus.length > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                suppressHydrationWarning
+                            >
+                                <Building size={14} />
+                                Campus {filters.campus.length > 0 && `(${filters.campus.length})`}
+                            </button>
+                            {activeFilter === 'campus' && (
+                                <FilterDropdown
+                                    label="Campus"
+                                    options={filterOptions.campus}
+                                    activeValues={filters.campus}
+                                    onApply={(vals) => setFilters(prev => ({ ...prev, campus: vals }))}
+                                    onClose={() => setActiveFilter(null)}
+                                />
+                            )}
+                        </div>
+
+                        <div className="relative">
+                            <button
+                                onClick={() => setActiveFilter(activeFilter === 'grade' ? null : 'grade')}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 whitespace-nowrap ${filters.grade.length > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                suppressHydrationWarning
+                            >
+                                <GraduationCap size={14} />
+                                Grade {filters.grade.length > 0 && `(${filters.grade.length})`}
+                            </button>
+                            {activeFilter === 'grade' && (
+                                <FilterDropdown
+                                    label="Grade"
+                                    options={filterOptions.grade}
+                                    activeValues={filters.grade}
+                                    onApply={(vals) => setFilters(prev => ({ ...prev, grade: vals }))}
+                                    onClose={() => setActiveFilter(null)}
+                                />
+                            )}
+                        </div>
+
+                        <div className="relative">
+                            <button
+                                onClick={() => setActiveFilter(activeFilter === 'status' ? null : 'status')}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 whitespace-nowrap ${filters.status.length > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                suppressHydrationWarning
+                            >
+                                <CheckCircle size={14} />
+                                Status {filters.status.length > 0 && `(${filters.status.length})`}
+                            </button>
+                            {activeFilter === 'status' && (
+                                <FilterDropdown
+                                    label="Status"
+                                    options={filterOptions.status}
+                                    activeValues={filters.status}
+                                    onApply={(vals) => setFilters(prev => ({ ...prev, status: vals }))}
+                                    onClose={() => setActiveFilter(null)}
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right Actions */}
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setLiveMode(!liveMode)}
+                        className={`p-2 rounded-xl border transition-all ${liveMode ? 'bg-green-50 border-green-200 text-green-600 animate-pulse' : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600'}`}
+                        title="Live Mode"
+                        suppressHydrationWarning
+                    >
+                        <RefreshCcw size={16} className={liveMode ? 'animate-spin' : ''} />
+                    </button>
+
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowColumnMenu(!showColumnMenu)}
+                            className="p-2 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all"
+                            title="Manage Columns"
+                            suppressHydrationWarning
+                        >
+                            <Layout size={16} />
+                        </button>
+                        {showColumnMenu && (
+                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl p-2 z-50">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-2">Toggle Columns</p>
+                                {Object.keys(visibleColumns).map(key => (
+                                    <button
+                                        key={key}
+                                        onClick={() => setVisibleColumns(prev => ({ ...prev, [key]: !prev[key as keyof typeof visibleColumns] }))}
+                                        className={`w-full text-left px-3 py-1.5 text-xs font-bold rounded-lg mb-1 flex items-center justify-between ${visibleColumns[key as keyof typeof visibleColumns] ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                                    >
+                                        <span className="uppercase">{key}</span>
+                                        {visibleColumns[key as keyof typeof visibleColumns] && <CheckCircle size={12} />}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="h-6 w-px bg-gray-200 mx-2"></div>
+
+                    <button
+                        onClick={() => exportToCSV(filteredStudents, 'Student_List', [
+                            { header: 'Full Name', accessor: (s) => s.fullName },
+                            { header: 'Admission No', accessor: (s) => s.admissionNumber },
+                            { header: 'Grade', accessor: (s) => s.grade },
+                            { header: 'Parent', accessor: (s) => s.parent?.fullName || '' },
+                            { header: 'Mobile', accessor: (s) => s.parent?.mobileNumber || '' },
+                            { header: 'Ambassador', accessor: (s) => s.ambassador?.fullName || '' },
+                            { header: 'Status', accessor: (s) => s.status }
+                        ])}
+                        className="p-2 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all"
+                        title="Export CSV"
+                        suppressHydrationWarning
+                    >
+                        <Download size={16} />
+                    </button>
+
+                    {onBackfillFees && (
+                        <button
+                            onClick={onBackfillFees}
+                            disabled={isBackfilling}
+                            className={`px-4 py-2 text-white rounded-xl text-xs font-bold shadow-lg transition-all flex items-center gap-2 ${isBackfilling
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : 'bg-emerald-600 shadow-emerald-200 hover:bg-emerald-700 hover:-translate-y-0.5'
+                                }`}
+                            title="Populate missing fee data for all students"
+                            suppressHydrationWarning
+                        >
+                            <CreditCard size={16} className={isBackfilling ? 'animate-pulse' : ''} />
+                            <span className="hidden sm:inline">{isBackfilling ? 'Processing...' : 'Backfill Fees'}</span>
+                        </button>
+                    )}
+
+                    {onGenerateReport && (
+                        <button
+                            onClick={onGenerateReport}
+                            className="px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-purple-200 hover:bg-purple-700 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                            title="Download report showing missing GradeFee entries"
+                            suppressHydrationWarning
+                        >
+                            <FileText size={16} />
+                            <span className="hidden sm:inline">Generate Report</span>
+                        </button>
+                    )}
+
+                    <button
+                        onClick={onAddStudent}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                        suppressHydrationWarning
+                    >
+                        <UserPlus size={16} />
+                        <span className="hidden sm:inline">Add Student</span>
+                    </button>
                 </div>
             </div>
 
-            {/* Floating Bulk Action Bar */}
+            {/* Table */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-[400px]">
+                <DataTable
+                    data={filteredStudents}
+                    columns={columns}
+                    pageSize={10}
+                    enableMultiSelection={true}
+                    onSelectionChange={setSelectedStudents}
+                    uniqueKey="studentId"
+                    renderExpandedRow={renderExpandedRow}
+                    onRowClick={onRowClick}
+                />
+            </div>
+
+            {/* Bulk Actions Fixed Bar */}
             {selectedStudents.length > 0 && (
                 <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 duration-300">
-                    <div className="bg-gray-900 text-white rounded-2xl shadow-2xl px-6 py-4 flex items-center gap-6 border border-gray-700">
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
-                                <GraduationCap size={16} className="text-white" />
-                            </div>
-                            <span className="text-sm font-bold">{selectedStudents.length} Selected</span>
-                        </div>
-                        <div className="h-6 w-px bg-gray-700"></div>
+                    <div className="bg-gray-900 text-white rounded-2xl shadow-2xl px-6 py-3 flex items-center gap-6 border border-gray-700">
                         <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => handleBulkAction('activate')}
-                                disabled={isProcessing}
-                                className="px-3 py-1.5 hover:bg-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider text-emerald-400 transition-colors flex items-center gap-2"
-                            >
+                            <span className="flex items-center justify-center w-6 h-6 bg-white/10 rounded font-black text-xs">{selectedStudents.length}</span>
+                            <span className="text-xs font-bold text-gray-300">Selected</span>
+                        </div>
+                        <div className="h-4 w-px bg-gray-700"></div>
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => handleBulkAction('activate')} disabled={isProcessing} className="px-3 py-1.5 hover:bg-gray-800 rounded-lg text-xs font-bold text-emerald-400 transition-colors flex items-center gap-2">
                                 <CheckCircle size={14} /> Activate
                             </button>
-                            <button
-                                onClick={() => handleBulkAction('suspend')}
-                                disabled={isProcessing}
-                                className="px-3 py-1.5 hover:bg-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider text-amber-400 transition-colors flex items-center gap-2"
-                            >
+                            <button onClick={() => handleBulkAction('suspend')} disabled={isProcessing} className="px-3 py-1.5 hover:bg-gray-800 rounded-lg text-xs font-bold text-amber-400 transition-colors flex items-center gap-2">
                                 <XCircle size={14} /> Suspend
                             </button>
-                            <button
-                                onClick={() => setShowTransferModal(true)}
-                                disabled={isProcessing}
-                                className="px-3 py-1.5 hover:bg-gray-800 rounded-lg text-xs font-bold uppercase tracking-wider text-blue-400 transition-colors flex items-center gap-2"
-                            >
+                            <button onClick={() => setShowTransferModal(true)} disabled={isProcessing} className="px-3 py-1.5 hover:bg-gray-800 rounded-lg text-xs font-bold text-indigo-400 transition-colors flex items-center gap-2">
                                 <ArrowRight size={14} /> Transfer
                             </button>
-                            <button
-                                onClick={() => handleBulkAction('delete')}
-                                disabled={isProcessing}
-                                className="px-3 py-1.5 hover:bg-red-900/30 rounded-lg text-xs font-bold uppercase tracking-wider text-red-400 transition-colors flex items-center gap-2"
-                            >
+                            <button onClick={() => handleBulkAction('delete')} disabled={isProcessing} className="px-3 py-1.5 hover:bg-red-900/30 rounded-lg text-xs font-bold text-red-400 transition-colors flex items-center gap-2">
                                 <Trash2 size={14} /> Delete
                             </button>
                         </div>
-                        <div className="h-6 w-px bg-gray-700"></div>
-                        <button
-                            onClick={() => setSelectedStudents([])}
-                            className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors"
-                        >
+                        <button onClick={() => setSelectedStudents([])} className="ml-2 hover:text-white text-gray-500">
                             <XCircle size={16} />
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* Transfer Modal */}
-            {showTransferModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl">
-                        <h3 className="text-2xl font-black text-gray-900 mb-6">Transfer Students</h3>
-                        <p className="text-sm text-gray-600 mb-6">
-                            Transfer {selectedStudents.length} selected students to a new campus.
-                        </p>
-                        <select
-                            value={targetCampusId || ''}
-                            onChange={(e) => setTargetCampusId(e.target.value ? Number(e.target.value) : null)}
-                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-6"
-                        >
-                            <option value="">Select Target Campus</option>
-                            {campuses.map((c: any) => (
-                                <option key={c.id} value={c.id}>{c.campusName}</option>
-                            ))}
-                        </select>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    setShowTransferModal(false)
-                                    setTargetCampusId(null)
-                                }}
-                                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleTransfer}
-                                disabled={!targetCampusId || isProcessing}
-                                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors disabled:opacity-50"
-                            >
-                                {isProcessing ? 'Transferring...' : 'Transfer'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <div className="w-full xl:max-w-[calc(100vw-340px)] mx-auto overflow-hidden">
-                <div className="overflow-x-auto pb-4 custom-scrollbar">
-                    <DataTable
-                        data={filteredStudents}
-                        columns={columns as any}
-                        pageSize={10}
-                        renderExpandedRow={renderExpandedRow}
-                        enableMultiSelection={true}
-                        onSelectionChange={(selected) => setSelectedStudents(selected)}
-                        onRowClick={onRowClick}
-                        uniqueKey="studentId"
-                    />
-                </div>
-            </div>
-            {/* Premium Confirm Dialog */}
+            {/* Modals */}
             <ConfirmDialog
                 isOpen={bulkConfirmation.isOpen}
                 title={`Confirm Bulk ${bulkConfirmation.action === 'delete' ? 'Deletion' : 'Update'}`}
-                description={
-                    bulkConfirmation.action === 'delete' ? (
-                        <p className="text-red-600 font-medium">
-                            DANGER: You are about to PERMANENTLY DELETE <strong>{selectedStudents.length}</strong> students.
-                            <br />This action CANNOT be undone. Are you absolutely sure?
-                        </p>
-                    ) : (
-                        <p>
-                            Are you sure you want to <strong>{bulkConfirmation.action}</strong> {selectedStudents.length} selected students?
-                        </p>
-                    )
-                }
-                confirmText={`Yes, ${bulkConfirmation.action} All`}
+                description={<p>Are you sure you want to <strong>{bulkConfirmation.action}</strong> {selectedStudents.length} students?</p>}
+                confirmText={`Yes, ${bulkConfirmation.action}`}
                 variant={bulkConfirmation.action === 'delete' ? 'danger' : 'warning'}
                 onConfirm={executeBulkAction}
                 onCancel={() => setBulkConfirmation({ isOpen: false, action: null })}
                 isLoading={isProcessing}
             />
 
-            {/* Single Delete Confirm Dialog */}
             <ConfirmDialog
                 isOpen={!!deleteId}
-                title="Delete Student?"
-                description={
-                    <p className="text-red-600 font-medium">
-                        Are you sure you want to PERMANENTLY DELETE this student?
-                        <br />This action cannot be undone.
-                    </p>
-                }
-                confirmText="Delete Student"
+                title="Delete Student"
+                description={<p className="text-red-500">This action cannot be undone. Are you sure?</p>}
+                confirmText="Delete"
                 variant="danger"
                 onConfirm={executeSingleDelete}
                 onCancel={() => setDeleteId(null)}
                 isLoading={isProcessing}
             />
+
+            {showTransferModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95">
+                        <h3 className="text-xl font-black text-gray-900 mb-6">Transfer Students</h3>
+                        <p className="text-xs text-gray-500 mb-4">Select target campus for {selectedStudents.length} students.</p>
+                        <select
+                            value={targetCampusId || ''}
+                            onChange={(e) => setTargetCampusId(e.target.value ? Number(e.target.value) : null)}
+                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-6 text-sm font-bold"
+                        >
+                            <option value="">Select Target Campus</option>
+                            {campuses.map((c: any) => (
+                                <option key={c.id} value={c.id}>{c.campusName}</option>
+                            ))}
+                        </select>
+                        <div className="flex gap-2">
+                            <button onClick={() => setShowTransferModal(false)} className="flex-1 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200">Cancel</button>
+                            <button onClick={handleTransfer} disabled={!targetCampusId} className="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50">Transfer</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

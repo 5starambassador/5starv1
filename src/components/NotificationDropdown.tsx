@@ -6,6 +6,8 @@ import { Bell, Check, Info, AlertTriangle, XCircle, CheckCircle, X, ChevronLeft,
 import { getNotifications, markAllAsRead, markAsRead } from '@/app/notification-actions'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { HyperlinkedText } from './HyperlinkedText'
+import { NotificationDetailModal } from './NotificationDetailModal'
 
 interface Notification {
     id: number
@@ -50,8 +52,16 @@ export function NotificationDropdown({ userName, referralCode }: { userName?: st
                 setIsOpen(false)
             }
         }
+
+        // Listen for external trigger to open dropdown
+        const handleOpenExternal = () => setIsOpen(true)
+        window.addEventListener('open-notifications-dropdown', handleOpenExternal)
+
         document.addEventListener("mousedown", handleClickOutside)
-        return () => document.removeEventListener("mousedown", handleClickOutside)
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside)
+            window.removeEventListener('open-notifications-dropdown', handleOpenExternal)
+        }
     }, [])
 
     const handleMarkAllRead = async () => {
@@ -175,106 +185,15 @@ export function NotificationDropdown({ userName, referralCode }: { userName?: st
                 </div>
             )}
 
-            {/* Detail Modal Overlay - Portal to body to avoid Clipping */}
-            {mounted && selectedNotification && createPortal(
-                <div className={userName ? "dark" : ""}>
-                    <div className="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center p-0 sm:p-4">
-                        <div
-                            className="absolute inset-0 bg-black/80 backdrop-blur-md"
-                            onClick={() => setSelectedNotification(null)}
-                        />
-                        <div className="relative w-full max-w-sm bg-white dark:bg-[#0f172a] border-t sm:border border-black/5 dark:border-white/10 rounded-t-[32px] sm:rounded-[32px] overflow-hidden shadow-2xl transition-all p-8 mb-[env(safe-area-inset-bottom)] pb-12 sm:pb-8 animate-in slide-in-from-bottom duration-300">
-                            {/* Mobile Drag Handle */}
-                            <div className="sm:hidden w-12 h-1.5 bg-gray-200 dark:bg-white/20 rounded-full mx-auto -mt-4 mb-6" />
-
-                            <div className="flex justify-between items-start mb-6">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-gray-100 dark:bg-white/10 rounded-2xl">
-                                        {getIcon(selectedNotification.type)}
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-black text-gray-900 dark:text-white leading-tight">
-                                            {selectedNotification.title
-                                                .replace(/{userName}|{Ambassador}/g, userName || 'Ambassador')
-                                                .replace(/{referralCode}|{code}/g, referralCode || '')}
-                                        </h3>
-                                        <p className="text-[10px] font-black text-gray-400 dark:text-white/30 uppercase tracking-widest mt-1">
-                                            {new Date(selectedNotification.createdAt).toLocaleString()}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => {
-                                            const text = `${selectedNotification.title}\n\n${selectedNotification.message
-                                                .replace(/{userName}|{Ambassador}/g, userName || 'Ambassador')
-                                                .replace(/{referralCode}|{code}/g, referralCode || '')}`
-                                            const shareData = {
-                                                title: selectedNotification.title,
-                                                text: text,
-                                                url: selectedNotification.link || window.location.href
-                                            }
-
-                                            if (navigator.share) {
-                                                navigator.share(shareData).catch(console.error)
-                                            } else {
-                                                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
-                                            }
-                                        }}
-                                        className="w-10 h-10 bg-green-500/10 border border-green-500/20 flex items-center justify-center hover:bg-green-500/20 transition-all shadow-xl"
-                                        style={{ borderRadius: '50%', color: '#22c55e' }}
-                                        title="Share on WhatsApp"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: '18px', minHeight: '18px', display: 'block' }}>
-                                            <circle cx="18" cy="5" r="3" />
-                                            <circle cx="6" cy="12" r="3" />
-                                            <circle cx="18" cy="19" r="3" />
-                                            <line x1="8.59" x2="15.42" y1="13.51" y2="17.49" />
-                                            <line x1="15.41" x2="8.59" y1="6.51" y2="10.49" />
-                                        </svg>
-                                    </button>
-                                    <button
-                                        onClick={() => setSelectedNotification(null)}
-                                        className="w-10 h-10 bg-gray-200 dark:bg-white/10 border border-gray-300 dark:border-white/20 flex items-center justify-center hover:bg-gray-300 dark:hover:bg-white/20 transition-all shadow-xl"
-                                        style={{ borderRadius: '50%', color: '#ffffff' }}
-                                        aria-label="Close"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: '20px', minHeight: '20px', display: 'block' }}>
-                                            <path d="M18 6 6 18" />
-                                            <path d="m6 6 18 12" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="max-h-[50vh] overflow-y-auto custom-scrollbar pr-1 mb-8">
-                                <p className="text-sm text-gray-600 dark:text-white/70 leading-relaxed font-medium">
-                                    {selectedNotification.message
-                                        .replace(/{userName}|{Ambassador}/g, userName || 'Ambassador')
-                                        .replace(/{referralCode}|{code}/g, referralCode || '')}
-                                </p>
-                            </div>
-
-                            <div className="flex flex-col gap-3">
-                                {selectedNotification.link && (
-                                    <button
-                                        onClick={() => {
-                                            if (selectedNotification.link) router.push(selectedNotification.link)
-                                            setSelectedNotification(null)
-                                            setIsOpen(false)
-                                        }}
-                                        className="w-full py-4 rounded-2xl bg-ui-primary text-white font-black uppercase tracking-widest shadow-lg shadow-ui-primary/20 hover:scale-[1.02] transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                                    >
-                                        View Details
-                                        <ChevronLeft size={16} className="rotate-180" />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
-        </div>
+            {/* Detail Modal Overlay */}
+            <NotificationDetailModal
+                isOpen={!!selectedNotification}
+                onClose={() => setSelectedNotification(null)}
+                notification={selectedNotification}
+                userName={userName}
+                referralCode={referralCode}
+                getIcon={getIcon}
+            />
+        </div >
     )
 }

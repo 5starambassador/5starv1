@@ -8,6 +8,7 @@ import { PageAnimate, PageItem } from '@/components/PageAnimate'
 import { getNotifications, markAllAsRead, markAsRead } from '@/app/notification-actions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { HyperlinkedText } from '@/components/HyperlinkedText'
 
 interface Notification {
     id: number
@@ -267,20 +268,33 @@ export default function NotificationsPage() {
 
                                 <div className="space-y-6">
                                     <div className="max-h-[50vh] overflow-y-auto custom-scrollbar pr-2">
-                                        <p className="text-base text-white/80 leading-relaxed font-medium">
-                                            {selectedNotification.message
+                                        <HyperlinkedText
+                                            className="text-base text-white/80 leading-relaxed font-medium"
+                                            text={selectedNotification.message
                                                 .replace(/{userName}|{Ambassador}/g, 'Ambassador')
                                                 .replace(/{referralCode}|{code}/g, '')}
-                                        </p>
+                                        />
                                     </div>
 
                                     <div className="flex flex-col gap-3">
                                         <button
                                             onClick={() => {
-                                                const text = `${selectedNotification.title}\n\n${selectedNotification.message
+                                                const messageBody = selectedNotification.message
                                                     .replace(/{userName}|{Ambassador}/g, 'Ambassador')
-                                                    .replace(/{referralCode}|{code}/g, '')}`
-                                                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+                                                    .replace(/{referralCode}|{code}/g, '')
+                                                const text = `${selectedNotification.title}\n\n${messageBody}`
+
+                                                // Try to extract URL from message if no explicit link exists
+                                                const urlInMessage = messageBody.match(/(https?:\/\/[^\s]+)/)?.[0]
+                                                const finalUrl = selectedNotification.link || urlInMessage
+
+                                                // For WhatsApp, append the link clearly if it exists and not already in text
+                                                let whatsappText = text
+                                                if (finalUrl && !text.includes(finalUrl)) {
+                                                    whatsappText += `\n\nLink: ${finalUrl}`
+                                                }
+
+                                                window.open(`https://wa.me/?text=${encodeURIComponent(whatsappText)}`, '_blank')
                                             }}
                                             className="w-full py-4 rounded-2xl bg-[#25D366] text-white font-black uppercase tracking-widest shadow-lg shadow-[#25D366]/20 hover:scale-[1.02] transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                                         >

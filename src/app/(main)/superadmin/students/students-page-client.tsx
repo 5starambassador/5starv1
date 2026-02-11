@@ -1,14 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { X } from 'lucide-react'
+import { X, User as UserIcon, CheckCircle, Clock, CreditCard, RefreshCcw } from 'lucide-react'
 import { Student, User, Campus, BulkStudentData } from '@/types'
 import { StudentTable } from '@/components/superadmin/StudentTable'
 import { StudentDetailPanel } from '@/components/superadmin/StudentDetailPanel'
 import CSVUploader from '@/components/CSVUploader'
 import { addStudent, updateStudent, bulkAddStudents } from '@/app/student-actions'
+import { backfillStudentFees, generateMissingGradeFeeReport } from '@/app/import-actions'
 import { getGradesForCampus } from '@/lib/grade-utils'
 import { AnimatePresence } from 'framer-motion'
 
@@ -26,6 +27,135 @@ export default function StudentsPageClient({ students, users, campuses }: Studen
     const [editingStudent, setEditingStudent] = useState<any>(null)
     const [modalLoading, setModalLoading] = useState(false)
     const [selectedStudentForDetail, setSelectedStudentForDetail] = useState<Student | null>(null)
+    const [isLive, setIsLive] = useState(false)
+    const [isBackfilling, setIsBackfilling] = useState(false)
+
+    // Backfill Handler
+    const handleBackfillFees = async () => {
+        console.log('[BACKFILL] Starting fee backfill...')
+        setIsBackfilling(true)
+
+        let failedCount = 0
+        try {
+            const result = await backfillStudentFees()
+            console.log('[BACKFILL] Result:', result)
+
+            if (result.success) {
+                failedCount = result.failed || 0
+                toast.success(`Successfully updated ${result.updated} students! (Failed: ${failedCount})`)
+                router.refresh()
+            } else {
+                toast.error(result.error || 'Backfill failed')
+            }
+        } catch (error: any) {
+            console.error('[BACKFILL] Error:', error)
+            toast.error(`Error during backfill: ${error.message}`)
+        } finally {
+            setIsBackfilling(false)
+        }
+
+        // Auto-generate CSV report AFTER resetting loading state
+        if (failedCount > 0) {
+            try {
+                console.log('[BACKFILL] Generating CSV report for failed entries...')
+                const reportResult = await generateMissingGradeFeeReport()
+                if (reportResult.success && reportResult.missingCombinations) {
+                    // Convert to CSV format
+                    const csvRows = []
+                    csvRows.push(['Campus', 'Grade', 'Academic Year', 'Students Affected', 'Reason', 'Action Required'])
+
+                    for (const combo of reportResult.missingCombinations) {
+                        csvRows.push([
+                            combo.campusName,
+                            combo.grade,
+                            combo.academicYear,
+                            combo.studentCount.toString(),
+                            `No GradeFee record configured`,
+                            `Add GradeFee entry with annualFee_otp and annualFee_wotp values`
+                        ])
+                    }
+
+                    const csvContent = csvRows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n')
+                    const blob = new Blob([csvContent], { type: 'text/csv' })
+                    const url = window.URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `missing-gradefee-report-${new Date().toISOString().split('T')[0]}.csv`
+                    document.body.appendChild(a)
+                    a.click()
+                    document.body.removeChild(a)
+                    window.URL.revokeObjectURL(url)
+                    toast.info(`CSV report downloaded: ${failedCount} students need GradeFee entries`)
+                }
+            } catch (reportError) {
+                console.error('[BACKFILL] Failed to generate report:', reportError)
+            }
+        }
+    }
+
+    // Generate Report Handler
+    const handleGenerateReport = async () => {
+        console.log('[REPORT] Button clicked! Generating CSV report...')
+        try {
+            const result = await generateMissingGradeFeeReport()
+            console.log('[REPORT] Result received:', result)
+            if (result.success && result.missingCombinations) {
+                console.log('[REPORT] Creating CSV download...')
+
+                // Convert to CSV format
+                const csvRows = []
+                csvRows.push(['Campus', 'Grade', 'Academic Year', 'Students Affected', 'Reason', 'Action Required', 'Student Names'])
+
+                for (const combo of result.missingCombinations) {
+                    const studentNames = combo.students.map(s => `${s.name} (${s.admissionNumber})`).join('; ')
+                    csvRows.push([
+                        combo.campusName,
+                        combo.grade,
+                        combo.academicYear,
+                        combo.studentCount.toString(),
+                        `No GradeFee record configured`,
+                        `Add GradeFee entry with annualFee_otp and annualFee_wotp`,
+                        studentNames
+                    ])
+                }
+
+                const csvContent = csvRows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n')
+                const blob = new Blob([csvContent], { type: 'text/csv' })
+                const url = window.URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `missing-gradefee-report-${new Date().toISOString().split('T')[0]}.csv`
+                document.body.appendChild(a)
+                a.click()
+                document.body.removeChild(a)
+                window.URL.revokeObjectURL(url)
+                console.log('[REPORT] Download triggered successfully')
+                toast.success(`CSV report generated! ${result.totalAffected} students affected`)
+            } else {
+                console.error('[REPORT] Failed:', result.error)
+                toast.error(result.error || 'Failed to generate report')
+            }
+        } catch (error: any) {
+            console.error('[REPORT] Error:', error)
+            toast.error(`Error generating report: ${error.message}`)
+        }
+    }
+
+    // Live Mode Effect
+    useEffect(() => {
+        // Initialize from cookie on mount to avoid hydration mismatch
+        const isLiveMode = document.cookie.includes('student_live_mode=true')
+        if (isLiveMode) setIsLive(true)
+    }, [])
+
+    useEffect(() => {
+        if (!isLive) return
+        const interval = setInterval(() => {
+            router.refresh()
+            toast.success('Data refreshed', { duration: 1000, icon: <RefreshCcw size={12} /> })
+        }, 10000)
+        return () => clearInterval(interval)
+    }, [isLive, router])
 
     const [studentForm, setStudentForm] = useState<any>({
         fullName: '',
@@ -34,10 +164,11 @@ export default function StudentsPageClient({ students, users, campuses }: Studen
         grade: '',
         section: '',
         rollNumber: '',
-        baseFee: undefined,
+        baseFee: '',
         discountPercent: 0,
         admissionNumber: '',
         academicYear: '2025-2026',
+        selectedFeeType: 'WOTP',
         isNewParent: false,
         newParentName: '',
         newParentMobile: ''
@@ -57,6 +188,7 @@ export default function StudentsPageClient({ students, users, campuses }: Studen
             discountPercent: student.discountPercent,
             admissionNumber: student.admissionNumber || '',
             academicYear: student.academicYear || '2025-2026',
+            selectedFeeType: (student as any).selectedFeeType || 'WOTP',
             isNewParent: false, // When editing, we assume parent is existing
             newParentName: '',
             newParentMobile: ''
@@ -125,7 +257,7 @@ export default function StudentsPageClient({ students, users, campuses }: Studen
             setShowStudentModal(false)
             setEditingStudent(null)
             setStudentForm({
-                fullName: '', parentId: '', campusId: '', grade: '', section: '', rollNumber: '', baseFee: 60000, discountPercent: 0,
+                fullName: '', parentId: '', campusId: '', grade: '', section: '', rollNumber: '', baseFee: '', discountPercent: 0,
                 admissionNumber: '', academicYear: '2025-2026',
                 isNewParent: false, newParentName: '', newParentMobile: ''
             })
@@ -151,34 +283,31 @@ export default function StudentsPageClient({ students, users, campuses }: Studen
 
     return (
         <div className="space-y-6 animate-fade-in relative min-h-screen pb-20">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-black text-gray-900 tracking-tighter">Student Management</h1>
-            </div>
-
-            <div>
-                <StudentTable
-                    students={students}
-                    searchTerm={searchQuery}
-                    onSearchChange={setSearchQuery}
-                    onAddStudent={() => {
-                        setEditingStudent(null)
-                        setStudentForm({
-                            fullName: '', parentId: '', campusId: '', grade: '', section: '',
-                            rollNumber: '', baseFee: 60000, discountPercent: 0,
-                            admissionNumber: '', academicYear: '2025-2026',
-                            isNewParent: false, newParentName: '', newParentMobile: ''
-                        })
-                        setShowStudentModal(true)
-                    }}
-                    onEdit={openEditModal}
-                    onBulkAdd={() => setShowBulkUploadModal(true)}
-                    onViewAmbassador={(code) => {
-                        router.push(`/superadmin?view=users&search=${code}`)
-                    }}
-                    onRowClick={(student) => setSelectedStudentForDetail(student)}
-                />
-            </div>
-
+            <StudentTable
+                students={students}
+                searchTerm={searchQuery}
+                onSearchChange={setSearchQuery}
+                onAddStudent={() => {
+                    setEditingStudent(null)
+                    setStudentForm({
+                        fullName: '', parentId: '', campusId: '', grade: '', section: '',
+                        rollNumber: '', baseFee: '', discountPercent: 0,
+                        admissionNumber: '', academicYear: '2025-2026',
+                        isNewParent: false, newParentName: '', newParentMobile: ''
+                    })
+                    setShowStudentModal(true)
+                }}
+                onEdit={openEditModal}
+                onBulkAdd={() => setShowBulkUploadModal(true)}
+                onViewAmbassador={(code) => {
+                    router.push(`/superadmin?view=users&search=${code}`)
+                }}
+                onRowClick={(student) => setSelectedStudentForDetail(student)}
+                campuses={campuses}
+                onBackfillFees={handleBackfillFees}
+                isBackfilling={isBackfilling}
+                onGenerateReport={handleGenerateReport}
+            />
             {/* Detail Panel */}
             <AnimatePresence>
                 <StudentDetailPanel
@@ -189,6 +318,16 @@ export default function StudentsPageClient({ students, users, campuses }: Studen
                     onEdit={(student) => {
                         setSelectedStudentForDetail(null)
                         openEditModal(student)
+                    }}
+                    onUpdate={async (id, data) => {
+                        const result = await updateStudent(id, data)
+                        if (result.success) {
+                            router.refresh()
+                            // Update local state to reflect changes immediately
+                            setSelectedStudentForDetail(prev => prev ? { ...prev, ...data } : null)
+                            return { success: true }
+                        }
+                        return result
                     }}
                     onViewParent={(parentId) => {
                         const parent = users.find(u => u.userId === parentId)
@@ -287,7 +426,19 @@ export default function StudentsPageClient({ students, users, campuses }: Studen
                                     <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Grade *</label>
                                     <select
                                         value={studentForm.grade}
-                                        onChange={(e) => setStudentForm({ ...studentForm, grade: e.target.value })}
+                                        onChange={async (e) => {
+                                            const newGrade = e.target.value
+                                            setStudentForm((prev: any) => ({ ...prev, grade: newGrade }))
+
+                                            // Auto-fetch fee
+                                            if (studentForm.campusId && newGrade) {
+                                                const feeType = studentForm.selectedFeeType || 'WOTP'
+                                                const fee = await import('@/app/student-actions').then(m => m.getGradeFee(parseInt(studentForm.campusId), newGrade, studentForm.academicYear, feeType))
+                                                if (fee !== null) {
+                                                    setStudentForm((prev: any) => ({ ...prev, baseFee: fee }))
+                                                }
+                                            }
+                                        }}
                                         style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
                                     >
                                         <option value="">Select Grade</option>
@@ -326,17 +477,43 @@ export default function StudentsPageClient({ students, users, campuses }: Studen
                                         placeholder="e.g. ADM-2025-001"
                                     />
                                 </div>
-                                <div>
-                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Academic Year</label>
-                                    <select
-                                        value={studentForm.academicYear}
-                                        onChange={(e) => setStudentForm({ ...studentForm, academicYear: e.target.value })}
-                                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                    >
-                                        <option value="2024-2025">2024-2025</option>
-                                        <option value="2025-2026">2025-2026</option>
-                                        <option value="2026-2027">2026-2027</option>
-                                    </select>
+                                <div className="col-span-2 grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Academic Year</label>
+                                        <select
+                                            value={studentForm.academicYear}
+                                            onChange={(e) => setStudentForm({ ...studentForm, academicYear: e.target.value })}
+                                            style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
+                                        >
+                                            <option value="2024-2025">2024-2025</option>
+                                            <option value="2025-2026">2025-2026</option>
+                                            <option value="2026-2027">2026-2027</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>
+                                            Payment Plan <span className="text-red-500">*</span>
+                                        </label>
+                                        <select
+                                            value={studentForm.selectedFeeType || 'WOTP'}
+                                            onChange={async (e) => {
+                                                const newType = e.target.value
+                                                setStudentForm((prev: any) => ({ ...prev, selectedFeeType: newType }))
+
+                                                // Auto-fetch fee on plan change
+                                                if (studentForm.campusId && studentForm.grade) {
+                                                    const fee = await import('@/app/student-actions').then(m => m.getGradeFee(parseInt(studentForm.campusId), studentForm.grade, studentForm.academicYear, newType as any))
+                                                    if (fee !== null) {
+                                                        setStudentForm((prev: any) => ({ ...prev, baseFee: fee }))
+                                                    }
+                                                }
+                                            }}
+                                            style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
+                                        >
+                                            <option value="WOTP">Installment (WOTP)</option>
+                                            <option value="OTP">One Time (OTP)</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div>
                                     <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Base Fee</label>
@@ -348,16 +525,7 @@ export default function StudentsPageClient({ students, users, campuses }: Studen
                                         placeholder="Leave blank to auto-calculate"
                                     />
                                 </div>
-                                <div>
-                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>Discount %</label>
-                                    <input
-                                        type="number"
-                                        value={studentForm.discountPercent}
-                                        onChange={(e) => setStudentForm({ ...studentForm, discountPercent: parseInt(e.target.value) })}
-                                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
-                                        placeholder="Auto from Parent"
-                                    />
-                                </div>
+
                             </div>
                             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                                 <button

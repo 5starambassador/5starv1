@@ -23,6 +23,13 @@ interface Registration {
         paidAt: Date | string | null
         adminRemarks: string | null
     }[]
+    settlements?: {
+        amount: number
+        status: string
+        bankReference: string | null
+        payoutDate: Date | string | null
+        remarks: string | null
+    }[]
 }
 
 interface RefundHistoryTableProps {
@@ -56,13 +63,20 @@ export function RefundHistoryTable({ data }: RefundHistoryTableProps) {
             accessorKey: 'refundStatus',
             cell: (row: Registration) => {
                 const details = row.payments?.[0]
+                const settlement = row.settlements?.find((s: any) => s.amount === 25 && s.status === 'Processed')
+
                 const remarkMatch = details?.adminRemarks?.match(/on ([\d-T:.Z]+)/)
-                const refundDate = remarkMatch ? new Date(remarkMatch[1]) : null
+                const refundDate = settlement?.payoutDate
+                    ? new Date(settlement.payoutDate)
+                    : (remarkMatch ? new Date(remarkMatch[1]) : null)
 
                 return (
-                    <div className="flex items-center gap-1 text-xs text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 w-fit">
-                        <BadgeCheck size={12} />
-                        {refundDate ? format(refundDate, 'dd MMM yyyy') : 'Processed'}
+                    <div className="flex flex-col gap-1">
+                        <div suppressHydrationWarning className="flex items-center gap-1 text-xs text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 w-fit">
+                            <BadgeCheck size={12} />
+                            {refundDate ? format(refundDate, 'dd MMM yyyy') : 'Processed'}
+                        </div>
+                        <span className="text-[9px] text-gray-400 italic px-1">Registration fee refunded</span>
                     </div>
                 )
             }
@@ -71,10 +85,11 @@ export function RefundHistoryTable({ data }: RefundHistoryTableProps) {
             header: 'Bank Ref (UTR)',
             accessorKey: 'bankRef',
             cell: (row: Registration) => {
-                const details = row.payments?.[0]
+                const settlement = row.settlements?.find((s: any) => s.amount === 25 && s.status === 'Processed')
+                const utr = settlement?.bankReference || 'N/A'
                 return (
-                    <span className="font-mono text-[10px] text-gray-600 bg-gray-50 px-2 py-1 rounded border border-gray-200">
-                        {details?.bankReference || 'N/A'}
+                    <span suppressHydrationWarning className="font-mono text-[10px] text-gray-600 bg-gray-50 px-2 py-1 rounded border border-gray-200">
+                        {utr}
                     </span>
                 )
             }
@@ -82,11 +97,16 @@ export function RefundHistoryTable({ data }: RefundHistoryTableProps) {
         {
             header: 'Audit Remarks',
             accessorKey: 'remarks',
-            cell: (row: Registration) => (
-                <div className="max-w-[200px] text-[10px] text-gray-400 italic truncate" title={row.payments?.[0]?.adminRemarks || ''}>
-                    {row.payments?.[0]?.adminRemarks || '-'}
-                </div>
-            )
+            cell: (row: Registration) => {
+                const details = row.payments?.[0]
+                const settlement = row.settlements?.find((s: any) => s.amount === 25 && s.status === 'Processed')
+                const remarks = settlement?.remarks || details?.adminRemarks || '-'
+                return (
+                    <div suppressHydrationWarning className="max-w-[200px] text-[10px] text-gray-400 italic truncate" title={remarks}>
+                        {remarks}
+                    </div>
+                )
+            }
         }
     ]
 
@@ -104,7 +124,8 @@ export function RefundHistoryTable({ data }: RefundHistoryTableProps) {
                 <DataTable
                     data={data}
                     columns={columns as any}
-                    searchKey="fullName"
+                    searchKey={["fullName", "mobileNumber"]}
+                    searchPlaceholder="Search by name or mobile..."
                     pageSize={10}
                 />
             </div>

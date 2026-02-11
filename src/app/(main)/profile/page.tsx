@@ -2,6 +2,18 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { redirect } from 'next/navigation'
 import ProfileClient from './profile-client'
 import { decrypt } from '@/lib/encryption'
+import { deleteSession } from '@/lib/session'
+
+async function logout() {
+    'use server'
+    try {
+        await deleteSession()
+        return { success: true }
+    } catch (error) {
+        console.error('Logout error:', error)
+        return { success: false, error: 'Failed to clear session' }
+    }
+}
 
 
 
@@ -70,5 +82,5 @@ export default async function ProfilePage() {
         benefitStatus: isUser ? (user as any).benefitStatus : undefined
     }
 
-    return <ProfileClient user={userData} />
+    return <ProfileClient user={userData} logoutAction={logout} />
 }

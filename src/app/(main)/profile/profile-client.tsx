@@ -46,11 +46,12 @@ interface ProfileClientProps {
         accountNumber?: string
         ifscCode?: string
     }
+    logoutAction: () => Promise<{ success: boolean; error?: string }>
 }
 
 import { useRouter } from 'next/navigation'
 
-export default function ProfileClient({ user }: ProfileClientProps) {
+export default function ProfileClient({ user, logoutAction }: ProfileClientProps) {
     const router = useRouter()
     const [isEditingProfile, setIsEditingProfile] = useState(false)
     const [isEditingBank, setIsEditingBank] = useState(false)
@@ -770,12 +771,25 @@ export default function ProfileClient({ user }: ProfileClientProps) {
 
                 {/* Sign Out */}
                 <div className="pt-8 pb-4">
-                    <form action="/auth/signout" method="post">
-                        <button className="w-full h-14 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center gap-2 font-bold transition-all active:scale-95 text-xs uppercase tracking-widest">
-                            <LogOut size={16} />
-                            Sign Out
-                        </button>
-                    </form>
+                    <button
+                        onClick={async () => {
+                            try {
+                                const result = await logoutAction()
+                                if (result.success) {
+                                    router.push('/')
+                                } else {
+                                    toast.error(result.error || 'Failed to sign out')
+                                }
+                            } catch (error) {
+                                console.error('Logout error:', error)
+                                toast.error('Failed to sign out')
+                            }
+                        }}
+                        className="w-full h-14 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center gap-2 font-bold transition-all active:scale-95 text-xs uppercase tracking-widest"
+                    >
+                        <LogOut size={16} />
+                        Sign Out
+                    </button>
                     <p className="text-center text-[10px] text-white/20 mt-6 uppercase tracking-widest">
                         Achariya Partnership Program • v2.5.0
                     </p>

@@ -1,0 +1,28 @@
+Checking users by mobile: 9940912775, 9994324920, 7339075724, 8220219638
+User Results:
+[
+  {
+    "userId": 1955,
+    "fullName": "G PRABA ",
+    "mobileNumber": "8220219638",
+    "settlements": []
+  },
+  {
+    "userId": 1956,
+    "fullName": "Anitha",
+    "mobileNumber": "7339075724",
+    "settlements": []
+  },
+  {
+    "userId": 1957,
+    "fullName": "C. Vijayalakshmi ",
+    "mobileNumber": "9994324920",
+    "settlements": []
+  },
+  {
+    "userId": 1993,
+    "fullName": "M MUNISAMY ",
+    "mobileNumber": "9940912775",
+    "settlements": []
+  }
+]

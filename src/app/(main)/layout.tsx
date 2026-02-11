@@ -2,9 +2,10 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { AccountStatus } from '@prisma/client'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, IndianRupee, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2, Zap, Lock, UserCog, Share2, Megaphone, Globe, Gift, CheckCircle, ExternalLink, MousePointerClick, LayoutDashboard, GraduationCap, GitFork, Calculator, History } from 'lucide-react'
+import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, IndianRupee, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2, Zap, Lock, UserCog, Share2, Megaphone, Globe, Gift, CheckCircle, ExternalLink, MousePointerClick, LayoutDashboard, GraduationCap, GitFork, Calculator, History, UserCheck } from 'lucide-react'
 import { MobileMenu } from '@/components/MobileMenu'
 import { NotificationDropdown } from '@/components/NotificationDropdown'
+import { NotificationTicker } from '@/components/NotificationTicker'
 import MobileSidebarWrapper from '@/components/MobileSidebarWrapper'
 import { BottomNav } from '@/components/BottomNav'
 import { getMyPermissions } from '@/lib/permission-service'
@@ -74,6 +75,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             navItems.push({ label: 'Campus Control', href: '/superadmin/campuses', icon: <Building2 /> })
             navItems.push({ label: 'User Operations', href: '/superadmin/users', icon: <Users /> })
             navItems.push({ label: 'Student Records', href: '/superadmin/students', icon: <GraduationCap /> })
+            navItems.push({ label: 'Beneficiary Verification', href: '/superadmin/verification', icon: <UserCheck /> })
             navItems.push({ label: 'Referral Pipeline', href: '/superadmin/referrals', icon: <GitFork /> })
             navItems.push({ label: 'External Programs', href: '/superadmin?view=programs', icon: <ExternalLink /> })
             navItems.push({ label: 'Program Leads', href: '/superadmin?view=program-leads', icon: <MousePointerClick /> }) // New Link
@@ -213,14 +215,21 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                     </div>
                 </div>
 
-                <main className="flex-1 w-full max-w-[1400px] px-4 py-4 xl:p-8 pt-20 xl:pt-8 pb-20 xl:pb-8 relative z-10">
-                    <header className="hidden xl:flex justify-end mb-4 absolute top-4 right-8 z-20">
-                        <div className="bg-white/80 backdrop-blur-md p-1.5 rounded-full shadow-sm border border-white/50">
-                            <NotificationDropdown userName={user.fullName} referralCode={(user as any).referralCode || ''} />
-                        </div>
-                    </header>
-                    {children}
-                </main>
+                <div className="flex-1 w-full max-w-[1400px] flex flex-col pt-16 xl:pt-0">
+                    {isAmbassadorRole && (
+                        <NotificationTicker userName={user.fullName} referralCode={(user as any).referralCode || ''} />
+                    )}
+
+                    <main className="flex-1 w-full px-4 py-4 xl:p-8 pt-4 xl:pt-8 pb-20 xl:pb-8 relative z-10">
+                        <header className="hidden xl:flex justify-end mb-4 absolute top-4 right-8 z-20">
+                            <div className="bg-white/80 backdrop-blur-md p-1.5 rounded-full shadow-sm border border-white/50">
+                                <NotificationDropdown userName={user.fullName} referralCode={(user as any).referralCode || ''} />
+                            </div>
+                        </header>
+
+                        {children}
+                    </main>
+                </div>
 
                 <BottomNav role={user.role} />
                 <LayoutOverlays />

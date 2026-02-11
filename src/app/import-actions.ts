@@ -5,6 +5,8 @@ import { getCurrentUser } from "@/lib/auth-service"
 import { generateSmartReferralCode } from "@/lib/referral-service"
 import { UserRole, Prisma } from "@prisma/client"
 import { revalidatePath } from "next/cache"
+import { logAction } from "@/lib/audit-logger"
+import { syncUserStats, revalidateDashboard } from "./sync-actions"
 
 // --- Helper: Simple CSV Parser ---
 // --- Helper: Simple CSV Parser ---
@@ -51,6 +53,45 @@ function parseCSV(csvText: string) {
         })
         return row
     })
+}
+
+// --- Helper: Normalize Grade Names for Matching ---
+function normalizeGrade(grade: string | null | undefined): string {
+    if (!grade) return ''
+
+    let normalized = grade
+        .toUpperCase()                    // Convert to uppercase
+        .replace(/\s+/g, ' ')             // Normalize multiple spaces to single space
+        .replace(/\s*-\s*/g, '-')         // Remove spaces around hyphens
+        .trim()
+
+    // Convert Roman numerals to Arabic numbers
+    const romanMap: { [key: string]: string } = {
+        'I': '1',
+        'II': '2',
+        'III': '3',
+        'IV': '4',
+        'V': '5',
+        'VI': '6',
+        'VII': '7',
+        'VIII': '8',
+        'IX': '9',
+        'X': '10',
+        'XI': '11',
+        'XII': '12'
+    }
+
+    // Replace roman numerals at the end of grade names
+    // e.g., "MONT-II" -> "MONT-2", "GRADE-XII" -> "GRADE-12"
+    Object.keys(romanMap).forEach(roman => {
+        const regex = new RegExp(`-${roman}$`, 'g')
+        normalized = normalized.replace(regex, `-${romanMap[roman]}`)
+        // Also handle space separator
+        const spaceRegex = new RegExp(` ${roman}$`, 'g')
+        normalized = normalized.replace(spaceRegex, `-${romanMap[roman]}`)
+    })
+
+    return normalized
 }
 
 // --- Import Fees ---
@@ -231,6 +272,8 @@ export async function importStudents(csvData: string) {
         let processed = 0
         let errors: string[] = []
         let results: any[] = []
+        let autoVerifiedCount = 0
+        const usersToSync = new Set<number>()
 
         // Campuses map
         const campuses = await prisma.campus.findMany()
@@ -244,14 +287,20 @@ export async function importStudents(csvData: string) {
                 // Flexible Headers
                 const parentMobile = row.parentmobile || row['parent mobile']
                 const parentName = row.parentname || row['parent name']
-                const fullName = row.fullname || row['student name'] || row['full name']
+                const fullName = row.studentname || row.fullname || row['student name'] || row['full name']
                 const grade = row.grade || row['grade']
                 const campusName = row.campusname || row['campus name studying'] || row['campus name']
                 const section = row.section || row['section'] || null
-                const admissionNumber = row.admissionnumber || row['erp number'] || row['erp no'] || row['erp no.'] || null
+                const admissionNumber = row.admissionnumber || row.admissionNumber || row['erp number'] || row['erp no'] || row['erp no.'] || row['admission number'] || null
                 const rollNumber = row.rollnumber || row['roll number'] || null
                 const ambassadorMobile = row.ambassadormobile || row['ambassador mobile'] || null
-                const selectedFeeType = (row.feetype || row['fee type'] || '').toString().toUpperCase() as 'OTP' | 'WOTP' || null
+
+                // Read Feeplan from CSV (support both 'feeplan' and 'feetype' columns)
+                const feeplanRaw = row.feeplan || row.Feeplan || row.feetype || row['fee type'] || row['fee plan'] || ''
+                const selectedFeeType = feeplanRaw.toString().trim().toUpperCase() === 'OTP' ? 'OTP' : 'WOTP'
+
+                const studentStatus = row.status || row['status'] || 'Active'
+                const academicYearForRecord = row.academicyear || row['academic year'] || row.academicYear || '2025-2026'
 
                 if (!parentMobile || !fullName || !grade || !campusName) {
                     const msg = `Missing required fields`
@@ -269,22 +318,25 @@ export async function importStudents(csvData: string) {
                         results.push({ row: index + 2, data: row, status: 'Failed', reason: msg })
                         continue
                     }
-                    // Auto-create Parent
-                    const newCode = await generateSmartReferralCode('Parent', row.academicYear || '2025-2026')
+                    // Auto-create Parent as PASSIVE record (No referral code, Pending status)
                     parent = await prisma.user.create({
                         data: {
                             fullName: parentName,
                             mobileNumber: parentMobile,
                             role: 'Parent',
-                            referralCode: newCode,
-                            assignedCampus: campusName, // Assign to student's campus
-                            childEprNo: admissionNumber || null, // Link ERP if available
-                            academicYear: row.academicYear || '2025-2026',
-                            isFiveStarMember: false, // Default to false until they register/upgrade
-                            childInAchariya: true
+                            referralCode: null, // No code = must pay registration fee to become ambassador
+                            assignedCampus: campusName,
+                            childEprNo: admissionNumber || null,
+                            academicYear: academicYearForRecord,
+                            isFiveStarMember: false,
+                            childInAchariya: true,
+                            status: 'Pending', // Pending payment of registration fee
+                            benefitStatus: 'Pending'
                         }
                     })
                 }
+
+                if (parent) usersToSync.add(parent.userId)
 
                 // Find Campus
                 const campusId = campusMap.get(campusName.toLowerCase())
@@ -337,21 +389,66 @@ export async function importStudents(csvData: string) {
                     }
                 }
 
-                // Fetch Fee Snapshot if needed
+
+                // Fetch Fee from GradeFee table based on selected plan
                 let annualFeeAmount = 0
-                if (selectedFeeType) {
-                    const feeRule = await prisma.gradeFee.findFirst({
-                        where: {
-                            campusId,
-                            grade,
-                            academicYear: row.academicYear || '2025-2026'
-                        }
-                    })
-                    if (feeRule) {
-                        const rule = feeRule as any
-                        annualFeeAmount = selectedFeeType === 'OTP'
-                            ? (rule.annualFee_otp || 0)
-                            : (rule.annualFee_wotp || 0)
+                let baseFeeValue = 0
+
+                // Normalize the student's grade for matching
+                const normalizedStudentGrade = normalizeGrade(grade)
+
+                // Find GradeFee with normalized grade matching
+                const allGradeFees = await prisma.gradeFee.findMany({
+                    where: {
+                        campusId,
+                        academicYear: academicYearForRecord
+                    }
+                })
+
+                // Find matching GradeFee by normalized grade
+                const feeRule = allGradeFees.find(gf =>
+                    normalizeGrade(gf.grade) === normalizedStudentGrade
+                )
+
+                if (feeRule) {
+                    const rule = feeRule as any
+                    // Get the fee based on OTP or WOTP plan
+                    annualFeeAmount = selectedFeeType === 'OTP'
+                        ? (rule.annualFee_otp || 0)
+                        : (rule.annualFee_wotp || 0)
+                    baseFeeValue = annualFeeAmount
+                    console.log(`[IMPORT] Matched GradeFee: Student grade "${grade}" -> GradeFee grade "${feeRule.grade}" -> Fee: ${annualFeeAmount}`)
+                } else {
+                    // No GradeFee found - leave as 0 to show N/A
+                    console.log(`[IMPORT] No GradeFee found for Campus ${campusId}, Grade ${grade} (normalized: ${normalizedStudentGrade}), Year ${academicYearForRecord}`)
+                    annualFeeAmount = 0
+                    baseFeeValue = 0
+                }
+
+                // --- AUTO-VERIFICATION Check ---
+                // If parent exists and child record found, we mark for sync which handles activation
+                // Also auto-verify 'Pending' parents who haven't claimed child yet
+                if (parent) {
+                    const needsVerification = parent.benefitStatus === 'PendingVerification'
+                    const isPending = parent.status === 'Pending' || parent.benefitStatus === 'Pending'
+
+                    if (needsVerification || isPending) {
+                        // Auto-populate/Correct parent details from student record
+                        // We trust ERP Import Data over User Input for unverified users
+                        await prisma.user.update({
+                            where: { userId: parent.userId },
+                            data: {
+                                childInAchariya: true,
+                                childName: fullName, // Use student name from import
+                                childEprNo: admissionNumber, // Overwrite with correct ERP No
+                                grade: grade, // Overwrite with correct Grade
+                                campusId: campusId, // Overwrite with correct Campus ID
+                                benefitStatus: 'PendingVerification' // Mark as ready for sync/activation
+                            }
+                        })
+                        console.log(`[IMPORT] Auto-corrected/Updated Parent: ${parent.mobileNumber} linked to ${fullName} (${admissionNumber})`)
+
+                        usersToSync.add(parent.userId)
                     }
                 }
 
@@ -376,7 +473,7 @@ export async function importStudents(csvData: string) {
                         if (existingLead.leadStatus !== 'Confirmed') {
                             updateData.leadStatus = 'Confirmed'
                             updateData.confirmedDate = new Date()
-                            ambassadorsToUpdate.add(ambassadorId) // Mark for stat update
+                            usersToSync.add(ambassadorId) // Mark for stat update
                         }
                         const updatedLead = await prisma.referralLead.update({
                             where: { leadId: existingLead.leadId },
@@ -403,7 +500,7 @@ export async function importStudents(csvData: string) {
                             } as any
                         })
                         leadId = newLead.leadId
-                        ambassadorsToUpdate.add(ambassadorId) // Mark for stat update
+                        usersToSync.add(ambassadorId) // Mark for stat update
                     }
                 }
 
@@ -418,12 +515,12 @@ export async function importStudents(csvData: string) {
                         rollNumber,
                         admissionNumber,
                         ambassadorId, // Link directly
-                        referralLeadId: leadId, // Link to referral lead
-                        baseFee: row.baseFee ? parseInt(row.baseFee) : 60000,
-                        academicYear: row.academicYear || row['Academic Year'] || '2025-2026',
+                        referralLeadId: leadId,
+                        baseFee: baseFeeValue,
+                        academicYear: academicYearForRecord,
                         selectedFeeType: selectedFeeType,
                         annualFee: annualFeeAmount,
-                        status: 'Active'
+                        status: studentStatus
                     } as any
                 })
                 processed++
@@ -434,33 +531,14 @@ export async function importStudents(csvData: string) {
             }
         }
 
-        // --- Post-Processing: Update Ambassador Stats ---
-        if (ambassadorsToUpdate.size > 0) {
-            const defaultSlabs: Record<number, number> = { 1: 5, 2: 10, 3: 25, 4: 30, 5: 50 }
-
-            for (const userId of ambassadorsToUpdate) {
-                const count = await prisma.referralLead.count({
-                    where: { userId, leadStatus: 'Confirmed' }
-                })
-
-                const lookupCount = Math.min(count, 5)
-                const slab = await prisma.benefitSlab.findFirst({
-                    where: { referralCount: lookupCount }
-                })
-
-                const yearFeeBenefit = slab ? slab.yearFeeBenefitPercent : (defaultSlabs[lookupCount] || 0)
-
-                await prisma.user.update({
-                    where: { userId },
-                    data: {
-                        confirmedReferralCount: count,
-                        yearFeeBenefitPercent: yearFeeBenefit,
-                        benefitStatus: count >= 1 ? 'Active' : 'Inactive',
-                        lastActiveYear: 2025
-                    }
-                })
+        // --- Post-Processing: Decentralized Sync Stat Updates ---
+        if (usersToSync.size > 0) {
+            for (const userId of usersToSync) {
+                await syncUserStats(userId)
             }
         }
+
+        await revalidateDashboard()
 
         return { success: true, processed, errors, results }
     } catch (error: any) {
@@ -837,6 +915,207 @@ export async function importCrmLeads(csvData: string) {
         }
 
         return { success: true, processed, errors, results }
+    } catch (error: any) {
+        return { success: false, error: error.message }
+    }
+}
+
+// --- BACKFILL: Populate Annual Fees for Existing Students ---
+export async function backfillStudentFees() {
+    const admin = await getCurrentUser()
+    if (!admin || admin.role !== 'Super Admin') {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        const studentsToUpdate = await prisma.student.findMany({
+            where: {
+                OR: [
+                    { annualFee: null },
+                    { annualFee: 0 },
+                    { selectedFeeType: null }
+                ]
+            },
+            include: { campus: true }
+        })
+
+        console.log(`[BACKFILL] Found ${studentsToUpdate.length} students to process`)
+
+        let updated = 0
+        let failed = 0
+        const failures: any[] = []
+
+        for (const student of studentsToUpdate) {
+            try {
+                const currentYearRecord = await prisma.academicYear.findFirst({
+                    where: { isCurrent: true }
+                })
+                const currentYear = currentYearRecord?.year || student.academicYear || "2025-2026"
+
+                console.log(`[BACKFILL] Processing: ${student.fullName} - Campus: ${student.campusId}, Grade: ${student.grade}, Year: ${currentYear}`)
+
+                // Normalize the student's grade for matching
+                const normalizedStudentGrade = normalizeGrade(student.grade)
+
+                // Find GradeFee with normalized grade matching
+                const allGradeFees = await prisma.gradeFee.findMany({
+                    where: {
+                        campusId: student.campusId,
+                        academicYear: currentYear
+                    }
+                })
+
+                // Find matching GradeFee by normalized grade
+                const gradeFee = allGradeFees.find(gf =>
+                    normalizeGrade(gf.grade) === normalizedStudentGrade
+                )
+
+                if (!gradeFee) {
+                    console.log(`[BACKFILL] No GradeFee found for ${student.fullName} - Grade "${student.grade}" (normalized: ${normalizedStudentGrade})`)
+                    failures.push({
+                        student: student.fullName,
+                        reason: `No GradeFee for Campus ${student.campusId}, Grade ${student.grade}, Year ${currentYear}`
+                    })
+                    failed++
+                    continue
+                }
+
+                const feeType = student.selectedFeeType || 'WOTP'
+                const annualFee = feeType === 'OTP'
+                    ? (gradeFee.annualFee_otp || 0)
+                    : (gradeFee.annualFee_wotp || 0)
+
+                console.log(`[BACKFILL] Matched! Student grade "${student.grade}" -> GradeFee grade "${gradeFee.grade}" -> FeeType=${feeType}, AnnualFee=${annualFee}`)
+
+                await prisma.student.update({
+                    where: { studentId: student.studentId },
+                    data: {
+                        selectedFeeType: feeType,
+                        annualFee: annualFee
+                    }
+                })
+
+                updated++
+            } catch (err: any) {
+                console.error(`[BACKFILL] Error processing ${student.fullName}:`, err.message)
+                failures.push({
+                    student: student.fullName,
+                    reason: err.message
+                })
+                failed++
+            }
+        }
+
+        console.log(`[BACKFILL] Complete: Updated=${updated}, Failed=${failed}`)
+        console.log('[BACKFILL] Failures:', failures)
+
+        await revalidateDashboard()
+        return { success: true, updated, failed, total: studentsToUpdate.length }
+    } catch (error: any) {
+        console.error('[BACKFILL] Error:', error)
+        return { success: false, error: error.message }
+    }
+}
+
+// --- DIAGNOSTIC: Generate Missing GradeFee Report ---
+export async function generateMissingGradeFeeReport() {
+    const admin = await getCurrentUser()
+    if (!admin || admin.role !== 'Super Admin') {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        const students = await prisma.student.findMany({
+            where: {
+                OR: [
+                    { annualFee: null },
+                    { annualFee: 0 }
+                ]
+            },
+            include: {
+                campus: true
+            },
+            orderBy: [
+                { campusId: 'asc' },
+                { grade: 'asc' }
+            ]
+        })
+
+        // Group by campus and grade
+        const missingCombinations = new Map<string, {
+            campusName: string
+            campusId: number
+            grade: string
+            academicYear: string
+            studentCount: number
+            students: { name: string, admissionNumber: string }[]
+        }>()
+
+        for (const student of students) {
+            const currentYearRecord = await prisma.academicYear.findFirst({
+                where: { isCurrent: true }
+            })
+            const currentYear = currentYearRecord?.year || student.academicYear || "2025-2026"
+
+            // Check if GradeFee exists
+            const gradeFee = await prisma.gradeFee.findFirst({
+                where: {
+                    campusId: student.campusId,
+                    grade: student.grade,
+                    academicYear: currentYear
+                }
+            })
+
+            if (!gradeFee) {
+                const key = `${student.campusId}-${student.grade}-${currentYear}`
+                if (!missingCombinations.has(key)) {
+                    missingCombinations.set(key, {
+                        campusName: student.campus?.campusName || 'Unknown',
+                        campusId: student.campusId,
+                        grade: student.grade,
+                        academicYear: currentYear,
+                        studentCount: 0,
+                        students: []
+                    })
+                }
+                const combo = missingCombinations.get(key)!
+                combo.studentCount++
+                combo.students.push({
+                    name: student.fullName,
+                    admissionNumber: student.admissionNumber || `ID-${student.studentId}`
+                })
+            }
+        }
+
+        // Generate report text
+        let report = '# Missing GradeFee Report\n\n'
+        report += `Generated: ${new Date().toLocaleString()}\n\n`
+        report += `Total Students Missing Fees: ${students.length}\n\n`
+        report += `## Missing Grade/Campus Combinations\n\n`
+
+        for (const [key, combo] of missingCombinations.entries()) {
+            report += `### ${combo.campusName} - ${combo.grade} (${combo.academicYear})\n`
+            report += `- **Campus ID**: ${combo.campusId}\n`
+            report += `- **Students Affected**: ${combo.studentCount}\n`
+            report += `- **Reason**: No GradeFee record configured for Grade "${combo.grade}" at "${combo.campusName}" campus for academic year ${combo.academicYear}\n`
+            report += `- **Action Required**: Add GradeFee entry with annualFee_otp and annualFee_wotp values for this combination\n`
+            report += `- **Students**: ${combo.students.map(s => `${s.name} (${s.admissionNumber})`).join(', ')}\n\n`
+        }
+
+        report += `## Summary\n\n`
+        report += `Total missing combinations: ${missingCombinations.size}\n`
+        report += `Total students affected: ${students.length}\n\n`
+        report += `## Next Steps\n\n`
+        report += `1. Navigate to Fee Management in SuperAdmin\n`
+        report += `2. Add GradeFee entries for each missing combination above\n`
+        report += `3. Run "Backfill Fees" again to populate student fees\n`
+
+        return {
+            success: true,
+            report,
+            totalAffected: students.length,
+            missingCombinations: Array.from(missingCombinations.values())
+        }
     } catch (error: any) {
         return { success: false, error: error.message }
     }

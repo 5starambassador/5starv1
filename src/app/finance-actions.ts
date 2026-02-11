@@ -7,6 +7,7 @@ import { logAction } from '@/lib/audit-logger'
 import { revalidatePath } from 'next/cache'
 import cashfree from '@/lib/cashfree'
 import { decrypt } from '@/lib/encryption'
+import { notifyRefundProcessed } from '@/lib/notification-helper'
 
 // --- Registration Transactions ---
 
@@ -19,7 +20,9 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
         const where: any = {
             OR: [
                 { paymentStatus: 'Completed' },
-                { transactionId: { not: null } }
+                { paymentStatus: 'Success' },
+                { transactionId: { not: null } },
+                { settlements: { some: { amount: 25, status: 'Processed' } } }
             ]
         }
 
@@ -28,37 +31,59 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
             where.campusId = (admin as any).campusId
         }
 
-        const transactions = await prisma.user.findMany({
-            where,
+        // Query 1: Get ALL users who have a processed settlement (Crucial for Refund History)
+        const syncedUsersPromise = prisma.user.findMany({
+            where: {
+                ...(admin.role.includes('Campus') && (admin as any).campusId ? { campusId: (admin as any).campusId } : {}),
+                settlements: { some: { amount: 25, status: 'Processed' } }
+            },
             select: {
-                userId: true,
-                fullName: true,
-                role: true,
-                mobileNumber: true,
-                paymentAmount: true,
-                transactionId: true,
-                createdAt: true,
-                assignedCampus: true,
-                referralCode: true,
-                campusId: true,
-                // New Finance Fields (Payment Table)
-                // @ts-ignore: Payment property exists but IDE cache is stale
+                userId: true, fullName: true, role: true, mobileNumber: true, paymentAmount: true,
+                transactionId: true, createdAt: true, assignedCampus: true, referralCode: true, campusId: true,
                 payments: {
-                    select: {
-                        paymentMethod: true,
-                        transactionId: true, // Use this for UTR if not in User
-                        bankReference: true,
-                        paidAt: true,
-                        settlementDate: true,
-                        adminRemarks: true
-                    },
+                    select: { paymentMethod: true, transactionId: true, bankReference: true, paidAt: true, settlementDate: true, adminRemarks: true },
                     where: { paymentStatus: 'Success' },
                     take: 1
+                },
+                settlements: {
+                    where: { amount: 25, status: 'Processed' },
+                    select: { amount: true, status: true, bankReference: true, payoutDate: true, remarks: true }
                 }
             },
             orderBy: { createdAt: 'desc' },
-            take: filter === 'Recent' ? 10 : 1000
+            take: 500 // Safety limit
         })
+
+        // Query 2: Get recent successful registrations (Limit to keep payload safe)
+        const recentSuccessPromise = prisma.user.findMany({
+            where: {
+                ...(admin.role.includes('Campus') && (admin as any).campusId ? { campusId: (admin as any).campusId } : {}),
+                OR: [
+                    { paymentStatus: 'Completed' },
+                    { paymentStatus: 'Success' },
+                    { transactionId: { not: null } }
+                ],
+                NOT: { settlements: { some: { amount: 25, status: 'Processed' } } } // Don't duplicate
+            },
+            select: {
+                userId: true, fullName: true, role: true, mobileNumber: true, paymentAmount: true,
+                transactionId: true, createdAt: true, assignedCampus: true, referralCode: true, campusId: true,
+                payments: {
+                    select: { paymentMethod: true, transactionId: true, bankReference: true, paidAt: true, settlementDate: true, adminRemarks: true },
+                    where: { paymentStatus: 'Success' },
+                    take: 1
+                },
+                settlements: {
+                    where: { amount: 25, status: 'Processed' },
+                    select: { amount: true, status: true, bankReference: true, payoutDate: true, remarks: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: filter === 'Recent' ? 10 : 500 // Reduced from 3000 to 500 for safety
+        })
+
+        const [syncedUsers, recentSuccess] = await Promise.all([syncedUsersPromise, recentSuccessPromise])
+        const transactions = [...syncedUsers, ...recentSuccess]
 
         // Manual populate campusName since relation is missing in schema
         const campusIds = transactions.map(t => t.campusId).filter(Boolean) as number[]
@@ -77,9 +102,9 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
         }))
 
         return { success: true, data: mappedTransactions }
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error fetching registration transactions:', error)
-        return { success: false, error: 'Failed to fetch transactions' }
+        return { success: false, error: `Failed to fetch transactions: ${error?.message || 'Unknown error'}` }
     }
 }
 
@@ -228,7 +253,8 @@ export async function getSettlements(status: string = 'Pending') {
                     }
                 }
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 1000 // Safety limit
         })
 
         // Decrypt bank details before returning
@@ -258,9 +284,9 @@ export async function getSettlements(status: string = 'Pending') {
         })
 
         return { success: true, data: decryptedSettlements }
-    } catch (error) {
-        console.error('Get Settlements Error:', error)
-        return { success: false, error: 'Failed to fetch settlements' }
+    } catch (error: any) {
+        console.error('getSettlements error:', error)
+        return { success: false, error: `Failed to fetch settlements: ${error?.message || ''}` }
     }
 }
 
@@ -273,6 +299,7 @@ export async function getFinanceStats() {
         const whereUser: any = {
             OR: [
                 { paymentStatus: 'Completed' },
+                { paymentStatus: 'Success' },
                 { transactionId: { not: null } }
             ]
         }
@@ -427,7 +454,16 @@ export async function checkExistingUTRs(utrs: string[]) {
     }
 }
 
-export async function processBulkPayouts(payouts: { id: number, transactionId: string, remarks?: string }[]) {
+export async function processBulkPayouts(payouts: {
+    mobile: string,
+    amount: number,
+    transactionId: string,
+    remarks?: string,
+    bankName?: string,
+    accountNumber?: string,
+    ifscCode?: string,
+    date?: string
+}[]) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
 
@@ -436,8 +472,8 @@ export async function processBulkPayouts(payouts: { id: number, transactionId: s
         let failureCount = 0
         const errors: string[] = []
 
-        // Validate for duplicate UTRs before processing
-        const utrs = payouts.map(p => p.transactionId).filter(Boolean)
+        // Validate for duplicate UTRs before processing (only actual UTRs)
+        const utrs = payouts.map(p => p.transactionId).filter(u => u && !u.startsWith('Bulk-'))
         const duplicatesInBatch = utrs.filter((utr, index) => utrs.indexOf(utr) !== index)
 
         if (duplicatesInBatch.length > 0) {
@@ -449,8 +485,7 @@ export async function processBulkPayouts(payouts: { id: number, transactionId: s
             }
         }
 
-        // Check against existing database records
-        const existingCheck = await checkExistingUTRs(utrs)
+        const existingCheck = utrs.length > 0 ? await checkExistingUTRs(utrs) : { existing: [] }
         if (existingCheck.existing && existingCheck.existing.length > 0) {
             const duplicateList = existingCheck.existing
                 .map(e => `${e.utr} (Settlement #${e.settlementId} - ${e.userName})`)
@@ -463,70 +498,164 @@ export async function processBulkPayouts(payouts: { id: number, transactionId: s
             }
         }
 
-        const results: { id: number, transactionId: string, status: 'Success' | 'Failed', message: string }[] = []
+        const results: { mobile: string, amount: number, transactionId: string, status: 'Success' | 'Failed', message: string }[] = []
 
-        // Process each payout
-        for (const p of payouts) {
-            try {
-                // Check if already processed to avoid double processing
-                const existing = await prisma.settlement.findUnique({ where: { id: p.id } })
-                if (!existing || existing.status === 'Processed') {
-                    failureCount++
-                    const msg = `Settlement #${p.id}: Already processed or not found`
-                    errors.push(msg)
-                    results.push({ id: p.id, transactionId: p.transactionId, status: 'Failed', message: msg })
-                    continue
+        // Process in chunks
+        const chunkSize = 100
+        for (let i = 0; i < payouts.length; i += chunkSize) {
+            const chunk = payouts.slice(i, i + chunkSize)
+            const mobiles = chunk.map(p => p.mobile.trim())
+
+            const users = await prisma.user.findMany({
+                where: { mobileNumber: { in: mobiles } },
+                include: {
+                    settlements: {
+                        where: { status: 'Pending' }
+                    }
                 }
+            })
 
-                await prisma.settlement.update({
-                    where: { id: p.id },
+            const userMap = new Map(users.map(u => [u.mobileNumber, u]))
+
+            await prisma.$transaction(async (tx) => {
+                for (const p of chunk) {
+                    const user = userMap.get(p.mobile.trim())
+
+                    if (!user) {
+                        failureCount++
+                        errors.push(`Mobile ${p.mobile}: User not found`)
+                        results.push({ mobile: p.mobile, amount: p.amount, transactionId: p.transactionId, status: 'Failed', message: 'User not found' })
+                        continue
+                    }
+
+                    const settlement = user.settlements.find(s => s.amount === Number(p.amount))
+                    if (!settlement) {
+                        failureCount++
+                        errors.push(`Mobile ${p.mobile}: No pending ₹${p.amount} settlement`)
+                        results.push({ mobile: p.mobile, amount: p.amount, transactionId: p.transactionId, status: 'Failed', message: 'No pending settlement' })
+                        continue
+                    }
+
+                    try {
+                        // Update User Bank Details if provided
+                        if (p.bankName && p.accountNumber) {
+                            await tx.user.update({
+                                where: { userId: user.userId },
+                                data: {
+                                    bankName: p.bankName,
+                                    accountNumber: p.accountNumber,
+                                    ifscCode: p.ifscCode || user.ifscCode,
+                                    bankAccountDetails: `${p.bankName} - ${p.accountNumber}`
+                                }
+                            })
+                        }
+
+                        // Parse Date
+                        let payoutDate = new Date()
+                        if (p.date) {
+                            const parts = p.date.split('-')
+                            if (parts.length === 3) {
+                                payoutDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`)
+                            } else {
+                                payoutDate = new Date(p.date)
+                            }
+                            if (isNaN(payoutDate.getTime())) payoutDate = new Date()
+                        }
+
+                        // Update Settlement
+                        await tx.settlement.update({
+                            where: { id: settlement.id },
+                            data: {
+                                status: 'Processed',
+                                bankReference: p.transactionId,
+                                remarks: p.remarks || 'Bulk Processed via CSV',
+                                processedBy: Number(admin.userId),
+                                payoutDate: payoutDate
+                            }
+                        })
+
+                        await tx.notification.create({
+                            data: {
+                                userId: user.userId,
+                                title: 'Payment Processed',
+                                message: `Your payout of ₹${settlement.amount.toLocaleString()} has been processed. Ref: ${p.transactionId}`,
+                                type: 'payment',
+                                link: '/finance'
+                            }
+                        })
+
+                        successCount++
+                        results.push({ mobile: p.mobile, amount: p.amount, transactionId: p.transactionId, status: 'Success', message: 'Processed' })
+                    } catch (e: any) {
+                        failureCount++
+                        errors.push(`Mobile ${p.mobile}: ${e.message}`)
+                        results.push({ mobile: p.mobile, amount: p.amount, transactionId: p.transactionId, status: 'Failed', message: e.message })
+                    }
+                }
+            })
+        }
+
+        await logAction('BULK_UPDATE', 'finance', `Bulk processed ${successCount} payouts.`, 'Bulk')
+        revalidatePath('/finance')
+        return { success: true, message: `Processed ${successCount} payouts.`, processed: successCount, failed: failureCount, errors, results }
+    } catch (error: any) {
+        return { success: false, error: error.message || 'Failed' }
+    }
+}
+
+export async function bulkProcessPayoutsById(settlementIds: number[], transactionId: string, remarks?: string) {
+    const admin = await getCurrentUser()
+    if (!admin) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const settlements = await prisma.settlement.findMany({
+            where: { id: { in: settlementIds }, status: 'Pending' },
+            include: { user: true }
+        })
+
+        if (settlements.length === 0) {
+            return { success: false, error: 'No pending settlements found for the given IDs.' }
+        }
+
+        const results = await prisma.$transaction(async (tx) => {
+            const processed = []
+            for (const s of settlements) {
+                const updated = await tx.settlement.update({
+                    where: { id: s.id },
                     data: {
                         status: 'Processed',
-                        bankReference: p.transactionId,
-                        remarks: p.remarks || 'Bulk Processed via CSV',
+                        bankReference: transactionId,
+                        remarks: remarks || 'Bulk Processed via Selection',
                         processedBy: Number(admin.userId),
                         payoutDate: new Date()
                     }
                 })
 
-                await prisma.notification.create({
+                // Notify user
+                const isRefund = (s.remarks || '').toLowerCase().includes('refund')
+                await tx.notification.create({
                     data: {
-                        userId: existing.userId,
-                        title: 'Payment Processed',
-                        message: `Your payout of ₹${existing.amount.toLocaleString()} has been processed. Ref: ${p.transactionId}`,
-                        type: 'payment',
+                        userId: s.userId,
+                        title: isRefund ? '💰 Refund Processed' : 'Payment Processed',
+                        message: `Your ${isRefund ? 'refund' : 'payout'} of ₹${s.amount.toLocaleString()} has been processed.`,
+                        type: isRefund ? 'success' : 'payment',
                         link: '/finance'
                     }
                 })
-
-                results.push({ id: p.id, transactionId: p.transactionId, status: 'Success', message: 'Processed successfully' })
-                successCount++
-            } catch (e: any) {
-                console.error(`Failed to process settlement ${p.id}`, e)
-                const msg = e.message || 'Unknown error'
-                failureCount++
-                errors.push(`Settlement #${p.id}: ${msg}`)
-                results.push({ id: p.id, transactionId: p.transactionId, status: 'Failed', message: msg })
+                processed.push(updated)
             }
-        }
+            return processed
+        })
 
-        await logAction('BULK_UPDATE', 'finance', `Bulk processed ${successCount} payouts. Failed: ${failureCount}`, 'Bulk')
-
+        await logAction('BULK_UPDATE', 'finance', `Bulk processed ${results.length} settlements by ID.`, 'Bulk Selection')
         revalidatePath('/finance')
-        return {
-            success: true,
-            message: `Processed ${successCount} payouts. Failed: ${failureCount}`,
-            processed: successCount,
-            failed: failureCount,
-            errors: errors.length > 0 ? errors : undefined,
-            results
-        }
-
+        return { success: true, message: `Successfully processed ${results.length} payouts.` }
     } catch (error: any) {
-        console.error('Bulk Process Error:', error)
-        return { success: false, error: error.message || 'Failed to bulk process' }
+        console.error('Bulk Process By ID Error:', error)
+        return { success: false, error: error.message || 'Failed to bulk process settlements' }
     }
 }
+
 
 export async function getUsersReadyForRefund() {
     const admin = await getCurrentUser()
@@ -557,9 +686,12 @@ export async function getUsersReadyForRefund() {
                 fullName: true,
                 mobileNumber: true,
                 role: true,
-                paymentAmount: true,
-                createdAt: true,
+                assignedCampus: true,
                 campusId: true,
+                paymentStatus: true,
+                paymentAmount: true,
+                transactionId: true,
+                createdAt: true,
                 bankName: true,
                 accountNumber: true,
                 ifscCode: true,
@@ -571,7 +703,8 @@ export async function getUsersReadyForRefund() {
                     take: 1
                 }
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 1000
         })
 
         // Filter out users who already have a settlement
@@ -652,7 +785,14 @@ export async function initiateBulkRefunds(userIds: number[]) {
     }
 }
 
-export async function syncPastRefunds(records: { mobile: string, utr: string }[]) {
+export async function syncPastRefunds(records: {
+    mobile: string,
+    utr: string,
+    bankName?: string,
+    accountNumber?: string,
+    ifscCode?: string,
+    date?: string
+}[]) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
 
@@ -669,7 +809,21 @@ export async function syncPastRefunds(records: { mobile: string, utr: string }[]
         const chunkSize = 100
         for (let i = 0; i < records.length; i += chunkSize) {
             const chunk = records.slice(i, i + chunkSize)
+            const mobiles = chunk.map(r => r.mobile.trim())
 
+            // 1. Fetch all users for this chunk at once
+            const users = await prisma.user.findMany({
+                where: { mobileNumber: { in: mobiles } },
+                include: {
+                    settlements: {
+                        where: { amount: 25, status: { not: 'Rejected' } }
+                    }
+                }
+            })
+
+            const userMap = new Map(users.map(u => [u.mobileNumber, u]))
+
+            // 2. Perform updates in a single transaction for the chunk
             await prisma.$transaction(async (tx) => {
                 for (const record of chunk) {
                     const mobile = record.mobile.trim()
@@ -680,15 +834,7 @@ export async function syncPastRefunds(records: { mobile: string, utr: string }[]
                         continue
                     }
 
-                    // 1. Find the user
-                    const user = await tx.user.findFirst({
-                        where: { mobileNumber: mobile },
-                        include: {
-                            settlements: {
-                                where: { amount: 25, status: { not: 'Rejected' } }
-                            }
-                        }
-                    })
+                    const user = userMap.get(mobile)
 
                     if (!user) {
                         results.notFound++
@@ -696,30 +842,55 @@ export async function syncPastRefunds(records: { mobile: string, utr: string }[]
                         continue
                     }
 
-                    // 2. Check if already refunded
-                    if (user.settlements.length > 0) {
-                        results.alreadyRefunded++
-                        // No error message needed for already refunded to keep it clean
-                        continue
+                    // --- Parse historical date ---
+                    let payoutDate = new Date()
+                    if (record.date) {
+                        const parts = record.date.split('-')
+                        if (parts.length === 3) {
+                            payoutDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`)
+                        } else {
+                            payoutDate = new Date(record.date)
+                        }
+                        if (isNaN(payoutDate.getTime())) payoutDate = new Date()
                     }
 
-                    // 3. Create processed settlement
-                    await tx.settlement.create({
-                        data: {
-                            userId: user.userId,
-                            amount: 25,
-                            status: 'Processed',
-                            bankReference: utr,
-                            payoutDate: new Date(),
-                            remarks: 'Historical Registration Fee Refund Sync'
-                        }
-                    })
-                    results.success++
+                    // --- Update existing or Create new settlement ---
+                    const existingSettlement = user.settlements[0]
+                    if (existingSettlement) {
+                        await tx.settlement.update({
+                            where: { id: existingSettlement.id },
+                            data: {
+                                status: 'Processed',
+                                bankReference: utr,
+                                payoutDate: payoutDate,
+                                remarks: 'Registration fee refunded'
+                            }
+                        })
+
+                        // Notify User
+                        await notifyRefundProcessed(user.userId, user.fullName)
+                        results.alreadyRefunded++ // Count as update/sync
+                    } else {
+                        await tx.settlement.create({
+                            data: {
+                                userId: user.userId,
+                                amount: 25,
+                                status: 'Processed',
+                                bankReference: utr,
+                                payoutDate: payoutDate,
+                                remarks: 'Registration fee refunded'
+                            }
+                        })
+
+                        // Notify User
+                        await notifyRefundProcessed(user.userId, user.fullName)
+                        results.success++
+                    }
                 }
             }, { timeout: 30000 })
         }
 
-        await logAction('BULK_SYNC', 'finance', `Synced ${results.success} past refunds.`, 'Auto-Sync')
+        await logAction('BULK_SYNC', 'finance', `Synced ${results.success} past refunds with bank details and dates.`, 'Auto-Sync')
         revalidatePath('/finance')
 
         return {

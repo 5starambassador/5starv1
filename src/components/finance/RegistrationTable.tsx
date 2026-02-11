@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { DataTable } from '@/components/ui/DataTable'
 
-import { BadgeCheck, CreditCard, Download, FileText } from 'lucide-react'
+import { BadgeCheck, CreditCard, Download, FileText, History as HistoryIcon } from 'lucide-react'
 
 import { format } from 'date-fns'
 // PDF logic moved to dynamic import inside generateReceipt to fix Turbopack chunk errors
@@ -32,6 +32,13 @@ interface Registration {
         paidAt: Date | string | null
         settlementDate: Date | string | null
         adminRemarks: string | null
+    }[]
+    settlements?: {
+        amount: number
+        status: string
+        bankReference: string | null
+        payoutDate: Date | string | null
+        remarks: string | null
     }[]
 }
 
@@ -89,7 +96,7 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
             accessorKey: 'paymentAmount',
             sortable: true,
             cell: (row: Registration) => (
-                <div className="flex items-center gap-1.5 text-emerald-600 font-bold font-mono">
+                <div suppressHydrationWarning className="flex items-center gap-1.5 text-emerald-600 font-bold font-mono">
                     <span className="text-xs">₹</span>
                     {row.paymentAmount?.toLocaleString() || 0}
                 </div>
@@ -112,14 +119,14 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
             accessorKey: 'transactionId',
             cell: (row: Registration) => {
                 const details = getPaymentDetails(row)
-                // Show Bank Ref (UTR) if available, otherwise Gateway ID
-                const ref = details.bankReference || details.transactionId || row.transactionId
+                // Restore original focus: Only show Registration Reference
+                const registrationRef = details.bankReference || details.transactionId || row.transactionId
                 return (
                     <div className="flex flex-col">
                         <span className="font-mono text-xs text-gray-700 bg-gray-50 px-2 py-1 rounded border border-gray-200 w-fit">
-                            {ref || 'N/A'}
+                            {registrationRef || 'N/A'}
                         </span>
-                        {details.bankReference && details.transactionId && (
+                        {details.bankReference && details.transactionId && registrationRef !== details.transactionId && (
                             <span className="text-[9px] text-gray-400 mt-0.5">GW: {details.transactionId}</span>
                         )}
                     </div>
@@ -134,7 +141,7 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
             cell: (row: Registration) => {
                 const details = getPaymentDetails(row)
                 const date = details.paidAt ? new Date(details.paidAt) : new Date(row.createdAt)
-                return format(date, 'dd MMM yyyy')
+                return <span suppressHydrationWarning>{format(date, 'dd MMM yyyy')}</span>
             }
         },
         {
@@ -142,11 +149,14 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
             accessorKey: 'settlementDate',
             cell: (row: Registration) => {
                 const details = getPaymentDetails(row)
-                if (!details.settlementDate) return <span className="text-xs text-gray-400 italic">Pending</span>
+                const settlement = row.settlements?.find((s: any) => s.amount === 25 && s.status === 'Processed')
+                const date = settlement?.payoutDate || details.settlementDate
+
+                if (!date) return <span className="text-xs text-gray-400 italic">Pending</span>
                 return (
-                    <div className="flex items-center gap-1 text-xs text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded-lg">
+                    <div suppressHydrationWarning className="flex items-center gap-1 text-xs text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded-lg">
                         <BadgeCheck size={12} />
-                        {format(new Date(details.settlementDate), 'dd MMM')}
+                        {format(new Date(date), 'dd MMM')}
                     </div>
                 )
             }
@@ -156,17 +166,25 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
             accessorKey: 'refundStatus',
             cell: (row: Registration) => {
                 const details = getPaymentDetails(row)
-                const isRefunded = details.adminRemarks?.includes('REFUNDED')
+                const settlement = row.settlements?.find((s: any) => s.amount === 25 && s.status === 'Processed')
+
+                const isRefunded = !!settlement || details.adminRemarks?.includes('REFUNDED')
                 if (!isRefunded) {
                     return <span className="text-xs text-gray-400 italic">Not Refunded</span>
                 }
-                // Extract refund date from adminRemarks
+                // Extract refund date from adminRemarks or use settlement date
                 const remarkMatch = details.adminRemarks?.match(/on ([\d-T:.Z]+)/)
-                const refundDate = remarkMatch ? new Date(remarkMatch[1]) : null
+                const refundDate = settlement?.payoutDate ? new Date(settlement.payoutDate) : (remarkMatch ? new Date(remarkMatch[1]) : null)
+
                 return (
-                    <div className="flex items-center gap-1 text-xs text-green-700 font-bold bg-green-50 px-2 py-1 rounded-lg border border-green-200">
-                        <BadgeCheck size={12} />
-                        {refundDate ? format(refundDate, 'dd MMM yyyy') : 'Refunded'}
+                    <div className="flex flex-col gap-1">
+                        <div suppressHydrationWarning className="flex items-center gap-1 text-xs text-green-700 font-bold bg-green-50 px-2 py-1 rounded-lg border border-green-200 w-fit">
+                            <BadgeCheck size={12} />
+                            {refundDate ? format(refundDate, 'dd MMM yyyy') : 'Refunded'}
+                        </div>
+                        {isRefunded && (
+                            <span className="text-[9px] text-gray-400 italic px-1">Registration fee refunded</span>
+                        )}
                     </div>
                 )
             }
@@ -177,6 +195,7 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
             cell: (row: Registration) => (
                 <button
                     onClick={() => generateReceipt(row)}
+                    suppressHydrationWarning
                     className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                     title="Download Receipt"
                 >
@@ -278,7 +297,8 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
                 <DataTable
                     data={data}
                     columns={columns as any}
-                    searchKey="fullName"
+                    searchKey={["fullName", "mobileNumber", "transactionId"]}
+                    searchPlaceholder="Search by name, mobile or UTR..."
                     pageSize={10}
                 />
             </div>

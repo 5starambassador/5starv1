@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { getCurrentUser } from '@/lib/auth-service'
 import { canEdit } from '@/lib/permission-service'
 import { generateSmartReferralCode } from '@/lib/referral-service'
+import { syncUserStats, revalidateDashboard } from './sync-actions'
 
 export async function getStudents(filters?: { campusId?: number, parentId?: number, status?: string }) {
     const user = await getCurrentUser()
@@ -38,6 +39,39 @@ export async function getStudents(filters?: { campusId?: number, parentId?: numb
 // Generate unique referral code
 
 
+
+export async function getGradeFee(campusId: number, grade: string, academicYear: string = '2025-2026', feeType: 'OTP' | 'WOTP' = 'WOTP') {
+    try {
+        // Try exact match first
+        let gradeFees: any[] = await prisma.$queryRawUnsafe(`
+            SELECT "annualFee_${feeType.toLowerCase()}" as "fee" FROM "GradeFee" 
+            WHERE "campusId" = $1
+            AND "grade" = $2
+            AND "academicYear" = $3
+            LIMIT 1
+        `, campusId, grade, academicYear)
+
+        // If no fee found for the specific year, try to find ANY fee for this grade/campus (fallback to latest)
+        // This handles cases where student has '2025-2026' but system only has '2026-2027' fees
+        if (gradeFees.length === 0) {
+            gradeFees = await prisma.$queryRawUnsafe(`
+                SELECT "annualFee_${feeType.toLowerCase()}" as "fee" FROM "GradeFee" 
+                WHERE "campusId" = $1
+                AND "grade" = $2
+                ORDER BY "academicYear" DESC
+                LIMIT 1
+            `, campusId, grade)
+        }
+
+        if (gradeFees.length > 0) return gradeFees[0].fee
+        return null
+    } catch (error) {
+        console.error('Error fetching grade fee:', error)
+        return null
+    }
+}
+
+
 export async function addStudent(data: {
     fullName: string
     parentId: number
@@ -53,6 +87,7 @@ export async function addStudent(data: {
         mobileNumber: string
     }
     academicYear?: string
+    selectedFeeType?: 'OTP' | 'WOTP'
 }) {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
@@ -102,19 +137,21 @@ export async function addStudent(data: {
                 }
             }
 
-            // Calculate Fees (Strict 0 fallback)
+            // Calculate Fees
             let bFee = data.baseFee
             let dPercent = data.discountPercent
+            const feeType = data.selectedFeeType || 'WOTP'
 
-            if (bFee === undefined || bFee === null) {
-                const gradeFees: any[] = await tx.$queryRaw`
-                    SELECT "annualFee" FROM "GradeFee" 
-                    WHERE "campusId" = ${data.campusId} 
-                    AND "grade" = ${data.grade} 
-                    AND "academicYear" = ${data.academicYear || '2025-2026'}
+            if (bFee === undefined || bFee === null || bFee.toString() === '') {
+                const gradeFees: any[] = await tx.$queryRawUnsafe(`
+                    SELECT "annualFee_${feeType.toLowerCase()}" as "fee" FROM "GradeFee" 
+                    WHERE "campusId" = $1 
+                    AND "grade" = $2
+                    AND "academicYear" = $3
                     LIMIT 1
-                `
-                if (gradeFees.length > 0) bFee = gradeFees[0].annualFee
+                `, data.campusId, data.grade, data.academicYear || '2025-2026')
+
+                if (gradeFees.length > 0) bFee = gradeFees[0].fee
                 else bFee = 0
             }
 
@@ -135,20 +172,18 @@ export async function addStudent(data: {
                     rollNumber: data.rollNumber,
                     admissionNumber: data.admissionNumber,
                     status: 'Active',
-                    baseFee: bFee as number,
+                    baseFee: Number(bFee),
                     discountPercent: dPercent as number,
-                    academicYear: data.academicYear || '2025-2026'
+                    academicYear: data.academicYear || '2025-2026',
+                    selectedFeeType: feeType
                 }
             })
         })
-        revalidatePath('/superadmin')
-        revalidatePath('/dashboard')
-        revalidatePath('/students')
-        revalidatePath('/superadmin/students')
-        revalidatePath('/campus')
-        revalidatePath('/campus/students')
-        revalidatePath('/admin')
-        revalidatePath('/admin/students')
+        if (student) {
+            await syncUserStats(student.parentId)
+        }
+
+        await revalidateDashboard()
         return { success: true, student }
     } catch (error) {
         console.error('Error adding student:', error)
@@ -168,6 +203,7 @@ export async function updateStudent(studentId: number, data: Partial<{
     baseFee: number
     discountPercent: number
     academicYear: string
+    selectedFeeType: 'OTP' | 'WOTP'
 }>) {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
@@ -178,29 +214,40 @@ export async function updateStudent(studentId: number, data: Partial<{
         // Recalculate fees if critical fields change
         let updateData = { ...data }
 
-        if (data.campusId && data.grade && !data.baseFee) {
-            const gradeFees: any[] = await prisma.$queryRaw`
-                SELECT "annualFee" FROM "GradeFee" 
-                WHERE "campusId" = ${data.campusId || 0} 
-                AND "grade" = ${data.grade || ''} 
-                AND "academicYear" = ${data.academicYear || '2025-2026'}
-                LIMIT 1
-            `
-            if (gradeFees.length > 0) updateData.baseFee = gradeFees[0].annualFee
+        // If campus, grade, or feeType changed, and baseFee wasn't manually set, fetch it
+        if ((data.campusId || data.grade || data.selectedFeeType) && !data.baseFee) {
+
+            // We need to know the missing params if only some were sent. 
+            // For simplicity, we assume the client sends all relevant fields or we fetch current first.
+            // But here, we'll just try to fetch if we have enough info in `data`. 
+            // Better strategy: The Client should have passed the baseFee. 
+            // Fallback: If baseFee is missing, we try to fetch ONLY if we have all keys.
+
+            if (data.campusId && data.grade) {
+                const feeType = data.selectedFeeType || 'WOTP'
+                const gradeFees: any[] = await prisma.$queryRawUnsafe(`
+                    SELECT "annualFee_${feeType.toLowerCase()}" as "fee" FROM "GradeFee" 
+                    WHERE "campusId" = $1
+                    AND "grade" = $2
+                    AND "academicYear" = $3
+                    LIMIT 1
+                `, data.campusId, data.grade, data.academicYear || '2025-2026')
+
+                if (gradeFees.length > 0) updateData.baseFee = gradeFees[0].fee
+            }
         }
 
-        await prisma.student.update({
+        const student = await prisma.student.update({
             where: { studentId },
-            data: updateData
+            data: updateData,
+            include: { parent: true }
         })
-        revalidatePath('/superadmin')
-        revalidatePath('/students')
-        revalidatePath('/superadmin/students')
-        revalidatePath('/dashboard') // Parent might see updated fee
-        revalidatePath('/campus')
-        revalidatePath('/campus/students')
-        revalidatePath('/admin')
-        revalidatePath('/admin/students')
+
+        if (student) {
+            await syncUserStats(student.parentId)
+        }
+
+        await revalidateDashboard()
         return { success: true }
     } catch (error) {
         console.error('Error updating student:', error)
@@ -334,15 +381,12 @@ export async function convertLeadToStudent(leadId: number, studentDetails: {
             return student
         })
 
-        revalidatePath('/superadmin')
-        revalidatePath('/campus')
-        revalidatePath('/students')
-        revalidatePath('/superadmin/students')
-        revalidatePath('/campus/students')
-        revalidatePath('/admin')
-        revalidatePath('/admin/students')
-        revalidatePath('/dashboard')
+        if (result) {
+            await syncUserStats(result.parentId)
+            await syncUserStats(lead.userId)
+        }
 
+        await revalidateDashboard()
         return { success: true, student: result }
     } catch (error: any) {
         if (error.code === 'P2002') {
@@ -377,8 +421,16 @@ export async function bulkAddStudents(students: Array<{
     // Cache referral counts for limits
     const referralCounts = new Map<number, number>()
 
-    for (const s of students) {
+    for (let s of students) {
         try {
+            // Auto-format Mobile Numbers (Add +91 if missing)
+            if (s.parentMobile && !s.parentMobile.startsWith('+')) {
+                s.parentMobile = `+91${s.parentMobile}`
+            }
+            if (s.ambassadorMobile && !s.ambassadorMobile.startsWith('+')) {
+                s.ambassadorMobile = `+91${s.ambassadorMobile}`
+            }
+
             // 0. Duplicate Check (ERP No)
             if (s.admissionNumber) {
                 const existingStudent = await prisma.student.findUnique({
@@ -395,33 +447,11 @@ export async function bulkAddStudents(students: Array<{
             let parent = await prisma.user.findUnique({ where: { mobileNumber: s.parentMobile } })
 
             if (!parent) {
-                if (s.parentName) {
-                    try {
-                        const referralCode = await generateSmartReferralCode('Parent')
-                        parent = await prisma.user.create({
-                            data: {
-                                fullName: s.parentName,
-                                mobileNumber: s.parentMobile,
-                                role: 'Parent',
-                                referralCode,
-                                childInAchariya: true,
-                                status: 'Active',
-                                yearFeeBenefitPercent: 0,
-                                confirmedReferralCount: 0,
-                                isFiveStarMember: false,
-                                academicYear: s.academicYear || '2025-2026'
-                            }
-                        })
-                    } catch (err) {
-                        failed++
-                        errors.push(`${s.fullName}: Failed to create parent (${s.parentMobile})`)
-                        continue
-                    }
-                } else {
-                    failed++
-                    errors.push(`${s.fullName}: Parent not found & no name provided (${s.parentMobile})`)
-                    continue
-                }
+                // Strict Mode: Do not create parent accounts automatically. 
+                // Parents must register and pay first.
+                failed++
+                errors.push(`${s.fullName}: Parent not found (${s.parentMobile}). Please register first.`)
+                continue
             }
 
             // 2. Find Campus
@@ -496,13 +526,13 @@ export async function bulkAddStudents(students: Array<{
             await prisma.$transaction(async (tx) => {
                 // Calculate Fees (Reusing logic with tx)
                 let bFee = 0
-                const gradeFees: any[] = await tx.$queryRaw`
-                    SELECT "annualFee" FROM "GradeFee" 
-                    WHERE "campusId" = ${campus.id} 
-                    AND "grade" = ${s.grade} 
-                    AND "academicYear" = ${s.academicYear || '2025-2026'}
+                const gradeFees: any[] = await tx.$queryRawUnsafe(`
+                    SELECT "annualFee_wotp" as "annualFee" FROM "GradeFee" 
+                    WHERE "campusId" = $1
+                    AND "grade" = $2
+                    AND "academicYear" = $3
                     LIMIT 1
-                `
+                `, campus.id, s.grade, s.academicYear || '2025-2026')
                 if (gradeFees.length > 0) bFee = gradeFees[0].annualFee
 
                 const dPercent = parent.yearFeeBenefitPercent || 0
@@ -547,13 +577,6 @@ export async function bulkAddStudents(students: Array<{
         }
     }
 
-    revalidatePath('/superadmin')
-    revalidatePath('/students')
-    revalidatePath('/superadmin/students')
-    revalidatePath('/campus')
-    revalidatePath('/campus/students')
-    revalidatePath('/admin')
-    revalidatePath('/admin/students')
-    revalidatePath('/dashboard')
+    await revalidateDashboard()
     return { success: true, added, failed, errors }
 }
