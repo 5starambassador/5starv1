@@ -1,6 +1,7 @@
 import { createNotification } from '@/app/notification-actions'
 import prisma from '@/lib/prisma'
 import { getSession } from '@/lib/session'
+import { whatsappService } from '@/lib/whatsapp-service'
 
 /**
  * Centralized notification helper for the 5-Star Ambassador program
@@ -79,13 +80,34 @@ export async function notifyReferralConfirmed(userId: number, referralDetails: R
         ? `🌟 Congratulations! ${referralDetails.parentName} has been confirmed. You've achieved 5-Star status!`
         : `Great news! ${referralDetails.parentName} has been confirmed. You now have ${currentCount} confirmed referral${currentCount > 1 ? 's' : ''}!`
 
-    return createNotification({
+    const notifResult = await createNotification({
         userId,
         title: '✅ Referral Confirmed!',
         message,
         type: 'success',
         link: '/dashboard'
     })
+
+    // WhatsApp Alert: Referral Confirmed
+    try {
+        const user = await prisma.user.findUnique({
+            where: { userId },
+            select: { mobileNumber: true }
+        })
+        if (user?.mobileNumber) {
+            // Template: "Great news! {{1}}'s referral has been confirmed. You now have {{2}} confirmed referrals!"
+            await whatsappService.sendByEvent(
+                user.mobileNumber,
+                "REFERRAL_CONFIRMED",
+                [referralDetails.parentName, currentCount.toString()],
+                'ALERT'
+            )
+        }
+    } catch (waError) {
+        console.error('WhatsApp Confirmation Alert Failed:', waError)
+    }
+
+    return notifResult
 }
 
 /**
@@ -105,13 +127,29 @@ export async function notifyReferralRejected(userId: number, referralDetails: Re
  * Special notification when ambassador achieves 5-Star status! 🌟
  */
 export async function notifyFiveStarAchievement(userId: number, userName: string) {
-    return createNotification({
+    const notifResult = await createNotification({
         userId,
         title: '🌟⭐ PRESTIGIOUS PARTNER STATUS ACHIEVED!',
         message: `Congratulations ${userName}! You've unlocked Prestigious Partner status! Your exclusive badge is now displayed on your dashboard. Thank you for your amazing contribution!`,
         type: 'success',
         link: '/dashboard'
     })
+
+    // WhatsApp Alert: 5-Star Achievement
+    try {
+        const user = await prisma.user.findUnique({
+            where: { userId },
+            select: { mobileNumber: true }
+        })
+        if (user?.mobileNumber) {
+            // Template: "🌟 Congratulations {{1}}! You've achieved 5-Star status!"
+            await whatsappService.sendByEvent(user.mobileNumber, "FIVE_STAR_ACHIEVEMENT", [userName], 'ALERT')
+        }
+    } catch (waError) {
+        console.error('WhatsApp 5-Star Alert Failed:', waError)
+    }
+
+    return notifResult
 }
 
 /**
@@ -131,13 +169,34 @@ export async function notifySettlementApproved(userId: number, amount: number, s
  * Notify ambassador when settlement is processed
  */
 export async function notifySettlementProcessed(userId: number, amount: number, paymentMethod: string) {
-    return createNotification({
+    const notifResult = await createNotification({
         userId,
         title: '✅ Settlement Processed',
         message: `Your settlement of ₹${amount.toLocaleString('en-IN')} has been successfully processed via ${paymentMethod}.`,
         type: 'success',
         link: '/analytics#settlements'
     })
+
+    // WhatsApp Alert: Settlement Processed
+    try {
+        const user = await prisma.user.findUnique({
+            where: { userId },
+            select: { mobileNumber: true }
+        })
+        if (user?.mobileNumber) {
+            // Template: "Your settlement of ₹{{1}} has been processed successfully. Thank you!"
+            await whatsappService.sendByEvent(
+                user.mobileNumber,
+                "SETTLEMENT_PROCESSED",
+                [amount.toLocaleString('en-IN')],
+                'ALERT'
+            )
+        }
+    } catch (waError) {
+        console.error('WhatsApp Settlement Alert Failed:', waError)
+    }
+
+    return notifResult
 }
 
 /**
@@ -170,39 +229,98 @@ export async function notifyAdminNewTicket(adminId: number, ticketDetails: { sub
  * Notify user when their support ticket receives a response
  */
 export async function notifyTicketResponse(userId: number, ticketDetails: { subject: string, ticketId: number }) {
-    return createNotification({
+    const notifResult = await createNotification({
         userId,
         title: '💬 Support Ticket Update',
         message: `New response on your ticket: "${ticketDetails.subject}"`,
         type: 'info',
         link: `/support/${ticketDetails.ticketId}`
     })
+
+    // WhatsApp Alert: Ticket Response
+    try {
+        const user = await prisma.user.findUnique({
+            where: { userId },
+            select: { mobileNumber: true }
+        })
+        if (user?.mobileNumber) {
+            // Template: "Hi! There is a new response on your support ticket: {{1}}. Please log in to view."
+            await whatsappService.sendByEvent(user.mobileNumber, "TICKET_RESPONSE", [ticketDetails.subject], 'ALERT')
+        }
+    } catch (waError) {
+        console.error('WhatsApp Ticket Alert Failed:', waError)
+    }
+
+    return notifResult
 }
 
 /**
  * Notify ambassador when their verification is approved
  */
 export async function notifyVerificationApproved(userId: number) {
-    return createNotification({
+    const notifResult = await createNotification({
         userId,
         title: '✅ Verification Approved',
         message: 'Congratulations! Your ambassador verification has been approved. You are now eligible to earn referral benefits and track your performance.',
         type: 'success',
         link: '/dashboard'
     })
+
+    // WhatsApp Alert: Verification Approved
+    try {
+        const user = await prisma.user.findUnique({
+            where: { userId },
+            select: { mobileNumber: true, fullName: true }
+        })
+        if (user?.mobileNumber) {
+            // Template: kyc_approved (Name, Link)
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ambassador.achariya.in'
+            await whatsappService.sendByEvent(
+                user.mobileNumber,
+                "KYC_APPROVED",
+                [user.fullName || 'Ambassador', `${baseUrl}/dashboard`],
+                'ALERT'
+            )
+        }
+    } catch (waError) {
+        console.error('WhatsApp Verification Approval Alert Failed:', waError)
+    }
+
+    return notifResult
 }
 
 /**
  * Notify ambassador when their verification is rejected
  */
 export async function notifyVerificationRejected(userId: number, reason?: string) {
-    return createNotification({
+    const notifResult = await createNotification({
         userId,
         title: '❌ Verification Update',
         message: `Your ambassador verification was not successful${reason ? `: ${reason}` : ''}. Please review your profile details and contact support if you have questions.`,
         type: 'error',
         link: '/profile'
     })
+
+    // WhatsApp Alert: Verification Rejected
+    try {
+        const user = await prisma.user.findUnique({
+            where: { userId },
+            select: { mobileNumber: true, fullName: true }
+        })
+        if (user?.mobileNumber) {
+            // Template: kyc_rejected (Name, Reason)
+            await whatsappService.sendByEvent(
+                user.mobileNumber,
+                "KYC_REJECTED",
+                [user.fullName || 'Ambassador', reason || 'Details provided are incomplete/incorrect'],
+                'ALERT'
+            )
+        }
+    } catch (waError) {
+        console.error('WhatsApp Verification Rejection Alert Failed:', waError)
+    }
+
+    return notifResult
 }
 
 /**
@@ -240,13 +358,40 @@ export async function notifyProgramLaunch(programTitle: string, slug: string) {
     // We fetch all active users
     const activeUsers = await prisma.user.findMany({
         where: { status: 'Active' },
-        select: { userId: true }
+        select: { userId: true, mobileNumber: true }
     })
 
     if (activeUsers.length === 0) return
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ambassador.achariya.in'
     const programUrl = `${baseUrl}/dashboard/gallery/${slug}`
+
+    // NEW: WhatsApp Broadcast to Active Users
+    const { whatsappService } = await import('@/lib/whatsapp-service');
+
+    // We run this in background (no await) to not block the UI response
+    // In production, this should be a Queue Job (BullMQ)
+    (async () => {
+        console.log(`[Broadcast] Starting WhatsApp dispatch for: ${programTitle}`)
+        let sentCount = 0
+        for (const user of activeUsers) {
+            if (user.mobileNumber) {
+                // Use generic template or specific if created
+                // Template: program_launch_v1
+                // Vars: [Title, Link]
+                await whatsappService.sendByEvent(
+                    user.mobileNumber,
+                    'PROGRAM_LAUNCH',
+                    [programTitle, programUrl],
+                    'CAMPAIGN'
+                )
+                sentCount++
+                // Simple throttle to avoid hitting rate limits instantly
+                await new Promise(r => setTimeout(r, 100))
+            }
+        }
+        console.log(`[Broadcast] Completed. Sent approx ${sentCount} messages.`)
+    })()
 
     // Batch create notifications for all active users
     return prisma.notification.createMany({

@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { canEdit } from '@/lib/permission-service'
 import { generateSmartReferralCode } from '@/lib/referral-service'
 import { syncUserStats, revalidateDashboard } from './sync-actions'
+import { EXCLUDED_FROM_SLAB } from '@/lib/reward-constants'
 
 export async function getStudents(filters?: { campusId?: number, parentId?: number, status?: string }) {
     const user = await getCurrentUser()
@@ -366,17 +367,33 @@ export async function convertLeadToStudent(leadId: number, studentDetails: {
             })
 
             // 6. Increment Ambassador's count and promote to 5-Star if threshold reached
-            const updatedUser = await tx.user.update({
-                where: { userId: lead.userId },
-                data: { confirmedReferralCount: { increment: 1 } }
-            })
+            // ONLY if the campus is NOT a special flat-reward campus
+            const isExcluded = lead.campus && EXCLUDED_FROM_SLAB.includes(lead.campus)
+            let updatedUser = lead.user
 
-            if (updatedUser.confirmedReferralCount >= 5 && !updatedUser.isFiveStarMember) {
-                await tx.user.update({
-                    where: { userId: updatedUser.userId },
-                    data: { isFiveStarMember: true }
+            if (!isExcluded) {
+                updatedUser = await tx.user.update({
+                    where: { userId: lead.userId },
+                    data: { confirmedReferralCount: { increment: 1 } }
                 })
+
+                if (updatedUser.confirmedReferralCount >= 5 && !updatedUser.isFiveStarMember) {
+                    updatedUser = await tx.user.update({
+                        where: { userId: updatedUser.userId },
+                        data: { isFiveStarMember: true }
+                    })
+                }
             }
+
+            // 7. Auto-generate ₹25 Registration Fee Refund Settlement (Draft)
+            await tx.settlement.create({
+                data: {
+                    userId: lead.userId,
+                    amount: 25,
+                    status: 'Pending',
+                    remarks: `Auto-generated refund for ${lead.parentName}'s registration fee conversion.`
+                }
+            })
 
             return student
         })
@@ -556,7 +573,7 @@ export async function bulkAddStudents(students: Array<{
             })
 
             // Increment Ambassador's count and promote to 5-Star if threshold reached
-            if (ambassadorId) {
+            if (ambassadorId && !EXCLUDED_FROM_SLAB.includes(s.campusName)) {
                 const updatedAmbassador = await prisma.user.update({
                     where: { userId: ambassadorId },
                     data: { confirmedReferralCount: { increment: 1 } }

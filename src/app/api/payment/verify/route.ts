@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import cashfree from "@/lib/cashfree";
+import { syncUserStats } from "@/app/sync-actions";
 
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
@@ -48,6 +49,7 @@ export async function GET(req: Request) {
                     paymentAmount: successPayment.payment_amount || undefined
                 }
             })
+
         }
 
         // Redirect directly to dashboard on success, or back to payment on failure

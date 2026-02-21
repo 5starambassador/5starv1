@@ -2,12 +2,13 @@
 
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
+import { hasPermission } from '@/lib/permission-service'
 
-// Helper to check if user is admin
-async function checkAdmin() {
+// Helper to check marketing manager access via the permission matrix
+async function checkMarketingAccess() {
     const user = await getCurrentUser()
-    if (!user || user.role === 'Parent' || user.role === 'Staff' || user.role === 'Alumni' || user.role === 'Others') {
-        throw new Error('Unauthorized: Admin access required')
+    if (!user || !(await hasPermission('marketingManager'))) {
+        throw new Error('Unauthorized: Marketing Manager access required')
     }
     return user
 }
@@ -62,7 +63,7 @@ export async function getMarketingAssets() {
 // Get all assets for admin (including inactive)
 export async function getAdminMarketingAssets() {
     try {
-        await checkAdmin()
+        await checkMarketingAccess()
         const assets = await prisma.marketingAsset.findMany({
             orderBy: [
                 { category: 'asc' },
@@ -89,7 +90,7 @@ export async function createMarketingAsset(data: {
     uploadedById?: number
 }) {
     try {
-        await checkAdmin()
+        await checkMarketingAccess()
 
         // Get max sort order for category
         const maxSort = await prisma.marketingAsset.aggregate({
@@ -122,7 +123,7 @@ export async function updateMarketingAsset(id: number, data: {
     sortOrder?: number
 }) {
     try {
-        await checkAdmin()
+        await checkMarketingAccess()
         const asset = await prisma.marketingAsset.update({
             where: { id },
             data
@@ -138,7 +139,7 @@ export async function updateMarketingAsset(id: number, data: {
 // Delete a marketing asset
 export async function deleteMarketingAsset(id: number) {
     try {
-        await checkAdmin()
+        await checkMarketingAccess()
         await prisma.marketingAsset.delete({
             where: { id }
         })
@@ -153,7 +154,7 @@ export async function deleteMarketingAsset(id: number) {
 // Toggle asset visibility
 export async function toggleAssetVisibility(id: number, isActive: boolean) {
     try {
-        await checkAdmin()
+        await checkMarketingAccess()
         const asset = await prisma.marketingAsset.update({
             where: { id },
             data: { isActive }

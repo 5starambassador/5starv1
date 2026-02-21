@@ -3,7 +3,7 @@ import { X, User, Phone, MapPin, Calendar, CreditCard, Hash, Shield, Key, Clock,
 import { format } from 'date-fns'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { getGradeFee, revertReferralConfirmation } from '@/app/admin-actions'
+import { getGradeFee, revertReferralConfirmation, getCampusGrades } from '@/app/admin-actions'
 import { GRADES } from '@/lib/constants'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
@@ -11,7 +11,7 @@ interface ReferralDetailPanelProps {
     referral: any | null
     onClose: () => void
     onUpdate: (id: number, data: any) => Promise<any>
-    onConfirm?: (id: number, erp: string, feeType: 'OTP' | 'WOTP', admFee?: number, donFee?: number, annualFee?: number) => Promise<any>
+    onConfirm?: (id: number, erp: string, feeType: 'OTP' | 'WOTP', admFee?: number, donFee?: number, annualFee?: number, academicYear?: string) => Promise<any>
     onReject?: (id: number, reason: string) => Promise<any>
     onDelete?: (id: number) => Promise<any>
     campuses?: any[]
@@ -51,6 +51,8 @@ export function ReferralDetailPanel({
     const [standardFees, setStandardFees] = useState<{ otp: number | null, wotp: number | null }>({ otp: null, wotp: null })
     const [fetchingFees, setFetchingFees] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [availableGrades, setAvailableGrades] = useState<string[]>([...GRADES])
+    const [fetchingGrades, setFetchingGrades] = useState(false)
 
     // Special Logic Campuses (No admission/donation fees)
     const isSpecialCampus = ['ACET', 'AASC', 'ACCHM'].includes(referral?.campus || '')
@@ -104,8 +106,38 @@ export function ReferralDetailPanel({
                     })
                     .finally(() => setFetchingFees(false))
             }
+
+            // Fetch available grades for this campus
+            if (referral.campus) {
+                setFetchingGrades(true)
+                getCampusGrades(referral.campus)
+                    .then(res => {
+                        if (res.success && res.grades && res.grades.length > 0) {
+                            setAvailableGrades(res.grades)
+                        } else {
+                            setAvailableGrades([...GRADES]) // Fallback
+                        }
+                    })
+                    .finally(() => setFetchingGrades(false))
+            }
         }
     }, [referral, isSpecialCampus])
+
+    // Fetch grades when campus is changed in Edit Mode
+    useEffect(() => {
+        if (isEditing && editForm.campus) {
+            setFetchingGrades(true)
+            getCampusGrades(editForm.campus)
+                .then(res => {
+                    if (res.success && res.grades && res.grades.length > 0) {
+                        setAvailableGrades(res.grades)
+                    } else {
+                        setAvailableGrades([...GRADES]) // Fallback
+                    }
+                })
+                .finally(() => setFetchingGrades(false))
+        }
+    }, [editForm.campus, isEditing])
 
     if (!referral) return null
 
@@ -133,7 +165,7 @@ export function ReferralDetailPanel({
         setLoading(true)
         try {
             // Pass manual annual fee override to action
-            const res = await onConfirm?.(referral.leadId, confirmForm.erp, confirmForm.feeType, confirmForm.admFee, confirmForm.donFee, confirmForm.annualFee)
+            const res = await onConfirm?.(referral.leadId, confirmForm.erp, confirmForm.feeType, confirmForm.admFee, confirmForm.donFee, confirmForm.annualFee, editForm.admittedYear)
             if (res?.success) {
                 toast.success('Referral confirmed successfully')
                 onClose()
@@ -196,7 +228,8 @@ export function ReferralDetailPanel({
                 parentName: editForm.parentName,
                 parentMobile: editForm.parentMobile,
                 gradeInterested: editForm.gradeInterested,
-                campus: editForm.campus
+                campus: editForm.campus,
+                admittedYear: editForm.admittedYear
             })
             if (res?.success) {
                 toast.success('Details updated successfully')
@@ -427,10 +460,12 @@ export function ReferralDetailPanel({
                                             onChange={e => setEditForm({ ...editForm, gradeInterested: e.target.value })}
                                             className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
                                         >
-                                            {GRADES.map(grade => (
+                                            <option value="">-- Select Grade --</option>
+                                            {availableGrades.map(grade => (
                                                 <option key={grade} value={grade}>{grade}</option>
                                             ))}
                                         </select>
+                                        {fetchingGrades && <span className="text-[9px] text-indigo-500 animate-pulse">Updating grades...</span>}
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Interested Campus</label>
@@ -494,6 +529,15 @@ export function ReferralDetailPanel({
                                         </div>
                                         <p className="text-sm font-bold text-gray-900 pl-6" suppressHydrationWarning>
                                             {format(new Date(referral.createdAt), 'dd MMM yyyy')}
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <div className="flex items-center gap-2 text-indigo-500">
+                                            <Calendar size={14} />
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Academic Year</span>
+                                        </div>
+                                        <p className="text-sm font-bold text-indigo-600 pl-6">
+                                            {referral.admittedYear || 'Not Set'}
                                         </p>
                                     </div>
                                 </div>

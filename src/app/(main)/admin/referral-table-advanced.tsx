@@ -25,7 +25,7 @@ interface ReferralManagementTableProps {
     }
     isReadOnly?: boolean
     onBulkAdd?: () => void
-    confirmReferral?: (leadId: number, erp: string, feeType: 'OTP' | 'WOTP', admFee?: number, donFee?: number, annualFee?: number) => Promise<any>
+    confirmReferral?: (leadId: number, erp: string, feeType: 'OTP' | 'WOTP', admFee?: number, donFee?: number, annualFee?: number, academicYear?: string) => Promise<any>
     convertLeadToStudent?: (leadId: number, data: any) => Promise<any>
     rejectReferral?: (leadId: number, reason: string) => Promise<{ success: boolean; error?: string }>
     campuses?: any[] // Accept campuses list
@@ -1023,6 +1023,7 @@ export function ReferralManagementTable({
                         </p>
                         <button
                             onClick={() => router.push('/marketing')}
+                            suppressHydrationWarning={true}
                             className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-black transition-all active:scale-95 shadow-2xl shadow-gray-200 flex items-center gap-3"
                         >
                             <Download size={18} /> Open Promo Kit
@@ -1112,10 +1113,28 @@ export function ReferralManagementTable({
                 campuses={campusList}
                 onUpdate={async (id, data) => {
                     const res = await updateReferral(id, data)
-                    if (res.success) router.refresh()
+                    if (res.success) {
+                        // Update local selection to reflect changes in UI immediately
+                        setSelectedLeadForDetail((prev: any) => prev?.leadId === id ? { ...prev, ...data } : prev)
+                        router.refresh()
+                    }
                     return res
                 }}
-                onConfirm={confirmReferral}
+                onConfirm={async (id, erp, feeType, admFee, donFee, annualFee, academicYear) => {
+                    const res = await confirmReferral?.(id, erp, feeType, admFee, donFee, annualFee, academicYear)
+                    if (res?.success) {
+                        setSelectedLeadForDetail((prev: any) => prev?.leadId === id ? {
+                            ...prev,
+                            leadStatus: 'Confirmed',
+                            admissionNumber: erp,
+                            selectedFeeType: feeType,
+                            annualFee,
+                            admittedYear: academicYear
+                        } : prev)
+                        router.refresh()
+                    }
+                    return res
+                }}
                 onReject={rejectReferral}
                 onDelete={referralId => deleteReferral(referralId)}
             />

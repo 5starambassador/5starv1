@@ -1,6 +1,7 @@
 import { getCurrentUser } from '@/lib/auth-service'
 import { redirect } from 'next/navigation'
 import { getMyReferrals, getMyComparisonStats, getDynamicFeeForUser } from '@/app/referral-actions'
+import { getSystemSettings } from '@/app/settings-actions'
 import { DashboardClient } from '@/components/dashboard/DashboardClient'
 import { encryptReferralCode } from '@/lib/crypto'
 import { calculateTotalBenefit } from '@/lib/benefit-calculator'
@@ -43,20 +44,25 @@ export default async function DashboardPage() {
 
     // Fetch Grade-1 Fees for Cash Benefit Calculations (Dashboard needs this too)
     const campusIds = Array.from(new Set(referrals.map((r: any) => r.campusId).filter(Boolean))) as number[]
-    // We need Grade-1 Fees for these campuses to be accurate
+    // We need Grade-1 Fees for these campuses to be accurate across both years
     const grade1Fees = await prisma.gradeFee.findMany({
         where: {
             campusId: { in: campusIds },
             grade: { in: ['Grade 1', 'Grade - 1', '1', 'I'] },
-            academicYear: '2025-2026'
+            academicYear: { in: activeYearStrings }
         }
     })
-    const campusFeeMap = new Map<number, { otp: number, wotp: number }>()
+    const campusFeeMap: Record<string, Record<number, { otp: number, wotp: number }>> = {}
+
+    // Initialize years in map
+    activeYearStrings.forEach(y => { campusFeeMap[y] = {} })
+
     grade1Fees.forEach(gf => {
-        campusFeeMap.set(gf.campusId, {
+        if (!campusFeeMap[gf.academicYear]) campusFeeMap[gf.academicYear] = {}
+        campusFeeMap[gf.academicYear][gf.campusId] = {
             otp: gf.annualFee_otp || 60000,
             wotp: gf.annualFee_wotp || 60000
-        })
+        }
     })
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://5starambassador.com'
@@ -64,9 +70,25 @@ export default async function DashboardPage() {
     // Encrypt referral code for security
     const encryptedCode = encryptReferralCode(userData.referralCode)
 
+    // Get System Settings for Referral Templates
+    const systemSettings = await getSystemSettings()
+
     // Short URL format - cleaner and more secure
     const referralLink = `${baseUrl}/r/${encryptedCode}`
-    const shareText = `Hi! I'm part of the Achariya Partnership Program.\nAdmissions link: ${referralLink}`
+
+    // Use dynamic template from settings if available
+    const rawTemplate = user.role === 'Staff' ? systemSettings.staffReferralText :
+        user.role === 'Alumni' ? systemSettings.alumniReferralText :
+            systemSettings.parentReferralText
+
+    let shareText = ""
+    if (rawTemplate) {
+        shareText = rawTemplate
+            .replace(/{referralLink}/g, referralLink)
+            .replace(/{academicYear}/g, CURRENT_ACADEMIC_YEAR)
+    } else {
+        shareText = `Hi! I'm happy to share that I've joined the Achariya Partnership Program (APP). We're celebrating our 25th Year! 🎉\n\nIf you're looking for quality education and exclusive benefits, check out our admissions portal here:\n${referralLink}\n\nJoin our community today!`
+    }
 
     // Build WhatsApp URL
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`
@@ -76,27 +98,22 @@ export default async function DashboardPage() {
     const monthStats = await getMyComparisonStats()
 
 
-    // Serialize Campus Fee Map (Map is not serializable)
-    const campusFeeMapObj: Record<number, { otp: number, wotp: number }> = {}
-    campusFeeMap.forEach((v, k) => {
-        campusFeeMapObj[k] = v
+    // Serialize Campus Fee Map
+    const campusFeeMapObj: Record<string, Record<number, { otp: number, wotp: number }>> = {}
+    Object.keys(campusFeeMap).forEach(k => {
+        campusFeeMapObj[k] = campusFeeMap[k]
     })
-
-    // Hotfix: Explicitly fetch status to ensure it's never undefined
-    const freshUser = await prisma.user.findUnique({
-        where: { userId: userData.userId },
-        select: { status: true }
-    })
-    const accountStatus = freshUser?.status || 'Pending'
 
     // Prepare User Object for Client
+    const currentAccountStatus = userData.status || 'Pending'
+
     console.log('DEBUG: Dashboard User Data:', {
-        status: accountStatus,
+        status: currentAccountStatus,
         benefitStatus: userData.benefitStatus,
         role: userData.role
     })
 
-    const userForClient: any = { // Cast to any first to build it, then validate at prop level or interface
+    const userForClient: any = {
         fullName: userData.fullName,
         role: userData.role,
         referralCode: userData.referralCode,
@@ -105,7 +122,7 @@ export default async function DashboardPage() {
         studentFee: userData.studentFee,
         isFiveStarMember: userData.isFiveStarMember,
         benefitStatus: userData.benefitStatus,
-        status: accountStatus,
+        status: currentAccountStatus,
         empId: userData.empId,
         assignedCampus: userData.assignedCampus
     }
@@ -142,13 +159,16 @@ export default async function DashboardPage() {
             user={userForClient}
             referrals={serializedReferrals}
             activeYears={serializedActiveYears}
-            campusFeeMap={campusFeeMapObj as any}
+            campusFeeMap={campusFeeMap as any}
             slabs={slabsResult.data || []}
             dynamicStudentFee={dynamicStudentFee || 60000}
             monthStats={monthStats}
+            whatsappUrl={whatsappUrl}
             notifications={notifications || []}
             unreadCount={unreadCount || 0}
             programs={programs || []}
+            currentYear={CURRENT_ACADEMIC_YEAR}
+            prevYear={PREVIOUS_ACADEMIC_YEAR}
         />
     )
 }

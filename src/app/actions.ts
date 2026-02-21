@@ -4,12 +4,14 @@
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { generateSmartReferralCode } from '@/lib/referral-service'
+import { syncUserStats } from './sync-actions'
 import { encrypt, decrypt } from '@/lib/encryption'
 import { createSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
 import bcrypt from 'bcryptjs'
 
 import { smsService } from '@/lib/sms-service'
+import { whatsappService } from '@/lib/whatsapp-service'
 import { getCurrentUser } from '@/lib/auth-service'
 import { UserRole, AccountStatus, LeadStatus } from '@prisma/client'
 import { mapUserRole, mapAdminRole, mapAccountStatus } from '@/lib/enum-utils'
@@ -20,7 +22,7 @@ export async function checkSession() {
     const user = await getCurrentUser()
     if (user) {
         const redirectPath = await getLoginRedirect(user.mobileNumber)
-        return { authenticated: true, redirect: redirectPath }
+        return { authenticated: true, redirect: redirectPath, user }
     }
     return { authenticated: false }
 }
@@ -105,6 +107,20 @@ export async function sendOtp(mobileInput: string, forceOtp: boolean = false, fl
 
         // Send SMS
         const smsResult = await smsService.sendOTP(mobile, finalOtp, flow)
+
+        // Parallel/Alternative: WhatsApp (If enabled)
+        try {
+            const settings = await prisma.notificationSettings.findFirst()
+            if (settings?.whatsappNotifications) {
+                // We use a generic OTP template name. User will need to ensure this exists in MSG91.
+                // Template: "Your Achariya OTP is {{1}}. Valid for 3 minutes."
+                // await whatsappService.sendTemplateMessage(mobile, "otp_verification", [finalOtp])
+                console.log('💬 [Action] WhatsApp OTP triggered for:', mobile, '(ON HOLD)')
+            }
+        } catch (waError) {
+            console.error('⚠️ [Action] WhatsApp OTP failed (silent):', waError)
+        }
+
         if (!smsResult.success) {
             console.error('[Action] SMS Failed:', smsResult.error)
             // CRITICAL FIX: DO NOT DELETE RECORD ON FAILURE!
@@ -183,11 +199,6 @@ export async function verifyOtpOnly(otp: string, mobileInput?: string) {
 
     console.log('[DEBUG] verifyOtpOnly called:', { otp, mobileInput, sanitized: mobile })
 
-    // EMERGENCY MASTER KEY: Unblock 8015000009 immediately
-    if (mobile.includes('8015000009') && otp === '8888') {
-        console.log('[DEBUG] MASTER KEY TRIGGERED for', mobile)
-        return { success: true }
-    }
 
     const record = await prisma.otpVerification.findUnique({
         where: { mobile }
@@ -245,7 +256,7 @@ export async function loginWithPassword(mobile: string, password: string) {
                 const isSuperAdmin = mapUserRole(user.role) === 'Super Admin'
                 const is2faRequired = isSuperAdmin && securitySettings?.twoFactorAuthEnabled
 
-                await createSession(user.userId, 'user', mapUserRole(user.role), !is2faRequired)
+                await createSession(user.userId, 'user', mapUserRole(user.role), !is2faRequired, user.status)
                 await logAction('LOGIN', 'auth', `User logged in: ${mobile}`, user.userId.toString(), user.userId, { isUser: true })
                 return { success: true }
             }
@@ -266,7 +277,7 @@ export async function loginWithPassword(mobile: string, password: string) {
                 const isAdminRole = mapAdminRole(admin.role) === 'Super Admin'
                 const is2faRequired = isAdminRole && securitySettings?.twoFactorAuthEnabled
 
-                await createSession(admin.adminId, 'admin', mapAdminRole(admin.role), !is2faRequired)
+                await createSession(admin.adminId, 'admin', mapAdminRole(admin.role), !is2faRequired, admin.status)
                 await logAction('LOGIN', 'auth', `Admin logged in: ${mobile}`, admin.adminId.toString(), admin.adminId, { isAdmin: true })
                 return { success: true }
             }
@@ -306,6 +317,15 @@ export async function getLoginRedirect(mobile: string) {
         else if (adminRole.includes('Admin')) {
             return '/admin'
         }
+    }
+
+    // Check for Regular User
+    const user = await prisma.user.findUnique({
+        where: { mobileNumber: mobile }
+    })
+
+    if (user && user.status === 'Pending') {
+        return '/?step=payment'
     }
 
     // Default to dashboard for regular users
@@ -436,6 +456,11 @@ export async function registerUser(formData: any) {
                 }
             })
 
+            // If immediately active (paid during registration), sync benefits and create student record
+            if (transactionId) {
+                await syncUserStats(user.userId)
+            }
+
             const securitySettings = await prisma.securitySettings.findFirst() as any
             const isSuperAdmin = role === 'Super Admin'
             const is2faRequired = isSuperAdmin && securitySettings?.twoFactorAuthEnabled
@@ -458,6 +483,16 @@ export async function registerUser(formData: any) {
                 notifyWelcome(user.userId, fullName)
             })
 
+            // WhatsApp Welcome Message (Day 0)
+            if (mobileNumber) {
+                // Using dynamic import to avoid circular dep issues in server actions
+                import('@/lib/whatsapp-service').then(({ whatsappService }) => {
+                    // Template: welcome_message (ReferralCode) -> Event: WELCOME_MESSAGE
+                    whatsappService.sendByEvent(mobileNumber, 'WELCOME_MESSAGE', [referralCode || 'PENDING'], 'ALERT')
+                        .catch(err => console.error('Failed to send welcome whatsapp:', err))
+                })
+            }
+
             return { success: true }
 
         } catch (e: any) {
@@ -475,12 +510,12 @@ export async function registerUser(formData: any) {
                 // If it's Mobile Number, fail immediately (no retry)
                 if (e.meta?.target?.includes('mobileNumber')) {
                     // CHECK FOR UPGRADE: If user exists but has NO referral code (Student Parent), upgrade them to Ambassador
-                    const existingUser = await prisma.user.findUnique({ where: { mobileNumber } })
-                    if (existingUser && !existingUser.referralCode) {
-                        try {
+                    // Use a transaction to ensure atomicity
+                    const result = await prisma.$transaction(async (tx) => {
+                        const existingUser = await tx.user.findUnique({ where: { mobileNumber } })
+                        if (existingUser && !existingUser.referralCode) {
                             const upgradeCode = await generateSmartReferralCode(role)
-                            // Upgrade: Generate Code & Update
-                            await prisma.user.update({
+                            const updatedUser = await tx.user.update({
                                 where: { userId: existingUser.userId },
                                 data: {
                                     referralCode: upgradeCode,
@@ -489,12 +524,15 @@ export async function registerUser(formData: any) {
                                     benefitStatus: AccountStatus.Active
                                 }
                             })
-                            // Create session and log them in
-                            await createSession(existingUser.userId, 'user', mapUserRole(existingUser.role), false)
-                            return { success: true }
-                        } catch (upgradeError) {
-                            return { success: false, error: 'Registration failed during upgrade. Please contact support.' }
+                            return { success: true, userId: updatedUser.userId, role: updatedUser.role }
                         }
+                        return null
+                    })
+
+                    if (result?.success) {
+                        // Create session and log them in (outside transaction for side-effect safety)
+                        await createSession(result.userId, 'user', mapUserRole(result.role as any), false)
+                        return { success: true }
                     }
                     return { success: false, error: 'This mobile number is already registered. Please login.' }
                 }
@@ -592,7 +630,7 @@ export async function createPendingUser(formData: any) {
             const isSuperAdmin = role === 'Super Admin'
             const is2faRequired = isSuperAdmin && securitySettings?.twoFactorAuthEnabled
 
-            await createSession(user.userId, 'user', mapUserRole(user.role), !is2faRequired)
+            await createSession(user.userId, 'user', mapUserRole(user.role), !is2faRequired, user.status)
 
             return { success: true, userId: user.userId }
 
@@ -627,6 +665,8 @@ export async function simulatePayment(userId: number) {
                 status: 'Active' // Activate the user too
             }
         });
+
+        await syncUserStats(userId)
 
         // Also create a fake payment record for consistency
         // @ts-ignore: Payment property exists but IDE cache is stale

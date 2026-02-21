@@ -49,12 +49,12 @@ model User {
   DeviceToken            DeviceToken[]
   notifications          Notification[]
   payments               Payment[]
+  programLeads           ProgramLead[]
   referrals              ReferralLead[]
   settlements            Settlement[]
-  referredStudents       Student[]       @relation("StudentAmbassador")
   students               Student[]       @relation("StudentParent")
+  referredStudents       Student[]       @relation("StudentAmbassador")
   supportTickets         SupportTicket[]
-  programLeads           ProgramLead[]
 
   @@index([role])
   @@index([assignedCampus])
@@ -66,30 +66,30 @@ model User {
 }
 
 model Student {
-  studentId       Int           @id @default(autoincrement())
-  fullName        String
-  parentId        Int
-  campusId        Int
-  grade           String
-  section         String?
-  rollNumber      String?
-  academicYear    String        @default("2025-2026")
-  status          String        @default("Active")
-  baseFee         Int           @default(60000)
-  discountPercent Float         @default(0)
-  referralLeadId  Int?          @unique
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  ambassadorId    Int?
-  admissionNumber String?       @unique
-  selectedFeeType FeeType?
+  studentId             Int           @id @default(autoincrement())
+  fullName              String
+  parentId              Int
+  campusId              Int
+  grade                 String
+  section               String?
+  rollNumber            String?
+  academicYear          String        @default("2025-2026")
+  status                String        @default("Active")
+  baseFee               Int           @default(60000)
+  discountPercent       Float         @default(0)
+  referralLeadId        Int?          @unique
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  ambassadorId          Int?
+  admissionNumber       String?       @unique
+  selectedFeeType       FeeType?
   annualFee             Int?
   admissionFeeCollected Float?
   donationFeeCollected  Float?
-  ambassador      User?         @relation("StudentAmbassador", fields: [ambassadorId], references: [userId])
-  campus          Campus        @relation(fields: [campusId], references: [id])
-  parent          User          @relation("StudentParent", fields: [parentId], references: [userId])
-  referralLead    ReferralLead? @relation(fields: [referralLeadId], references: [leadId])
+  ambassador            User?         @relation("StudentAmbassador", fields: [ambassadorId], references: [userId])
+  campus                Campus        @relation(fields: [campusId], references: [id])
+  parent                User          @relation("StudentParent", fields: [parentId], references: [userId])
+  referralLead          ReferralLead? @relation(fields: [referralLeadId], references: [leadId])
 
   @@index([parentId])
   @@index([campusId])
@@ -98,27 +98,27 @@ model Student {
 }
 
 model ReferralLead {
-  leadId          Int        @id @default(autoincrement())
-  userId          Int
-  parentName      String
-  parentMobile    String
-  campusId        Int?
-  campus          String?
-  gradeInterested String?
-  admittedYear    String?
-  confirmedDate   DateTime?
-  createdAt       DateTime   @default(now())
-  studentName     String?
-  leadStatus      LeadStatus @default(New)
+  leadId                Int        @id @default(autoincrement())
+  userId                Int
+  parentName            String
+  parentMobile          String
+  campusId              Int?
+  campus                String?
+  gradeInterested       String?
+  admittedYear          String?
+  confirmedDate         DateTime?
+  createdAt             DateTime   @default(now())
+  studentName           String?
+  leadStatus            LeadStatus @default(New)
   admissionNumber       String?
   section               String?
   selectedFeeType       FeeType?
   annualFee             Int?
+  rejectionReason       String?
   admissionFeeCollected Float?
   donationFeeCollected  Float?
-  rejectionReason       String?
-  user            User       @relation(fields: [userId], references: [userId])
-  student         Student?
+  user                  User       @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  student               Student?
 
   @@index([userId, leadStatus])
   @@index([userId])
@@ -165,13 +165,14 @@ model SystemSettings {
   maintenanceMode       Boolean  @default(false)
   staffReferralText     String?  @default("Hello 👋 I’m part of Achariya’s 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: ${referralLink} – Achariya Ambassador")
   parentReferralText    String?  @default("Hello 👋 I’m part of Achariya’s 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: ${referralLink} – Achariya Ambassador")
-  staffWelcomeMessage   String?  @default("Welcome to the Staff Ambassador Dashboard")
-  parentWelcomeMessage  String?  @default("Welcome to the Parent Ambassador Dashboard")
+  staffWelcomeMessage   String?  @default("Welcome to the Staff Dashboard")
+  parentWelcomeMessage  String?  @default("Welcome to the Parent Dashboard")
   updatedAt             DateTime @updatedAt
   updatedBy             String?
   alumniReferralText    String?  @default("Hello 👋 I'm part of Achariya's 5-Star Ambassador Program (25th Year Celebration). I recommend you to explore admission for your child. Click here: ${referralLink} – Achariya Ambassador")
   alumniWelcomeMessage  String?  @default("Welcome to the Alumni Ambassador Dashboard")
   allowManualPayments   Boolean  @default(true)
+  activeOnlineGateway   String   @default("CASHFREE")
 }
 
 model AcademicYear {
@@ -269,14 +270,20 @@ model RolePermissions {
   feeManagementScope       String   @default("none")
   paymentApprovalAccess    Boolean  @default(false)
   paymentApprovalScope     String   @default("none")
-  programLeadsAccess       Boolean  @default(false)
-  programLeadsScope        String   @default("none")
   externalProgramsAccess   Boolean  @default(false)
   externalProgramsScope    String   @default("none")
-  academicCyclesAccess      Boolean  @default(false)
-  academicCyclesScope       String   @default("none")
-  disasterRecoveryAccess    Boolean  @default(false)
-  disasterRecoveryScope     String   @default("none")
+  programLeadsAccess       Boolean  @default(false)
+  programLeadsScope        String   @default("none")
+  academicCyclesAccess     Boolean  @default(false)
+  academicCyclesScope      String   @default("none")
+  disasterRecoveryAccess   Boolean  @default(false)
+  disasterRecoveryScope    String   @default("none")
+  whatsappConfigAccess     Boolean  @default(false)
+  whatsappConfigScope      String   @default("none")
+  campaignsAccess          Boolean  @default(false)
+  campaignsScope           String   @default("none")
+  marketingManagerAccess   Boolean  @default(false)
+  marketingManagerScope    String   @default("none")
 }
 
 model Settlement {
@@ -291,7 +298,7 @@ model Settlement {
   remarks       String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  user          User      @relation(fields: [userId], references: [userId])
+  user          User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
 }
 
 model Resource {
@@ -336,7 +343,7 @@ model SupportTicket {
   resolvedAt      DateTime?
   escalationLevel Int             @default(1)
   lastEscalatedAt DateTime?
-  user            User            @relation(fields: [userId], references: [userId])
+  user            User            @relation(fields: [userId], references: [userId], onDelete: Cascade)
   messages        TicketMessage[]
 }
 
@@ -443,25 +450,27 @@ model Notification {
   link      String?
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+  metadata  Json?
   admin     Admin?   @relation(fields: [adminId], references: [adminId])
-  user      User?    @relation(fields: [userId], references: [userId])
+  user      User?    @relation(fields: [userId], references: [userId], onDelete: Cascade)
 }
 
 model Campaign {
-  id             Int           @id @default(autoincrement())
+  id             Int                 @id @default(autoincrement())
   name           String
   subject        String
   templateBody   String
-  type           String        @default("EMAIL")
-  status         String        @default("DRAFT")
+  type           String              @default("EMAIL")
+  status         String              @default("DRAFT")
   targetAudience Json?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
   lastRunAt      DateTime?
   schedule       String?
-  batchSize      Int           @default(500)
-  channels       String[]      @default(["EMAIL"])
+  batchSize      Int                 @default(500)
+  channels       String[]            @default(["EMAIL"])
   logs           CampaignLog[]
+  recipients     CampaignRecipient[]
 }
 
 model DeviceToken {
@@ -478,20 +487,24 @@ model DeviceToken {
 }
 
 model CampaignLog {
-  id             Int      @id @default(autoincrement())
-  campaignId     Int
-  runAt          DateTime @default(now())
-  status         String
-  recipientCount Int      @default(0)
-  sentCount      Int      @default(0)
-  failedCount    Int      @default(0)
-  emailSent      Int      @default(0)
-  emailFailed    Int      @default(0)
-  pushSent       Int      @default(0)
-  pushFailed     Int      @default(0)
-  inAppSent      Int      @default(0)
-  errorLog       Json?
-  campaign       Campaign @relation(fields: [campaignId], references: [id])
+  id                Int      @id @default(autoincrement())
+  campaignId        Int
+  runAt             DateTime @default(now())
+  status            String
+  recipientCount    Int      @default(0)
+  sentCount         Int      @default(0)
+  failedCount       Int      @default(0)
+  errorLog          Json?
+  emailFailed       Int      @default(0)
+  emailSent         Int      @default(0)
+  inAppSent         Int      @default(0)
+  pushFailed        Int      @default(0)
+  pushSent          Int      @default(0)
+  whatsappFailed    Int      @default(0)
+  whatsappSent      Int      @default(0)
+  whatsappDelivered Int      @default(0)
+  whatsappRead      Int      @default(0)
+  campaign          Campaign @relation(fields: [campaignId], references: [id])
 }
 
 model RateLimit {
@@ -519,7 +532,7 @@ model Payment {
   settlementId     String?
   transactionId    String?
   adminRemarks     String?
-  user             User      @relation(fields: [userId], references: [userId])
+  user             User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   @@index([orderId])
   @@index([userId])
@@ -539,6 +552,104 @@ model CrmLead {
   visitDate    DateTime @default(now())
 
   @@index([mobileNumber])
+}
+
+model ExternalProgram {
+  id               Int               @id @default(autoincrement())
+  title            String
+  slug             String            @unique
+  description      String?
+  imageUrl         String?
+  publicUrl        String?
+  targetUrl        String
+  autoSyncUrl      String?
+  commissionAmount Float             @default(0)
+  rewardType       ProgramRewardType @default(NONE)
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  endDate          DateTime?
+  startDate        DateTime?
+  leads            ProgramLead[]
+}
+
+model ProgramLead {
+  id                 Int             @id @default(autoincrement())
+  programId          Int
+  referrerId         Int
+  visitorName        String?
+  visitorMobile      String
+  status             String          @default("CLICKED")
+  commissionCredited Boolean         @default(false)
+  clickedAt          DateTime        @default(now())
+  registeredAt       DateTime?
+  studentName        String?
+  paymentStatus      String?
+  program            ExternalProgram @relation(fields: [programId], references: [id])
+  referrer           User            @relation(fields: [referrerId], references: [userId], onDelete: Cascade)
+
+  @@index([visitorMobile])
+  @@index([referrerId])
+  @@index([programId])
+}
+
+model Job {
+  id        Int      @id @default(autoincrement())
+  type      String
+  payload   Json
+  status    String   @default("PENDING")
+  runAt     DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  error     String?
+
+  @@index([status])
+  @@index([runAt])
+}
+
+model CampaignRecipient {
+  id          Int       @id @default(autoincrement())
+  campaignId  Int
+  mobile      String
+  name        String?
+  role        String?
+  campus      String?
+  status      String    @default("SENT")
+  channel     String    @default("WHATSAPP")
+  errorCode   String?
+  sentAt      DateTime  @default(now())
+  deliveredAt DateTime?
+  readAt      DateTime?
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, mobile])
+  @@index([campaignId])
+  @@index([mobile])
+}
+
+model WhatsAppConfig {
+  id           Int      @id @default(autoincrement())
+  eventKey     String   @unique
+  templateName String
+  isEnabled    Boolean  @default(true)
+  description  String?
+  updatedAt    DateTime @updatedAt
+}
+
+model WhatsAppLog {
+  id           Int      @id @default(autoincrement())
+  mobile       String
+  template     String?
+  content      String
+  type         String
+  status       String
+  errorMessage String?
+  createdAt    DateTime @default(now())
+  metadata     Json?
+
+  @@index([type])
+  @@index([createdAt])
+  @@index([mobile])
 }
 
 enum FeeType {
@@ -580,57 +691,6 @@ enum UserRole {
   Staff
   Alumni
   Others
-}
-
-model ExternalProgram {
-  id          Int           @id @default(autoincrement())
-  title       String
-  slug        String        @unique
-  description String?
-  imageUrl    String?
-
-  // Links
-  publicUrl   String?       // The standard page (Reference)
-  targetUrl   String        // The "Secret" Discount Page to redirect to
-  autoSyncUrl String?       // Google Sheet CSV Link for auto-sync
-
-  // Rewards
-  commissionAmount Float          @default(0)
-  rewardType       ProgramRewardType @default(NONE)
-
-  isActive    Boolean       @default(true)
-  startDate   DateTime?
-  endDate     DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  leads       ProgramLead[]
-}
-
-model ProgramLead {
-  id            Int             @id @default(autoincrement())
-  programId     Int
-  referrerId    Int
-
-  // Visitor Info
-  visitorName   String?
-  visitorMobile String
-  studentName   String?   // New field for separating Parent/Student
-  paymentStatus String?   // Track status from external sync (e.g., PENDING, SUCCESS)
-
-  // Status
-  status        String          @default("CLICKED") // CLICKED, REGISTERED
-  commissionCredited Boolean    @default(false)
-  clickedAt     DateTime        @default(now())
-  registeredAt  DateTime?
-
-  // Relations
-  program       ExternalProgram @relation(fields: [programId], references: [id])
-  referrer      User            @relation(fields: [referrerId], references: [userId])
-
-  @@index([visitorMobile])
-  @@index([referrerId])
-  @@index([programId])
 }
 
 enum ProgramRewardType {

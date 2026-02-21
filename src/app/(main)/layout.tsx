@@ -79,9 +79,11 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             navItems.push({ label: 'Referral Pipeline', href: '/superadmin/referrals', icon: <GitFork /> })
             navItems.push({ label: 'External Programs', href: '/superadmin?view=programs', icon: <ExternalLink /> })
             navItems.push({ label: 'Program Leads', href: '/superadmin?view=program-leads', icon: <MousePointerClick /> }) // New Link
+            navItems.push({ label: 'Marketing Management', href: '/superadmin?view=marketing', icon: <Megaphone /> })
             navItems.push({ label: 'Revenue & Payouts', href: '/superadmin?view=settlements', icon: <IndianRupee /> })
             navItems.push({ label: 'Access Matrix', href: '/superadmin?view=permissions', icon: <Shield /> })
             navItems.push({ label: 'App Settings', href: '/superadmin?view=settings', icon: <Settings /> })
+            navItems.push({ label: 'Automation Settings', href: '/superadmin?view=automation', icon: <Zap /> })
             navItems.push({ label: 'Benefit Management', href: '/superadmin/benefits', icon: <Calculator /> })
         }
 

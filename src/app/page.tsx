@@ -20,9 +20,22 @@ export default function LoginPage() {
 
   useEffect(() => {
     async function verify() {
+      // Check URL for step=payment
+      const urlParams = new URLSearchParams(window.location.search)
+      const isPaymentStep = urlParams.get('step') === 'payment'
+
       const res = await checkSession()
-      if (res.authenticated && res.redirect) {
-        router.push(res.redirect)
+      if (res.authenticated) {
+        // [HARD BLOCK] Redirect Pending users to Payment step
+        if (res.user?.status === 'Pending') {
+          setStep(4)
+          setRegisteredUserId(res.user.userId)
+          return
+        }
+
+        if (res.redirect && !isPaymentStep) {
+          router.push(res.redirect)
+        }
       }
     }
     verify()

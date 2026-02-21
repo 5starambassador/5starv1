@@ -17,6 +17,7 @@ const SettingsUpdateSchema = z.object({
     alumniReferralText: z.string().max(500).optional(),
     alumniWelcomeMessage: z.string().max(100).optional(),
     allowManualPayments: z.boolean().optional(),
+    activeOnlineGateway: z.string().optional(),
 })
 
 const SecuritySettingsSchema = z.object({
@@ -93,8 +94,12 @@ export async function getSystemSettings() {
 
         const consolidatedData = {
             ...(settings || (settingsCache?.data || defaultSettings)),
-            currentAcademicYear: currentYearRecord?.year || '2025-2026'
+            currentAcademicYear: currentYearRecord?.year || '2025-2026',
+            // @ts-ignore
+            activeOnlineGateway: settings?.activeOnlineGateway || process.env.NEXT_PUBLIC_ACTIVE_ONLINE_GATEWAY || 'CASHFREE'
         };
+        // @ts-ignore
+        console.log(`[SETTINGS] Active Gateway: ${consolidatedData.activeOnlineGateway} (DB: ${settings?.activeOnlineGateway}, Env: ${process.env.NEXT_PUBLIC_ACTIVE_ONLINE_GATEWAY})`);
 
         // Update cache if we got real data or already have cache
         if (settings || settingsCache) {
@@ -149,6 +154,8 @@ export async function updateSystemSettings(rawData: any) {
                 ...(data.alumniWelcomeMessage !== undefined && { alumniWelcomeMessage: data.alumniWelcomeMessage }),
                 // @ts-ignore
                 ...(data.allowManualPayments !== undefined && { allowManualPayments: data.allowManualPayments }),
+                // @ts-ignore
+                ...(data.activeOnlineGateway !== undefined && { activeOnlineGateway: data.activeOnlineGateway }),
             },
             create: {
                 maintenanceMode: data.maintenanceMode || false,
@@ -160,7 +167,9 @@ export async function updateSystemSettings(rawData: any) {
                 alumniReferralText: data.alumniReferralText,
                 alumniWelcomeMessage: data.alumniWelcomeMessage,
                 // @ts-ignore
-                allowManualPayments: data.allowManualPayments ?? true
+                allowManualPayments: data.allowManualPayments ?? true,
+                // @ts-ignore
+                activeOnlineGateway: data.activeOnlineGateway || 'CASHFREE'
             }
         })
 
@@ -175,6 +184,7 @@ export async function updateSystemSettings(rawData: any) {
         })
 
         revalidatePath('/superadmin')
+        settingsCache = null; // Invalidate cache after successful update
         return {
             success: true,
             data: {

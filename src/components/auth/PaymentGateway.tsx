@@ -42,10 +42,6 @@ export const PaymentGateway = ({ onBack, loading, userId }: PaymentGatewayProps)
                     <p className="text-blue-200/60 text-[10px] font-bold uppercase tracking-wider mb-8">Pay Membership Fee</p>
 
                     <PaymentButton amount={25} userId={userId} />
-
-                    <p className="text-white/40 text-[10px] font-medium tracking-wide mt-6">
-                        Secured by Cashfree Payments
-                    </p>
                 </div>
             </div>
 

@@ -86,6 +86,7 @@ export const getCurrentUser = cache(async () => {
             type: session.userType,
             assignedCampus: null, // Critical for type compatibility in other actions
             currentYearCount: 0,
+            status: session.status,
             isDegraded: true // Flag for UI to show "Limited Mode" if needed
         }
     }

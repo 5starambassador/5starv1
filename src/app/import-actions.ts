@@ -174,43 +174,18 @@ export async function importAmbassadors(csvData: string) {
         let results: any[] = []
 
         for (const [index, row] of rows.entries()) {
-            // Flexible Header Mapping (Support both camelCase and Human Readable)
-            const fullName = row.fullname || row['full name']
-            const mobileNumber = row.mobilenumber || row['mobile number']
-            const roleStr = row.role || row['role']
-            // Normalize Role (Capitalize first letter to match Enum)
-            const roleNorm = roleStr ? (roleStr.charAt(0).toUpperCase() + roleStr.slice(1).toLowerCase()) : ''
-
-            // Validate against Enum
-            const validRoles = ['Parent', 'Staff', 'Alumni', 'Others']
-            if (!validRoles.includes(roleNorm)) {
-                const msg = `Invalid Role '${roleStr}'. Must be Parent, Staff, Alumni, or Others`
-                errors.push(`Row ${index + 2}: ${msg}`)
-                results.push({ row: index + 2, data: row, status: 'Failed', reason: msg })
-                continue
-            }
-            const role = roleNorm as UserRole
-            const email = row.email || row['email'] || null
-            const assignedCampus = row.assignedcampus || row['campus name'] || row['campus'] || null
-            const empId = row.empid || row['emp.id.'] || row['emp id'] || null
-            const childEprNo = row.childeprno || row['erp no'] || row['erp no.'] || row['child erp no'] || null
-            const academicYear = row.academicyear || row['academic year'] || '2025-2026'
-            const password = row.password || row['password'] || null
-            const referralCode = row.referralcode || row['referral code'] || null
-
-            // New Fields for Parent Verification logic
-            const childInAchariyaRaw = row.childinachariya || row['child in achariya (yes/no)'] || row['child in achariya']
-            const benefitStatusRaw = row.benefitstatus || row['benefit status'] || row['status']
-
-            const childInAchariya = (childInAchariyaRaw && childInAchariyaRaw.toLowerCase().startsWith('y')) || false
-
-            let benefitStatus = 'Inactive'
-            if (benefitStatusRaw) {
-                if (benefitStatusRaw.toLowerCase().includes('pending')) benefitStatus = 'PendingVerification'
-                else if (benefitStatusRaw.toLowerCase().includes('active')) benefitStatus = 'Active'
-            } else {
-                if (childInAchariya) benefitStatus = 'PendingVerification'
-            }
+            // Mapping additional fields for parity with export
+            const aadharNo = row.aadharno || row['aadhar no'] || null
+            const address = row.address || row['address'] || null
+            const bankName = row.bankname || row['bank name'] || null
+            const accountNumber = row.accountnumber || row['account number'] || null
+            const ifscCode = row.ifsccode || row['ifsc code'] || null
+            const bankAccountDetails = row.bankaccountdetails || row['bank account details'] || null
+            const grade = row.grade || row['grade'] || null
+            const childName = row.childname || row['child name'] || null
+            const isFiveStarMember = (row.isfivestarmember || row['is 5-star member'])?.toLowerCase() === 'yes'
+            const yearFeeBenefitPercent = parseFloat(row.yearfeebenefitpercent || row['year benefit %'] || row['year_benefit']) || 0
+            const longTermBenefitPercent = parseFloat(row.longtermbenefitpercent || row['long term benefit %'] || row['long_term_benefit']) || 0
 
             // Basic Validation
             if (!fullName || !mobileNumber || !role) {
@@ -220,37 +195,48 @@ export async function importAmbassadors(csvData: string) {
                 continue
             }
 
-            // Check if exists
-            const existing = await prisma.user.findUnique({ where: { mobileNumber } })
-            if (existing) {
-                const msg = `Mobile ${mobileNumber} already exists`
-                errors.push(`Row ${index + 2}: ${msg}`)
-                results.push({ row: index + 2, data: row, status: 'Failed', reason: msg })
-                continue
-            }
-
             // Generate Code if not provided
             const finalReferralCode = referralCode || await generateSmartReferralCode(role, academicYear)
 
-            // Create User
-            await prisma.user.create({
-                data: {
-                    fullName,
-                    mobileNumber,
-                    role,
-                    email,
-                    assignedCampus,
-                    referralCode: finalReferralCode,
-                    empId,
-                    childEprNo,
-                    childInAchariya: childInAchariya,
-                    childName: null,
-                    grade: null,
-                    benefitStatus: benefitStatus as any, // Cast to avoid stale enum issues
-                    password: password || null,
-                    academicYear
-                }
+            // Upsert User
+            const userData = {
+                fullName,
+                mobileNumber,
+                role,
+                email,
+                assignedCampus,
+                referralCode: finalReferralCode,
+                empId,
+                childEprNo,
+                childInAchariya: childInAchariya,
+                childName,
+                grade,
+                benefitStatus: benefitStatus as any,
+                password: password || null,
+                academicYear,
+                aadharNo,
+                address,
+                bankName,
+                accountNumber,
+                ifscCode,
+                bankAccountDetails,
+                isFiveStarMember,
+                yearFeeBenefitPercent,
+                longTermBenefitPercent
+            }
+
+            await prisma.user.upsert({
+                where: { mobileNumber },
+                update: userData,
+                create: userData
             })
+
+            // Re-sync if it was an update to ensure stats are fresh
+            const existing = await prisma.user.findUnique({ where: { mobileNumber } })
+            if (existing) {
+                await syncUserStats(existing.userId)
+            }
+
             processed++
             results.push({ row: index + 2, data: row, status: 'Success', reason: 'Imported' })
         }

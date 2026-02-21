@@ -426,9 +426,15 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                     )}
                                 </td>
                                 <td className="px-6 py-4 text-center">
-                                    <span className="px-2 py-1 rounded-md text-[9px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-100 shadow-sm">
-                                        Pending Verification
-                                    </span>
+                                    {user.benefitStatus === 'Active' ? (
+                                        <span className="px-2 py-1 rounded-md text-[9px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm">
+                                            Verified
+                                        </span>
+                                    ) : (
+                                        <span className="px-2 py-1 rounded-md text-[9px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-100 shadow-sm">
+                                            Pending Verification
+                                        </span>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <div className="flex items-center justify-end gap-1.5">

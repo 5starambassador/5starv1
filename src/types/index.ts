@@ -11,31 +11,34 @@ export interface ModulePermission {
 }
 
 export interface RolePermissions {
-    [key: string]: any
     analytics: ModulePermission
     userManagement: ModulePermission
     studentManagement: ModulePermission
     adminManagement: ModulePermission
     campusPerformance: ModulePermission
-    reports: ModulePermission
+    reports: ModulePermission & { allowedReports?: string[] }
     settlements: ModulePermission
     marketingKit: ModulePermission
     auditLog: ModulePermission
     supportDesk: ModulePermission
     settings: ModulePermission
     deletionHub: ModulePermission
+    passwordReset: ModulePermission
+    // Ambassador Portal Modules
     referralSubmission: ModulePermission
     referralTracking: ModulePermission
     savingsCalculator: ModulePermission
     rulesAccess: ModulePermission
-    passwordReset: ModulePermission
     feeManagement: ModulePermission
     engagementCentre: ModulePermission
     paymentApproval: ModulePermission
     programLeads: ModulePermission
-    externalPrograms: ModulePermission
+    externalPrograms: ModulePermission & { canCreate?: boolean; canEdit?: boolean; canDelete?: boolean }
     academicCycles: ModulePermission
     disasterRecovery: ModulePermission
+    whatsappConfig?: ModulePermission
+    campaigns?: ModulePermission
+    marketingManager?: ModulePermission
 }
 
 export interface User {

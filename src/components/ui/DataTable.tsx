@@ -131,6 +131,12 @@ export function DataTable<T>({
     // Helper to check if a column has active filters
     const isColumnFiltered = (colIndex: number) => !!activeFilters[String(colIndex)]
 
+
+    // Helper to get nested value
+    const getNestedValue = (obj: any, path: string) => {
+        return path.split('.').reduce((acc, part) => acc && acc[part], obj)
+    }
+
     // Filtering Logic
     const filteredData = useMemo(() => {
         return data.filter(item => {
@@ -139,12 +145,12 @@ export function DataTable<T>({
                 const lowerTerm = searchTerm.toLowerCase()
                 if (Array.isArray(searchKey)) {
                     const hasMatch = searchKey.some(key => {
-                        const value = item[key]
+                        const value = getNestedValue(item, String(key))
                         return (value ? String(value) : '').toLowerCase().includes(lowerTerm)
                     })
                     if (!hasMatch) return false
                 } else {
-                    const value = item[searchKey]
+                    const value = getNestedValue(item, String(searchKey))
                     if (!(value ? String(value) : '').toLowerCase().includes(lowerTerm)) {
                         return false
                     }

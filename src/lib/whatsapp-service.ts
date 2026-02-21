@@ -1,0 +1,267 @@
+import prisma from '@/lib/prisma'
+
+interface WhatsAppResponse {
+    success: boolean
+    messageId?: string
+    error?: string
+}
+
+const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY || ""
+const MSG91_WHATSAPP_NUMBER = process.env.MSG91_WHATSAPP_NUMBER || ""
+const MSG91_API_URL = process.env.MSG91_API_URL || "https://api.msg91.com/api/v5"
+const WHATSAPP_PROVIDER = process.env.WHATSAPP_PROVIDER || 'mock'
+
+/**
+ * WhatsApp Service using MSG91 WhatsApp API
+ */
+class WhatsAppService {
+    private configCache: Map<string, { templateName: string, isEnabled: boolean }> = new Map()
+    private lastCacheUpdate: number = 0
+    private CACHE_TTL = 60 * 1000 // 1 minute
+
+    /**
+     * Refreshes the local configuration cache from the database
+     */
+    private async refreshConfigCache() {
+        const now = Date.now()
+        if (now - this.lastCacheUpdate < this.CACHE_TTL && this.configCache.size > 0) return
+
+        try {
+            const configs = await prisma.whatsAppConfig.findMany()
+            this.configCache.clear()
+            configs.forEach(c => {
+                this.configCache.set(c.eventKey, { templateName: c.templateName, isEnabled: c.isEnabled })
+            })
+            this.lastCacheUpdate = now
+        } catch (error) {
+            console.error('Failed to refresh WhatsApp config cache:', error)
+        }
+    }
+
+    /**
+     * Sends a WhatsApp message based on a system Event Key.
+     * Use this for all automated system triggers.
+     */
+    async sendByEvent(
+        mobile: string,
+        eventKey: string,
+        variables: string[] = [],
+        type: string = 'SYSTEM',
+        refId?: string
+    ): Promise<WhatsAppResponse> {
+        await this.refreshConfigCache()
+        const config = this.configCache.get(eventKey)
+
+        if (!config) {
+            console.warn(`[WhatsApp] No config found for event: ${eventKey}. Falling back to hardcoded check.`)
+            // For backward compatibility during migration, we might want to still allow it if direct call but 
+            // since we want to move to event-based, we return error here.
+            return { success: false, error: `Event ${eventKey} not configured` }
+        }
+
+        if (!config.isEnabled) {
+            console.log(`[WhatsApp] Skipping ${eventKey} for ${mobile} (Disabled in settings)`)
+            return { success: false, error: 'Event disabled' }
+        }
+
+        // Global override check
+        const settings = await prisma.notificationSettings.findFirst()
+        if (!settings?.whatsappNotifications) {
+            return { success: false, error: 'WhatsApp notifications are disabled globally' }
+        }
+
+        return this.sendTemplateMessage(mobile, config.templateName, variables, type, refId)
+    }
+
+    /**
+     * Sends a template-based WhatsApp message
+     */
+    async sendTemplateMessage(
+        mobile: string,
+        templateName: string,
+        variables: string[] = [],
+        type: string = 'SYSTEM',
+        refId?: string
+    ): Promise<WhatsAppResponse> {
+        if (!MSG91_AUTH_KEY || WHATSAPP_PROVIDER === 'mock') {
+            return this.sendMock(mobile, templateName, variables, type)
+        }
+
+        try {
+            const sanitizedMobile = this.sanitizeMobile(mobile)
+            const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/`
+
+            const payload: any = {
+                integrated_number: MSG91_WHATSAPP_NUMBER,
+                content_type: "template",
+                payload: {
+                    type: "template",
+                    template: {
+                        name: templateName,
+                        language: {
+                            code: "en",
+                            policy: "deterministic"
+                        },
+                        components: [
+                            {
+                                type: "body",
+                                parameters: variables.map(v => ({
+                                    type: "text",
+                                    text: v
+                                }))
+                            }
+                        ]
+                    }
+                },
+                to: sanitizedMobile
+            }
+
+            if (refId) {
+                payload.CRQID = refId
+            }
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'authkey': MSG91_AUTH_KEY
+                },
+                body: JSON.stringify(payload)
+            })
+
+            const data = await response.json()
+
+            if (response.ok && data.status === 'success') {
+                const messageId = data.message_id || data.request_id
+                await this.logMessage(mobile, templateName, variables.join(', '), type, 'SENT', messageId)
+                return { success: true, messageId }
+            } else {
+                const errorMsg = data.message || 'WhatsApp API Error'
+                await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, errorMsg)
+                console.error('WhatsApp API Error:', data)
+                return { success: false, error: errorMsg }
+            }
+        } catch (error: any) {
+            await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, error.message)
+            console.error('WhatsApp Service Exception:', error)
+            return { success: false, error: error.message }
+        }
+    }
+
+    /**
+     * Sends a notification only if the user has WhatsApp alerts enabled
+     */
+    async notifyIfEnabled(
+        mobile: string,
+        templateName: string,
+        variables: string[] = [],
+        type: string = 'SYSTEM',
+        refId?: string
+    ): Promise<WhatsAppResponse> {
+        try {
+            const settings = await prisma.notificationSettings.findFirst()
+            if (!settings?.whatsappNotifications) {
+                return { success: false, error: 'WhatsApp notifications are disabled globally' }
+            }
+
+            return this.sendTemplateMessage(mobile, templateName, variables, type, refId)
+        } catch (error: any) {
+            return { success: false, error: error.message }
+        }
+    }
+
+    /**
+     * Sends a free-form text message (use within 24h window of user message)
+     */
+    async sendFreeTextMessage(mobile: string, text: string, type: string = 'CHATBOT'): Promise<WhatsAppResponse> {
+        if (!MSG91_AUTH_KEY || WHATSAPP_PROVIDER === 'mock') {
+            console.log(`\n💬 [WHATSAPP MOCK TXT] To: ${mobile} | Message: ${text}\n`)
+            await this.logMessage(mobile, null, text, type, 'SENT')
+            return { success: true, messageId: 'mock-wa-txt-' + Date.now() }
+        }
+
+        try {
+            const sanitizedMobile = this.sanitizeMobile(mobile)
+            const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/`
+
+            const payload: any = {
+                integrated_number: MSG91_WHATSAPP_NUMBER,
+                content_type: "text",
+                payload: {
+                    type: "text",
+                    text: text
+                },
+                to: sanitizedMobile
+            }
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'authkey': MSG91_AUTH_KEY
+                },
+                body: JSON.stringify(payload)
+            })
+
+            const data = await response.json()
+
+            if (response.ok && data.status === 'success') {
+                const messageId = data.message_id || data.request_id
+                await this.logMessage(mobile, null, text, type, 'SENT', messageId)
+                return { success: true, messageId }
+            } else {
+                const errorMsg = data.message || 'WhatsApp API Error'
+                await this.logMessage(mobile, null, text, type, 'FAILED', undefined, errorMsg)
+                console.error('WhatsApp API Error:', data)
+                return { success: false, error: errorMsg }
+            }
+        } catch (error: any) {
+            await this.logMessage(mobile, null, text, type, 'FAILED', undefined, error.message)
+            console.error('WhatsApp Service Exception:', error)
+            return { success: false, error: error.message }
+        }
+    }
+
+    private async logMessage(
+        mobile: string,
+        template: string | null,
+        content: string,
+        type: string,
+        status: string,
+        messageId?: string,
+        error?: string
+    ) {
+        try {
+            await prisma.whatsAppLog.create({
+                data: {
+                    mobile,
+                    template,
+                    content,
+                    type,
+                    status,
+                    errorMessage: error || null
+                }
+            })
+        } catch (logErr) {
+            console.error('Failed to log WhatsApp message to DB:', logErr)
+        }
+    }
+
+    private async sendMock(mobile: string, template: string, vars: string[], type: string = 'SYSTEM'): Promise<WhatsAppResponse> {
+        console.log(`\n💬 [WHATSAPP MOCK] To: ${mobile} | Template: ${template} | Type: ${type} | Vars: ${vars.join(', ')}\n`)
+        await this.logMessage(mobile, template, vars.join(', '), type, 'SENT')
+        return { success: true, messageId: 'mock-wa-' + Date.now() }
+    }
+
+    private sanitizeMobile(mobile: string): string {
+        let sanitized = mobile.replace(/\D/g, '')
+        if (sanitized.length === 10) {
+            sanitized = '91' + sanitized
+        } else if (sanitized.length > 10 && sanitized.startsWith('0')) {
+            sanitized = '91' + sanitized.substring(1)
+        }
+        return sanitized
+    }
+}
+
+export const whatsappService = new WhatsAppService()

@@ -14,6 +14,6 @@ const prisma = globalForPrisma.prisma ?? prismaClientSingleton()
 
 export default prisma
 
-// Force TS Refresh - Manual Poke
+// Force TS Refresh - Manual Poke (Triggering re-analysis for new schema models)
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma

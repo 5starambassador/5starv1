@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { DataTable } from '@/components/ui/DataTable'
 import { PaymentModal } from './PaymentModal'
 import { CheckCircle, Clock, Download, Upload, Loader2, FileDown } from 'lucide-react'
@@ -34,6 +35,7 @@ interface SettlementTableProps {
 }
 
 export function SettlementTable({ data }: SettlementTableProps) {
+    const router = useRouter()
     const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [showExportModal, setShowExportModal] = useState(false)
@@ -227,12 +229,14 @@ export function SettlementTable({ data }: SettlementTableProps) {
                         dateStr = cleanVal(cols[7])
                         utr = getBestUTR([cleanVal(cols[8]), cleanVal(cols[9]), cleanVal(cols[cols.length - 1])])
                     } else if (cols.length >= 8) {
-                        bankName = cleanVal(cols[3]) || cleanVal(cols[2])
-                        accountNumber = cleanVal(cols[4]) || cleanVal(cols[3])
-                        ifscCode = cleanVal(cols[5]) || cleanVal(cols[4])
-                        amountStr = cleanVal(cols[6]) || cleanVal(cols[5])
-                        dateStr = cleanVal(cols[7]) || cleanVal(cols[6])
-                        utr = getBestUTR([cleanVal(cols[8]), cleanVal(cols[cols.length - 1])])
+                        // Standard Export Order: 0:Name, 1:Mobile, 2:Bank, 3:Acc, 4:IFSC, 5:Amount, 6:Date, 7:Remarks
+                        bankName = cleanVal(cols[2])
+                        accountNumber = cleanVal(cols[3])
+                        ifscCode = cleanVal(cols[4])
+                        amountStr = cleanVal(cols[5])
+                        dateStr = cleanVal(cols[6])
+                        // Use Remarks as the primary UTR candidate if no other col
+                        utr = getBestUTR([cleanVal(cols[7])])
                     } else {
                         utr = cleanVal(cols[cols.length - 1])
                     }
@@ -301,6 +305,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
     }
 
     const downloadStatusCSV = (results: any[]) => {
+        toast.info("Preparing import summary report...")
         const headers = ["Mobile", "Amount", "Status", "Message"]
         const csvContent = [
             headers.join(","),
@@ -316,10 +321,16 @@ export function SettlementTable({ data }: SettlementTableProps) {
         const url = URL.createObjectURL(blob)
         const link = document.createElement("a")
         link.setAttribute("href", url)
-        link.setAttribute("download", `payout_status_${new Date().toISOString().split('T')[0]}.csv`)
+        link.setAttribute("download", `import_report_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`)
         document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+
+        // Small delay to ensure browser readiness
+        setTimeout(() => {
+            link.click()
+            document.body.removeChild(link)
+            window.URL.revokeObjectURL(url)
+            toast.success("Import report downloaded")
+        }, 100)
     }
 
     const confirmBulkProcess = async () => {
@@ -331,7 +342,12 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 if (res.success && res.stats) {
                     const { success, alreadyRefunded, notFound } = res.stats
                     toast.success(`Sync Complete: ${success} processed, ${alreadyRefunded} already done, ${notFound} not found.`)
-                    setTimeout(() => window.location.reload(), 2000)
+
+                    if (res.results && res.results.length > 0) {
+                        downloadStatusCSV(res.results)
+                    }
+
+                    router.refresh()
                 } else {
                     toast.error(res.error)
                 }
@@ -342,7 +358,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
                     if (res.results && res.results.length > 0) {
                         downloadStatusCSV(res.results)
                     }
-                    setTimeout(() => window.location.reload(), 1500)
+                    router.refresh()
                 } else {
                     toast.error(res.error)
                 }
@@ -567,6 +583,8 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 selectedIds={selectedSettlement?.id === -1 ? selectedIds : undefined}
                 onSuccess={() => {
                     setSelectedIds([])
+                    toast.success("Payment processed successfully")
+                    router.refresh()
                 }}
             />
 

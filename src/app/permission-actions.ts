@@ -17,7 +17,7 @@ import { RolePermissions } from '@/types'
  * @param role - The administrative or ambassador role name
  * @returns Object containing success status and the permission matrix
  */
-export async function getRolePermissions(role: string) {
+export async function getRolePermissions(role: string): Promise<{ success: boolean; permissions?: RolePermissions; error?: string; isDefault?: boolean; isDegraded?: boolean }> {
     if (!role) {
         return { success: false, error: 'Role is required' }
     }
@@ -26,10 +26,14 @@ export async function getRolePermissions(role: string) {
             where: { role }
         })
 
+        // Fallback to default permissions from code
+        const defaultPerms = DEFAULT_ROLE_PERMISSIONS[role] || DEFAULT_ROLE_PERMISSIONS['Campus Admin']
+
         if (dbPerms) {
             return {
                 success: true,
                 permissions: {
+                    ...defaultPerms,
                     analytics: { access: (dbPerms as any).analyticsAccess, scope: (dbPerms as any).analyticsScope },
                     userManagement: {
                         access: (dbPerms as any).userMgmtAccess,
@@ -71,13 +75,24 @@ export async function getRolePermissions(role: string) {
                     programLeads: { access: (dbPerms as any).programLeadsAccess, scope: (dbPerms as any).programLeadsScope || 'none' },
                     externalPrograms: { access: (dbPerms as any).externalProgramsAccess, scope: (dbPerms as any).externalProgramsScope || 'none' },
                     academicCycles: { access: (dbPerms as any).academicCyclesAccess, scope: (dbPerms as any).academicCyclesScope || 'none' },
-                    disasterRecovery: { access: (dbPerms as any).disasterRecoveryAccess, scope: (dbPerms as any).disasterRecoveryScope || 'none' }
+                    disasterRecovery: { access: (dbPerms as any).disasterRecoveryAccess, scope: (dbPerms as any).disasterRecoveryScope || 'none' },
+                    // New Fields (with mapping if they exist in DB, fallback to defaults)
+                    whatsappConfig: (dbPerms as any).whatsappConfigAccess !== undefined ? {
+                        access: (dbPerms as any).whatsappConfigAccess,
+                        scope: (dbPerms as any).whatsappConfigScope || 'none'
+                    } : defaultPerms.whatsappConfig,
+                    campaigns: (dbPerms as any).campaignsAccess !== undefined ? {
+                        access: (dbPerms as any).campaignsAccess,
+                        scope: (dbPerms as any).campaignsScope || 'none'
+                    } : defaultPerms.campaigns,
+                    marketingManager: (dbPerms as any).marketingManagerAccess !== undefined ? {
+                        access: (dbPerms as any).marketingManagerAccess,
+                        scope: (dbPerms as any).marketingManagerScope || 'none'
+                    } : defaultPerms.marketingManager
                 }
             }
         }
 
-        // Fallback to default permissions from code
-        const defaultPerms = DEFAULT_ROLE_PERMISSIONS[role]
         return { success: true, permissions: defaultPerms, isDefault: true }
     } catch (error) {
         console.warn('getRolePermissions: Database unreachable. Falling back to code-based defaults.', (error as any).message)
@@ -222,6 +237,12 @@ export async function updateRolePermissions(role: string, permissions: RolePermi
                 academicCyclesScope: permissions.academicCycles?.scope ?? 'none',
                 disasterRecoveryAccess: permissions.disasterRecovery?.access ?? false,
                 disasterRecoveryScope: permissions.disasterRecovery?.scope ?? 'none',
+                whatsappConfigAccess: permissions.whatsappConfig?.access ?? false,
+                whatsappConfigScope: permissions.whatsappConfig?.scope ?? 'none',
+                campaignsAccess: permissions.campaigns?.access ?? false,
+                campaignsScope: permissions.campaigns?.scope ?? 'none',
+                marketingManagerAccess: permissions.marketingManager?.access ?? false,
+                marketingManagerScope: permissions.marketingManager?.scope ?? 'none',
                 updatedBy: admin.fullName
             } as any
         })

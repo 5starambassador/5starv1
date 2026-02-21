@@ -1,15 +1,23 @@
 import { getCurrentUser } from '@/lib/auth-service'
 import { hasPermission } from '@/lib/permission-service'
 import { redirect } from 'next/navigation'
+import prisma from '@/lib/prisma'
 
-import { getSettlements, getFinanceStats, getRegistrationTransactions, getUsersReadyForRefund } from '@/app/finance-actions'
+import { getSettlements, getFinanceStats, getRegistrationTransactions, getUsersReadyForRefund, getAccruedPayoutLiabilities } from '@/app/finance-actions'
 import { Wallet, CheckCircle, Clock, CreditCard } from 'lucide-react'
 import { FinanceClientTabs } from '@/components/finance/FinanceClientTabs'
 import { FinanceOverviewChart } from '@/components/finance/FinanceOverviewChart'
 
-export default async function FinancePage() {
+export default async function FinancePage({
+    searchParams
+}: {
+    searchParams: Promise<{ year?: string }>
+}) {
     const user = await getCurrentUser()
     if (!user) redirect('/')
+
+    const { year } = await searchParams
+    const selectedYear = year || '2026-2027'
 
     // RBAC: Only roles with Finance & Settlements access
     if (!await hasPermission('settlements')) {
@@ -17,16 +25,22 @@ export default async function FinancePage() {
     }
 
     // Fetch Data
-    const [settlementsRes, statsRes, registrationsRes, readyForRefundRes] = await Promise.all([
+    const [settlementsRes, statsRes, registrationsRes, readyForRefundRes, liabilitiesRes, academicYears] = await Promise.all([
         getSettlements('All'),
         getFinanceStats(),
         getRegistrationTransactions('All'),
-        getUsersReadyForRefund()
+        getUsersReadyForRefund(),
+        getAccruedPayoutLiabilities(selectedYear),
+        prisma.academicYear.findMany({
+            orderBy: { year: 'desc' }
+        })
     ])
 
     const settlements = (settlementsRes.success && settlementsRes.data) ? settlementsRes.data : []
     const registrations = (registrationsRes.success && registrationsRes.data) ? registrationsRes.data : []
     const eligibleRefunds = (readyForRefundRes.success && readyForRefundRes.data) ? readyForRefundRes.data : []
+    const liabilities = (liabilitiesRes.success && liabilitiesRes.data) ? liabilitiesRes.data : []
+    const years = academicYears.map(y => y.year)
     const stats: any = statsRes.success ? statsRes.stats : { pending: 0, processed: 0, totalCount: 0, totalRevenue: 0 }
 
     return (
@@ -108,6 +122,9 @@ export default async function FinancePage() {
                 settlements={settlements}
                 registrations={registrations}
                 eligibleRefunds={eligibleRefunds}
+                liabilities={liabilities}
+                availableYears={years}
+                selectedYear={selectedYear}
             />
         </div>
     )

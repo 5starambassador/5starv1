@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma'
 import { calculateTotalBenefit, ReferralData, UserContext } from '@/lib/benefit-calculator'
+import { getSpecialBonusRate } from '@/lib/reward-constants'
 
 export interface RevenueStats {
     projectedValue: number
@@ -93,8 +94,8 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
 
     const campusFeeMap = new Map<number, { otp: number, wotp: number }>()
     grade1Fees.forEach(gf => {
-        const otp = gf.annualFee_otp || 60000
-        const wotp = gf.annualFee_wotp || 60000
+        const otp = gf.annualFee_otp || 0
+        const wotp = gf.annualFee_wotp || 0
         campusFeeMap.set(gf.campusId, { otp, wotp })
     })
 
@@ -103,8 +104,11 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
         const feeType = r.selectedFeeType || r.student?.selectedFeeType || 'OTP'
         const campusFees = r.campusId ? campusFeeMap.get(r.campusId) : undefined
         const selectedGrade1Fee = (feeType === 'WOTP')
-            ? (campusFees?.wotp || 60000)
-            : (campusFees?.otp || 60000)
+            ? (campusFees?.wotp || 0)
+            : (campusFees?.otp || 0)
+
+        // Determine Special Bonus Rate (Centralized)
+        const specialRate = getSpecialBonusRate(r.campus)
 
         // Ensure we handle potential nulls for grade safely
         return {
@@ -113,7 +117,8 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
             campusName: r.campus || '',
             grade: r.gradeInterested || '',
             campusGrade1Fee: selectedGrade1Fee,
-            actualFee: r.student?.annualFee || r.student?.baseFee || r.annualFee || 60000
+            actualFee: r.student?.annualFee || r.student?.baseFee || r.annualFee || 0,
+            specialBonusRate: specialRate
         }
     })
 
@@ -122,7 +127,7 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
         campusId: r.campusId || 0,
         campusName: r.campus || '',
         grade: r.gradeInterested || '',
-        actualFee: r.student?.annualFee || r.student?.baseFee || r.annualFee || 60000
+        actualFee: r.student?.annualFee || r.student?.baseFee || r.annualFee || 0
     }))
 
     // 5. Fetch Benefit Slabs (Required for Calculator)

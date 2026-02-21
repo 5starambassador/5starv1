@@ -8,11 +8,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { GlassCard } from '@/components/ui/GlassCard'
 
 // Shared Logic for Filtering (Mirrors server logic but runs on client)
-const filterReferralsByYear = (referrals: any[], yearRecord: any) => {
+const filterReferralsByYear = (referrals: any[], yearRecord: any, CURRENT_ACADEMIC_YEAR: string, PREVIOUS_ACADEMIC_YEAR: string) => {
     if (!yearRecord) return referrals // "All Time" case
-
-    const PREVIOUS_ACADEMIC_YEAR = '2024-2025'
-    const CURRENT_ACADEMIC_YEAR = '2025-2026'
 
     // Exact logic from dashboard/page.tsx
     // 1. Current Year Logic
@@ -76,9 +73,12 @@ interface DashboardClientProps {
     // Pre-calculated context stuff
     dynamicStudentFee: number
     monthStats: any
+    whatsappUrl: string
     notifications?: any[]
     unreadCount?: number
     programs?: any[]
+    currentYear: string
+    prevYear: string
 }
 
 export function DashboardClient({
@@ -89,9 +89,12 @@ export function DashboardClient({
     slabs,
     dynamicStudentFee,
     monthStats,
+    whatsappUrl,
     notifications = [],
     unreadCount = 0,
-    programs = []
+    programs = [],
+    currentYear,
+    prevYear
 }: DashboardClientProps) {
 
     // Filter State
@@ -108,7 +111,7 @@ export function DashboardClient({
         if (selectedYearId !== 'all') {
             selectedYearRecord = activeYears.find(y => y.id === selectedYearId)
             if (selectedYearRecord) {
-                currentSet = filterReferralsByYear(referrals, selectedYearRecord)
+                currentSet = filterReferralsByYear(referrals, selectedYearRecord, currentYear, prevYear)
             }
         }
 
@@ -117,17 +120,12 @@ export function DashboardClient({
         // 1. Format for Calculator
         const formatForCalculator = (refs: any[]) => refs.map(r => {
             const feeType = r.selectedFeeType || 'OTP'
-            // We need to reconstruct the map since it can't pass as generic Map easily over boundaries sometimes,
-            // but here we are in Client Component receiving it. 
-            // Note: Maps are not serializable if passed from Server Component.
-            // We should expect an object or array. Let's assume it was passed as object or we fix it in page.tsx.
-            // For now, let's assume it's passed as a plain object [campusId]: {otp, wotp}
+            const year = r.admittedYear || currentYear
 
-            // Actually, let's just handle it.
-            // If passed as Map, React warns. We will fix page.tsx to pass an Object or Array.
-            // Let's assume `campusFeeMap` is an object: Record<number, {otp, wotp}>
+            // campusFeeMap is Record<Year, Record<CampusId, Fees>>
+            const yearFees = (campusFeeMap as any)[year] || (campusFeeMap as any)[currentYear]
+            const fees = yearFees ? (yearFees as any)[r.campusId] : null
 
-            const fees = (campusFeeMap as any)[r.campusId]
             const g1Fee = (feeType === 'WOTP') ? (fees?.wotp || 60000) : (fees?.otp || 60000)
 
             return {
@@ -152,12 +150,8 @@ export function DashboardClient({
 
         // Simpler approach:
         // Always pass the FULL list of previous year referrals (calculated once globally) to the context
-        // so `calculateTotalBenefit` can decide if it applies.
-
-        // We need "Previous Year Referrals" specifically defined relative to "2025-2026".
-        // It's static context.
-        const prevYearRecord = activeYears.find(y => y.year === '2024-2025')
-        const previousYearReferrals = filterReferralsByYear(referrals, prevYearRecord).filter((r: any) => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted')
+        const previousYearReferrals = filterReferralsByYear(referrals, activeYears.find(y => y.year === prevYear), currentYear, prevYear)
+            .filter((r: any) => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted')
 
         const userContext: UserContext = {
             role: user.role as 'Parent' | 'Staff' | 'Alumni' | 'Others',
@@ -173,16 +167,22 @@ export function DashboardClient({
             }))
         }
 
-        const rawBenefits = calculateTotalBenefit(formatForCalculator(currentSet), userContext, slabs)
+        // 3. Calculation: Earned (Confirmed + Admitted) vs Potential (All Prospects)
+        const confirmedSet = currentSet.filter((r: any) => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted')
+        const allProspectsSet = currentSet.filter((r: any) => !['Rejected', 'Closed'].includes(r.leadStatus))
+
+        const earnedBenefits = calculateTotalBenefit(formatForCalculator(confirmedSet), userContext, slabs)
+        const potentialBenefits = calculateTotalBenefit(formatForCalculator(allProspectsSet), userContext, slabs)
 
         const benefitStats = {
-            earned: rawBenefits.totalAmount,
-            potential: 0,
-            displayPercent: rawBenefits.tierPercent
+            earned: earnedBenefits.totalAmount,
+            potential: potentialBenefits.totalAmount,
+            displayPercent: earnedBenefits.tierPercent,
+            potentialPercent: potentialBenefits.tierPercent
         }
 
         return { filteredReferrals: currentSet, benefitStats }
-    }, [referrals, selectedYearId, activeYears, campusFeeMap, user, slabs])
+    }, [referrals, selectedYearId, activeYears, campusFeeMap, user, slabs, currentYear, prevYear])
 
     // Derived Display Data
     const realConfirmedCount = filteredReferrals.filter((r: any) => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted').length
@@ -256,7 +256,7 @@ export function DashboardClient({
                     confirmedReferralCount: realConfirmedCount,
                     lifetimeCount: user.confirmedReferralCount,
                     yearFeeBenefitPercent: benefitStats.displayPercent,
-                    potentialFeeBenefitPercent: 0,
+                    potentialFeeBenefitPercent: benefitStats.potentialPercent,
                     benefitStatus: user.benefitStatus || 'Active',
                     status: user.status || 'Pending',
                     empId: user.empId,
@@ -265,7 +265,7 @@ export function DashboardClient({
                     isFiveStarMember: user.isFiveStarMember
                 }}
                 recentReferrals={recentReferralsDisplay}
-                whatsappUrl={`https://wa.me/?text=${encodeURIComponent(`Hi! I'm part of the Achariya Partnership Program.\nAdmissions link: ${process.env.NEXT_PUBLIC_BASE_URL || 'https://5starambassador.com'}/r/${user.encryptedCode}`)}`}
+                whatsappUrl={whatsappUrl}
                 referralLink={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://5starambassador.com'}/r/${user.encryptedCode}`}
                 monthStats={monthStats}
                 totalLeadsCount={pendingCount}

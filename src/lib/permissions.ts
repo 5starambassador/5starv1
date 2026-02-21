@@ -42,6 +42,9 @@ export interface RolePermissions {
     externalPrograms: ModulePermission & { canCreate?: boolean; canEdit?: boolean; canDelete?: boolean }
     academicCycles: ModulePermission
     disasterRecovery: ModulePermission
+    whatsappConfig?: ModulePermission
+    campaigns?: ModulePermission
+    marketingManager?: ModulePermission
 }
 
 /**
@@ -73,7 +76,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         programLeads: { access: true, scope: 'all' },
         externalPrograms: { access: true, scope: 'all', canCreate: true, canEdit: true, canDelete: true },
         academicCycles: { access: true, scope: 'all' },
-        disasterRecovery: { access: true, scope: 'all' }
+        disasterRecovery: { access: true, scope: 'all' },
+        whatsappConfig: { access: true, scope: 'all', canCreate: true, canEdit: true, canDelete: true },
+        campaigns: { access: true, scope: 'all', canCreate: true, canEdit: true, canDelete: true },
+        marketingManager: { access: true, scope: 'all', canCreate: true, canEdit: true, canDelete: true }
     },
     'Campus Head': {
         analytics: { access: true, scope: 'campus' },
@@ -99,7 +105,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         programLeads: { access: false, scope: 'none' },
         externalPrograms: { access: false, scope: 'none' },
         academicCycles: { access: false, scope: 'none' },
-        disasterRecovery: { access: false, scope: 'none' }
+        disasterRecovery: { access: false, scope: 'none' },
+        whatsappConfig: { access: false, scope: 'none' },
+        campaigns: { access: true, scope: 'campus' },
+        marketingManager: { access: false, scope: 'none' }
     },
     'Finance Admin': {
         analytics: { access: true, scope: 'all' },
@@ -125,7 +134,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         programLeads: { access: false, scope: 'none' },
         externalPrograms: { access: false, scope: 'none' },
         academicCycles: { access: false, scope: 'none' },
-        disasterRecovery: { access: false, scope: 'none' }
+        disasterRecovery: { access: false, scope: 'none' },
+        whatsappConfig: { access: false, scope: 'none' },
+        campaigns: { access: false, scope: 'none' },
+        marketingManager: { access: false, scope: 'none' }
     },
     'Admission Admin': {
         analytics: { access: true, scope: 'view-only' },
@@ -151,7 +163,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         programLeads: { access: false, scope: 'none' },
         externalPrograms: { access: false, scope: 'none' },
         academicCycles: { access: false, scope: 'none' },
-        disasterRecovery: { access: false, scope: 'none' }
+        disasterRecovery: { access: false, scope: 'none' },
+        whatsappConfig: { access: false, scope: 'none' },
+        campaigns: { access: true, scope: 'view-only' },
+        marketingManager: { access: false, scope: 'none' }
     },
     'Campus Admin': {
         analytics: { access: true, scope: 'campus' },
@@ -177,7 +192,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         programLeads: { access: false, scope: 'none' },
         externalPrograms: { access: false, scope: 'none' },
         academicCycles: { access: false, scope: 'none' },
-        disasterRecovery: { access: false, scope: 'none' }
+        disasterRecovery: { access: false, scope: 'none' },
+        whatsappConfig: { access: false, scope: 'none' },
+        campaigns: { access: false, scope: 'none' },
+        marketingManager: { access: false, scope: 'none' }
     },
     'Staff': {
         analytics: { access: true, scope: 'self' },
@@ -203,7 +221,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         programLeads: { access: true, scope: 'self' },
         externalPrograms: { access: false, scope: 'none' },
         academicCycles: { access: false, scope: 'none' },
-        disasterRecovery: { access: false, scope: 'none' }
+        disasterRecovery: { access: false, scope: 'none' },
+        whatsappConfig: { access: false, scope: 'none' },
+        campaigns: { access: false, scope: 'none' },
+        marketingManager: { access: false, scope: 'none' }
     },
     'Parent': {
         analytics: { access: true, scope: 'self' },
@@ -229,7 +250,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         programLeads: { access: true, scope: 'self' },
         externalPrograms: { access: false, scope: 'none' },
         academicCycles: { access: false, scope: 'none' },
-        disasterRecovery: { access: false, scope: 'none' }
+        disasterRecovery: { access: false, scope: 'none' },
+        whatsappConfig: { access: false, scope: 'none' },
+        campaigns: { access: false, scope: 'none' },
+        marketingManager: { access: false, scope: 'none' }
     },
     'Alumni': {
         analytics: { access: true, scope: 'self' },
@@ -255,7 +279,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         programLeads: { access: true, scope: 'self' },
         externalPrograms: { access: false, scope: 'none' },
         academicCycles: { access: false, scope: 'none' },
-        disasterRecovery: { access: false, scope: 'none' }
+        disasterRecovery: { access: false, scope: 'none' },
+        whatsappConfig: { access: false, scope: 'none' },
+        campaigns: { access: false, scope: 'none' },
+        marketingManager: { access: false, scope: 'none' }
     },
     'Others': {
         analytics: { access: true, scope: 'self' },
@@ -281,6 +308,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         programLeads: { access: true, scope: 'self' },
         externalPrograms: { access: false, scope: 'none' },
         academicCycles: { access: false, scope: 'none' },
-        disasterRecovery: { access: false, scope: 'none' }
+        disasterRecovery: { access: false, scope: 'none' },
+        whatsappConfig: { access: false, scope: 'none' },
+        campaigns: { access: false, scope: 'none' },
+        marketingManager: { access: false, scope: 'none' }
     },
 }

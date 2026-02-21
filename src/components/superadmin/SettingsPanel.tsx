@@ -371,6 +371,36 @@ export function SettingsPanel({ permissions }: { permissions?: RolePermissions }
                                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                                     </label>
                                 </div>
+
+                                <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-between">
+                                    <div>
+                                        <p className="font-black text-emerald-900 uppercase tracking-widest text-[10px] mb-1">Active Gateway</p>
+                                        <h4 className="font-bold text-gray-900">Online Gateway</h4>
+                                        <p className="text-xs text-emerald-700 mt-1 opacity-70 italic">
+                                            Select the preferred payment partner
+                                        </p>
+                                    </div>
+                                    <div className="flex bg-white/50 p-1 rounded-xl border border-emerald-200">
+                                        <button
+                                            onClick={() => setSystemSettings({ ...systemSettings, activeOnlineGateway: 'CASHFREE' })}
+                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${(systemSettings.activeOnlineGateway === 'CASHFREE' || !systemSettings.activeOnlineGateway)
+                                                    ? 'bg-emerald-600 text-white shadow-md'
+                                                    : 'text-emerald-700 hover:bg-emerald-100'
+                                                }`}
+                                        >
+                                            Cashfree
+                                        </button>
+                                        <button
+                                            onClick={() => setSystemSettings({ ...systemSettings, activeOnlineGateway: 'GRAYQUEST' })}
+                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${systemSettings.activeOnlineGateway === 'GRAYQUEST'
+                                                    ? 'bg-emerald-600 text-white shadow-md'
+                                                    : 'text-emerald-700 hover:bg-emerald-100'
+                                                }`}
+                                        >
+                                            GrayQuest
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
 
 

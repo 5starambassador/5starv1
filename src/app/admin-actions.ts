@@ -271,12 +271,80 @@ export async function getAdminAnalytics(): Promise<{ success: boolean; error?: s
 }
 
 /**
- * Confirms a referral lead and calculates benefits for the ambassador.
+ * Synchronizes the ambassador's benefit count and percentages.
+ * Internal helper to ensure consistency across multiple actions.
+ */
+async function syncAmbassadorBenefits(tx: any, userId: number) {
+    const currentYearStart = new Date(new Date().getFullYear(), 0, 1);
+
+    // 1. Count confirmed referrals for the CURRENT academic year
+    const currentYearCount = await tx.referralLead.count({
+        where: {
+            userId,
+            leadStatus: 'Confirmed',
+            confirmedDate: { gte: currentYearStart }
+        }
+    })
+
+    // 2. Count LIFETIME confirmed referrals
+    const count = await tx.referralLead.count({
+        where: {
+            userId,
+            leadStatus: 'Confirmed'
+        }
+    })
+
+    // 3. Determine Benefit % based on the 5-Star system logic
+    const shortTermSlabs: Record<number, number> = { 1: 5, 2: 10, 3: 20, 4: 30, 5: 50 };
+    const lookupCount = Math.min(currentYearCount, 5);
+    let yearFeeBenefit = shortTermSlabs[lookupCount] || 0;
+
+    let longTermTotal = 0;
+    const user = await tx.user.findUnique({ where: { userId } });
+
+    if (user?.isFiveStarMember) {
+        const priorYearCount = count - currentYearCount;
+        if (currentYearCount >= 1) {
+            const cumulativeBase = priorYearCount * 3;
+            const currentYearBoost = currentYearCount * 5;
+            longTermTotal = cumulativeBase + currentYearBoost;
+
+            if (longTermTotal > yearFeeBenefit) {
+                yearFeeBenefit = longTermTotal;
+            }
+        }
+    }
+
+    // 4. Update User with synchronized data
+    const updatedUser = await tx.user.update({
+        where: { userId },
+        data: {
+            confirmedReferralCount: count,
+            yearFeeBenefitPercent: yearFeeBenefit,
+            longTermBenefitPercent: longTermTotal,
+            benefitStatus: count >= 1 ? 'Active' : 'Inactive',
+            isFiveStarMember: user?.isFiveStarMember || count >= 5,
+            lastActiveYear: new Date().getFullYear()
+        }
+    })
+
+    return {
+        count,
+        currentYearCount,
+        user: updatedUser,
+        isFiveStarMember: user?.isFiveStarMember || false,
+        justAchieved5Star: !user?.isFiveStarMember && count >= 5
+    }
+}
+
+/**
+ * Confirms a referral lead, assigning admission data and activating points.
+ for the ambassador.
  * Triggers revalidation of administrative and user dashboards.
  * @param leadId - The ID of the referral lead to confirm.
  * @returns An object indicating success or failure.
  */
-export async function confirmReferral(leadId: number, admissionNumber: string, selectedFeeType: 'OTP' | 'WOTP', admissionFee?: number, donationFee?: number, annualFee?: number) {
+export async function confirmReferral(leadId: number, admissionNumber: string, selectedFeeType: 'OTP' | 'WOTP', admissionFee?: number, donationFee?: number, annualFee?: number, academicYear?: string) {
     const admin = await getCurrentUser()
     // Permission handled by matrix Check
     if (!admin || !await canEdit('referralTracking')) {
@@ -303,7 +371,7 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
             // 0. Fetch the correct fee snapshot
             const leadRecord = await tx.referralLead.findUnique({
                 where: { leadId },
-                select: { campusId: true, campus: true, gradeInterested: true }
+                select: { campusId: true, campus: true, gradeInterested: true, admittedYear: true }
             })
 
             if (!leadRecord || !leadRecord.gradeInterested) {
@@ -312,10 +380,27 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
 
             // Fix for "Special Logic" campuses (AASC, etc.) which might not have campusId mapped
             const isSpecialCampus = ['ACET', 'AASC', 'ACCHM'].includes(leadRecord.campus || '')
-            const hasValidCampus = leadRecord.campusId || (isSpecialCampus && leadRecord.campus)
+
+            // [Auto-Heal] If records have name but no ID, try to resolve it from Master
+            let finalCampusId = leadRecord.campusId
+            if (!finalCampusId && leadRecord.campus && !isSpecialCampus) {
+                const matchedCampus = await tx.campus.findFirst({
+                    where: { campusName: leadRecord.campus }
+                })
+                if (matchedCampus) {
+                    finalCampusId = matchedCampus.id
+                    // Persist the fix
+                    await tx.referralLead.update({
+                        where: { leadId },
+                        data: { campusId: finalCampusId }
+                    })
+                }
+            }
+
+            const hasValidCampus = finalCampusId || (isSpecialCampus && leadRecord.campus)
 
             if (!hasValidCampus) {
-                throw new Error('Lead must have a campus assigned before confirmation')
+                throw new Error(`Lead must have a campus assigned before confirmation (Campus: ${leadRecord.campus || 'None'})`)
             }
 
             // --- Validation for Normal Logic Campuses ---
@@ -349,7 +434,7 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
                 } else {
                     const feeRule = await tx.gradeFee.findFirst({
                         where: {
-                            campusId: leadRecord.campusId || 0, // Fallback to 0 or handle missing campusId better
+                            campusId: finalCampusId || 0, // Fallback to 0 or handle missing campusId better
                             grade: leadRecord.gradeInterested,
                             academicYear: '2026-2027' // Default for now, ideally dynamic
                         }
@@ -375,86 +460,22 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
                     selectedFeeType: selectedFeeType,
                     annualFee: finalAnnualFee,
                     admissionFeeCollected: admissionFee,
-                    donationFeeCollected: donationFee
+                    donationFeeCollected: donationFee,
+                    admittedYear: academicYear || leadRecord.admittedYear
                 } as any
             }).then(l => l as any)
 
             // 2. Update User Counts & Benefits (Automation)
-            const userId = lead.userId
+            const syncResult = await syncAmbassadorBenefits(tx, lead.userId)
 
-            // Count confirmed referrals for the CURRENT academic year
-            // Note: In a production system, we'd filter by academicYear field
-            const currentYearStart = new Date(new Date().getFullYear(), 0, 1);
-
-            const currentYearCount = await tx.referralLead.count({
-                where: {
-                    userId,
-                    leadStatus: 'Confirmed',
-                    confirmedDate: { gte: currentYearStart }
-                }
-            })
-
-            // Count LIFETIME confirmed referrals
-            const count = await tx.referralLead.count({
-                where: {
-                    userId,
-                    leadStatus: 'Confirmed'
-                }
-            })
-
-            // Determine Benefit % based on the 5-Star system logic (1.5)
-            // TRACK 1: New Referrals This Year (Reset annually)
-            // 1: 5%, 2: 10%, 3: 20%, 4: 30%, 5: 50%
-            const shortTermSlabs: Record<number, number> = { 1: 5, 2: 10, 3: 20, 4: 30, 5: 50 };
-            const lookupCount = Math.min(currentYearCount, 5); // Use currentYearCount, NOT lifetime count
-            let yearFeeBenefit = shortTermSlabs[lookupCount] || 0;
-
-            // Long Term Benefit Logic (Track 2 - For Returning 5-Star Members)
-            // Prereq: Must be Five Star Member (achieved 5+ referrals in PREVIOUS years)
-            // Activation: Must have at least 1 NEW referral this year to unlock
-            let longTermTotal = 0;
-            const user = await tx.user.findUnique({ where: { userId } });
-
-            if (user?.isFiveStarMember) { // Check eligibility first
-                // DATE-BASED CUMULATIVE CALCULATION
-                // We must distinguish between "Prior Years History" and "Current Year Activity"
-
-                // 1. Current Year Activity (Boost: 5%)
-                // Already calculated as currentYearCount
-
-                // 2. Count referrals from PRIOR years (Base: 3%)
-                // Total 'count' includes current, so subtract current to get prior
-                const priorYearCount = count - currentYearCount;
-
-                // 3. Apply Formula ONLY if active this year
-                if (currentYearCount >= 1) {
-                    const cumulativeBase = priorYearCount * 3;
-                    const currentYearBoost = currentYearCount * 5;
-                    longTermTotal = cumulativeBase + currentYearBoost;
-
-                    // System picks the higher of: short-term slab OR cumulative long-term
-                    if (longTermTotal > yearFeeBenefit) {
-                        yearFeeBenefit = longTermTotal;
-                    }
-                }
+            return {
+                leadId,
+                userId: lead.userId,
+                parentName: lead.parentName,
+                currentYearCount: syncResult.currentYearCount,
+                wasFiveStar: syncResult.isFiveStarMember,
+                justAchieved5Star: syncResult.justAchieved5Star
             }
-
-            // Update User
-            await tx.user.update({
-                where: { userId },
-                data: {
-                    confirmedReferralCount: count,
-                    yearFeeBenefitPercent: yearFeeBenefit,
-                    longTermBenefitPercent: longTermTotal,
-                    benefitStatus: count >= 1 ? 'Active' : 'Inactive', // Basic active check
-                    // Qualify for Five Star status if they hit 5 referrals this year OR already have it
-                    // Sticky flag: once 5-star, always 5-star
-                    isFiveStarMember: user?.isFiveStarMember || count >= 5,
-                    lastActiveYear: new Date().getFullYear()
-                }
-            })
-
-            return { leadId, userId, parentName: lead.parentName, currentYearCount, wasFiveStar: user?.isFiveStarMember || false, justAchieved5Star: !user?.isFiveStarMember && count >= 5 }
         })
 
         // --- Send In-App Notifications ---
@@ -482,6 +503,8 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
         revalidatePath('/admin')
         revalidatePath('/dashboard')
         revalidatePath('/referrals')
+        revalidatePath('/superadmin/referrals')
+        revalidatePath('/superadmin/users')
 
         // Log the action (1.5)
         await logAction('UPDATE', 'referral', `Confirmed referral lead: ${result.leadId}`, result.leadId.toString(), null, { userId: result.userId })
@@ -524,62 +547,14 @@ export async function revertReferralConfirmation(leadId: number) {
                 } as any
             })
 
-            // 2. RECALCULATE Benefits (CRITICAL STEP)
-            const userId = lead.userId
-            const currentYearStart = new Date(new Date().getFullYear(), 0, 1);
-
-            // Recount AFTER revert
-            const currentYearCount = await tx.referralLead.count({
-                where: {
-                    userId,
-                    leadStatus: 'Confirmed',
-                    confirmedDate: { gte: currentYearStart }
-                }
-            })
-
-            const count = await tx.referralLead.count({
-                where: {
-                    userId,
-                    leadStatus: 'Confirmed'
-                }
-            })
-
-            // --- Benefit Logic (Identical to Confirm Logic) ---
-            const shortTermSlabs: Record<number, number> = { 1: 5, 2: 10, 3: 20, 4: 30, 5: 50 };
-            const lookupCount = Math.min(currentYearCount, 5);
-            let yearFeeBenefit = shortTermSlabs[lookupCount] || 0;
-
-            let longTermTotal = 0;
-            const user = await tx.user.findUnique({ where: { userId } });
-
-            if (user?.isFiveStarMember) {
-                const priorYearCount = count - currentYearCount;
-                if (currentYearCount >= 1) {
-                    const cumulativeBase = priorYearCount * 3;
-                    const currentYearBoost = currentYearCount * 5;
-                    longTermTotal = cumulativeBase + currentYearBoost;
-                    if (longTermTotal > yearFeeBenefit) {
-                        yearFeeBenefit = longTermTotal;
-                    }
-                }
-            }
-
-            // Update User with CORRECTED benefit state
-            await tx.user.update({
-                where: { userId },
-                data: {
-                    confirmedReferralCount: count,
-                    yearFeeBenefitPercent: yearFeeBenefit,
-                    longTermBenefitPercent: longTermTotal,
-                    benefitStatus: count >= 1 ? 'Active' : 'Inactive',
-                    // Note: We don't revoke isFiveStarMember if they drop below 5, it's sticky
-                }
-            })
+            // 2. RECALCULATE Benefits (CRITICAL STEP) using helper
+            await syncAmbassadorBenefits(tx, lead.userId)
         })
 
         revalidatePath('/admin')
         revalidatePath('/dashboard')
         revalidatePath('/referrals')
+        revalidatePath('/superadmin/referrals')
 
         await logAction('UPDATE', 'referral', `Reverted confirmation for lead: ${leadId}`, leadId.toString())
 
@@ -1111,6 +1086,7 @@ export async function bulkConfirmReferrals(leadIds: number[], forcedFeeType?: 'O
         }
 
         revalidatePath('/admin')
+        revalidatePath('/superadmin/referrals')
         return { success: true, processed, totalRequested: leadIds.length }
 
     } catch (e: any) {
@@ -1189,10 +1165,16 @@ export async function bulkConvertLeadsToStudents(leadIds: number[]) {
                     continue
                 }
 
+                // GUARD: Require a real student name — never use a fake fallback
+                if (!lead.studentName || lead.studentName.trim() === '') {
+                    errors.push({ id: lead.leadId, reason: 'Missing student name — update the referral lead with the real student name before converting' })
+                    continue
+                }
+
                 // CREATE STUDENT RECORD
                 await prisma.student.create({
                     data: {
-                        fullName: lead.studentName || (lead.parentName + "'s Child"),
+                        fullName: lead.studentName,
                         parentId: actualParentId,
                         campusId: finalCampusId,
                         grade: lead.gradeInterested || 'N/A',
@@ -1227,6 +1209,8 @@ export async function bulkConvertLeadsToStudents(leadIds: number[]) {
         }
 
         revalidatePath('/admin')
+        revalidatePath('/superadmin/students')
+        revalidatePath('/superadmin/referrals')
         return { success: true, processed, totalRequested: leadIds.length, errors }
     } catch (e: any) {
         return { success: false, error: e.message }
@@ -1314,24 +1298,34 @@ export async function updateReferral(leadId: number, data: {
         }
 
         // Check if status is transitioning to Confirmed to set timestamp
-        const currentLead = await prisma.referralLead.findUnique({ where: { leadId }, select: { leadStatus: true } })
+        const currentLead = await prisma.referralLead.findUnique({ where: { leadId }, select: { leadStatus: true, userId: true } })
         let extraData: any = {}
-        if (data.leadStatus === 'Confirmed' && currentLead?.leadStatus !== 'Confirmed') {
-            extraData.confirmedAt = new Date()
+        const isStatusChangingToConfirmed = data.leadStatus === 'Confirmed' && currentLead?.leadStatus !== 'Confirmed'
+        const isStatusChangingFromConfirmed = data.leadStatus && data.leadStatus !== 'Confirmed' && currentLead?.leadStatus === 'Confirmed'
+
+        if (isStatusChangingToConfirmed) {
+            extraData.confirmedDate = new Date() // FIXED TYPO: confirmedAt -> confirmedDate
         }
 
-        await prisma.referralLead.update({
-            where: { leadId },
-            data: {
-                ...data,
-                ...extraData,
-                campusId: campusId,
-                leadStatus: data.leadStatus ? toLeadStatus(data.leadStatus) : undefined,
-                annualFee: data.annualFee ? Number(data.annualFee) : null,
-                selectedFeeType: (!data.selectedFeeType || (data.selectedFeeType as any) === '') ? null : data.selectedFeeType as any,
-                admissionFeeCollected: data.admissionFeeCollected,
-                donationFeeCollected: data.donationFeeCollected
-            } as any // Cast to any to resolve Prisma type sync issues
+        await prisma.$transaction(async (tx) => {
+            await tx.referralLead.update({
+                where: { leadId },
+                data: {
+                    ...data,
+                    ...extraData,
+                    campusId: campusId,
+                    leadStatus: data.leadStatus ? toLeadStatus(data.leadStatus) : undefined,
+                    annualFee: data.annualFee ? Number(data.annualFee) : null,
+                    selectedFeeType: (!data.selectedFeeType || (data.selectedFeeType as any) === '') ? null : data.selectedFeeType as any,
+                    admissionFeeCollected: data.admissionFeeCollected,
+                    donationFeeCollected: data.donationFeeCollected
+                } as any
+            })
+
+            // SYNC: If status changed, update ambassador benefits
+            if (isStatusChangingToConfirmed || isStatusChangingFromConfirmed) {
+                await syncAmbassadorBenefits(tx, currentLead!.userId)
+            }
         })
 
         // SYNC: Automatically update linked Student record to maintain consistency
@@ -1353,6 +1347,11 @@ export async function updateReferral(leadId: number, data: {
                     studentUpdateData.baseFee = data.annualFee ? Number(data.annualFee) : 0 // Sync exactly with lead fee
                 }
 
+                // Sync academic year
+                if (data.admittedYear) {
+                    studentUpdateData.academicYear = data.admittedYear
+                }
+
                 // If any relevant fields changed, update the student record
                 if (Object.keys(studentUpdateData).length > 0) {
                     await prisma.student.update({
@@ -1372,6 +1371,7 @@ export async function updateReferral(leadId: number, data: {
 
         revalidatePath('/admin')
         revalidatePath('/referrals')
+        revalidatePath('/superadmin/referrals')
 
         await logAction('UPDATE', 'referral', `Updated lead ${leadId} details`, leadId.toString(), null, { updates: data })
 
@@ -1498,5 +1498,56 @@ export async function getGradeFee(campusName: string, grade: string, academicYea
     } catch (e) {
         console.error('Error fetching grade fee:', e)
         return { success: false, error: 'Failed to fetch fee' }
+    }
+}
+
+/**
+ * Fetches all unique grades available for a specific campus.
+ * Prioritizes the GradeFee table for accuracy.
+ */
+export async function getCampusGrades(campusName: string) {
+    const user = await getCurrentUser()
+    if (!user) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const cleanCampusName = campusName.trim()
+
+        // 1. Find Campus ID
+        let campus = await prisma.campus.findUnique({ where: { campusName: cleanCampusName } })
+        if (!campus) {
+            campus = await prisma.campus.findFirst({
+                where: { campusName: { contains: cleanCampusName, mode: 'insensitive' } }
+            })
+        }
+
+        if (!campus) return { success: false, error: 'Campus not found' }
+
+        // 2. Fetch unique grades from GradeFee
+        const gradeFees = await prisma.gradeFee.findMany({
+            where: { campusId: campus.id },
+            select: { grade: true },
+            distinct: ['grade']
+        })
+
+        if (gradeFees.length > 0) {
+            return { success: true, grades: gradeFees.map(gf => gf.grade) }
+        }
+
+        // 3. Fallback to Campus model grades field mapping if GradeFee is empty
+        if (campus.grades) {
+            try {
+                // Check if it's JSON array string or comma separated
+                const parsed = JSON.parse(campus.grades)
+                if (Array.isArray(parsed)) return { success: true, grades: parsed }
+            } catch (e) {
+                const split = campus.grades.split(',').map(g => g.trim()).filter(Boolean)
+                if (split.length > 0) return { success: true, grades: split }
+            }
+        }
+
+        return { success: true, grades: [] }
+    } catch (error) {
+        console.error('Error fetching campus grades:', error)
+        return { success: false, error: 'Failed' }
     }
 }

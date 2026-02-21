@@ -7,16 +7,30 @@ import { revalidatePath } from 'next/cache'
 import { getCurrentUser } from '@/lib/auth-service'
 
 export async function getCampuses() {
-    try {
-        const campuses = await prisma.campus.findMany({
-            include: { gradeFees: true },
-            orderBy: { campusName: 'asc' }
-        })
-        return { success: true, campuses }
-    } catch (error) {
-        console.error('Error fetching campuses:', error)
-        return { success: false, error: 'Failed to fetch campuses' }
+    let retries = 3
+    while (retries > 0) {
+        try {
+            const campuses = await prisma.campus.findMany({
+                include: { gradeFees: true },
+                orderBy: { campusName: 'asc' }
+            })
+            return { success: true, campuses }
+        } catch (error: any) {
+            retries--
+            console.error(`Error fetching campuses (${3 - retries}/3):`, error?.message)
+            if (retries === 0) {
+                console.error('CRITICAL DATABASE ERROR [getCampuses]:', {
+                    message: error?.message,
+                    code: error?.code,
+                    stack: error?.stack
+                })
+                return { success: false, error: 'Database connection failed' }
+            }
+            // Small delay before retry
+            await new Promise(resolve => setTimeout(resolve, 500))
+        }
     }
+    return { success: false, error: 'Unknown error' }
 }
 
 export async function addCampus(data: {

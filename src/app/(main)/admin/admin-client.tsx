@@ -34,7 +34,7 @@ interface AdminClientProps {
         conversionRate?: number
     }
     analytics: AdminAnalytics
-    confirmReferral: (leadId: number, admissionNumber: string, selectedFeeType: 'OTP' | 'WOTP', admFee?: number, donFee?: number) => Promise<{ success: boolean; error?: string }>
+    confirmReferral: (leadId: number, admissionNumber: string, selectedFeeType: 'OTP' | 'WOTP', admFee?: number, donFee?: number, annualFee?: number, academicYear?: string) => Promise<{ success: boolean; error?: string }>
     initialView?: string
     campuses?: Campus[]
     users?: User[]

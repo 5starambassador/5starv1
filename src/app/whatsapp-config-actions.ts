@@ -1,0 +1,114 @@
+'use server'
+
+import prisma from '@/lib/prisma'
+import { revalidatePath } from 'next/cache'
+import { getCurrentUser } from '@/lib/auth-service'
+import { hasPermission } from '@/lib/permission-service'
+
+export type WhatsAppConfigData = {
+    id: number
+    eventKey: string
+    templateName: string
+    isEnabled: boolean
+    description: string | null
+}
+
+export async function getWhatsAppConfigs(): Promise<WhatsAppConfigData[]> {
+    const user = await getCurrentUser()
+    if (!user || !(await hasPermission('whatsappConfig'))) return []
+    try {
+        return await prisma.whatsAppConfig.findMany({
+            orderBy: { eventKey: 'asc' }
+        })
+    } catch (error) {
+        console.error('Failed to fetch WhatsApp configs:', error)
+        return []
+    }
+}
+
+export async function updateWhatsAppConfig(id: number, data: Partial<WhatsAppConfigData>) {
+    if (!(await hasPermission('whatsappConfig'))) {
+        return { success: false, error: 'Permission denied' }
+    }
+    try {
+        await prisma.whatsAppConfig.update({
+            where: { id },
+            data: {
+                templateName: data.templateName,
+                isEnabled: data.isEnabled,
+                description: data.description
+            }
+        })
+        revalidatePath('/superadmin')
+        return { success: true }
+    } catch (error) {
+        console.error('Failed to update WhatsApp config:', error)
+        return { success: false, error: 'Failed to update configuration' }
+    }
+}
+
+export async function createWhatsAppConfig(data: Omit<WhatsAppConfigData, 'id'>) {
+    if (!(await hasPermission('whatsappConfig'))) {
+        return { success: false, error: 'Permission denied' }
+    }
+    try {
+        await prisma.whatsAppConfig.create({
+            data: {
+                eventKey: data.eventKey.toUpperCase(),
+                templateName: data.templateName,
+                isEnabled: data.isEnabled,
+                description: data.description
+            }
+        })
+        revalidatePath('/superadmin')
+        return { success: true }
+    } catch (error: any) {
+        console.error('Failed to create WhatsApp config:', error)
+        if (error.code === 'P2002') {
+            return { success: false, error: 'An event with this key already exists' }
+        }
+        return { success: false, error: 'Failed to create configuration' }
+    }
+}
+
+export async function seedDefaultConfigs() {
+    const defaults = [
+        { eventKey: 'WELCOME_MESSAGE', templateName: 'welcome_message', description: 'Immediate welcome message with referral code.' },
+        { eventKey: 'WELCOME_DRIP_DAY1', templateName: 'welcome_drip_day1', description: 'Day 1 educational video tip.' },
+        { eventKey: 'WELCOME_DRIP_DAY3', templateName: 'welcome_drip_day3', description: 'Day 3 family sharing nudge.' },
+        { eventKey: 'REFERRAL_OTP', templateName: 'referral_otp', description: 'OTP for lead submission form.' },
+        { eventKey: 'PAYMENT_REMINDER', templateName: 'payment_reminder', description: 'Reminder if reg fee is unpaid >24h.' },
+        { eventKey: 'KYC_REMINDER', templateName: 'kyc_reminder', description: 'Nudge for missing Aadhaar or Child info.' },
+        { eventKey: 'KYC_APPROVED', templateName: 'kyc_approved', description: 'Verification success alert.' },
+        { eventKey: 'KYC_REJECTED', templateName: 'kyc_rejected', description: 'Verification failure alert with reason.' },
+        { eventKey: 'REFERRAL_CONFIRMED', templateName: 'referral_confirmed', description: 'Alert when a lead is confirmed.' },
+        { eventKey: 'SETTLEMENT_PROCESSED', templateName: 'settlement_processed', description: 'Alert when commission is paid.' },
+        { eventKey: 'PROGRAM_LAUNCH', templateName: 'program_launch_v1', description: 'Broadcast for new external programs.' },
+        { eventKey: 'BANK_DETAILS_REMINDER', templateName: 'bank_details_missing', description: 'Nudge for missing bank account details.' },
+        { eventKey: 'CHILD_DETAILS_REMINDER', templateName: 'child_details_missing', description: 'Nudge for missing child/campus data.' },
+        { eventKey: 'REFERRAL_REMINDER', templateName: 'referral_reminder', description: 'Nudge for active users with 0 referrals.' },
+        { eventKey: 'REFERRAL_MOTIVATION', templateName: 'referral_motivation', description: 'Gamification nudge for users with 1-4 referrals.' },
+        { eventKey: 'REFERRAL_FOLLOWUP', templateName: 'referral_followup', description: 'Follow-up for stale referral leads.' },
+        { eventKey: 'PROGRAM_BROWSE_ABANDON', templateName: 'program_browse_abandon', description: 'Nudge for users who viewed but didn\'t join a program.' },
+        { eventKey: 'AMBASSADOR_PROGRAM_NUDGE', templateName: 'ambassador_program_nudge', description: 'Alert ambassador about their friend\'s interest.' },
+        { eventKey: 'PROGRAM_REGISTRATION_SUCCESS', templateName: 'program_registration_success', description: 'Congrats to lead for program registration.' },
+        { eventKey: 'AMBASSADOR_PROGRAM_SUCCESS', templateName: 'ambassador_program_success', description: 'Congrats to ambassador for successful program referral.' },
+        { eventKey: 'ADMIN_DAILY_DIGEST', templateName: 'admin_daily_digest', description: 'Daily performance summary for Superadmins.' },
+        { eventKey: 'FIVE_STAR_ACHIEVEMENT', templateName: 'five_star_achievement', description: 'Celebration alert for 5-star status.' },
+        { eventKey: 'TICKET_RESPONSE', templateName: 'ticket_response', description: 'Alert when a support ticket is answered.' },
+    ]
+
+    try {
+        for (const config of defaults) {
+            await prisma.whatsAppConfig.upsert({
+                where: { eventKey: config.eventKey },
+                update: {}, // Don't overwrite if already exists
+                create: config
+            })
+        }
+        return { success: true }
+    } catch (error) {
+        console.error('Failed to seed configs:', error)
+        return { success: false }
+    }
+}

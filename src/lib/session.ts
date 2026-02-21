@@ -5,21 +5,28 @@ export interface SessionPayload extends JWTPayload {
     userId: number
     userType: 'user' | 'admin'
     role?: string
+    status?: string
     ip?: string
     is2faVerified?: boolean
 }
 import { cookies, headers } from 'next/headers'
 
-const secretKey = process.env.JWT_SECRET || 'secret-key-achariya'
-const encodedKey = new TextEncoder().encode(secretKey)
+const secretKey = process.env.JWT_SECRET
+if (!secretKey) {
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('CRITICAL: JWT_SECRET environment variable is missing in production!')
+    }
+    console.warn('WARNING: JWT_SECRET is missing. Authentication will fail.')
+}
+const encodedKey = new TextEncoder().encode(secretKey || 'fallback-only-for-dev-safety-logic')
 
-export async function createSession(userId: number, userType: 'user' | 'admin' = 'user', role?: string, is2faVerified: boolean = true) {
+export async function createSession(userId: number, userType: 'user' | 'admin' = 'user', role?: string, is2faVerified: boolean = true, status?: string) {
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for mobile persistence
 
     // Get client IP for tracking (1.4)
     const clientIp = (await headers()).get('x-forwarded-for')?.split(',')[0] || 'unknown'
 
-    const session = await new SignJWT({ userId, userType, role, ip: clientIp, is2faVerified })
+    const session = await new SignJWT({ userId, userType, role, status, ip: clientIp, is2faVerified })
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
         .setExpirationTime('30d')
@@ -63,7 +70,8 @@ export async function rotateSession() {
         session.userId as number,
         session.userType as 'user' | 'admin',
         session.role as string | undefined,
-        session.is2faVerified as boolean | undefined
+        session.is2faVerified as boolean | undefined,
+        session.status as string | undefined
     )
 }
 

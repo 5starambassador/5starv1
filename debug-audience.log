@@ -35,3 +35,407 @@ Server has closed the connection.
 2026-02-11T15:48:13.364Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
 2026-02-11T15:48:24.015Z Raw DB count: 4193
 2026-02-11T15:48:24.016Z Resulting Count: 4193
+2026-02-15T03:44:10.195Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T03:44:10.742Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T03:44:10.743Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-15T03:44:18.411Z Raw DB count: 4657
+2026-02-15T03:44:18.411Z Resulting Count: 4657
+2026-02-15T03:54:08.628Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T03:54:08.879Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T03:54:08.879Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-15T03:54:18.049Z Raw DB count: 4657
+2026-02-15T03:54:18.049Z Resulting Count: 4657
+2026-02-15T04:36:08.766Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:36:09.426Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:36:09.426Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-15T04:36:33.783Z Raw DB count: 4660
+2026-02-15T04:36:33.783Z Resulting Count: 4660
+2026-02-15T04:40:11.475Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:40:11.730Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:40:11.731Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-15T04:40:31.104Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:40:31.315Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:40:31.315Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-15T04:40:51.667Z Raw DB count: 4660
+2026-02-15T04:40:51.668Z Resulting Count: 4660
+2026-02-15T04:41:10.206Z Raw DB count: 4660
+2026-02-15T04:41:10.207Z Resulting Count: 4660
+2026-02-15T04:41:10.253Z Incoming Audience: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:41:10.509Z Filtering with: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:41:10.509Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-15T04:41:32.277Z Raw DB count: 4660
+2026-02-15T04:41:32.277Z Resulting Count: 4660
+2026-02-15T04:41:32.307Z Incoming Audience: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:41:32.620Z Filtering with: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:41:32.621Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-15T04:41:52.379Z Raw DB count: 4660
+2026-02-15T04:41:52.379Z Resulting Count: 4660
+2026-02-15T04:41:52.405Z Incoming Audience: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:41:53.030Z Filtering with: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:41:53.031Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-15T04:42:05.267Z Raw DB count: 4660
+2026-02-15T04:42:05.268Z Resulting Count: 4660
+2026-02-15T04:42:05.293Z Incoming Audience: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:42:05.530Z Filtering with: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:42:05.531Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-15T04:42:14.570Z Raw DB count: 4660
+2026-02-15T04:42:14.571Z Resulting Count: 4660
+2026-02-15T04:42:15.445Z Incoming Audience: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:42:15.656Z Filtering with: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:42:15.656Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-15T04:42:24.541Z Raw DB count: 4660
+2026-02-15T04:42:24.542Z Resulting Count: 4660
+2026-02-15T04:42:24.568Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:42:24.811Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:42:24.811Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-15T04:42:40.573Z Raw DB count: 4660
+2026-02-15T04:42:40.574Z Resulting Count: 4660
+2026-02-15T04:55:41.155Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:55:42.023Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:55:42.023Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-15T04:55:58.581Z Raw DB count: 4661
+2026-02-15T04:55:58.581Z Resulting Count: 4661
+2026-02-15T04:55:59.219Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T04:55:59.566Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T04:55:59.567Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-15T04:56:18.431Z Raw DB count: 4661
+2026-02-15T04:56:18.431Z Resulting Count: 4661
+2026-02-15T04:56:18.467Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"REFERRALS"}
+2026-02-15T04:56:18.873Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"REFERRALS"}
+2026-02-15T04:56:18.873Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-15T04:56:41.280Z Raw DB count: 4661
+2026-02-15T04:56:41.281Z Resulting Count: 4661
+2026-02-15T04:56:41.309Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T04:56:41.816Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T04:56:41.816Z Prisma WHERE clause: {"status":"Active","email":{"not":null}}
+2026-02-15T04:56:50.676Z Raw DB count: 4661
+2026-02-15T04:56:50.677Z Resulting Count: 4661
+2026-02-15T04:58:26.994Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:58:27.194Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:58:27.195Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T04:58:36.827Z Raw DB count: 5441
+2026-02-15T04:58:36.828Z Resulting Count: 5441
+2026-02-15T04:58:36.871Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T04:58:37.162Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T04:58:37.493Z Resulting Count: 42
+2026-02-15T04:58:40.737Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"REFERRALS"}
+2026-02-15T04:58:41.195Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"REFERRALS"}
+2026-02-15T04:58:41.961Z Resulting Count: 586
+2026-02-15T04:58:44.560Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T04:58:44.982Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T04:58:46.214Z Resulting Count: 1346
+2026-02-15T04:58:47.487Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"AMBASSADORS"}
+2026-02-15T04:58:47.790Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"AMBASSADORS"}
+2026-02-15T04:58:47.790Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T04:59:01.821Z Raw DB count: 5441
+2026-02-15T04:59:01.822Z Resulting Count: 5441
+2026-02-15T04:59:03.025Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T04:59:03.385Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T04:59:04.217Z Resulting Count: 1346
+2026-02-15T04:59:05.976Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"AMBASSADORS"}
+2026-02-15T04:59:06.178Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"AMBASSADORS"}
+2026-02-15T04:59:06.178Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T04:59:12.732Z Raw DB count: 5441
+2026-02-15T04:59:12.732Z Resulting Count: 5441
+2026-02-15T04:59:12.798Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T04:59:13.012Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T04:59:13.577Z Resulting Count: 1346
+2026-02-15T04:59:13.631Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"AMBASSADORS"}
+2026-02-15T04:59:13.840Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"AMBASSADORS"}
+2026-02-15T04:59:13.841Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T04:59:21.163Z Raw DB count: 5441
+2026-02-15T04:59:21.164Z Resulting Count: 5441
+2026-02-15T04:59:21.548Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"REFERRALS"}
+2026-02-15T04:59:21.836Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"REFERRALS"}
+2026-02-15T04:59:22.093Z Resulting Count: 586
+2026-02-15T04:59:22.115Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T04:59:22.318Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T04:59:22.522Z Resulting Count: 42
+2026-02-15T04:59:22.543Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"AMBASSADORS"}
+2026-02-15T04:59:22.750Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"AMBASSADORS"}
+2026-02-15T04:59:22.750Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T04:59:31.219Z Raw DB count: 5441
+2026-02-15T04:59:31.219Z Activity filtered count: 5441
+2026-02-15T04:59:31.223Z Resulting Count: 5441
+2026-02-15T04:59:31.287Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T04:59:31.653Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T04:59:32.473Z Resulting Count: 1346
+2026-02-15T04:59:32.508Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T04:59:32.875Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T04:59:33.236Z Resulting Count: 42
+2026-02-15T04:59:39.630Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:59:39.843Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:59:39.843Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T04:59:51.030Z Raw DB count: 5441
+2026-02-15T04:59:51.031Z Activity filtered count: 5441
+2026-02-15T04:59:51.034Z Resulting Count: 5441
+2026-02-15T04:59:51.514Z Incoming Audience: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:59:51.774Z Filtering with: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:59:52.478Z Resulting Count: 1346
+2026-02-15T04:59:52.516Z Incoming Audience: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:59:52.726Z Filtering with: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:59:52.988Z Resulting Count: 586
+2026-02-15T04:59:53.027Z Incoming Audience: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:59:53.242Z Filtering with: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:59:53.451Z Resulting Count: 42
+2026-02-15T04:59:53.493Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:59:53.703Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T04:59:53.703Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:00:01.325Z Raw DB count: 5441
+2026-02-15T05:00:01.325Z Activity filtered count: 5441
+2026-02-15T05:00:01.329Z Resulting Count: 5441
+2026-02-15T05:00:02.522Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:02.764Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:02.765Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:00:12.162Z Raw DB count: 5441
+2026-02-15T05:00:12.162Z Activity filtered count: 5441
+2026-02-15T05:00:12.165Z Resulting Count: 5441
+2026-02-15T05:00:12.738Z Incoming Audience: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:12.963Z Filtering with: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:13.185Z Resulting Count: 42
+2026-02-15T05:00:13.219Z Incoming Audience: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:13.448Z Filtering with: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:13.766Z Resulting Count: 586
+2026-02-15T05:00:13.807Z Incoming Audience: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:14.013Z Filtering with: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:14.637Z Resulting Count: 1346
+2026-02-15T05:00:14.672Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:14.871Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:14.872Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:00:22.638Z Raw DB count: 5441
+2026-02-15T05:00:22.639Z Activity filtered count: 5441
+2026-02-15T05:00:22.642Z Resulting Count: 5441
+2026-02-15T05:00:22.687Z Incoming Audience: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:22.955Z Filtering with: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:23.635Z Resulting Count: 1346
+2026-02-15T05:00:23.671Z Incoming Audience: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:23.899Z Filtering with: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:24.153Z Resulting Count: 586
+2026-02-15T05:00:24.186Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:24.390Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:24.390Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:00:30.878Z Raw DB count: 5441
+2026-02-15T05:00:30.879Z Activity filtered count: 5441
+2026-02-15T05:00:30.882Z Resulting Count: 5441
+2026-02-15T05:00:30.926Z Incoming Audience: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:31.173Z Filtering with: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:31.847Z Resulting Count: 1346
+2026-02-15T05:00:31.889Z Incoming Audience: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:32.104Z Filtering with: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:32.355Z Resulting Count: 586
+2026-02-15T05:00:32.391Z Incoming Audience: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:32.604Z Filtering with: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:32.800Z Resulting Count: 42
+2026-02-15T05:00:32.830Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:33.031Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:33.032Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:00:40.248Z Raw DB count: 5441
+2026-02-15T05:00:40.248Z Activity filtered count: 5441
+2026-02-15T05:00:40.252Z Resulting Count: 5441
+2026-02-15T05:00:40.306Z Incoming Audience: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:40.604Z Filtering with: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:41.154Z Resulting Count: 1346
+2026-02-15T05:00:41.178Z Incoming Audience: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:41.399Z Filtering with: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:41.695Z Resulting Count: 586
+2026-02-15T05:00:42.241Z Incoming Audience: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:42.453Z Filtering with: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:42.652Z Resulting Count: 42
+2026-02-15T05:00:42.676Z Incoming Audience: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:42.885Z Filtering with: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:43.137Z Resulting Count: 586
+2026-02-15T05:00:43.161Z Incoming Audience: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:43.368Z Filtering with: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:43.886Z Resulting Count: 1346
+2026-02-15T05:00:43.906Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:44.112Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:00:44.112Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:00:51.971Z Raw DB count: 5441
+2026-02-15T05:00:51.971Z Activity filtered count: 5441
+2026-02-15T05:00:51.974Z Resulting Count: 5441
+2026-02-15T05:01:21.547Z Incoming Audience: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:01:22.173Z Filtering with: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:01:23.338Z Resulting Count: 1346
+2026-02-15T05:01:23.397Z Incoming Audience: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:01:23.914Z Filtering with: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:01:24.531Z Resulting Count: 586
+2026-02-15T05:01:24.577Z Incoming Audience: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:01:24.881Z Filtering with: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:01:25.103Z Resulting Count: 42
+2026-02-15T05:01:25.722Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:01:25.940Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:01:25.941Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:01:32.898Z Raw DB count: 5441
+2026-02-15T05:01:32.898Z Activity filtered count: 5441
+2026-02-15T05:01:32.901Z Resulting Count: 5441
+2026-02-15T05:02:00.583Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:02:01.092Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:02:01.092Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:02:10.140Z Raw DB count: 5441
+2026-02-15T05:02:10.141Z Activity filtered count: 5441
+2026-02-15T05:02:10.145Z Resulting Count: 5441
+2026-02-15T05:02:10.184Z Incoming Audience: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:02:10.473Z Filtering with: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:02:11.183Z Resulting Count: 1346
+2026-02-15T05:02:11.221Z Incoming Audience: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:02:11.580Z Filtering with: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:02:11.941Z Resulting Count: 586
+2026-02-15T05:02:11.974Z Incoming Audience: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:02:12.271Z Filtering with: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:02:12.534Z Resulting Count: 42
+2026-02-15T05:02:24.847Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:02:25.262Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:02:25.263Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:02:36.341Z Raw DB count: 5441
+2026-02-15T05:02:36.342Z Activity filtered count: 5441
+2026-02-15T05:02:36.346Z Resulting Count: 5441
+2026-02-15T05:02:40.112Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:02:40.528Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:02:40.528Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:02:59.595Z Raw DB count: 5441
+2026-02-15T05:02:59.596Z Activity filtered count: 5441
+2026-02-15T05:02:59.599Z Resulting Count: 5441
+2026-02-15T05:03:02.230Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:03:02.497Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:03:02.498Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:03:24.981Z Raw DB count: 5441
+2026-02-15T05:03:24.981Z Activity filtered count: 5441
+2026-02-15T05:03:24.985Z Resulting Count: 5441
+2026-02-15T05:03:25.028Z Incoming Audience: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:03:25.348Z Filtering with: {"type":"STUDENTS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:03:26.101Z Resulting Count: 1346
+2026-02-15T05:03:26.135Z Incoming Audience: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:03:26.393Z Filtering with: {"type":"REFERRALS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:03:26.733Z Resulting Count: 586
+2026-02-15T05:03:26.769Z Incoming Audience: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:03:27.027Z Filtering with: {"type":"PROGRAM_LEADS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:03:27.290Z Resulting Count: 42
+2026-02-15T05:03:27.323Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:03:27.590Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:03:27.591Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:03:37.359Z Raw DB count: 5441
+2026-02-15T05:03:37.359Z Activity filtered count: 5441
+2026-02-15T05:03:37.362Z Resulting Count: 5441
+2026-02-15T05:03:38.360Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:03:38.658Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:03:38.659Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:03:46.471Z Raw DB count: 5441
+2026-02-15T05:03:46.472Z Activity filtered count: 5441
+2026-02-15T05:03:46.475Z Resulting Count: 5441
+2026-02-15T05:03:48.328Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T05:03:49.018Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T05:03:50.678Z Resulting Count: 1346
+2026-02-15T05:03:52.818Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"REFERRALS"}
+2026-02-15T05:03:53.087Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"REFERRALS"}
+2026-02-15T05:03:53.492Z Resulting Count: 586
+2026-02-15T05:03:54.780Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T05:03:55.262Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T05:03:55.680Z Resulting Count: 42
+2026-02-15T05:04:01.772Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:04:02.170Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:04:02.171Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:04:12.511Z Raw DB count: 5441
+2026-02-15T05:04:12.512Z Activity filtered count: 5441
+2026-02-15T05:04:12.516Z Resulting Count: 5441
+2026-02-15T05:04:12.573Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T05:04:12.885Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T05:04:14.261Z Resulting Count: 1346
+2026-02-15T05:04:14.298Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"REFERRALS"}
+2026-02-15T05:04:14.685Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"REFERRALS"}
+2026-02-15T05:04:15.376Z Resulting Count: 586
+2026-02-15T05:04:15.420Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T05:04:15.964Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T05:04:16.440Z Resulting Count: 42
+2026-02-15T05:04:16.476Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"AMBASSADORS"}
+2026-02-15T05:04:16.820Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"AMBASSADORS"}
+2026-02-15T05:04:16.820Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:04:26.014Z Raw DB count: 5441
+2026-02-15T05:04:26.015Z Activity filtered count: 5441
+2026-02-15T05:04:26.017Z Resulting Count: 5441
+2026-02-15T05:04:35.451Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T05:04:35.780Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T05:04:36.651Z Resulting Count: 1346
+2026-02-15T05:04:38.988Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"REFERRALS"}
+2026-02-15T05:04:39.255Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"REFERRALS"}
+2026-02-15T05:04:39.644Z Resulting Count: 586
+2026-02-15T05:04:41.373Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T05:04:41.642Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T05:04:41.972Z Resulting Count: 42
+2026-02-15T05:13:21.638Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:13:21.840Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:13:21.840Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:13:31.527Z Raw DB count: 5442
+2026-02-15T05:13:31.528Z Activity filtered count: 5442
+2026-02-15T05:13:31.531Z Resulting Count: 5442
+2026-02-15T05:13:31.586Z Incoming Audience: {"type":"AMBASSADORS","role":"Parent","campus":"All","activityStatus":"All"}
+2026-02-15T05:13:31.836Z Filtering with: {"type":"AMBASSADORS","role":"Parent","campus":"All","activityStatus":"All"}
+2026-02-15T05:13:31.836Z Prisma WHERE clause: {"status":"Active","role":"Parent"}
+2026-02-15T05:13:40.589Z Raw DB count: 4464
+2026-02-15T05:13:40.590Z Activity filtered count: 4464
+2026-02-15T05:13:40.592Z Resulting Count: 4464
+2026-02-15T05:13:40.627Z Incoming Audience: {"type":"AMBASSADORS","role":"Staff","campus":"All","activityStatus":"All"}
+2026-02-15T05:13:40.869Z Filtering with: {"type":"AMBASSADORS","role":"Staff","campus":"All","activityStatus":"All"}
+2026-02-15T05:13:40.870Z Prisma WHERE clause: {"status":"Active","role":"Staff"}
+2026-02-15T05:13:44.132Z Raw DB count: 857
+2026-02-15T05:13:44.132Z Activity filtered count: 857
+2026-02-15T05:13:44.133Z Resulting Count: 857
+2026-02-15T05:13:44.180Z Incoming Audience: {"type":"AMBASSADORS","role":"Alumni","campus":"All","activityStatus":"All"}
+2026-02-15T05:13:44.417Z Filtering with: {"type":"AMBASSADORS","role":"Alumni","campus":"All","activityStatus":"All"}
+2026-02-15T05:13:44.417Z Prisma WHERE clause: {"status":"Active","role":"Alumni"}
+2026-02-15T05:13:44.752Z Raw DB count: 31
+2026-02-15T05:13:44.752Z Activity filtered count: 31
+2026-02-15T05:13:44.753Z Resulting Count: 31
+2026-02-15T05:13:58.620Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:13:59.082Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:13:59.083Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:14:09.017Z Raw DB count: 5442
+2026-02-15T05:14:09.018Z Activity filtered count: 5442
+2026-02-15T05:14:09.022Z Resulting Count: 5442
+2026-02-15T05:14:09.075Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T05:14:09.377Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T05:14:10.170Z Resulting Count: 1346
+2026-02-15T05:14:10.207Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"AMBASSADORS"}
+2026-02-15T05:14:10.417Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"AMBASSADORS"}
+2026-02-15T05:14:10.418Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:14:21.718Z Raw DB count: 5442
+2026-02-15T05:14:21.719Z Activity filtered count: 5442
+2026-02-15T05:14:21.722Z Resulting Count: 5442
+2026-02-15T05:14:24.810Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T05:14:25.204Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"PROGRAM_LEADS"}
+2026-02-15T05:14:25.590Z Resulting Count: 42
+2026-02-15T05:14:27.560Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"REFERRALS"}
+2026-02-15T05:14:27.773Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"REFERRALS"}
+2026-02-15T05:14:28.082Z Resulting Count: 586
+2026-02-15T05:14:28.763Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T05:14:29.433Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"STUDENTS"}
+2026-02-15T05:14:31.347Z Resulting Count: 1346
+2026-02-15T05:14:32.510Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All","type":"AMBASSADORS"}
+2026-02-15T05:14:32.845Z Filtering with: {"role":"All","campus":"All","activityStatus":"All","type":"AMBASSADORS"}
+2026-02-15T05:14:32.846Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:14:43.013Z Raw DB count: 5442
+2026-02-15T05:14:43.014Z Activity filtered count: 5442
+2026-02-15T05:14:43.018Z Resulting Count: 5442
+2026-02-15T05:14:43.060Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:14:43.375Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T05:14:43.375Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T05:14:50.617Z Raw DB count: 5442
+2026-02-15T05:14:50.618Z Activity filtered count: 5442
+2026-02-15T05:14:50.621Z Resulting Count: 5442
+2026-02-15T05:14:50.662Z Incoming Audience: {"type":"AMBASSADORS","role":"Parent","campus":"All","activityStatus":"All"}
+2026-02-15T05:14:50.873Z Filtering with: {"type":"AMBASSADORS","role":"Parent","campus":"All","activityStatus":"All"}
+2026-02-15T05:14:50.873Z Prisma WHERE clause: {"status":"Active","role":"Parent"}
+2026-02-15T05:14:56.211Z Raw DB count: 4464
+2026-02-15T05:14:56.212Z Activity filtered count: 4464
+2026-02-15T05:14:56.214Z Resulting Count: 4464
+2026-02-15T06:05:06.257Z Incoming Audience: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T06:05:06.464Z Filtering with: {"type":"AMBASSADORS","role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T06:05:06.464Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T06:05:31.505Z Raw DB count: 5446
+2026-02-15T06:05:31.506Z Activity filtered count: 5446
+2026-02-15T06:05:31.509Z Resulting Count: 5446
+2026-02-15T07:04:26.518Z Incoming Audience: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T07:04:26.909Z Filtering with: {"role":"All","campus":"All","activityStatus":"All"}
+2026-02-15T07:04:26.910Z Prisma WHERE clause: {"status":"Active"}
+2026-02-15T07:05:37.950Z Raw DB count: 5451
+2026-02-15T07:05:37.951Z Activity filtered count: 5451
+2026-02-15T07:05:37.953Z Resulting Count: 5451

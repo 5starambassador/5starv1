@@ -50,8 +50,8 @@ export default async function SuperAdminUsersPage({ searchParams }: PageProps) {
             <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading User Database...</div>}>
                 <UsersPageClient
                     users={serializeData(users) as any}
-                    campuses={campusesData.campuses || []}
-                    currentUserRole={user.role}
+                    campuses={serializeData(campusesData.campuses || []) as any}
+                    currentUserRole={user?.role || 'Campus Admin'}
                 />
             </Suspense>
         </ErrorBoundary>

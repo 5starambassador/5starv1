@@ -342,12 +342,12 @@ export function UserTable({
         if (selectedColumns.mobileNumber) headers.push('Mobile Number')
         if (selectedColumns.role) headers.push('Role')
         if (selectedColumns.email) headers.push('Email')
-        if (selectedColumns.campus) headers.push('Campus')
+        if (selectedColumns.campus) headers.push('Assigned Campus')
         if (selectedColumns.empId) headers.push('EMP ID')
         if (selectedColumns.grade) headers.push('Grade')
         if (selectedColumns.isFiveStarMember) headers.push('Is 5-Star Member')
         if (selectedColumns.benefitStatus) headers.push('Benefit Status')
-        if (selectedColumns.childInAchariya) headers.push('Child in Achariya')
+        if (selectedColumns.childInAchariya) headers.push('Child In Achariya')
         if (selectedColumns.childName) headers.push('Child Name')
         if (selectedColumns.childEprNo) headers.push('Child ERP No')
         if (selectedColumns.aadharNo) headers.push('Aadhar No')
@@ -455,7 +455,7 @@ export function UserTable({
                     </button>
                     <button
                         onClick={() => {
-                            const csvContent = "Full Name,Mobile Number,Role,Email,Campus Name,EMP ID,Child ERP No,Academic Year,Password\nJohn Doe,9876543210,Staff,john@example.com,Achariya School,EMP001,,2025-2026,Pass@123\nJane Doe,9876543211,Parent,jane@example.com,Achariya School,,STU001,2025-2026,Pass@123"
+                            const csvContent = "Full Name,Mobile Number,Role,Email,Assigned Campus,Emp ID,Child ERP No,Academic Year,Password,Referral Code,Child In Achariya,Benefit Status,Aadhar No,Address,Bank Name,Account Number,IFSC Code\nJohn Doe,9876543210,Staff,john@example.com,Achariya School,EMP001,,2025-2026,Pass@123,,No,Active,,,\nJane Doe,9876543211,Parent,jane@example.com,Achariya School,,STU001,2025-2026,Pass@123,,Yes,PendingVerification,,,"
                             const blob = new Blob([csvContent], { type: 'text/csv' })
                             const url = window.URL.createObjectURL(blob)
                             const a = document.createElement('a')

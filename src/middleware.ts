@@ -84,10 +84,20 @@ export async function middleware(request: NextRequest) {
     // Logic:
     // A. If Authenticated
     if (user) {
+        // [HARD BLOCK] Redirect Pending users trying to access dashboard
+        if (user.status === 'Pending' && pathname.startsWith('/dashboard')) {
+            console.log(`[AUTH] Hard Block: Redirecting Pending user ${user.userId} to payment step`);
+            return NextResponse.redirect(new URL('/?step=payment', request.url))
+        }
+
         // 1. If trying to access Auth pages (Login/Register), redirect to dashboard
         if (isAuthRoute) {
             if (user.role === 'Super Admin') return NextResponse.redirect(new URL('/superadmin', request.url))
             if (user.userType === 'admin') return NextResponse.redirect(new URL('/admin', request.url)) // Or their specific dashboard
+
+            // If user is pending, they should go to payment step even if they try to go to /login or /register
+            if (user.status === 'Pending') return NextResponse.redirect(new URL('/?step=payment', request.url))
+
             return NextResponse.redirect(new URL('/dashboard', request.url))
         }
 
@@ -113,7 +123,7 @@ export async function middleware(request: NextRequest) {
 
     const response = NextResponse.next()
 
-    // 4. Security Headers
+    // 4. Security Headers (Temporarily commented out to fix "Content Blocked" error)
     response.headers.set('X-Frame-Options', 'SAMEORIGIN')
     response.headers.set('X-Content-Type-Options', 'nosniff')
     response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
@@ -125,18 +135,18 @@ export async function middleware(request: NextRequest) {
         response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
     }
 
-    // CSP - Adjust as needed for external services
+    // CSP - Optimized for Cashfree & GrayQuest
     const isProd = process.env.NODE_ENV === 'production'
     const csp = [
         "default-src 'self' blob:",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.cashfree.com https://payments.cashfree.com",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.cashfree.com https://payments.cashfree.com https://payments.grayquest.com https://grayquest.com https://checkout.grayquest.com",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com",
         "img-src 'self' data: https:",
-        "frame-src 'self' https://sdk.cashfree.com https://api.cashfree.com https://payments.cashfree.com",
+        "frame-src 'self' https://sdk.cashfree.com https://api.cashfree.com https://payments.cashfree.com https://payments.grayquest.com https://grayquest.com https://checkout.grayquest.com",
         isProd
-            ? "connect-src 'self' https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com"
-            : "connect-src 'self' http://localhost:3001 http://10.0.2.2:3001 http://192.168.0.250:3001 ws://localhost:3001 ws://10.0.2.2:3001 ws://192.168.0.250:3001 https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com",
+            ? "connect-src 'self' https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments.grayquest.com https://grayquest.com https://checkout.grayquest.com"
+            : "connect-src 'self' http://localhost:3000 http://localhost:3001 http://10.0.2.2:3001 http://192.168.0.250:3001 ws://localhost:3001 ws://10.0.2.2:3001 ws://192.168.0.250:3001 https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments.grayquest.com https://grayquest.com https://checkout.grayquest.com",
     ].join('; ')
     response.headers.set('Content-Security-Policy', csp)
 

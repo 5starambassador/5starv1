@@ -210,7 +210,7 @@ export async function approveVerification(userId: number, updatedDetails?: {
 }
 
 // Reject Verification
-export async function rejectVerification(userId: number) {
+export async function rejectVerification(userId: number, reason?: string) {
     const admin = await getCurrentUser()
     if (!admin || admin.role !== 'Super Admin') return { success: false, error: 'Unauthorized' }
 
@@ -224,7 +224,7 @@ export async function rejectVerification(userId: number) {
         })
 
         // 2. Create Notification
-        await notifyVerificationRejected(userId)
+        await notifyVerificationRejected(userId, reason)
 
         await revalidateDashboard()
         return { success: true }
@@ -263,15 +263,7 @@ export async function bulkVerifyAgainstDatabase() {
                 })
             }
 
-            // 2. Fallback: Mobile Match
-            if (!student && user.mobileNumber) {
-                const students = await prisma.student.findMany({
-                    where: { parent: { mobileNumber: user.mobileNumber }, status: 'Active' },
-                    include: { campus: true },
-                    orderBy: { createdAt: 'desc' }
-                })
-                if (students.length > 0) student = students[0]
-            }
+            // Mobile fallback removed as per institutional policy (ERP only confirmation)
 
             if (student) {
                 matchesFound++

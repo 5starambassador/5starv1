@@ -40,13 +40,44 @@ export async function markAsRead(notificationId: number) {
     if (!session?.userId) return { success: false, error: 'Unauthorized' }
 
     try {
-        await prisma.notification.update({
+        // 1. Mark Notification as Read
+        const notification = await prisma.notification.update({
             where: { id: notificationId },
-            data: { isRead: true }
+            data: { isRead: true },
+            include: { user: { select: { mobileNumber: true } } }
         })
+
+        // 2. Check for Campaign Tracking Metadata
+        // Cast to any to avoid TS error until prisma client regenerates
+        const notificationWithMeta = notification as any
+        const metadata = notificationWithMeta.metadata
+
+        if (metadata && metadata.campaignId) {
+            const campaignId = parseInt(metadata.campaignId)
+            const mobile = notification.user?.mobileNumber
+
+            if (campaignId && mobile) {
+                // Update Campaign Recipient Status to READ
+                // We use updateMany because 'mobile' isn't unique globally, but (campaignId, mobile) should be unique-ish.
+                // updateMany is safer if multiple entries exist (rare).
+                await (prisma as any).campaignRecipient.updateMany({
+                    where: {
+                        campaignId: campaignId,
+                        mobile: mobile,
+                        channel: 'IN_APP'
+                    },
+                    data: {
+                        status: 'READ',
+                        readAt: new Date()
+                    }
+                }).catch((err: any) => console.error('Failed to track In-App Read:', err))
+            }
+        }
+
         revalidatePath('/')
         return { success: true }
     } catch (error) {
+        console.error('markAsRead error:', error)
         return { success: false, error: 'Failed to mark as read' }
     }
 }

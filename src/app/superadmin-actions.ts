@@ -539,60 +539,68 @@ export async function getAllUsers(): Promise<User[]> {
 
     const { filter: scopeFilter } = await getScopeFilter('userManagement')
 
-    const users = await prisma.user.findMany({
-        where: {
-            ...scopeFilter,
-            referralCode: { not: null }
-        },
-        select: {
-            userId: true,
-            fullName: true,
-            mobileNumber: true,
-            role: true,
-            assignedCampus: true,
-            campusId: true,
-            grade: true,
-            studentFee: true,
-            status: true,
-            confirmedReferralCount: true,
-            referralCode: true,
-            createdAt: true,
-            empId: true,
-            email: true,
-            isFiveStarMember: true,
-            transactionId: true,
-            paymentAmount: true,
-            paymentStatus: true,
-            childName: true,
-            childEprNo: true,
-            aadharNo: true,
-            address: true,
-            bankAccountDetails: true,
-            accountNumber: true,
-            bankName: true,
-            ifscCode: true,
-            academicYear: true,
-            childInAchariya: true,
-            benefitStatus: true,
-            password: true,
-            yearFeeBenefitPercent: true,
-            longTermBenefitPercent: true
-        },
-        orderBy: { createdAt: 'desc' }
-    })
+    try {
+        const users = await prisma.user.findMany({
+            where: {
+                ...scopeFilter,
+                referralCode: { not: null }
+            },
+            select: {
+                userId: true,
+                fullName: true,
+                mobileNumber: true,
+                role: true,
+                assignedCampus: true,
+                campusId: true,
+                grade: true,
+                studentFee: true,
+                status: true,
+                confirmedReferralCount: true,
+                referralCode: true,
+                createdAt: true,
+                empId: true,
+                email: true,
+                isFiveStarMember: true,
+                transactionId: true,
+                paymentAmount: true,
+                paymentStatus: true,
+                childName: true,
+                childEprNo: true,
+                aadharNo: true,
+                address: true,
+                bankAccountDetails: true,
+                accountNumber: true,
+                bankName: true,
+                ifscCode: true,
+                academicYear: true,
+                childInAchariya: true,
+                benefitStatus: true,
+                password: true,
+                yearFeeBenefitPercent: true,
+                longTermBenefitPercent: true
+            },
+            orderBy: { createdAt: 'desc' }
+        })
 
-    // Fetch all campuses to map IDs to Names
-    const campuses = await prisma.campus.findMany({ select: { id: true, campusName: true } })
-    const campusMap = new Map(campuses.map(c => [c.id, c.campusName]))
+        // Fetch all campuses to map IDs to Names
+        const campuses = await prisma.campus.findMany({ select: { id: true, campusName: true } })
+        const campusMap = new Map(campuses.map(c => [c.id, c.campusName]))
 
-    return users.map(u => ({
-        ...u,
-        role: u.role as string,
-        referralCode: u.referralCode || '',
-        assignedCampus: u.assignedCampus || (u.campusId ? campusMap.get(u.campusId) || null : null),
-        referralCount: u.confirmedReferralCount,
-        studentFee: u.studentFee || 0
-    })) as User[]
+        return users.map(u => ({
+            ...u,
+            role: u.role as string,
+            referralCode: u.referralCode || '',
+            assignedCampus: u.assignedCampus || (u.campusId ? campusMap.get(u.campusId) || null : null),
+            referralCount: u.confirmedReferralCount,
+            studentFee: u.studentFee || 0
+        })) as User[]
+    } catch (error: any) {
+        console.error('CRITICAL DATABASE ERROR [getAllUsers]:', {
+            message: error?.message,
+            stack: error?.stack
+        })
+        return []
+    }
 }
 
 export async function getAllAdmins() {
@@ -799,6 +807,7 @@ export async function addUser(data: {
             notifyWelcome(newUser.userId, data.fullName)
         })
 
+        revalidatePath('/superadmin/users')
         return { success: true, user: newUser }
     } catch (error) {
         console.error('Add user error:', error)
@@ -851,6 +860,9 @@ export async function updateUser(userId: number, data: {
 
         await logAction('UPDATE', 'user', `Updated user ${userId}`, userId.toString(), null, { previous: previousUser, next: updatedUser })
 
+        revalidatePath('/superadmin/users')
+        revalidatePath('/admin')
+        revalidatePath('/dashboard')
         return { success: true, user: updatedUser }
     } catch (error) {
         console.error('Update user error:', error)
@@ -909,7 +921,7 @@ export async function removeUser(userId: number) {
         })
 
         await logAction('DELETE', 'user', `Archived user: ${userId} (Number recycled)`, userId.toString())
-
+        revalidatePath('/superadmin/users')
         return { success: true }
     } catch (error) {
         console.error('Archive user error:', error)
@@ -961,7 +973,7 @@ export async function purgeUserPermanently(userId: number) {
         })
 
         await logAction('PURGE', 'user', `Permanently purged user: ${userId}`, userId.toString())
-
+        revalidatePath('/superadmin/users')
         return { success: true }
     } catch (error) {
         console.error('Purge user error:', error)
@@ -1108,6 +1120,7 @@ export async function addAdmin(data: {
 
         await logAction('CREATE', 'admin', `Created new admin: ${data.adminMobile}`, newAdmin.adminId.toString(), null, { role: data.role })
 
+        revalidatePath('/superadmin/users')
         return { success: true, admin: newAdmin }
     } catch (error) {
         console.error('Add admin error:', error)
@@ -1150,6 +1163,7 @@ export async function updateAdmin(adminId: number, data: {
             next: updatedAdmin
         })
 
+        revalidatePath('/superadmin/users')
         return { success: true, admin: updatedAdmin }
     } catch (error) {
         console.error('Update admin error:', error)
@@ -1175,6 +1189,7 @@ export async function deleteAdmin(adminId: number) {
     try {
         await prisma.admin.delete({ where: { adminId } })
         await logAction('DELETE', 'admin', `Deleted admin: ${adminId}`, adminId.toString())
+        revalidatePath('/superadmin/users')
         return { success: true }
     } catch (error) {
         console.error('Delete admin error:', error)
@@ -1238,7 +1253,7 @@ export async function adminResetPassword(targetId: number, targetType: 'user' | 
             })
             await logAction('UPDATE', 'admin', `Admin reset password for admin ${targetId}`, targetId.toString())
         }
-
+        revalidatePath('/superadmin/users')
         return { success: true }
     } catch (error) {
         console.error('Admin reset password error:', error)
@@ -1313,6 +1328,7 @@ export async function updateUserStatus(userId: number, status: AccountStatus) {
             where: { userId },
             data: { status }
         })
+        revalidatePath('/superadmin/users')
         return { success: true }
     } catch (error) {
         console.error('Update user status error:', error)
@@ -1338,6 +1354,7 @@ export async function updateAdminStatus(adminId: number, status: AccountStatus) 
             where: { adminId },
             data: { status }
         })
+        revalidatePath('/superadmin/users')
         return { success: true }
     } catch (error) {
         console.error('Update admin status error:', error)

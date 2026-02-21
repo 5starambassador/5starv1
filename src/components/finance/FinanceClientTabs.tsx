@@ -1,10 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { SettlementTable } from '@/components/finance/SettlementTable'
 import { RegistrationTable } from '@/components/finance/RegistrationTable'
 import { RefundReadyTable } from '@/components/finance/RefundReadyTable'
 import { RefundHistoryTable } from '@/components/finance/RefundHistoryTable'
+import { PayoutHistoryTable } from '@/components/finance/PayoutHistoryTable'
+import { LiabilityLedgerTable } from '@/components/finance/LiabilityLedgerTable'
+import { WaiverHistoryTable } from '@/components/finance/WaiverHistoryTable'
 import { generatePDFReport } from '@/lib/pdf-export'
 import { syncMissingPayments } from '@/app/finance-actions'
 import { toast } from 'sonner'
@@ -14,10 +18,28 @@ interface FinanceClientTabsProps {
     settlements: any[]
     registrations: any[]
     eligibleRefunds: any[]
+    liabilities: any[]
+    availableYears?: string[]
+    selectedYear?: string
 }
 
-export function FinanceClientTabs({ settlements, registrations, eligibleRefunds }: FinanceClientTabsProps) {
-    const [activeTab, setActiveTab] = useState<'payouts' | 'registrations' | 'ready_refund' | 'refund_history'>('payouts')
+export function FinanceClientTabs({
+    settlements,
+    registrations,
+    eligibleRefunds,
+    liabilities,
+    availableYears = [],
+    selectedYear = '2026-2027'
+}: FinanceClientTabsProps) {
+    const [activeTab, setActiveTab] = useState<'payouts' | 'payout_history' | 'waiver_history' | 'registrations' | 'ready_refund' | 'refund_history' | 'liabilities_a' | 'liabilities_b'>('payouts')
+    const router = useRouter()
+    const pathname = usePathname()
+
+    const handleYearChange = (year: string) => {
+        const params = new URLSearchParams(window.location.search)
+        params.set('year', year)
+        router.push(`${pathname}?${params.toString()}`)
+    }
     const [isSyncing, setIsSyncing] = useState(false)
     const [isAutoSyncing, setIsAutoSyncing] = useState(false)
 
@@ -28,6 +50,21 @@ export function FinanceClientTabs({ settlements, registrations, eligibleRefunds 
         const hasProcessedSettlement = r.settlements?.some((s: any) => s.amount === 25 && s.status === 'Processed')
         return hasRefundRemark || hasProcessedSettlement
     })
+
+    // Filter Payout History: Processed settlements that are NOT registration refunds AND NOT waivers
+    const payoutHistoryData = settlements.filter(s => {
+        const remarks = (s.remarks || '').toLowerCase()
+        const isRegistrationRefund = remarks.includes('registration') || remarks.includes('refund') || s.amount === 25
+        const isWaiver = remarks.includes('waiver')
+        return s.status === 'Processed' && !isRegistrationRefund && !isWaiver
+    })
+
+    // Filter Waiver History: Processed settlements that ARE waivers
+    const waiverHistoryData = settlements.filter(s => {
+        const remarks = (s.remarks || '').toLowerCase()
+        return s.status === 'Processed' && remarks.includes('waiver')
+    })
+
 
     // Auto-Sync on Mount (Smart Mode)
     useEffect(() => {
@@ -50,185 +87,217 @@ export function FinanceClientTabs({ settlements, registrations, eligibleRefunds 
         runAutoSync()
     }, [])
 
-    const handleDownloadReport = () => {
-        const reportMap = {
-            payouts: {
-                title: 'Settlement Payout Report',
-                data: settlements,
-                mapFn: (s: any) => ({
-                    id: s.id.toString(),
-                    userName: s.user?.fullName || 'Unknown',
-                    amount: s.amount.toLocaleString(),
-                    status: s.status,
-                    bankName: s.user?.bankName || '-',
-                    createdAt: new Date(s.createdAt).toLocaleDateString()
-                }),
-                cols: [
-                    { header: 'ID', dataKey: 'id' },
-                    { header: 'Ambassador', dataKey: 'userName' },
-                    { header: 'Amount (₹)', dataKey: 'amount' },
-                    { header: 'Status', dataKey: 'status' },
-                    { header: 'Bank', dataKey: 'bankName' },
-                    { header: 'Requested At', dataKey: 'createdAt' }
-                ]
-            },
-            registrations: {
-                title: 'Registration Fee Report',
-                data: registrations,
-                mapFn: (r: any) => ({
-                    id: r.transactionId || r.userId.toString(),
-                    parentName: r.fullName,
-                    amount: (r.paymentAmount || 0).toLocaleString(),
-                    status: r.paymentStatus,
-                    createdAt: new Date(r.createdAt).toLocaleDateString()
-                }),
-                cols: [
-                    { header: 'Tx ID', dataKey: 'id' },
-                    { header: 'Parent Name', dataKey: 'parentName' },
-                    { header: 'Amount (₹)', dataKey: 'amount' },
-                    { header: 'Status', dataKey: 'status' },
-                    { header: 'Date', dataKey: 'createdAt' }
-                ]
-            },
-            ready_refund: {
-                title: 'Eligible for Refund Report',
-                data: eligibleRefunds,
-                mapFn: (u: any) => ({
-                    name: u.fullName,
-                    campus: u.campusName,
-                    amount: '25',
-                    applied: new Date(u.createdAt).toLocaleDateString()
-                }),
-                cols: [
-                    { header: 'Name', dataKey: 'name' },
-                    { header: 'Campus', dataKey: 'campus' },
-                    { header: 'Amount', dataKey: 'amount' },
-                    { header: 'Reg Date', dataKey: 'applied' }
-                ]
-            },
-            refund_history: {
-                title: 'Refund Processed Report',
-                data: refundHistory,
-                mapFn: (r: any) => ({
-                    name: r.fullName,
-                    campus: r.campus?.campusName || r.assignedCampus || '-',
-                    utr: r.payments?.[0]?.bankReference || 'N/A',
-                    date: r.payments?.[0]?.adminRemarks?.match(/on ([\d-T:.Z]+)/)?.[1] ? new Date(r.payments?.[0]?.adminRemarks?.match(/on ([\d-T:.Z]+)/)?.[1]).toLocaleDateString() : 'Processed'
-                }),
-                cols: [
-                    { header: 'Name', dataKey: 'name' },
-                    { header: 'Campus', dataKey: 'campus' },
-                    { header: 'UTR', dataKey: 'utr' },
-                    { header: 'Date', dataKey: 'date' }
-                ]
-            }
-        }
 
-        const config = reportMap[activeTab] as any
-
-        if (!config.data || config.data.length === 0) {
-            toast.error(`No data to export for ${activeTab}`)
-            return
-        }
-
-        generatePDFReport({
-            title: config.title,
-            subtitle: `Generated on ${new Date().toLocaleDateString()}`,
-            fileName: `${activeTab}_${new Date().toISOString().split('T')[0]}`,
-            columns: config.cols,
-            data: config.data.map(config.mapFn)
-        })
-        toast.success('Report downloaded successfully')
-    }
+    // Removed handleDownloadReport as per user request
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                {/* Custom Premium Tabs */}
-                <div className="flex p-1 bg-gray-100/50 rounded-2xl w-fit border border-gray-200">
-                    <button
-                        onClick={() => setActiveTab('payouts')}
-                        suppressHydrationWarning={true}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${activeTab === 'payouts' ? 'bg-white text-gray-900 shadow-md shadow-gray-200/50 scale-105' : 'text-gray-500 hover:text-gray-900'}`}
-                    >
-                        <LayoutList size={14} />
-                        Payout Requests
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('registrations')}
-                        suppressHydrationWarning={true}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${activeTab === 'registrations' ? 'bg-white text-emerald-700 shadow-md shadow-emerald-900/10 scale-105' : 'text-gray-500 hover:text-emerald-600'}`}
-                    >
-                        <LayoutList size={14} />
-                        Registration Fees
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('ready_refund')}
-                        suppressHydrationWarning={true}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${activeTab === 'ready_refund' ? 'bg-white text-amber-700 shadow-md shadow-amber-900/10 scale-105' : 'text-gray-500 hover:text-amber-600'}`}
-                    >
-                        <Sparkles size={14} className={eligibleRefunds.length > 0 ? "text-amber-500 animate-pulse" : ""} />
-                        Ready for Refund {eligibleRefunds.length > 0 && <span className="ml-1 bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full text-[10px]" suppressHydrationWarning={true}>{eligibleRefunds.length}</span>}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('refund_history')}
-                        suppressHydrationWarning={true}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${activeTab === 'refund_history' ? 'bg-white text-blue-700 shadow-md shadow-blue-900/10 scale-105' : 'text-gray-500 hover:text-blue-600'}`}
-                    >
-                        <History size={14} />
-                        Refund History
-                    </button>
+            <div className="w-full space-y-4">
+                {/* Level 1: Main Categories & Actions */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex flex-wrap items-center gap-2 p-1 bg-white/50 border border-gray-200/50 rounded-2xl w-fit">
+                        <button
+                            onClick={() => setActiveTab('payouts')}
+                            suppressHydrationWarning={true}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-black transition-all duration-300 ${['payouts', 'liabilities_b', 'payout_history'].includes(activeTab)
+                                ? 'bg-gradient-to-br from-gray-900 to-gray-800 text-white shadow-lg shadow-gray-900/20 scale-105'
+                                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                                }`}
+                        >
+                            <LayoutList size={16} />
+                            Cash Settlements
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('liabilities_a')}
+                            suppressHydrationWarning={true}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-black transition-all duration-300 ${['liabilities_a', 'waiver_history'].includes(activeTab)
+                                ? 'bg-gradient-to-br from-purple-600 to-purple-800 text-white shadow-lg shadow-purple-900/20 scale-105'
+                                : 'text-gray-500 hover:text-purple-700 hover:bg-purple-50'
+                                }`}
+                        >
+                            <Sparkles size={16} />
+                            Fee Waivers
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('registrations')}
+                            suppressHydrationWarning={true}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-black transition-all duration-300 ${['registrations', 'ready_refund', 'refund_history'].includes(activeTab)
+                                ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg shadow-emerald-900/20 scale-105'
+                                : 'text-gray-500 hover:text-emerald-700 hover:bg-emerald-50'
+                                }`}
+                        >
+                            <RefreshCw size={16} />
+                            Registrations & Refunds
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        {activeTab.startsWith('liabilities_') && availableYears.length > 0 && (
+                            <div className="flex items-center gap-2 bg-white/50 border border-purple-100 px-3 py-1.5 rounded-xl shadow-sm">
+                                <span className="text-[10px] font-black text-purple-900 uppercase tracking-tighter">Cycle:</span>
+                                <select
+                                    value={selectedYear}
+                                    onChange={(e) => handleYearChange(e.target.value)}
+                                    suppressHydrationWarning={true}
+                                    className="bg-transparent text-xs font-bold text-purple-700 outline-none cursor-pointer focus:ring-0"
+                                >
+                                    {availableYears.map(y => (
+                                        <option key={y} value={y}>{y}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                        {activeTab === 'registrations' && (
+                            <button
+                                onClick={async () => {
+                                    setIsSyncing(true)
+                                    const tid = toast.loading('Force syncing recent payments...')
+                                    try {
+                                        const res = await syncMissingPayments(true)
+                                        if (res.success) {
+                                            toast.success(res.message, { id: tid })
+                                            setTimeout(() => window.location.reload(), 1500)
+                                        } else {
+                                            toast.error(res.error || 'Sync failed', { id: tid })
+                                        }
+                                    } catch (error) {
+                                        toast.error('Sync failed', { id: tid })
+                                    } finally {
+                                        setIsSyncing(false)
+                                    }
+                                }}
+                                disabled={isSyncing}
+                                suppressHydrationWarning={true}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-all border border-emerald-200/50 disabled:opacity-50"
+                            >
+                                <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+                                <span>{isSyncing ? 'Syncing...' : 'Sync Cashfree'}</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    {activeTab === 'registrations' && (
-                        <button
-                            onClick={async () => {
-                                setIsSyncing(true)
-                                const tid = toast.loading('Force syncing recent payments...')
-                                try {
-                                    const res = await syncMissingPayments(true)
-                                    if (res.success) {
-                                        toast.success(res.message, { id: tid })
-                                        setTimeout(() => window.location.reload(), 1500)
-                                    } else {
-                                        toast.error(res.error || 'Sync failed', { id: tid })
-                                    }
-                                } catch (error) {
-                                    toast.error('Sync failed', { id: tid })
-                                } finally {
-                                    setIsSyncing(false)
-                                }
-                            }}
-                            disabled={isSyncing}
-                            suppressHydrationWarning={true}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-all border border-emerald-200/50 disabled:opacity-50"
-                        >
-                            <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
-                            <span>{isSyncing ? 'Syncing...' : 'Sync Cashfree'}</span>
-                        </button>
+                {/* Level 2: Sub-tabs based on Active Category */}
+                <div className="flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                    {['payouts', 'liabilities_b', 'payout_history'].includes(activeTab) && (
+                        <>
+                            <button
+                                onClick={() => setActiveTab('payouts')}
+                                suppressHydrationWarning={true}
+                                className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'payouts'
+                                    ? 'bg-gray-100 border-gray-300 text-gray-900'
+                                    : 'bg-white border-transparent text-gray-400 hover:text-gray-600'
+                                    }`}
+                            >
+                                Payout Requests
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('liabilities_b')}
+                                suppressHydrationWarning={true}
+                                className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'liabilities_b'
+                                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                    : 'bg-white border-transparent text-gray-400 hover:text-indigo-600'
+                                    }`}
+                            >
+                                Group B Ledger
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('payout_history')}
+                                suppressHydrationWarning={true}
+                                className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'payout_history'
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                    : 'bg-white border-transparent text-gray-400 hover:text-emerald-600'
+                                    }`}
+                            >
+                                History
+                            </button>
+                        </>
                     )}
 
-                    <button
-                        onClick={handleDownloadReport}
-                        suppressHydrationWarning={true}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
-                    >
-                        <Download size={14} />
-                        <span>Download Report</span>
-                    </button>
+                    {['liabilities_a', 'waiver_history'].includes(activeTab) && (
+                        <>
+                            <button
+                                onClick={() => setActiveTab('liabilities_a')}
+                                suppressHydrationWarning={true}
+                                className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'liabilities_a'
+                                    ? 'bg-purple-50 border-purple-200 text-purple-700'
+                                    : 'bg-white border-transparent text-gray-400 hover:text-purple-600'
+                                    }`}
+                            >
+                                Group A Ledger (Target)
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('waiver_history')}
+                                suppressHydrationWarning={true}
+                                className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'waiver_history'
+                                    ? 'bg-purple-50 border-purple-200 text-purple-700'
+                                    : 'bg-white border-transparent text-gray-400 hover:text-purple-600'
+                                    }`}
+                            >
+                                Applied History
+                            </button>
+                        </>
+                    )}
+
+                    {['registrations', 'ready_refund', 'refund_history'].includes(activeTab) && (
+                        <>
+                            <button
+                                onClick={() => setActiveTab('registrations')}
+                                suppressHydrationWarning={true}
+                                className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'registrations'
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                    : 'bg-white border-transparent text-gray-400 hover:text-emerald-600'
+                                    }`}
+                            >
+                                All Registrations
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('ready_refund')}
+                                suppressHydrationWarning={true}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'ready_refund'
+                                    ? 'bg-amber-50 border-amber-200 text-amber-700'
+                                    : 'bg-white border-transparent text-gray-400 hover:text-amber-600'
+                                    }`}
+                            >
+                                Ready for Refund
+                                {eligibleRefunds.length > 0 && (
+                                    <span className="bg-amber-100 text-amber-800 text-[10px] px-1.5 rounded-full">
+                                        {eligibleRefunds.length}
+                                    </span>
+                                )}
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('refund_history')}
+                                suppressHydrationWarning={true}
+                                className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'refund_history'
+                                    ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                    : 'bg-white border-transparent text-gray-400 hover:text-blue-600'
+                                    }`}
+                            >
+                                Refund History
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {activeTab === 'payouts' ? (
-                    <SettlementTable data={settlements || []} />
+                    <SettlementTable data={settlements.filter(s => s.status !== 'Processed')} />
+                ) : activeTab === 'payout_history' ? (
+                    <PayoutHistoryTable data={payoutHistoryData} />
                 ) : activeTab === 'registrations' ? (
                     <RegistrationTable data={registrations || []} />
                 ) : activeTab === 'ready_refund' ? (
                     <RefundReadyTable data={eligibleRefunds} />
-                ) : (
+                ) : activeTab === 'refund_history' ? (
                     <RefundHistoryTable data={refundHistory} />
+                ) : activeTab === 'liabilities_a' ? (
+                    <LiabilityLedgerTable key="ledger-a" data={liabilities} mode="A" />
+                ) : activeTab === 'waiver_history' ? (
+                    <WaiverHistoryTable data={waiverHistoryData} />
+                ) : (
+                    <LiabilityLedgerTable key="ledger-b" data={liabilities} mode="B" />
                 )}
             </div>
         </div>

@@ -25,6 +25,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://5starambassador.com'),
   title: "Achariya Partnership Program (APP) | 25th Year Celebration",
   description: "Join the Achariya Partnership Program (APP). Refer students, earn rewards, and be part of our 25th Year Celebration journey.",
   keywords: ["Achariya", "APP", "Partnership Program", "School Admission", "Referral Program", "Education", "Pondicherry", "5 Star", "25th Year"],
@@ -34,7 +35,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_IN",
-    url: "https://app.achariya.in",
+    url: "https://5starambassador.com",
     title: "Achariya Partnership Program (APP) | 25th Year Celebration",
     description: "Join the Achariya Partnership Program (APP). Refer students, earn rewards, and be part of our 25th Year Celebration journey.",
     siteName: "Achariya Partnership Program (APP) | 25th Year Celebration",

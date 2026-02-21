@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger'
 import { revalidatePath } from 'next/cache'
 import { EmailService } from '@/lib/email-service'
 import { smsService } from '@/lib/sms-service'
+import { whatsappService } from '@/lib/whatsapp-service'
 import { getNotificationSettings } from './notification-actions'
 import { notifyReferralSubmitted, notifyAdminNewReferral } from '@/lib/notification-helper'
 
@@ -90,6 +91,17 @@ export async function sendReferralOtp(mobileInput: string, referralCode?: string
 
         // Send SMS
         const smsResult = await smsService.sendOTP(destinationMobile, finalOtp, 'referral')
+
+        // WhatsApp (If enabled)
+        try {
+            const settings = await getNotificationSettings()
+            if (settings?.whatsappNotifications) {
+                await whatsappService.sendByEvent(destinationMobile, "REFERRAL_OTP", [finalOtp], 'ALERT')
+                console.log('💬 [Referral] WhatsApp OTP triggered for:', destinationMobile)
+            }
+        } catch (waError) {
+            console.error('⚠️ [Referral] WhatsApp OTP failed (silent):', waError)
+        }
 
         if (!smsResult.success) {
             console.error('[Referral] SMS Failed:', smsResult.error)
@@ -219,8 +231,11 @@ export async function submitReferral(formData: {
         // Resolve Campus ID from name (Crucial for Campus Dashboards)
         let resolvedCampusId: number | null = null
         if (campus) {
-            const campusData = await prisma.campus.findUnique({
-                where: { campusName: campus }
+            // UPDATED: Use findFirst with insensitive mode instead of findUnique to handle casing mismatches
+            const campusData = await prisma.campus.findFirst({
+                where: {
+                    campusName: { equals: campus, mode: 'insensitive' }
+                }
             })
             if (campusData) {
                 resolvedCampusId = campusData.id

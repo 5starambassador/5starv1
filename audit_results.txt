@@ -1,0 +1,14 @@
+--- Expert Audit: Referral Fees vs Slab Rewards ---
+
+Ambassador: Ramya (7708838990)
+Role: Parent, Goal: A (Waiver)
+  Referral 1: Menagha, Actual Fee in DB: 40425, Admitted Year: 2026-2027
+
+Ambassador: Niranjana (9500395309)
+Role: Staff, Goal: A (Waiver)
+  Referral 1: Keerthiezhini, Actual Fee in DB: 87780, Admitted Year: 2026-2027
+
+Ambassador: Mathina begam.S (9176188910)
+Role: Parent, Goal: A (Waiver)
+  Referral 1: Arun Jebastin, Actual Fee in DB: 38903, Admitted Year: 2026-2027
+  Referral 2: Sharmila, Actual Fee in DB: 62842, Admitted Year: 2026-2027

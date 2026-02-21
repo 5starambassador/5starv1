@@ -24,8 +24,12 @@ const ProgramLeadsTable = dynamic(() => import('@/components/superadmin/ProgramL
 const ProgramManager = dynamic(() => import('@/components/superadmin/ProgramManager').then(m => m.ProgramManager), { ssr: false })
 const MarketingManager = dynamic(() => import('@/components/MarketingManager').then(m => m.MarketingManager), { ssr: false })
 const AnalyticsDashboard = dynamic(() => import('@/components/superadmin/AnalyticsDashboard').then(m => m.AnalyticsDashboard), { ssr: false })
+const AutomationInsights = dynamic(() => import('@/components/superadmin/AutomationInsights'), { ssr: false, loading: () => <div className="h-64 animate-pulse bg-white rounded-3xl" /> })
 const ReportsPanel = dynamic(() => import('@/components/superadmin/ReportsPanel').then(m => m.ReportsPanel), { ssr: false })
 const CSVUploader = dynamic(() => import('@/components/CSVUploader').then(m => m.default), { ssr: false })
+const WhatsAppConfigPanel = dynamic(() => import('@/components/superadmin/WhatsAppConfigPanel'), { ssr: false, loading: () => <div className="h-96 w-full animate-pulse bg-white rounded-3xl" /> })
+
+import { getWhatsAppAnalytics, WhatsAppAnalytics } from '@/app/automation-actions'
 
 import { getSettlements, processSettlement, deleteSettlement } from '@/app/settlement-actions'
 import { getRolePermissions, updateRolePermissions, resetRolePermissions } from '@/app/permission-actions'
@@ -36,7 +40,7 @@ import { User, Student, SystemAnalytics, CampusPerformance, Admin, SystemSetting
 
 // ... existing imports
 
-type ViewType = 'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'referrals' | 'fees' | 'engagement' | 'programs' | 'program-leads';
+type ViewType = 'home' | 'analytics' | 'users' | 'admins' | 'campuses' | 'settings' | 'reports' | 'students' | 'settlements' | 'marketing' | 'audit' | 'support' | 'permissions' | 'staff-dash' | 'parent-dash' | 'referrals' | 'fees' | 'engagement' | 'programs' | 'program-leads' | 'automation';
 
 // ... in SuperadminClient
 
@@ -95,7 +99,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
 
     // View State
     const mapViewParam = (view: string): ViewType => {
-        const validViews = ['home', 'analytics', 'admins', 'settings', 'reports', 'settlements', 'marketing', 'audit', 'support', 'permissions', 'staff-dash', 'parent-dash', 'fees', 'engagement', 'programs', 'program-leads']
+        const validViews = ['home', 'analytics', 'admins', 'settings', 'reports', 'settlements', 'marketing', 'audit', 'support', 'permissions', 'staff-dash', 'parent-dash', 'fees', 'engagement', 'programs', 'program-leads', 'automation']
         return validViews.includes(view) ? (view as ViewType) : 'home'
     }
     const [selectedView, setSelectedView] = useState<ViewType>(mapViewParam(initialView))
@@ -114,6 +118,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     // Analytics State
     const [analyticsData, setAnalyticsData] = useState(analytics)
     const [trendData, setTrendData] = useState(growthTrend)
+    const [automationStats, setAutomationStats] = useState<WhatsAppAnalytics | null>(null)
     const [campusCompData, setCampusCompData] = useState(campusComparison)
     const [showCalcModal, setShowCalcModal] = useState(false)
     const [resetConfirm, setResetConfirm] = useState<{ isOpen: boolean, role: string | null }>({ isOpen: false, role: null })
@@ -149,6 +154,18 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                 }
             }
             loadLeads()
+        }
+
+        if (selectedView === 'analytics' || selectedView === 'home') {
+            const loadAutomation = async () => {
+                try {
+                    const stats = await getWhatsAppAnalytics(7)
+                    setAutomationStats(stats)
+                } catch (err) {
+                    console.error('Failed to load automation stats')
+                }
+            }
+            loadAutomation()
         }
     }, [selectedView])
 
@@ -275,12 +292,19 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
             <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-10 space-y-10">
 
                 {(selectedView === 'analytics' || selectedView === 'home') && (
-                    <AnalyticsDashboard
-                        analyticsData={analyticsData}
-                        trendData={trendData}
-                        campusCompData={campusCompData}
-                        deepTrends={deepTrends}
-                    />
+                    <div className="space-y-10">
+                        <AnalyticsDashboard
+                            analyticsData={analyticsData}
+                            trendData={trendData}
+                            campusCompData={campusCompData}
+                            deepTrends={deepTrends}
+                        />
+
+                        <div className="space-y-4">
+                            <h2 className="text-2xl font-black italic text-gray-900 tracking-tight uppercase px-2">Automation Insights</h2>
+                            {automationStats && <AutomationInsights data={automationStats} />}
+                        </div>
+                    </div>
                 )}
 
 
@@ -322,6 +346,9 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
 
                 {/* Settings View */}
                 {selectedView === 'settings' && <SettingsPanel permissions={permissions} />}
+
+                {/* Automation View */}
+                {selectedView === 'automation' && <WhatsAppConfigPanel />}
 
                 {/* External Programs View */}
                 {selectedView === 'programs' && <ProgramManager />}

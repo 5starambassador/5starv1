@@ -3,6 +3,7 @@
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { logAction } from '@/lib/audit-logger'
+import { EXCLUDED_FROM_SLAB } from '@/lib/reward-constants'
 
 /**
  * Centrally synchronizes a user's status based on student records and referral leads.
@@ -14,27 +15,26 @@ export async function syncUserStats(userId: number) {
     try {
         const user = await prisma.user.findUnique({
             where: { userId },
-            include: { referrals: true }
+            include: { referrals: true, students: true }
         })
 
         if (!user) return { success: false, error: 'User not found' }
 
-        // --- 1. SYNC AS PARENT: Check for children studying in Achariya ---
+        // --- 1. ACTIVATION (Standard Compliance) ---
+        const hasPaid = user.paymentStatus === 'Success'
+        let updatedUserDetails: any = {}
+
+        // --- 2. SYNC AS PARENT: Check for children studying in Achariya ---
         const studentRecords = await prisma.student.findMany({
             where: {
-                parent: { mobileNumber: user.mobileNumber },
+                parentId: user.userId,
                 status: 'Active'
-            },
-            orderBy: { createdAt: 'desc' }
+            }
         })
-
         const hasKids = studentRecords.length > 0
-        let updatedUserDetails: any = {}
 
         if (hasKids) {
             const latestStudent = studentRecords[0]
-
-            // Only update fields if they were pending or missing to avoid accidental manual override
             updatedUserDetails = {
                 benefitStatus: 'Active',
                 childInAchariya: true,
@@ -42,26 +42,26 @@ export async function syncUserStats(userId: number) {
                 childName: user.childName || latestStudent.fullName,
                 grade: user.grade || latestStudent.grade,
                 studentFee: user.studentFee || latestStudent.annualFee || 60000,
-                status: user.status === 'Pending' ? 'Active' : user.status
+                // SELF-HEALING: Only move from Pending to Active if financial obligation is met
+                status: (user.status === 'Pending' && hasPaid) ? 'Active' : user.status
             }
         }
 
-        // --- 2. SYNC AS AMBASSADOR: Update referral counts and benefits ---
-        // Find all confirmed leads where this user is the ambassador
+        // --- 3. SYNC AS AMBASSADOR: Update referral counts and benefits ---
         const confirmedLeadsCount = await prisma.referralLead.count({
             where: {
                 userId: user.userId,
-                leadStatus: 'Confirmed'
+                leadStatus: { in: ['Confirmed', 'Admitted'] },
+                campus: { notIn: EXCLUDED_FROM_SLAB }
             }
         })
 
         // Fetch corresponding benefit slab
-        const lookupCount = Math.min(confirmedLeadsCount, 5) // Slab logic caps at 5 for now
+        const lookupCount = Math.min(confirmedLeadsCount, 5)
         const slab = await prisma.benefitSlab.findFirst({
             where: { referralCount: lookupCount }
         })
 
-        // Default slabs if DB table is empty
         const defaultSlabs: Record<number, number> = { 0: 0, 1: 5, 2: 10, 3: 25, 4: 30, 5: 50 }
         const slabBenefit = slab ? slab.yearFeeBenefitPercent : (defaultSlabs[lookupCount] || 0)
 
@@ -69,7 +69,6 @@ export async function syncUserStats(userId: number) {
             ...updatedUserDetails,
             confirmedReferralCount: confirmedLeadsCount,
             yearFeeBenefitPercent: slabBenefit,
-            // If they have confirmed referrals, they are an Active ambassador
             benefitStatus: confirmedLeadsCount > 0 ? 'Active' : (hasKids ? 'Active' : user.benefitStatus)
         }
 
@@ -79,40 +78,7 @@ export async function syncUserStats(userId: number) {
             data: updatedUserDetails
         })
 
-        // --- 3. SYNC REFERRED LEADS: Update lead status if child is now active ---
-        // If this user is a parent who was referred by someone, we must confirm that lead too.
-        const pendingRefLeads = await prisma.referralLead.findMany({
-            where: {
-                parentMobile: user.mobileNumber,
-                leadStatus: { not: 'Confirmed' }
-            }
-        })
-
-        if (hasKids && pendingRefLeads.length > 0) {
-            for (const lead of pendingRefLeads) {
-                await prisma.referralLead.update({
-                    where: { leadId: lead.leadId },
-                    data: {
-                        leadStatus: 'Confirmed',
-                        confirmedDate: new Date(),
-                        admissionNumber: studentRecords[0].admissionNumber,
-                        studentName: studentRecords[0].fullName
-                    } as any
-                })
-
-                // Recursively sync the Ambassador who referred this user
-                await syncUserStats(lead.userId)
-            }
-        }
-
-        await logAction(
-            'UPDATE',
-            'sync',
-            `Synchronized stats for User ${user.mobileNumber}. Child Active: ${hasKids}. Confirmed Referrals: ${confirmedLeadsCount}.`,
-            user.userId.toString(),
-            null,
-            { autoSync: true }
-        )
+        // --- 4. RELOAD DATA (Auto-Sync Removed as per policy) ---
 
         return { success: true, user: updatedUser }
 

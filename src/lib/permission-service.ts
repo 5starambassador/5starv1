@@ -10,13 +10,18 @@ export async function getMyPermissions() {
     const user = await getCurrentUser()
     if (!user) return null
 
+    // Start with code defaults as the base (covers any newly added module keys)
+    const codeDefaults = DEFAULT_ROLE_PERMISSIONS[user.role] as RolePermissions | undefined
+
     const result = await getRolePermissions(user.role)
-    if (result.success) {
-        return result.permissions as RolePermissions
+    if (result.success && result.permissions) {
+        // Merge: code defaults fill in any keys missing from the DB record
+        // DB values take precedence for keys that ARE present in the DB
+        return { ...codeDefaults, ...(result.permissions as RolePermissions) } as RolePermissions
     }
 
     // Fallback to coded defaults if DB fetch fails or role not in DB
-    return DEFAULT_ROLE_PERMISSIONS[user.role] as RolePermissions || null
+    return codeDefaults || null
 }
 
 /**

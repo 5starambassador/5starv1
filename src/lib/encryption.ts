@@ -5,12 +5,17 @@ import crypto from 'crypto'
  * Ensure ENCRYPTION_KEY is a 32-character string in your environment.
  */
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '5star-celeb-25yr-secure-key-32ch'
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
 const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 12
 
 export function encrypt(text: string | null | undefined): string | null {
     if (!text) return null
+    if (!ENCRYPTION_KEY) {
+        console.error('Encryption failed: ENCRYPTION_KEY is missing in environment variables.')
+        return null
+    }
+
     try {
         const iv = crypto.randomBytes(IV_LENGTH)
         const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY.slice(0, 32)), iv)
@@ -21,12 +26,20 @@ export function encrypt(text: string | null | undefined): string | null {
         return `${iv.toString('hex')}:${authTag}:${encrypted}`
     } catch (error) {
         console.error('Encryption failed:', error)
-        return text // Fallback to plain text if encryption fails (better than crashing in some cases, but warn)
+        return null // FAIL-SAFE: Return null instead of plain text
     }
 }
 
 export function decrypt(hash: string | null | undefined): string | null {
-    if (!hash || !hash.includes(':')) return hash || null
+    if (!hash) return null
+    // If it doesn't look like our encrypted format, it might be legacy plain text
+    if (!hash.includes(':')) return hash
+
+    if (!ENCRYPTION_KEY) {
+        console.error('Decryption failed: ENCRYPTION_KEY is missing in environment variables.')
+        return hash // Fallback to raw hash so we don't break UI for legacy data
+    }
+
     try {
         const [iv, authTag, encrypted] = hash.split(':')
         if (!iv || !authTag || !encrypted) return hash
@@ -37,7 +50,7 @@ export function decrypt(hash: string | null | undefined): string | null {
         decrypted += decipher.final('utf8')
         return decrypted
     } catch (error) {
-        // If it's not encrypted or decryption fails, return as is
+        // If decryption fails (e.g. wrong key), return as is to avoid breaking UI for unencrypted fields
         return hash
     }
 }

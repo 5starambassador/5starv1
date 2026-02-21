@@ -26,7 +26,8 @@ export async function verifyTwoFactorAction(otp: string) {
                 session.userId,
                 session.userType,
                 session.role,
-                true // is2faVerified
+                true, // is2faVerified
+                session.status
             )
 
             await logAction('LOGIN', 'auth', `2FA verified for ${session.userType} ${session.userId}`, session.userId.toString())

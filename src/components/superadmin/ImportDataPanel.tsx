@@ -141,7 +141,7 @@ export function ImportDataPanel({ type, userRole, onSuccess }: ImportDataPanelPr
     const handleDownloadTemplate = () => {
         const templates = {
             students: 'admissionNumber,studentName,parentName,parentMobile,campusName,grade,section,status,academicYear',
-            ambassadors: 'Full Name,Mobile Number,Role,Email,Assigned Campus,Emp ID,Child ERP No,Academic Year,Password,Referral Code,Child In Achariya,Benefit Status',
+            ambassadors: 'Full Name,Mobile Number,Role,Email,Assigned Campus,Emp ID,Child ERP No,Academic Year,Password,Referral Code,Child In Achariya,Benefit Status,Aadhar No,Address,Bank Name,Account Number,IFSC Code',
             fees: 'Campus Name,Grade,Academic Year,Annual Fee (OTP),Annual Fee (WOTP)',
             campuses: 'Campus Name,Campus Code,Location,Grades,Max Capacity',
             referrals: 'Parent Name,Parent Mobile,Student Name,Grade,Section,Campus Name,Ambassador Name,Ambassador Mobile,ERP No,Academic Year,Status,Fee Type',

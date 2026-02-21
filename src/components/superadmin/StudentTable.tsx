@@ -249,6 +249,7 @@ export function StudentTable({
                 header: 'Campus',
                 accessorKey: (s: Student) => s.campus?.campusName || 'N/A',
                 sortable: true,
+                filterable: true,
                 cell: (student: Student) => (
                     <div className="flex items-center gap-1.5 text-gray-700 font-bold text-xs">
                         {/* <Building size={12} className="text-gray-400" /> */}
@@ -263,6 +264,7 @@ export function StudentTable({
                 header: 'Grade & Section',
                 accessorKey: 'grade',
                 sortable: true,
+                filterable: true,
                 cell: (student: Student) => (
                     <div className="space-y-1">
                         <Badge variant="outline" className="font-bold text-[10px] bg-gray-50">
@@ -286,6 +288,7 @@ export function StudentTable({
                 header: 'Guardian',
                 accessorKey: (s: Student) => s.parent?.fullName || '',
                 sortable: true,
+                filterable: true,
                 cell: (student: Student) => (
                     <div className="space-y-1">
                         <p className="font-bold text-gray-700 text-xs flex items-center gap-1.5">
@@ -313,6 +316,7 @@ export function StudentTable({
                 header: 'Referral',
                 accessorKey: (s: Student) => s.ambassador?.fullName || '',
                 sortable: true,
+                filterable: true,
                 cell: (student: Student) => student.ambassador ? (
                     <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-1.5">
@@ -336,6 +340,7 @@ export function StudentTable({
                 header: 'Plan',
                 accessorKey: (s: Student) => (s as any).selectedFeeType,
                 sortable: true,
+                filterable: true,
                 cell: (student: Student) => {
                     const plan = (student as any).selectedFeeType || 'WOTP'
                     const annualFee = (student as any).annualFee ?? student.baseFee ?? 0
@@ -364,6 +369,7 @@ export function StudentTable({
                 header: 'Status',
                 accessorKey: 'status',
                 sortable: true,
+                filterable: true,
                 cell: (student: Student) => (
                     <Badge variant={student.status === 'Active' ? 'success' : 'error'} className="font-black text-[10px] tracking-wider uppercase">
                         {student.status}
@@ -495,178 +501,159 @@ export function StudentTable({
                 ))}
             </div>
 
-            {/* Toolbar */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col md:flex-row gap-4 items-center justify-between sticky top-4 z-30">
-                <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto items-center">
+            {/* Toolbar - Redesigned for Clarity */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between sticky top-4 z-30">
+
+                {/* Left Zone: Discovery (Search + Filters) */}
+                <div className="flex flex-col md:flex-row gap-3 w-full xl:w-auto items-stretch md:items-center flex-grow xl:flex-grow-0">
                     {/* Search */}
-                    <div className="relative w-full md:w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                    <div className="relative flex-grow md:flex-grow-0 md:w-64 group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors" size={16} />
                         <input
                             type="text"
                             placeholder="Search students..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                            className="w-full pl-10 pr-4 h-10 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                             suppressHydrationWarning
                         />
                     </div>
 
-                    {/* Filters */}
-                    <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 hide-scrollbar">
-                        <div className="relative">
-                            <button
-                                onClick={() => setActiveFilter(activeFilter === 'campus' ? null : 'campus')}
-                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 whitespace-nowrap ${filters.campus.length > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                                suppressHydrationWarning
-                            >
-                                <Building size={14} />
-                                Campus {filters.campus.length > 0 && `(${filters.campus.length})`}
-                            </button>
-                            {activeFilter === 'campus' && (
-                                <FilterDropdown
-                                    label="Campus"
-                                    options={filterOptions.campus}
-                                    activeValues={filters.campus}
-                                    onApply={(vals) => setFilters(prev => ({ ...prev, campus: vals }))}
-                                    onClose={() => setActiveFilter(null)}
-                                />
-                            )}
-                        </div>
-
-                        <div className="relative">
-                            <button
-                                onClick={() => setActiveFilter(activeFilter === 'grade' ? null : 'grade')}
-                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 whitespace-nowrap ${filters.grade.length > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                                suppressHydrationWarning
-                            >
-                                <GraduationCap size={14} />
-                                Grade {filters.grade.length > 0 && `(${filters.grade.length})`}
-                            </button>
-                            {activeFilter === 'grade' && (
-                                <FilterDropdown
-                                    label="Grade"
-                                    options={filterOptions.grade}
-                                    activeValues={filters.grade}
-                                    onApply={(vals) => setFilters(prev => ({ ...prev, grade: vals }))}
-                                    onClose={() => setActiveFilter(null)}
-                                />
-                            )}
-                        </div>
-
-                        <div className="relative">
-                            <button
-                                onClick={() => setActiveFilter(activeFilter === 'status' ? null : 'status')}
-                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 whitespace-nowrap ${filters.status.length > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                                suppressHydrationWarning
-                            >
-                                <CheckCircle size={14} />
-                                Status {filters.status.length > 0 && `(${filters.status.length})`}
-                            </button>
-                            {activeFilter === 'status' && (
-                                <FilterDropdown
-                                    label="Status"
-                                    options={filterOptions.status}
-                                    activeValues={filters.status}
-                                    onApply={(vals) => setFilters(prev => ({ ...prev, status: vals }))}
-                                    onClose={() => setActiveFilter(null)}
-                                />
-                            )}
-                        </div>
+                    {/* Filters Row */}
+                    <div className="flex items-center gap-2 flex-wrap pb-1 md:pb-0">
+                        {[
+                            { id: 'campus', label: 'Campus', icon: Building, count: filters.campus.length, options: filterOptions.campus },
+                            { id: 'grade', label: 'Grade', icon: GraduationCap, count: filters.grade.length, options: filterOptions.grade },
+                            { id: 'status', label: 'Status', icon: CheckCircle, count: filters.status.length, options: filterOptions.status },
+                        ].map((filter) => (
+                            <div key={filter.id} className="relative">
+                                <button
+                                    onClick={() => setActiveFilter(activeFilter === filter.id ? null : filter.id)}
+                                    className={`h-10 px-3.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 whitespace-nowrap ${filter.count > 0
+                                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm'
+                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                                        }`}
+                                    suppressHydrationWarning
+                                >
+                                    <filter.icon size={14} className={filter.count > 0 ? 'text-indigo-600' : 'text-gray-400'} />
+                                    {filter.label}
+                                    {filter.count > 0 && (
+                                        <Badge variant="purple" className="ml-1 px-1.5 py-0 h-5 min-w-[1.25rem]">{filter.count}</Badge>
+                                    )}
+                                </button>
+                                {activeFilter === filter.id && (
+                                    <FilterDropdown
+                                        label={filter.label}
+                                        options={filter.options}
+                                        activeValues={filters[filter.id as keyof typeof filters] as string[]}
+                                        onApply={(vals) => setFilters(prev => ({ ...prev, [filter.id]: vals }))}
+                                        onClose={() => setActiveFilter(null)}
+                                    />
+                                )}
+                            </div>
+                        ))}
                     </div>
                 </div>
 
-                {/* Right Actions */}
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setLiveMode(!liveMode)}
-                        className={`p-2 rounded-xl border transition-all ${liveMode ? 'bg-green-50 border-green-200 text-green-600 animate-pulse' : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600'}`}
-                        title="Live Mode"
-                        suppressHydrationWarning
-                    >
-                        <RefreshCcw size={16} className={liveMode ? 'animate-spin' : ''} />
-                    </button>
+                {/* Right Zone: Actions */}
+                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full xl:w-auto">
 
-                    <div className="relative">
+                    {/* Utility Group (Compact) */}
+                    <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200 self-start md:self-auto">
                         <button
-                            onClick={() => setShowColumnMenu(!showColumnMenu)}
-                            className="p-2 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all"
-                            title="Manage Columns"
+                            onClick={() => setLiveMode(!liveMode)}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${liveMode ? 'bg-green-100 text-green-700' : 'text-gray-400 hover:bg-white hover:shadow-sm hover:text-gray-600'}`}
+                            title={liveMode ? "Live Mode: ON" : "Live Mode: OFF"}
                             suppressHydrationWarning
                         >
-                            <Layout size={16} />
+                            <RefreshCcw size={14} className={liveMode ? 'animate-spin' : ''} />
                         </button>
-                        {showColumnMenu && (
-                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl p-2 z-50">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-2">Toggle Columns</p>
-                                {Object.keys(visibleColumns).map(key => (
-                                    <button
-                                        key={key}
-                                        onClick={() => setVisibleColumns(prev => ({ ...prev, [key]: !prev[key as keyof typeof visibleColumns] }))}
-                                        className={`w-full text-left px-3 py-1.5 text-xs font-bold rounded-lg mb-1 flex items-center justify-between ${visibleColumns[key as keyof typeof visibleColumns] ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50'}`}
-                                    >
-                                        <span className="uppercase">{key}</span>
-                                        {visibleColumns[key as keyof typeof visibleColumns] && <CheckCircle size={12} />}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                        <div className="w-px h-4 bg-gray-200 mx-0.5"></div>
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowColumnMenu(!showColumnMenu)}
+                                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${showColumnMenu ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:bg-white hover:shadow-sm hover:text-gray-600'}`}
+                                title="Manage Columns"
+                                suppressHydrationWarning
+                            >
+                                <Layout size={14} />
+                            </button>
+                            {/* Column Menu Dropdown (Keep existing logic) */}
+                            {showColumnMenu && (
+                                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-2">Columns</p>
+                                    {Object.keys(visibleColumns).map(key => (
+                                        <button
+                                            key={key}
+                                            onClick={() => setVisibleColumns(prev => ({ ...prev, [key]: !prev[key as keyof typeof visibleColumns] }))}
+                                            className={`w-full text-left px-3 py-1.5 text-xs font-bold rounded-lg mb-1 flex items-center justify-between ${visibleColumns[key as keyof typeof visibleColumns] ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                                        >
+                                            <span className="uppercase">{key}</span>
+                                            {visibleColumns[key as keyof typeof visibleColumns] && <CheckCircle size={12} />}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => exportToCSV(filteredStudents, 'Student_List', [
+                                { header: 'Full Name', accessor: (s) => s.fullName },
+                                { header: 'Admission No', accessor: (s) => s.admissionNumber },
+                                { header: 'Grade', accessor: (s) => s.grade },
+                                { header: 'Parent', accessor: (s) => s.parent?.fullName || '' },
+                                { header: 'Mobile', accessor: (s) => s.parent?.mobileNumber || '' },
+                                { header: 'Ambassador', accessor: (s) => s.ambassador?.fullName || '' },
+                                { header: 'Status', accessor: (s) => s.status },
+                                { header: 'Fee Plan', accessor: (s) => (s as any).selectedFeeType || 'WOTP' },
+                                { header: 'Annual Fee', accessor: (s) => (s.baseFee || (s as any).annualFee || 0).toString() }
+                            ])}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-white hover:shadow-sm hover:text-gray-600 transition-all"
+                            title="Export CSV"
+                            suppressHydrationWarning
+                        >
+                            <Download size={14} />
+                        </button>
                     </div>
 
-                    <div className="h-6 w-px bg-gray-200 mx-2"></div>
+                    {/* Primary Actions Group */}
+                    <div className="flex items-center gap-2">
+                        {onBackfillFees && (
+                            <button
+                                onClick={onBackfillFees}
+                                disabled={isBackfilling}
+                                className={`h-10 px-4 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 ${isBackfilling
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                                    }`}
+                                title="Backfill Fees"
+                                suppressHydrationWarning
+                            >
+                                <CreditCard size={14} className={isBackfilling ? 'animate-pulse' : 'text-gray-400'} />
+                                <span className="hidden sm:inline">Backfill</span>
+                            </button>
+                        )}
 
-                    <button
-                        onClick={() => exportToCSV(filteredStudents, 'Student_List', [
-                            { header: 'Full Name', accessor: (s) => s.fullName },
-                            { header: 'Admission No', accessor: (s) => s.admissionNumber },
-                            { header: 'Grade', accessor: (s) => s.grade },
-                            { header: 'Parent', accessor: (s) => s.parent?.fullName || '' },
-                            { header: 'Mobile', accessor: (s) => s.parent?.mobileNumber || '' },
-                            { header: 'Ambassador', accessor: (s) => s.ambassador?.fullName || '' },
-                            { header: 'Status', accessor: (s) => s.status }
-                        ])}
-                        className="p-2 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all"
-                        title="Export CSV"
-                        suppressHydrationWarning
-                    >
-                        <Download size={16} />
-                    </button>
+                        {onGenerateReport && (
+                            <button
+                                onClick={onGenerateReport}
+                                className="h-10 px-4 bg-white border border-dashed border-purple-300 text-purple-700 rounded-xl text-xs font-bold hover:bg-purple-50 hover:border-purple-400 transition-all flex items-center gap-2 shadow-sm"
+                                title="Generate Report"
+                                suppressHydrationWarning
+                            >
+                                <FileText size={14} />
+                                <span className="hidden sm:inline">Report</span>
+                            </button>
+                        )}
 
-                    {onBackfillFees && (
                         <button
-                            onClick={onBackfillFees}
-                            disabled={isBackfilling}
-                            className={`px-4 py-2 text-white rounded-xl text-xs font-bold shadow-lg transition-all flex items-center gap-2 ${isBackfilling
-                                    ? 'bg-gray-400 cursor-not-allowed'
-                                    : 'bg-emerald-600 shadow-emerald-200 hover:bg-emerald-700 hover:-translate-y-0.5'
-                                }`}
-                            title="Populate missing fee data for all students"
+                            onClick={onAddStudent}
+                            className="h-10 px-5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-0.5 transition-all flex items-center gap-2"
                             suppressHydrationWarning
                         >
-                            <CreditCard size={16} className={isBackfilling ? 'animate-pulse' : ''} />
-                            <span className="hidden sm:inline">{isBackfilling ? 'Processing...' : 'Backfill Fees'}</span>
+                            <UserPlus size={16} />
+                            <span>Add Student</span>
                         </button>
-                    )}
-
-                    {onGenerateReport && (
-                        <button
-                            onClick={onGenerateReport}
-                            className="px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-purple-200 hover:bg-purple-700 hover:-translate-y-0.5 transition-all flex items-center gap-2"
-                            title="Download report showing missing GradeFee entries"
-                            suppressHydrationWarning
-                        >
-                            <FileText size={16} />
-                            <span className="hidden sm:inline">Generate Report</span>
-                        </button>
-                    )}
-
-                    <button
-                        onClick={onAddStudent}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all flex items-center gap-2"
-                        suppressHydrationWarning
-                    >
-                        <UserPlus size={16} />
-                        <span className="hidden sm:inline">Add Student</span>
-                    </button>
+                    </div>
                 </div>
             </div>
 

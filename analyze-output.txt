@@ -1,0 +1,87 @@
+
+≡ƒöì Analyzing fake-named student records in detail...
+
+≡ƒôì BREAKDOWN BY CAMPUS:
+--------------------------------------------------
+  ASM - VILLIANUR                        1003
+  AKLAVYA - THENGAITHITTU                652
+  AASC                                   536
+  SSV - VILLIANUR                        444
+  ABSM - THENGAITHITTU                   413
+  ACET                                   380
+  ASM HSC - VILLIANUR                    374
+  ASM - VILLUPURAM                       303
+  ASM - KARAIKAL                         300
+  SSV HSC- VILLIANUR                     296
+  ASM - ALAPAKKAM                        276
+  ABSM - TINDIVANAM                      221
+  ASM - MOOLAKULAM                       196
+  AIIS - ERODE                           184
+  ASM - THAVALAKUPPAM                    170
+  ASM - TRICHY                           169
+  AWGI - ETTIMADAI                       164
+  ABSM - GORIMEDU                        150
+  ABSM - ALAPAKKAM                       144
+  ABSM - LAWSPET                         119
+  ABSM - THIRU NAGAR                     105
+  ABSM - SALIGRAMAM                      88
+  ABSM - ADYAR                           84
+  ABSM - MUTHIYALPET                     82
+  AKLAVYA - REDDIYARPALAYAM              81
+  ABSM - KK NAGAR                        79
+  ABSM - VENKATA NAGAR                   70
+  ASM CC -  ERODE                        68
+  ABSM - DASARATHAPURAM                  62
+  AKLAVYA - ANUGRAHA                     61
+  ABSM - VARASALAVAKAM                   59
+  ASM - PERUNDURAI                       52
+  ABSM - KALAPET                         48
+  ABSM - TRICHY                          40
+  ABSM PP - THENGAITHITTU                35
+  ACCHM                                  35
+  CORPORATE                              35
+  ASM - MUTHIRAPALAYAM                   31
+  ABSM - PADMANABHANAGAR                 26
+  ABSM - MADURAVOYAL                     21
+  ABSM - NOLAMBUR                        16
+  ABSM - RK NAGAR                        14
+--------------------------------------------------
+  TOTAL                                  7686
+
+≡ƒôè REFERRED vs ORGANIC:
+--------------------------------------------------
+  Organic (no ambassador)           : 7686
+  Referred (has ambassador)         : 0
+--------------------------------------------------
+
+≡ƒôÜ TOP GRADES (helps identify school vs college):
+--------------------------------------------------
+  Grade 1                                  3622
+  N/A                                      520
+  Grade-1                                  333
+  Grade-2                                  265
+  Grade-11                                 265
+  Grade-12                                 210
+  Pre-Mont                                 207
+  B.Tech(CSE)                              195
+  Grade-3                                  193
+  Grade-4                                  169
+  Mont-1                                   168
+  Mont-2                                   132
+  Mont - I                                 129
+  Grade-7                                  126
+  Mont - II                                111
+
+≡ƒöÄ SAMPLE RECORDS (5 most recent):
+----------------------------------------------------------------------------------------------------
+StudentID   Fake Name                           Parent Name              Campus
+----------------------------------------------------------------------------------------------------
+ID:9212     Aruna's Child                        Aruna                    ASM - ALAPAKKAM
+ID:9211     Razeetha banu's Child                Razeetha banu            ASM - ALAPAKKAM
+ID:9210     Saravanan's Child                    Saravanan                ASM - KARAIKAL
+ID:9209     Daksh kumar jain's Child             Daksh kumar jain         AASC
+ID:9208     Dhanalakshmi's Child                 Dhanalakshmi             AKLAVYA - THENGAITHITTU
+----------------------------------------------------------------------------------------------------
+
+Γ£à Analysis complete.
+

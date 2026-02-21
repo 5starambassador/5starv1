@@ -1,15 +1,27 @@
 import { NextResponse } from "next/server";
 import cashfree from "@/lib/cashfree";
 import prisma from "@/lib/prisma";
+import { syncUserStats } from "@/app/sync-actions";
 
 export async function POST(req: Request) {
+    let orderId = "unknown";
     try {
         // 1. Get the raw body as text for verification
         const rawBody = await req.text();
         const signature = req.headers.get("x-webhook-signature");
         const timestamp = req.headers.get("x-webhook-timestamp");
 
+        // Parse Data early to get Order ID if possible for logging
+        let body: any = {};
+        try {
+            body = JSON.parse(rawBody);
+            orderId = body?.data?.order?.order_id || "unknown";
+        } catch (e) {
+            console.error("[WEBHOOK] Body Parse Failed");
+        }
+
         console.log("[WEBHOOK] Received Request:", {
+            orderId,
             hasSignature: !!signature,
             hasTimestamp: !!timestamp,
             bodyLength: rawBody.length
@@ -23,6 +35,15 @@ export async function POST(req: Request) {
                 return NextResponse.json({ status: "TEST_PING_OK" });
             }
 
+            await prisma.activityLog.create({
+                data: {
+                    action: 'ERROR',
+                    module: 'WEBHOOK',
+                    targetId: orderId,
+                    description: `Missing signature or timestamp for order ${orderId}`
+                }
+            }).catch(() => { });
+
             return NextResponse.json({ error: "Missing signature/timestamp" }, { status: 400 });
         }
 
@@ -31,21 +52,25 @@ export async function POST(req: Request) {
             cashfree.PGVerifyWebhookSignature(signature, rawBody, timestamp);
         } catch (err: any) {
             console.error("[WEBHOOK] Signature Verification Failed:", err.message);
+
+            await prisma.activityLog.create({
+                data: {
+                    action: 'ERROR',
+                    module: 'WEBHOOK',
+                    targetId: orderId,
+                    description: `Signature verification failed for order ${orderId}: ${err.message}`,
+                    metadata: { signature, timestamp }
+                }
+            }).catch(() => { });
+
             // If verification fails, return 403.
             return NextResponse.json({ error: "Invalid signature", detail: err.message }, { status: 403 });
         }
-
-        // 3. Parse Data
-        const body = JSON.parse(rawBody);
-
-        // We are interested in "PAYMENT_SUCCESS_WEBHOOK" or similar events
-        // Structure usually: { type: "PAYMENT_SUCCESS_WEBHOOK", data: { order: {...}, payment: {...}, customer: {...} } }
 
         const type = body.type;
         const data = body.data;
 
         if (type === "PAYMENT_SUCCESS_WEBHOOK") {
-            const orderId = data.order.order_id;
             const payment = data.payment;
 
             // 4. Update Database
@@ -74,25 +99,68 @@ export async function POST(req: Request) {
                         transactionId: payment.cf_payment_id ? String(payment.cf_payment_id) : undefined
                     }
                 });
+
+                // Centralized Sync: Creates Student record and confirms referrals
+                await syncUserStats(updatedPayment.userId)
             }
+
+            await prisma.activityLog.create({
+                data: {
+                    action: 'SUCCESS',
+                    module: 'WEBHOOK',
+                    targetId: orderId,
+                    description: `Successfully processed payment webhook for order ${orderId}`
+                }
+            }).catch(() => { });
+
         } else if (type === "PAYMENT_FAILED_WEBHOOK") {
-            const orderId = data.order.order_id;
             console.log(`Processing Webhook: Failure for Order ${orderId}`);
 
             await prisma.payment.update({
                 where: { orderId: orderId },
                 data: {
                     paymentStatus: "Failed",
-                    orderStatus: "ACTIVE", // Or FAILED, dependent on business logic. Usually order stays Active until paid or expired.
+                    orderStatus: "ACTIVE", // Or FAILED, dependent on business logic.
                     gatewayResponse: data.payment
                 }
             });
+
+            await prisma.activityLog.create({
+                data: {
+                    action: 'FAILURE',
+                    module: 'WEBHOOK',
+                    targetId: orderId,
+                    description: `Processed failure webhook for order ${orderId}`,
+                    metadata: data.payment
+                }
+            }).catch(() => { });
+        } else {
+            // Log other event types
+            await prisma.activityLog.create({
+                data: {
+                    action: 'INFO',
+                    module: 'WEBHOOK',
+                    targetId: orderId,
+                    description: `Received webhook event: ${type} for order ${orderId}`,
+                    metadata: body
+                }
+            }).catch(() => { });
         }
 
         return NextResponse.json({ status: "OK" });
 
     } catch (error: any) {
         console.error("Webhook Error:", error);
+
+        await prisma.activityLog.create({
+            data: {
+                action: 'ERROR',
+                module: 'WEBHOOK',
+                targetId: orderId,
+                description: `Internal error processing webhook for ${orderId}: ${error.message}`
+            }
+        }).catch(() => { });
+
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }

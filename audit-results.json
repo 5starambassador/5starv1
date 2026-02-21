@@ -1,0 +1,375 @@
+{
+  "timestamp": "2026-02-19T10:53:42.365Z",
+  "inconsistentAmbassadors": 0,
+  "inconsistencies": [],
+  "leadsWithNullData": 0,
+  "actualNullData": [],
+  "leadsWithZeroAnnualFee": 73,
+  "zeroFeeLeads": [
+    {
+      "leadId": 314,
+      "studentName": "THANUSREE M",
+      "userId": 1161
+    },
+    {
+      "leadId": 328,
+      "studentName": "SUDHAKAR V",
+      "userId": 1196
+    },
+    {
+      "leadId": 396,
+      "studentName": "PRAVEEN RAJ M",
+      "userId": 1196
+    },
+    {
+      "leadId": 570,
+      "studentName": "ANANTHAJJAYAN V",
+      "userId": 1189
+    },
+    {
+      "leadId": 442,
+      "studentName": "MOHAMED EHSAN",
+      "userId": 1183
+    },
+    {
+      "leadId": 513,
+      "studentName": "HARISH V",
+      "userId": 1183
+    },
+    {
+      "leadId": 416,
+      "studentName": "NITYASREE R S",
+      "userId": 1191
+    },
+    {
+      "leadId": 476,
+      "studentName": "KAYALVIZHI K",
+      "userId": 1191
+    },
+    {
+      "leadId": 556,
+      "studentName": "BALAKUMARAN M",
+      "userId": 1185
+    },
+    {
+      "leadId": 324,
+      "studentName": "SUJITH.M",
+      "userId": 1258
+    },
+    {
+      "leadId": 335,
+      "studentName": "SOUNDARRAJAN L",
+      "userId": 1212
+    },
+    {
+      "leadId": 312,
+      "studentName": "THARANEDHARAN O",
+      "userId": 1212
+    },
+    {
+      "leadId": 548,
+      "studentName": "DARSHAN BADMANABAN",
+      "userId": 1210
+    },
+    {
+      "leadId": 434,
+      "studentName": "MONIKA. S",
+      "userId": 1211
+    },
+    {
+      "leadId": 575,
+      "studentName": "AKSAYASRI J",
+      "userId": 1200
+    },
+    {
+      "leadId": 547,
+      "studentName": "DARSHNI V",
+      "userId": 3210
+    },
+    {
+      "leadId": 426,
+      "studentName": "NAVEENRAJ K",
+      "userId": 1204
+    },
+    {
+      "leadId": 452,
+      "studentName": "MADHIVATHANI N",
+      "userId": 1204
+    },
+    {
+      "leadId": 464,
+      "studentName": "LAAVANYA K",
+      "userId": 1204
+    },
+    {
+      "leadId": 515,
+      "studentName": "HARIHARAN R",
+      "userId": 1204
+    },
+    {
+      "leadId": 424,
+      "studentName": "NETHRA S",
+      "userId": 1260
+    },
+    {
+      "leadId": 459,
+      "studentName": "LALITH KISHOR P",
+      "userId": 1248
+    },
+    {
+      "leadId": 477,
+      "studentName": "KAVIDHANYA",
+      "userId": 1247
+    },
+    {
+      "leadId": 537,
+      "studentName": "DHEJESH P",
+      "userId": 1250
+    },
+    {
+      "leadId": 283,
+      "studentName": "YOKEESWARN A",
+      "userId": 1179
+    },
+    {
+      "leadId": 544,
+      "studentName": "Devendravel K",
+      "userId": 1169
+    },
+    {
+      "leadId": 349,
+      "studentName": "Sathvik S",
+      "userId": 1236
+    },
+    {
+      "leadId": 433,
+      "studentName": "Moshith. R",
+      "userId": 1227
+    },
+    {
+      "leadId": 539,
+      "studentName": "DHASHVANTH R I",
+      "userId": 1181
+    },
+    {
+      "leadId": 543,
+      "studentName": "DHANASRI",
+      "userId": 1216
+    },
+    {
+      "leadId": 558,
+      "studentName": "AVINASH VASAN A E",
+      "userId": 1162
+    },
+    {
+      "leadId": 551,
+      "studentName": "CHANDRU D",
+      "userId": 1190
+    },
+    {
+      "leadId": 401,
+      "studentName": "PRANEETH G P",
+      "userId": 1238
+    },
+    {
+      "leadId": 293,
+      "studentName": "YADVIK K R",
+      "userId": 1607
+    },
+    {
+      "leadId": 325,
+      "studentName": "SUJAN S",
+      "userId": 5146
+    },
+    {
+      "leadId": 427,
+      "studentName": "NAVEEN CHANDHAR",
+      "userId": 1664
+    },
+    {
+      "leadId": 494,
+      "studentName": "Jenith. N.J",
+      "userId": 1664
+    },
+    {
+      "leadId": 348,
+      "studentName": "SEEMA",
+      "userId": 4918
+    },
+    {
+      "leadId": 448,
+      "studentName": "MANISHA ARUNACHALAM PILLAI",
+      "userId": 4918
+    },
+    {
+      "leadId": 447,
+      "studentName": "MANOJ KUMAR P",
+      "userId": 4363
+    },
+    {
+      "leadId": 500,
+      "studentName": "JANANI M",
+      "userId": 1201
+    },
+    {
+      "leadId": 566,
+      "studentName": "ARIHA T",
+      "userId": 1597
+    },
+    {
+      "leadId": 350,
+      "studentName": "SASIDHARAN",
+      "userId": 1198
+    },
+    {
+      "leadId": 360,
+      "studentName": "SARADEVI T",
+      "userId": 1198
+    },
+    {
+      "leadId": 422,
+      "studentName": "NIKHILAN B",
+      "userId": 1242
+    },
+    {
+      "leadId": 436,
+      "studentName": "MOKSHIK CHOPRA",
+      "userId": 1246
+    },
+    {
+      "leadId": 490,
+      "studentName": "KAAVYA CHOPRA",
+      "userId": 1246
+    },
+    {
+      "leadId": 557,
+      "studentName": "AVIRAJ NANDI",
+      "userId": 1246
+    },
+    {
+      "leadId": 299,
+      "studentName": "Vihaan Shiva",
+      "userId": 1237
+    },
+    {
+      "leadId": 463,
+      "studentName": "Lakshan",
+      "userId": 1237
+    },
+    {
+      "leadId": 627,
+      "studentName": "Lakshmi",
+      "userId": 6054
+    },
+    {
+      "leadId": 392,
+      "studentName": "RAGHUL G",
+      "userId": 1257
+    },
+    {
+      "leadId": 498,
+      "studentName": "JASMITAA",
+      "userId": 1257
+    },
+    {
+      "leadId": 384,
+      "studentName": "RITHISHKUMAR M",
+      "userId": 1569
+    },
+    {
+      "leadId": 326,
+      "studentName": "SUDHARSHAN K",
+      "userId": 1887
+    },
+    {
+      "leadId": 347,
+      "studentName": "SHADHIKA J",
+      "userId": 1887
+    },
+    {
+      "leadId": 292,
+      "studentName": "YAMUNA DEVI S",
+      "userId": 1887
+    },
+    {
+      "leadId": 310,
+      "studentName": "THARUN KUMAR A",
+      "userId": 1887
+    },
+    {
+      "leadId": 590,
+      "studentName": "AASHINI",
+      "userId": 1887
+    },
+    {
+      "leadId": 316,
+      "studentName": "THAMIZHARASAN",
+      "userId": 1871
+    },
+    {
+      "leadId": 319,
+      "studentName": "SWETHA R",
+      "userId": 1779
+    },
+    {
+      "leadId": 399,
+      "studentName": "PRANJAL SAURABH",
+      "userId": 1698
+    },
+    {
+      "leadId": 528,
+      "studentName": "EZHILARASAN A E",
+      "userId": 1640
+    },
+    {
+      "leadId": 499,
+      "studentName": "JASHVINATH",
+      "userId": 1232
+    },
+    {
+      "leadId": 397,
+      "studentName": "PRATHYUSHA R",
+      "userId": 1203
+    },
+    {
+      "leadId": 525,
+      "studentName": "GAJALAKSHMI C",
+      "userId": 1203
+    },
+    {
+      "leadId": 495,
+      "studentName": "JEGATHEESHWARAN S",
+      "userId": 1203
+    },
+    {
+      "leadId": 512,
+      "studentName": "HARRIARSHINI S",
+      "userId": 1203
+    },
+    {
+      "leadId": 430,
+      "studentName": "MUBINA",
+      "userId": 1209
+    },
+    {
+      "leadId": 541,
+      "studentName": "Dharshan",
+      "userId": 1209
+    },
+    {
+      "leadId": 419,
+      "studentName": "NITHISH B",
+      "userId": 1205
+    },
+    {
+      "leadId": 458,
+      "studentName": "LAVANYA G",
+      "userId": 1205
+    },
+    {
+      "leadId": 559,
+      "studentName": "ATHIYAN.T",
+      "userId": 1205
+    }
+  ]
+}

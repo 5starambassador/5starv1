@@ -24,10 +24,12 @@ export default function PaymentButton({ amount, onSuccess, userId }: PaymentButt
     const [showManual, setShowManual] = useState(false)
     const [showFallback, setShowFallback] = useState(false)
     const [allowManual, setAllowManual] = useState(true)
+    const [activeGateway, setActiveGateway] = useState('CASHFREE')
 
     useEffect(() => {
         getSystemSettings().then(settings => {
             setAllowManual(settings.allowManualPayments)
+            setActiveGateway(settings.activeOnlineGateway || 'CASHFREE')
         })
     }, [])
 
@@ -44,6 +46,31 @@ export default function PaymentButton({ amount, onSuccess, userId }: PaymentButt
     const handlePayment = async () => {
         setLoading(true)
         try {
+            // Respect the gateway selected in Superadmin Settings
+            console.log(`[PAYMENT] Initiating checkout with gateway: ${activeGateway}`);
+
+            if (activeGateway === 'GRAYQUEST') {
+                // 1. Create GrayQuest session
+                const response = await fetch('/api/payment/grayquest/create-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount }),
+                })
+
+                const data = await response.json()
+                if (!response.ok) {
+                    throw new Error(data.error || data.details || "Failed to initialize GrayQuest session")
+                }
+
+                if (data.checkoutUrl) {
+                    window.location.href = data.checkoutUrl
+                    return
+                } else {
+                    throw new Error("No checkout URL received from GrayQuest")
+                }
+            }
+
+            // --- Default: Cashfree Logic ---
             // 1. Create order
             const response = await fetch('/api/payment/create-order', {
                 method: 'POST',
@@ -78,8 +105,10 @@ export default function PaymentButton({ amount, onSuccess, userId }: PaymentButt
             }
 
         } catch (error: any) {
-            console.error("Payment SDK Error:", error)
-            toast.error(error.message || 'Payment failed to initialize')
+            console.error("Payment initiation failed [DEBUG]:", error)
+            if (error.stack) console.error("Error Stack:", error.stack)
+            toast.error(error.message || "Something went wrong")
+        } finally {
             setLoading(false)
             // Smart Fallback 2: SDK Error -> Show Manual Option
             setShowFallback(true)
@@ -149,6 +178,12 @@ export default function PaymentButton({ amount, onSuccess, userId }: PaymentButt
                     [DEV ONLY] Simulate Successful Payment
                 </button>
             )}
+
+            <div className="pt-2">
+                <p className="text-white/40 text-[10px] font-medium tracking-wide text-center uppercase">
+                    Secured by {activeGateway === 'GRAYQUEST' ? 'GrayQuest payments' : 'Cashfree Payments'}
+                </p>
+            </div>
         </div>
     )
 }
