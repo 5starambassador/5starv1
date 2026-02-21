@@ -186,6 +186,24 @@ export function UserTable({
             )
         },
         {
+            header: 'Source',
+            accessorKey: 'registrationSource',
+            sortable: true,
+            filterable: true,
+            cell: (user: User) => {
+                const source = (user as any).registrationSource || 'System'
+                const isManual = source === 'Manual' || source === 'Admin Created'
+                return (
+                    <Badge
+                        variant={isManual ? 'outline' : 'info'}
+                        className={`font-black text-[9px] tracking-wider uppercase w-fit ${isManual ? 'border-amber-200 text-amber-700 bg-amber-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}
+                    >
+                        {source === 'Admin Created' ? 'Admin' : (source === 'Manual' ? 'Manual' : 'System')}
+                    </Badge>
+                )
+            }
+        },
+        {
             header: 'Status',
             accessorKey: 'status',
             sortable: true,
@@ -259,6 +277,7 @@ export function UserTable({
     const [roleFilter, setRoleFilter] = useState<string[]>([])
     const [campusFilter, setCampusFilter] = useState<string[]>([])
     const [statusFilter, setStatusFilter] = useState<string[]>([])
+    const [sourceFilter, setSourceFilter] = useState<string[]>([]) // ['manual', 'system']
 
     const [showExportModal, setShowExportModal] = useState(false)
     const [exportDateRange, setExportDateRange] = useState({
@@ -295,7 +314,8 @@ export function UserTable({
         yearBenefit: true,
         longTermBenefit: true,
         joinedDate: true,
-        password: false
+        password: false,
+        source: true
     })
 
     const handleExport = () => {
@@ -318,7 +338,15 @@ export function UserTable({
             // 4. Status Filter
             if (statusFilter.length > 0 && !statusFilter.includes(user.status)) return false
 
-            // 5. Date Range Filter
+            // 5. Source Filter
+            if (sourceFilter.length > 0) {
+                const source = (user as any).registrationSource || 'System'
+                const isManual = source === 'Manual' || source === 'Admin Created'
+                const userSource = isManual ? 'manual' : 'system'
+                if (!sourceFilter.includes(userSource)) return false
+            }
+
+            // 6. Date Range Filter
             if (exportDateRange.from || exportDateRange.to) {
                 const userDate = new Date(user.createdAt)
                 const fromDate = exportDateRange.from ? new Date(exportDateRange.from) : null
@@ -367,6 +395,7 @@ export function UserTable({
         if (selectedColumns.longTermBenefit) headers.push('Long Term Benefit %')
         if (selectedColumns.joinedDate) headers.push('Joined Date')
         if (selectedColumns.status) headers.push('Status')
+        if (selectedColumns.source) headers.push('Upload Source')
         if (selectedColumns.password) headers.push('Password')
 
         const csvRows = [headers.join(',')]
@@ -374,34 +403,38 @@ export function UserTable({
         for (const user of filteredData) {
             const row = []
             if (selectedColumns.fullName) row.push(`"${user.fullName || ''}"`)
-            if (selectedColumns.mobileNumber) row.push(`"${user.mobileNumber || ''}"`)
+            if (selectedColumns.mobileNumber) row.push(`="${user.mobileNumber || ''}"`)
             if (selectedColumns.role) row.push(`"${user.role || ''}"`)
             if (selectedColumns.email) row.push(`"${user.email || ''}"`)
             if (selectedColumns.campus) row.push(`"${user.assignedCampus || ''}"`)
-            if (selectedColumns.empId) row.push(`"${user.empId || ''}"`)
+            if (selectedColumns.empId) row.push(`="${user.empId || ''}"`)
             if (selectedColumns.grade) row.push(`"${user.grade || ''}"`)
             if (selectedColumns.isFiveStarMember) row.push(user.isFiveStarMember ? 'Yes' : 'No')
             if (selectedColumns.benefitStatus) row.push(`"${user.benefitStatus}"`)
             if (selectedColumns.childInAchariya) row.push(user.childInAchariya ? 'Yes' : 'No')
             if (selectedColumns.childName) row.push(`"${user.childName || ''}"`)
-            if (selectedColumns.childEprNo) row.push(`"${user.childEprNo || ''}"`)
-            if (selectedColumns.aadharNo) row.push(`"${user.aadharNo || ''}"`)
+            if (selectedColumns.childEprNo) row.push(`="${user.childEprNo || ''}"`)
+            if (selectedColumns.aadharNo) row.push(`="${user.aadharNo || ''}"`)
             if (selectedColumns.address) row.push(`"${(user.address || '').replace(/"/g, '""')}"`)
             if (selectedColumns.bankAccountDetails) row.push(`"${(user.bankAccountDetails || '').replace(/"/g, '""')}"`)
-            if (selectedColumns.accountNumber) row.push(`"${user.accountNumber || ''}"`)
+            if (selectedColumns.accountNumber) row.push(`="${user.accountNumber || ''}"`)
             if (selectedColumns.bankName) row.push(`"${user.bankName || ''}"`)
             if (selectedColumns.ifscCode) row.push(`"${user.ifscCode || ''}"`)
             if (selectedColumns.academicYear) row.push(`"${user.academicYear || ''}"`)
             if (selectedColumns.studentFee) row.push(user.studentFee || 0)
             if (selectedColumns.paymentAmount) row.push(user.paymentAmount || 0)
             if (selectedColumns.paymentStatus) row.push(`"${user.paymentStatus || ''}"`)
-            if (selectedColumns.transactionId) row.push(`"${user.transactionId || ''}"`)
+            if (selectedColumns.transactionId) row.push(`="${user.transactionId || ''}"`)
             if (selectedColumns.referralCode) row.push(`"${user.referralCode || ''}"`)
             if (selectedColumns.confirmedReferrals) row.push(user.confirmedReferralCount || 0)
             if (selectedColumns.yearBenefit) row.push(user.yearFeeBenefitPercent || 0)
             if (selectedColumns.longTermBenefit) row.push(user.longTermBenefitPercent || 0)
             if (selectedColumns.joinedDate) row.push(`"${new Date(user.createdAt).toLocaleDateString()}"`)
             if (selectedColumns.status) row.push(`"${user.status}"`)
+            if (selectedColumns.source) {
+                const source = (user as any).registrationSource || 'System'
+                row.push(`"${source === 'Admin Created' ? 'Admin Created' : (source === 'Manual' ? 'Manual Import' : 'System/Organic')}"`)
+            }
             if (selectedColumns.password) row.push(`"${user.password || ''}"`)
 
             csvRows.push(row.join(','))
@@ -524,6 +557,25 @@ export function UserTable({
                     ))}
                 </div>
 
+                {/* Source Filter */}
+                <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100 items-center gap-1">
+                    {[
+                        { label: 'Manual', value: 'manual' },
+                        { label: 'System', value: 'system' }
+                    ].map(source => (
+                        <button
+                            key={source.value}
+                            onClick={() => {
+                                setSourceFilter(prev => prev.includes(source.value) ? prev.filter(s => s !== source.value) : [...prev, source.value])
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${sourceFilter.includes(source.value) ? 'bg-amber-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                            suppressHydrationWarning
+                        >
+                            {source.label}
+                        </button>
+                    ))}
+                </div>
+
                 {/* Campus Filter Dropdown */}
                 <div className="relative" ref={campusDropdownRef}>
                     <button
@@ -568,12 +620,13 @@ export function UserTable({
                 </div>
 
                 {/* Clear All Filters */}
-                {(roleFilter.length > 0 || campusFilter.length > 0 || statusFilter.length > 0) && (
+                {(roleFilter.length > 0 || campusFilter.length > 0 || statusFilter.length > 0 || sourceFilter.length > 0) && (
                     <button
                         onClick={() => {
                             setRoleFilter([]);
                             setCampusFilter([]);
                             setStatusFilter([]);
+                            setSourceFilter([]);
                         }}
                         className="text-[10px] font-black uppercase text-red-500 hover:text-red-700 tracking-widest pl-2"
                         suppressHydrationWarning
@@ -587,6 +640,12 @@ export function UserTable({
                         if (roleFilter.length > 0 && !roleFilter.includes(u.role)) return false
                         if (campusFilter.length > 0 && !campusFilter.includes(u.assignedCampus || 'Global')) return false
                         if (statusFilter.length > 0 && !statusFilter.includes(u.status)) return false
+                        if (sourceFilter.length > 0) {
+                            const source = (u as any).registrationSource || 'System'
+                            const isManual = source === 'Manual' || source === 'Admin Created'
+                            const userSource = isManual ? 'manual' : 'system'
+                            if (!sourceFilter.includes(userSource)) return false
+                        }
                         return true
                     }).length} results
                 </div>
@@ -645,6 +704,12 @@ export function UserTable({
                             if (roleFilter.length > 0 && !roleFilter.includes(u.role)) return false
                             if (campusFilter.length > 0 && !campusFilter.includes(u.assignedCampus || 'Global')) return false
                             if (statusFilter.length > 0 && !statusFilter.includes(u.status)) return false
+                            if (sourceFilter.length > 0) {
+                                const source = u.registrationSource || 'System'
+                                const isManual = source === 'Manual' || source === 'Admin Created'
+                                const userSource = isManual ? 'manual' : 'system'
+                                if (!sourceFilter.includes(userSource)) return false
+                            }
                             return true
                         })}
                         columns={columns as any}

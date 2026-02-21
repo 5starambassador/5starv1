@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, Eye, EyeOff, Save, X, Upload, FileText, Loader2, ArrowRight, Share2, Filter, LayoutGrid } from 'lucide-react'
+import { Plus, Trash2, Eye, EyeOff, Save, X, Upload, FileText, Loader2, ArrowRight, Share2, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
-import { createMarketingAsset, deleteMarketingAsset, toggleAssetVisibility } from '@/app/marketing-actions'
+import { createMarketingAsset, deleteMarketingAsset, toggleAssetVisibility, updateMarketingAsset } from '@/app/marketing-actions'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -20,6 +20,15 @@ export function MarketingManager({ assets }: MarketingManagerProps) {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [deletingId, setDeletingId] = useState<number | null>(null)
     const [activeCategory, setActiveCategory] = useState<string>('All')
+
+    // Edit state
+    const [editState, setEditState] = useState<{ isOpen: boolean; asset?: any }>({
+        isOpen: false
+    })
+    const [editName, setEditName] = useState('')
+    const [editDescription, setEditDescription] = useState('')
+    const [editFileUrl, setEditFileUrl] = useState('')
+    const [isEditSubmitting, setIsEditSubmitting] = useState(false)
 
     // Confirmation State
     const [confirmState, setConfirmState] = useState<{
@@ -96,6 +105,34 @@ export function MarketingManager({ assets }: MarketingManagerProps) {
             router.refresh()
         } else {
             toast.error(res.error || 'Operation failed')
+        }
+    }
+
+    const handleEdit = (asset: any) => {
+        setEditName(asset.name)
+        setEditDescription(asset.description || '')
+        setEditFileUrl(asset.fileUrl)
+        setEditState({ isOpen: true, asset })
+    }
+
+    const executeEdit = async () => {
+        if (!editName.trim() || !editFileUrl.trim()) {
+            toast.error('Name and URL are required')
+            return
+        }
+        setIsEditSubmitting(true)
+        const res = await updateMarketingAsset(editState.asset.id, {
+            name: editName.trim(),
+            description: editDescription.trim() || undefined,
+            fileUrl: editFileUrl.trim()
+        })
+        setIsEditSubmitting(false)
+        if (res.success) {
+            toast.success('Asset updated')
+            setEditState({ isOpen: false })
+            router.refresh()
+        } else {
+            toast.error(res.error || 'Failed to update')
         }
     }
 
@@ -194,6 +231,13 @@ export function MarketingManager({ assets }: MarketingManagerProps) {
                                             </div>
 
                                             <div className="flex items-center gap-2 pr-2">
+                                                <button
+                                                    onClick={() => handleEdit(asset)}
+                                                    className="p-2.5 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all"
+                                                    title="Edit Asset"
+                                                >
+                                                    <Pencil size={16} />
+                                                </button>
                                                 <button
                                                     onClick={() => handleToggle(asset.id, asset.isActive)}
                                                     className={`p-2.5 rounded-xl border transition-all ${asset.isActive
@@ -352,6 +396,84 @@ export function MarketingManager({ assets }: MarketingManagerProps) {
                                         ) : (
                                             <><Save size={16} /> Deploy Asset</>
                                         )}
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Edit Asset Modal */}
+            <AnimatePresence>
+                {editState.isOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setEditState({ isOpen: false })}
+                            className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-white/95 backdrop-blur-xl border border-white/20 rounded-[40px] w-full max-w-lg shadow-2xl relative overflow-hidden"
+                        >
+                            <div className="bg-indigo-600 p-8 text-white">
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <h2 className="text-lg font-black uppercase tracking-tight italic">Edit Asset</h2>
+                                        <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] font-mono">{editState.asset?.name}</p>
+                                    </div>
+                                    <button onClick={() => setEditState({ isOpen: false })} className="p-2.5 bg-white/10 rounded-2xl border border-white/10 transition-colors hover:bg-white/20">
+                                        <X size={20} className="text-white" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="p-8 space-y-5">
+                                <div className="space-y-1.5">
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Asset Name</label>
+                                    <input
+                                        type="text"
+                                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all"
+                                        value={editName}
+                                        onChange={(e) => setEditName(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">File URL</label>
+                                    <input
+                                        type="url"
+                                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all"
+                                        value={editFileUrl}
+                                        onChange={(e) => setEditFileUrl(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Description</label>
+                                    <textarea
+                                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all min-h-[90px] resize-none"
+                                        value={editDescription}
+                                        onChange={(e) => setEditDescription(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="flex gap-3 pt-4 border-t border-gray-50">
+                                    <button
+                                        onClick={() => setEditState({ isOpen: false })}
+                                        className="flex-1 py-4 bg-gray-50 text-gray-500 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-100 transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={executeEdit}
+                                        disabled={isEditSubmitting}
+                                        className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                    >
+                                        {isEditSubmitting ? <Loader2 size={16} className="animate-spin" /> : <><Save size={16} /> Save Changes</>}
                                     </button>
                                 </div>
                             </div>

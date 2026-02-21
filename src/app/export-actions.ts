@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
 import { format } from 'date-fns'
 import { decrypt } from '@/lib/encryption'
+import { logAction } from '@/lib/audit-logger'
 
 export async function exportRegistrations(startDate: Date, endDate: Date, selectedColumns?: string[]) {
     const admin = await getCurrentUser()
@@ -88,8 +89,8 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
             'campus': { header: 'Campus', accessor: (u) => u.campusId ? campusMap.get(u.campusId) || 'N/A' : 'N/A' },
             'childName': { header: 'Child Name', accessor: (u) => u.childName },
             'grade': { header: 'Grade', accessor: (u) => u.grade },
-            'childEpr': { header: 'Child EPR No', accessor: (u) => u.childEprNo },
-            'empId': { header: 'Employee ID', accessor: (u) => u.empId },
+            'childEpr': { header: 'Child EPR No', accessor: (u) => `="${u.childEprNo}"` },
+            'empId': { header: 'Employee ID', accessor: (u) => `="${u.empId}"` },
             'paymentStatus': { header: 'Payment Status', accessor: (u) => u.paymentStatus },
             'txnId': { header: 'Transaction ID', accessor: (u) => u.transactionId || u.payments?.[0]?.transactionId || 'N/A' },
             'amount': { header: 'Payment Amount', accessor: (u) => u.paymentAmount },
@@ -118,6 +119,17 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
         })
 
         const csvContent = [csvHeaders, ...csvRows].join('\n')
+
+        // Audit: log the export event with actor and filter details
+        await logAction(
+            'EXPORT',
+            'security',
+            `Exported ${users.length} registrations CSV`,
+            null,
+            null,
+            { from: format(startDate, 'yyyy-MM-dd'), to: format(endDate, 'yyyy-MM-dd'), columns: columnsToExport }
+        )
+
         return { success: true, csv: csvContent, filename: `Registrations_${format(startDate, 'yyyyMMdd')}.csv` }
 
     } catch (error) {
@@ -228,6 +240,17 @@ export async function exportPayouts(startDate: Date, endDate: Date, status?: str
         })
 
         const csvContent = [csvHeaders, ...csvRows].join('\n')
+
+        // Audit: log the export event
+        await logAction(
+            'EXPORT',
+            'security',
+            `Exported ${settlements.length} payout records CSV`,
+            null,
+            null,
+            { from: format(startDate, 'yyyy-MM-dd'), to: format(endDate, 'yyyy-MM-dd'), status: status || 'All', columns: columnsToExport }
+        )
+
         return { success: true, csv: csvContent, filename: `Payouts_${format(startDate, 'yyyyMMdd')}.csv` }
 
     } catch (error) {
@@ -290,6 +313,17 @@ export async function exportRejectedPayments(search?: string) {
         })
 
         const csvContent = [csvHeaders, ...csvRows].join('\n')
+
+        // Audit: log the export event
+        await logAction(
+            'EXPORT',
+            'security',
+            `Exported ${payments.length} rejected payment records CSV`,
+            null,
+            null,
+            { search: search || 'none' }
+        )
+
         return {
             success: true,
             csv: csvContent,

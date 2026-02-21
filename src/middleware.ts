@@ -121,7 +121,21 @@ export async function middleware(request: NextRequest) {
         }
     }
 
-    const response = NextResponse.next()
+    // Generate a unique Request ID
+    const requestId = crypto.randomUUID()
+
+    // Add Request ID to the request headers to be accessed by server actions/components
+    const requestHeaders = new Headers(request.headers)
+    requestHeaders.set('x-request-id', requestId)
+
+    const response = NextResponse.next({
+        request: {
+            headers: requestHeaders,
+        },
+    })
+
+    // Set Request ID in response header for client-side debugging/tracking
+    response.headers.set('x-request-id', requestId)
 
     // 4. Security Headers (Temporarily commented out to fix "Content Blocked" error)
     response.headers.set('X-Frame-Options', 'SAMEORIGIN')

@@ -5,6 +5,7 @@ import { EmailService } from '@/lib/email-service'
 import { calculateStars } from '@/lib/gamification'
 import { logger } from '@/lib/logger'
 import { getCurrentUser } from '@/lib/auth-service'
+import { logAction } from '@/lib/audit-logger'
 
 // Helper to check if user is admin
 async function checkAdmin() {
@@ -70,16 +71,14 @@ export async function triggerReengagementCampaign() {
                 await EmailService.sendReengagementEmail(amb.email, amb.fullName, stars.tier)
 
                 // 3. Log the action
-                await prisma.activityLog.create({
-                    data: {
-                        userId: admin.userId,
-                        action: 'REENGAGEMENT_EMAIL_SENT',
-                        module: 'engagement',
-                        targetId: amb.userId.toString(),
-                        description: `Sent re-engagement email to ambassador ${amb.fullName}`,
-                        metadata: { count: amb.confirmedReferralCount, tier: stars.tier } as any
-                    } as any
-                })
+                await logAction(
+                    'REENGAGEMENT_EMAIL_SENT',
+                    'engagement',
+                    `Sent re-engagement email to ambassador ${amb.fullName}`,
+                    amb.userId.toString(),
+                    admin.userId,
+                    { count: amb.confirmedReferralCount, tier: stars.tier }
+                )
                 sentCount++
             }
         }

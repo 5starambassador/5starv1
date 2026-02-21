@@ -25,6 +25,8 @@ export async function getSettlements() {
             },
             orderBy: { createdAt: 'desc' }
         })
+
+        await logAction('READ', 'settlement', 'Bulk read of all settlement records (with bank details)')
         return { success: true, settlements }
     } catch (error) {
         console.error('getSettlements error:', error)
@@ -41,6 +43,8 @@ export async function getUserSettlements(userId: number) {
             where: { userId },
             orderBy: { createdAt: 'desc' }
         })
+
+        await logAction('READ', 'settlement', `Read settlement history for user ${userId}`, userId.toString())
         return { success: true, settlements }
     } catch (error) {
         console.error('getUserSettlements error:', error)

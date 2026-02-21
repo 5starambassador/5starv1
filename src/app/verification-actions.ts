@@ -201,6 +201,8 @@ export async function approveVerification(userId: number, updatedDetails?: {
         // 3. Create Notification
         await notifyVerificationApproved(userId)
 
+        await logAction('UPDATE', 'verification', `Approved verification for user ${userId}`, userId.toString())
+
         await revalidateDashboard()
         return { success: true }
     } catch (error) {
@@ -225,6 +227,8 @@ export async function rejectVerification(userId: number, reason?: string) {
 
         // 2. Create Notification
         await notifyVerificationRejected(userId, reason)
+
+        await logAction('UPDATE', 'verification', `Rejected verification for user ${userId}${reason ? `: ${reason}` : ''}`, userId.toString())
 
         await revalidateDashboard()
         return { success: true }

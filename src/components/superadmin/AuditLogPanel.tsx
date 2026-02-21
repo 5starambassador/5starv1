@@ -12,7 +12,8 @@ import {
     User,
     Shield,
     ChevronRight,
-    ArrowUpDown
+    ArrowUpDown,
+    Link
 } from 'lucide-react'
 import { getAuditLogs, getAuditStats } from '@/app/audit-actions'
 import { toast } from 'sonner'
@@ -270,7 +271,7 @@ export function AuditLogPanel() {
                                                             {log.admin?.adminName || log.user?.fullName || 'System'}
                                                         </span>
                                                         <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
-                                                            {log.admin?.role || log.user?.role || 'SYSTEM'}
+                                                            {(log.admin?.role || log.user?.role || 'SYSTEM').replace(/_/g, ' ')}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -309,8 +310,28 @@ export function AuditLogPanel() {
                                                                     <Database size={12} className="text-gray-400" />
                                                                 </div>
                                                                 <pre className="p-6 text-xs font-mono text-gray-700 overflow-x-auto whitespace-pre-wrap leading-relaxed selection:bg-red-100">
-                                                                    {JSON.stringify(log.metadata, null, 2)}
+                                                                    {JSON.stringify(log.metadata, (key, value) => (key === 'requestId' ? undefined : value), 2)}
                                                                 </pre>
+                                                                {log.metadata?.requestId && (
+                                                                    <div className="bg-gray-50/80 px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="text-[10px] font-black text-gray-400 tracking-widest uppercase">Request ID:</span>
+                                                                            <code className="text-[10px] bg-white border border-gray-200 px-2 py-0.5 rounded font-mono font-bold text-gray-600">
+                                                                                {log.metadata.requestId}
+                                                                            </code>
+                                                                        </div>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation()
+                                                                                setSearchTerm(log.metadata.requestId)
+                                                                                toast.info('Filtering by Request ID')
+                                                                            }}
+                                                                            className="flex items-center gap-1.5 px-3 py-1 bg-white border border-gray-200 rounded-lg text-[10px] font-black uppercase text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                                                                        >
+                                                                            <Link size={12} /> Chain This Request
+                                                                        </button>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ) : (
                                                             <div className="bg-white border-2 border-dashed border-gray-100 rounded-2xl p-8 text-center">
@@ -343,6 +364,6 @@ export function AuditLogPanel() {
                     </table>
                 </div>
             </div>
-        </div>
+        </div >
     )
 }

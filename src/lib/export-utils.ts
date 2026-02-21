@@ -24,7 +24,11 @@ export function exportToCSV(data: any[], filename: string, columns: { header: st
             // Clean string: Remove newlines, escape commas, quotes
             const str = String(val).replace(/(\r\n|\n|\r)/gm, " ").replace(/"/g, '""')
 
-            // return `"${str}"` // Always quote for safety
+            // If it's already a formula (starts with ="), allow it to pass through
+            if (String(val).startsWith('="')) {
+                return String(val)
+            }
+
             // Actually, simple CSV: just quote if contains comma
             if (str.includes(',') || str.includes('"')) {
                 return `"${str}"`

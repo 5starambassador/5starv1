@@ -354,6 +354,9 @@ export async function addAcademicYear(data: { year: string; startDate: Date; end
                 isCurrent: false
             }
         })
+
+        await logAction('CREATE', 'settings', `Added new academic year: ${data.year}`, data.year)
+
         return { success: true }
     } catch (error) {
         console.error('Error adding academic year:', error)
@@ -382,6 +385,8 @@ export async function setCurrentAcademicYear(yearString: string) {
                 data: { isCurrent: true }
             })
         })
+
+        await logAction('UPDATE', 'settings', `Set current academic year to ${yearString}`, yearString)
 
         revalidatePath('/superadmin')
         return { success: true }

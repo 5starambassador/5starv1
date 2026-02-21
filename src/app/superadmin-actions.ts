@@ -586,6 +586,12 @@ export async function getAllUsers(): Promise<User[]> {
         const campuses = await prisma.campus.findMany({ select: { id: true, campusName: true } })
         const campusMap = new Map(campuses.map(c => [c.id, c.campusName]))
 
+        // Audit: log sensitive bulk-read (includes Aadhar, bank details, password hash)
+        logAction('READ', 'security', `Accessed full user list (${users.length} records including PII)`, null, null, {
+            recordCount: users.length,
+            scopeFilter: Object.keys(scopeFilter || {})
+        })
+
         return users.map(u => ({
             ...u,
             role: u.role as string,
@@ -793,7 +799,9 @@ export async function addUser(data: {
                 yearFeeBenefitPercent: data.yearFeeBenefitPercent || 0,
                 longTermBenefitPercent: data.longTermBenefitPercent || 0,
                 confirmedReferralCount: 0,
-                isFiveStarMember: data.isFiveStarMember || false
+                isFiveStarMember: data.isFiveStarMember || false,
+                // @ts-ignore - Prisma client out of sync but field exists in schema
+                registrationSource: 'Admin Created'
             }
         })
 
@@ -1070,7 +1078,9 @@ export async function bulkAddUsers(users: Array<{
 
                     isFiveStarMember: false,
                     empId: userData.empId || null,
-                    childEprNo: userData.childEprNo || null
+                    childEprNo: userData.childEprNo || null,
+                    // @ts-ignore - Prisma client out of sync but field exists in schema
+                    registrationSource: 'Manual'
                 }
             })
             added++
@@ -1078,6 +1088,10 @@ export async function bulkAddUsers(users: Array<{
             failed++
             errors.push(`${userData.mobileNumber}: Failed to add`)
         }
+    }
+
+    if (added > 0) {
+        await logAction('BULK_CREATE', 'user', `Bulk added ${added} users.`, 'Bulk')
     }
 
     return { success: true, added, failed, errors }
@@ -1305,6 +1319,10 @@ export async function bulkAddAdmins(admins: Array<{
         }
     }
 
+    if (added > 0) {
+        await logAction('BULK_CREATE', 'admin', `Bulk added ${added} admins.`, 'Bulk')
+    }
+
     return { success: true, added, failed, errors }
 }
 
@@ -1328,6 +1346,9 @@ export async function updateUserStatus(userId: number, status: AccountStatus) {
             where: { userId },
             data: { status }
         })
+
+        await logAction('UPDATE', 'user', `Updated user ${userId} status to ${status}`, userId.toString())
+
         revalidatePath('/superadmin/users')
         return { success: true }
     } catch (error) {
@@ -1354,6 +1375,9 @@ export async function updateAdminStatus(adminId: number, status: AccountStatus) 
             where: { adminId },
             data: { status }
         })
+
+        await logAction('UPDATE', 'admin', `Updated admin ${adminId} status to ${status}`, adminId.toString())
+
         revalidatePath('/superadmin/users')
         return { success: true }
     } catch (error) {

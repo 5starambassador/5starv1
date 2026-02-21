@@ -2,6 +2,99 @@ import prisma from '@/lib/prisma'
 import { headers } from 'next/headers'
 import { getCurrentUser } from '@/lib/auth-service'
 
+// Keys to be scrubbed for PII protection
+const SENSITIVE_KEYS = [
+    'password', 'accountNumber', 'aadharNo', 'ifscCode',
+    'mobileNumber', 'otp', 'token', 'bankAccountDetails',
+    'cvv', 'card', 'pin'
+]
+
+function scrubMetadata(data: any): any {
+    if (!data || typeof data !== 'object') return data
+
+    // Create a copy to avoid mutating the original
+    const scrubbed = Array.isArray(data) ? [...data] : { ...data }
+
+    for (const key in scrubbed) {
+        // Case-insensitive check for sensitive keys
+        const isSensitive = SENSITIVE_KEYS.some(sk => key.toLowerCase().includes(sk.toLowerCase()))
+
+        if (isSensitive) {
+            scrubbed[key] = '***MASKED***'
+        } else if (typeof scrubbed[key] === 'object') {
+            scrubbed[key] = scrubMetadata(scrubbed[key])
+        }
+    }
+    return scrubbed
+}
+
+// Define critical actions that should trigger a Discord alert
+const CRITICAL_ACTIONS = ['FAILED_LOGIN', 'DELETE', 'BAN', 'EXPORT', 'UPDATE_ROLE', 'UNAUTHORIZED_ACCESS']
+const CRITICAL_MODULES = ['SECURITY', 'AUTH', 'SETTINGS', 'FINANCE']
+
+async function sendToDiscord(payload: {
+    action: string,
+    module: string,
+    description: string,
+    actorName: string,
+    ip: string,
+    requestId: string
+}) {
+    const webhookUrl = process.env.DISCORD_AUDIT_WEBHOOK
+    if (!webhookUrl) return
+
+    try {
+        const isCritical = CRITICAL_ACTIONS.some(a => payload.action.toUpperCase().includes(a)) ||
+            CRITICAL_MODULES.includes(payload.module.toUpperCase())
+
+        // Create a pretty embed for Discord
+        const embed = {
+            title: `${isCritical ? '⚠️' : 'ℹ️'} Audit Alert: ${payload.action}`,
+            color: isCritical ? 0xff0000 : 0x00ff00, // Red for critical, Green for info
+            fields: [
+                { name: 'Module', value: payload.module, inline: true },
+                { name: 'Actor', value: payload.actorName, inline: true },
+                { name: 'Description', value: payload.description },
+                { name: 'IP Address', value: payload.ip, inline: true },
+                { name: 'Request ID', value: `\`${payload.requestId}\``, inline: true }
+            ],
+            timestamp: new Date().toISOString(),
+            footer: { text: '5-Star Ambassador Audit Bot' }
+        }
+
+        await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ embeds: [embed] })
+        })
+    } catch (error) {
+        console.error('Failed to send Discord alert:', error)
+    }
+}
+
+async function sendToGoogleSheets(payload: {
+    action: string,
+    module: string,
+    description: string,
+    actorName: string,
+    ip: string,
+    requestId: string
+}) {
+    const googleAppUrl = process.env.GOOGLE_SHEETS_AUDIT_URL
+    if (!googleAppUrl) return
+
+    try {
+        await fetch(googleAppUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            redirect: 'follow'
+        })
+    } catch (error) {
+        console.error('Failed to archive log to Google Sheets:', error)
+    }
+}
+
 export async function logAction(
     action: string,
     module: string,
@@ -12,21 +105,18 @@ export async function logAction(
 ) {
     try {
         const headersList = await headers()
-        const ip = headersList.get('x-forwarded-for') || 'unknown'
+        const ip = headersList.get('x-forwarded-for')?.split(',')[0] || headersList.get('x-real-ip') || 'unknown'
         const userAgent = headersList.get('user-agent') || 'unknown'
+        const requestId = headersList.get('x-request-id') || 'unknown'
 
         let adminId: number | undefined = undefined
         let userId: number | undefined = undefined
+        let actorName = 'System'
 
         // 1. Try to use explicit actorId if provided (handling number/string conversion)
         if (actorId) {
-            // Heuristic or Metadata-driven distinction could be used, 
-            // but for now, we can check a new 'actorType' in metadata or just try to default.
-            // However, to be safe and simple:
             if (metadata?.isUser) userId = Number(actorId)
             else if (metadata?.isAdmin) adminId = Number(actorId)
-            // Fallback: If we can't tell, we might miss saving it to the right FK, 
-            // so we rely on getCurrentUser if actorId is missing metadata context.
         }
 
         // 2. Auto-detect if not explicitly set
@@ -35,12 +125,21 @@ export async function logAction(
             if (currentUser) {
                 if ('adminId' in currentUser) {
                     adminId = (currentUser as any).adminId
+                    actorName = (currentUser as any).adminName || 'Admin'
                 } else if ('userId' in currentUser) {
                     userId = (currentUser as any).userId
+                    actorName = (currentUser as any).fullName || 'User'
                 }
             }
         }
 
+        // Apply PII scrubbing and inject requestId into metadata
+        const processedMetadata = {
+            ...(metadata ? scrubMetadata(metadata) : {}),
+            requestId
+        }
+
+        // Create the DB record
         await (prisma.activityLog as any).create({
             data: {
                 action,
@@ -49,11 +148,38 @@ export async function logAction(
                 targetId: targetId || undefined,
                 adminId,
                 userId,
-                metadata: metadata || undefined,
+                metadata: processedMetadata,
                 ipAddress: ip,
                 userAgent: userAgent
             }
         })
+
+        // Fire-and-forget Discord alert for critical actions
+        // Use a background task or just don't await to avoid blocking response
+        const isCritical = CRITICAL_ACTIONS.some(a => action.toUpperCase().includes(a)) ||
+            CRITICAL_MODULES.includes(module.toUpperCase())
+
+        if (isCritical) {
+            sendToDiscord({
+                action,
+                module,
+                description,
+                actorName,
+                ip,
+                requestId
+            }).catch(err => console.error('Discord background alert failed:', err))
+        }
+
+        // Always archive to Google Sheets (fire-and-forget)
+        sendToGoogleSheets({
+            action,
+            module,
+            description,
+            actorName,
+            ip,
+            requestId
+        }).catch(err => console.error('Google Sheets background archive failed:', err))
+
     } catch (error) {
         console.error('Failed to log activity:', error)
     }

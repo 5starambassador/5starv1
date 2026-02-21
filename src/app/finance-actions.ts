@@ -215,6 +215,11 @@ export async function syncMissingPayments(force: boolean = false) {
         }
 
         revalidatePath('/finance')
+
+        if (updatedCount > 0) {
+            await logAction('BULK_UPDATE', 'finance', `Synced ${updatedCount} missing payments from Cashfree.`, 'Sync')
+        }
+
         return {
             success: true,
             count: updatedCount,
@@ -1355,6 +1360,10 @@ export async function bulkInitiateSettlements(requests: { userId: number, amount
             return created
         })
 
+        if (results.length > 0) {
+            await logAction('BULK_CREATE', 'finance', `Bulk initiated ${results.length} settlements from Liability Ledger.`, 'Bulk')
+        }
+
         revalidatePath('/finance')
         return { success: true, count: results.length }
     } catch (error: any) {
@@ -1388,6 +1397,10 @@ export async function bulkRecordWaiverAdjustments(requests: { userId: number, am
             }
             return created
         })
+
+        if (results.length > 0) {
+            await logAction('BULK_CREATE', 'finance', `Bulk recorded ${results.length} waiver adjustments.`, 'Bulk')
+        }
 
         revalidatePath('/finance')
         return { success: true, count: results.length }

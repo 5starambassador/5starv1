@@ -45,6 +45,7 @@ model User {
   accountNumber          String?
   bankName               String?
   ifscCode               String?
+  registrationSource     String?
   fcmToken               String?
   DeviceToken            DeviceToken[]
   notifications          Notification[]
@@ -62,6 +63,7 @@ model User {
   @@index([createdAt])
   @@index([fullName])
   @@index([referralCode])
+  @@index([registrationSource])
   @@map("User")
 }
 

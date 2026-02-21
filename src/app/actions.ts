@@ -261,6 +261,8 @@ export async function loginWithPassword(mobile: string, password: string) {
                 return { success: true }
             }
         }
+        // Failed user login attempt — audit trail for security monitoring
+        await logAction('FAILED_LOGIN', 'auth', `Failed login attempt for user: ${mobile}`, user.userId.toString(), user.userId, { isUser: true })
         return { success: false, error: 'Incorrect password' }
     }
 
@@ -282,6 +284,8 @@ export async function loginWithPassword(mobile: string, password: string) {
                 return { success: true }
             }
         }
+        // Failed admin login attempt
+        await logAction('FAILED_LOGIN', 'auth', `Failed Admin login attempt for: ${mobile}`, admin.adminId.toString(), admin.adminId, { isAdmin: true })
         return { success: false, error: 'Incorrect password' }
     }
 

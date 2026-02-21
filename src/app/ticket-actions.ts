@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
 import { canEdit, hasPermission, getPermissionScope, getScopeFilter } from '@/lib/permission-service'
 import { revalidatePath } from 'next/cache'
+import { logAction } from '@/lib/audit-logger'
 
 // Create a new support ticket
 export async function createTicket(data: {
@@ -39,6 +40,7 @@ export async function createTicket(data: {
         })
 
         revalidatePath('/support')
+        logAction('CREATE', 'support', `Ticket created: "${data.subject}" [${priority}]`, ticket.id.toString(), user.userId, { isUser: true, category: data.category })
         return { success: true, ticket }
     } catch (error: any) {
         console.error('Error creating ticket:', error)
@@ -155,6 +157,7 @@ export async function updateTicketStatus(ticketId: number, status: string) {
 
         revalidatePath('/tickets')
         revalidatePath('/support')
+        logAction('UPDATE', 'support', `Ticket #${ticketId} status changed to: ${status}`, ticketId.toString())
         return { success: true, ticket }
     } catch (error: any) {
         console.error('Error updating ticket:', error)
@@ -237,6 +240,13 @@ export async function addTicketMessage(ticketId: number, message: string, isInte
         }
 
         revalidatePath('/tickets')
+        logAction(
+            'CREATE', 'support',
+            `${senderType} replied to ticket #${ticketId}${isInternal ? ' [Internal Note]' : ''}`,
+            ticketId.toString(),
+            senderId,
+            senderType === 'Admin' ? { isAdmin: true } : { isUser: true }
+        )
         return { success: true, message: ticketMessage }
     } catch (error: any) {
         console.error('Error adding message:', error)
@@ -381,6 +391,7 @@ export async function escalateTicket(ticketId: number, reason: string) {
         })
 
         revalidatePath('/tickets')
+        logAction('UPDATE', 'support', `Ticket #${ticketId} manually escalated to Level ${newLevel}: ${reason}`, ticketId.toString(), (admin as any).adminId, { isAdmin: true })
         return { success: true, level: newLevel }
     } catch (error: any) {
         return { success: false, error: error.message }

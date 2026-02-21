@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { SWRegistration } from "@/components/SWRegistration";
 import { OfflineSync } from "@/components/OfflineSync";
+import { VersionStability } from "@/components/VersionStability";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -122,6 +123,7 @@ export default async function RootLayout({
       <body className={`${outfit.variable} antialiased font-sans`} suppressHydrationWarning>
         <ThemeProvider>
           <Toaster position="top-center" richColors />
+          <VersionStability />
           <SWRegistration />
           <OfflineSync />
           {children}

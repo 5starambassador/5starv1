@@ -18,9 +18,27 @@ export async function getAuditLogs(params: {
         const where: any = {}
 
         if (params.search) {
+            // Fetch matching Admin/User IDs for expanded search
+            const [matchingAdmins, matchingUsers] = await Promise.all([
+                prisma.admin.findMany({
+                    where: { adminName: { contains: params.search, mode: 'insensitive' } },
+                    select: { adminId: true }
+                }),
+                prisma.user.findMany({
+                    where: { fullName: { contains: params.search, mode: 'insensitive' } },
+                    select: { userId: true }
+                })
+            ])
+
+            const adminIds = matchingAdmins.map(a => a.adminId)
+            const userIds = matchingUsers.map(u => u.userId)
+
             where.OR = [
                 { description: { contains: params.search, mode: 'insensitive' } },
-                { action: { contains: params.search, mode: 'insensitive' } }
+                { action: { contains: params.search, mode: 'insensitive' } },
+                { adminId: { in: adminIds } },
+                { userId: { in: userIds } },
+                { metadata: { path: ['requestId'], string_contains: params.search } }
             ]
         }
 

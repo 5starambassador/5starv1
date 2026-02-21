@@ -220,11 +220,11 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
     const handleExport = () => {
         exportToCSV(data, 'Registration_Transactions', [
             { header: 'Full Name', accessor: (r) => r.fullName },
-            { header: 'Mobile', accessor: (r) => r.mobileNumber },
+            { header: 'Mobile', accessor: (r) => `="${r.mobileNumber}"` },
             { header: 'Role', accessor: (r) => r.role },
             { header: 'Campus', accessor: (r) => r.assignedCampus || '-' },
             { header: 'Amount', accessor: (r) => r.paymentAmount },
-            { header: 'Transaction ID', accessor: (r) => r.transactionId || 'N/A' },
+            { header: 'Transaction ID', accessor: (r) => `="${r.transactionId || 'N/A'}"` },
             { header: 'Date', accessor: (r) => new Date(r.createdAt).toLocaleDateString() }
         ])
     }

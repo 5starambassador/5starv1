@@ -1,6 +1,5 @@
-const CACHE_NAME = 'achariya-ambassador-v1';
+const CACHE_NAME = 'achariya-ambassador-v1.1'; // Increment version to force update
 const ASSETS_TO_CACHE = [
-    '/',
     '/manifest.json',
     '/icon-192x192.png',
     '/icon-512x512.png'

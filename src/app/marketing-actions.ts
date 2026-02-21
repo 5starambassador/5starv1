@@ -3,6 +3,17 @@
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
 import { hasPermission } from '@/lib/permission-service'
+import { logAction } from '@/lib/audit-logger'
+import { revalidatePath } from 'next/cache'
+
+// Detect file type from URL extension
+function detectFileType(url: string): string {
+    const lower = url.toLowerCase()
+    if (lower.match(/\.(jpg|jpeg|png|gif|webp|svg|avif)($|\?)/)) return 'IMAGE'
+    if (lower.match(/\.(mp4|mov|avi|webm|mkv)($|\?)/)) return 'VIDEO'
+    if (lower.match(/\.pdf($|\?)/)) return 'PDF'
+    return 'LINK'
+}
 
 // Helper to check marketing manager access via the permission matrix
 async function checkMarketingAccess() {
@@ -102,9 +113,14 @@ export async function createMarketingAsset(data: {
         const asset = await prisma.marketingAsset.create({
             data: {
                 ...data,
-                sortOrder
+                sortOrder,
+                fileType: data.fileType || detectFileType(data.fileUrl)
             }
         })
+
+        await logAction('CREATE', 'marketing', `Created marketing asset: ${data.name}`, asset.id.toString())
+        revalidatePath('/marketing')
+        revalidatePath('/superadmin')
 
         return { success: true, asset }
     } catch (error: any) {
@@ -129,6 +145,10 @@ export async function updateMarketingAsset(id: number, data: {
             data
         })
 
+        await logAction('UPDATE', 'marketing', `Updated marketing asset: ${asset.name}`, id.toString(), null, { changes: data })
+        revalidatePath('/marketing')
+        revalidatePath('/superadmin')
+
         return { success: true, asset }
     } catch (error: any) {
         console.error('Error updating marketing asset:', error)
@@ -140,9 +160,13 @@ export async function updateMarketingAsset(id: number, data: {
 export async function deleteMarketingAsset(id: number) {
     try {
         await checkMarketingAccess()
-        await prisma.marketingAsset.delete({
+        const deleted = await prisma.marketingAsset.delete({
             where: { id }
         })
+
+        await logAction('DELETE', 'marketing', `Deleted marketing asset: ${deleted.name}`, id.toString())
+        revalidatePath('/marketing')
+        revalidatePath('/superadmin')
 
         return { success: true }
     } catch (error: any) {
@@ -159,6 +183,10 @@ export async function toggleAssetVisibility(id: number, isActive: boolean) {
             where: { id },
             data: { isActive }
         })
+
+        await logAction('UPDATE', 'marketing', `${isActive ? 'Enabled' : 'Disabled'} marketing asset: ${asset.name}`, id.toString())
+        revalidatePath('/marketing')
+        revalidatePath('/superadmin')
 
         return { success: true, asset }
     } catch (error: any) {

@@ -7,6 +7,7 @@ import { UserRole, Prisma } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 import { logAction } from "@/lib/audit-logger"
 import { syncUserStats, revalidateDashboard } from "./sync-actions"
+import { toUserRole } from "@/lib/enum-utils"
 
 // --- Helper: Simple CSV Parser ---
 // --- Helper: Simple CSV Parser ---
@@ -174,7 +175,21 @@ export async function importAmbassadors(csvData: string) {
         let results: any[] = []
 
         for (const [index, row] of rows.entries()) {
-            // Mapping additional fields for parity with export
+            // Flexible Headers (Basic Info)
+            const fullName = row.fullname || row.fullName || row['full name']
+            const mobileNumber = row.mobilenumber || row.mobileNumber || row['mobile number'] || row['phone number'] || row['phone']
+            const email = row.email || row.Email || ''
+            const role = toUserRole(row.role || row.Role || 'Parent')
+            const assignedCampus = row.assignedcampus || row.assignedCampus || row['assigned campus'] || row['campus'] || ''
+            const empId = row.empid || row['emp id'] || row.emp_id || ''
+            const childEprNo = row.childeprno || row['child erp no'] || row['child erp'] || row['student erp'] || ''
+            const referralCode = row.referralcode || row.referralCode || row['referral code'] || ''
+            const academicYear = row.academicyear || row.academicYear || row['academic year'] || '2025-2026'
+            const password = row.password || row.Password || null
+            const childInAchariya = (row.childinachariya || row['child in achariya'])?.toLowerCase() === 'yes'
+            const benefitStatus = row.benefitstatus || row.benefitStatus || row['benefit status'] || 'Pending'
+
+            // Mapping additional fields (Advanced Info)
             const aadharNo = row.aadharno || row['aadhar no'] || null
             const address = row.address || row['address'] || null
             const bankName = row.bankname || row['bank name'] || null
@@ -189,7 +204,7 @@ export async function importAmbassadors(csvData: string) {
 
             // Basic Validation
             if (!fullName || !mobileNumber || !role) {
-                const msg = `Missing required fields`
+                const msg = `Missing required fields (Name, Mobile, or Role)`
                 errors.push(`Row ${index + 2}: ${msg}`)
                 results.push({ row: index + 2, data: row, status: 'Failed', reason: msg })
                 continue
@@ -213,6 +228,7 @@ export async function importAmbassadors(csvData: string) {
                 grade,
                 benefitStatus: benefitStatus as any,
                 password: password || null,
+                registrationSource: 'Manual',
                 academicYear,
                 aadharNo,
                 address,
@@ -313,6 +329,7 @@ export async function importStudents(csvData: string) {
                             referralCode: null, // No code = must pay registration fee to become ambassador
                             assignedCampus: campusName,
                             childEprNo: admissionNumber || null,
+                            registrationSource: 'Manual',
                             academicYear: academicYearForRecord,
                             isFiveStarMember: false,
                             childInAchariya: true,
