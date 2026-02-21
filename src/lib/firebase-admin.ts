@@ -21,12 +21,10 @@ export async function getFirebaseAdmin() {
                     }),
                 })
             }
-            // Option 2: Service Account File (Fallback)
+            // Service Account File Fallback removed to prevent build analysis errors.
+            // Please use environment variables (FIREBASE_PROJECT_ID, CLIENT_EMAIL, PRIVATE_KEY)
             else {
-                const serviceAccount: any = await import('../../service-account.json')
-                firebaseAdmin = admin.initializeApp({
-                    credential: admin.credential.cert(serviceAccount.default || serviceAccount),
-                })
+                console.warn('Firebase: No environment variables found for initialization.')
             }
         } catch (error) {
             console.error('Firebase Admin Init Error:', error)
