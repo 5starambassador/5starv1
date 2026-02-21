@@ -46,12 +46,13 @@ export function ProgramGallery({ programs, referralCode }: ProgramGalleryProps) 
         return () => clearInterval(interval)
     }, [programs.length, isPaused])
 
-    const copyLink = (slug: string, id: number) => {
+    const copyLink = (program: Program) => {
         const baseUrl = window.location.origin
-        const link = `${baseUrl}/offer/${slug}?ref=${referralCode}`
-        navigator.clipboard.writeText(link)
-        setCopiedId(id)
-        toast.success('Link Copied!')
+        const link = `${baseUrl}/offer/${program.slug}?ref=${referralCode}`
+        const text = `🚀 *${program.title}*\n✨ ${program.description || 'Exclusive VIP Offer'}\n\n👉 Check it out here: ${link}`
+        navigator.clipboard.writeText(text)
+        setCopiedId(program.id)
+        toast.success('Message & Link Copied!')
         setTimeout(() => setCopiedId(null), 2000)
     }
 
@@ -167,7 +168,7 @@ export function ProgramGallery({ programs, referralCode }: ProgramGalleryProps) 
 
                                 <div className="mt-auto relative z-10 flex gap-4">
                                     <button
-                                        onClick={() => copyLink(program.slug, program.id)}
+                                        onClick={() => copyLink(program)}
                                         className="flex-grow py-4 rounded-3xl bg-[#0F172A] text-white font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 active:scale-[0.98] transition-all hover:bg-slate-800 shadow-xl"
                                     >
                                         <span style={{ color: '#FFFFFF' }}>
@@ -184,7 +185,7 @@ export function ProgramGallery({ programs, referralCode }: ProgramGalleryProps) 
                                         onClick={() => {
                                             const baseUrl = window.location.origin
                                             const link = `${baseUrl}/offer/${program.slug}?ref=${referralCode}`
-                                            const text = `Join this exclusive program: ${program.title}\n${link}`
+                                            const text = `🚀 *${program.title}*\n✨ ${program.description || 'Exclusive VIP Offer'}\n\n🎯 *Join this exclusive program here:*\n${link}`
                                             window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
                                         }}
                                         style={{ backgroundColor: theme.accent }}

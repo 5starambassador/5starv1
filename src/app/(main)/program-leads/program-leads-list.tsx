@@ -37,10 +37,10 @@ export function ProgramLeadsList({ leads, programs = [] }: ProgramLeadsListProps
             {/* Filter Tabs */}
             <div className="flex items-center gap-2 pb-2 overflow-x-auto">
                 <button
-                    onClick={() => setFilter('ALL')}
-                    className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${filter === 'ALL' ? 'bg-white text-black' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}
+                    onClick={() => setFilter('CLICKED')}
+                    className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${filter === 'CLICKED' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-white/5 text-indigo-400/80 hover:bg-indigo-500/10'}`}
                 >
-                    Show All
+                    <MousePointerClick size={12} /> Clicks Only
                 </button>
                 <button
                     onClick={() => setFilter('REGISTERED')}
@@ -49,10 +49,10 @@ export function ProgramLeadsList({ leads, programs = [] }: ProgramLeadsListProps
                     <CheckCircle2 size={12} /> Converted
                 </button>
                 <button
-                    onClick={() => setFilter('CLICKED')}
-                    className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${filter === 'CLICKED' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-white/5 text-indigo-400/80 hover:bg-indigo-500/10'}`}
+                    onClick={() => setFilter('ALL')}
+                    className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${filter === 'ALL' ? 'bg-white text-black' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}
                 >
-                    <MousePointerClick size={12} /> Clicks Only
+                    Show All
                 </button>
             </div>
 

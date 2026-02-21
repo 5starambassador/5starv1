@@ -23,6 +23,7 @@ export function ProgramManager() {
         commissionAmount: 0,
         rewardType: 'NONE' as 'NONE' | 'CASH' | 'POINTS',
         autoSyncUrl: '',
+        isActive: true,
         startDate: '',
         endDate: ''
     })
@@ -98,12 +99,29 @@ export function ProgramManager() {
             setForm({
                 title: '', slug: '', targetUrl: '', description: '',
                 commissionAmount: 0, rewardType: 'NONE', autoSyncUrl: '',
-                startDate: '', endDate: ''
+                isActive: true, startDate: '', endDate: ''
             })
             setEditingProgram(null)
             loadPrograms()
         } else {
             toast.error(res.error || 'Operation failed')
+        }
+    }
+
+    const toggleProgramStatus = async (program: any) => {
+        const newStatus = !program.isActive
+        const toastId = toast.loading(`${newStatus ? 'Activating' : 'Deactivating'} program...`)
+
+        const res = await updateExternalProgram(program.id, {
+            ...program,
+            isActive: newStatus
+        })
+
+        if (res.success) {
+            toast.success(`Program ${newStatus ? 'Activated' : 'Deactivated'}`, { id: toastId })
+            loadPrograms()
+        } else {
+            toast.error(res.error || 'Failed to update status', { id: toastId })
         }
     }
 
@@ -134,7 +152,7 @@ export function ProgramManager() {
                             setForm({
                                 title: '', slug: '', targetUrl: '', description: '',
                                 commissionAmount: 0, rewardType: 'NONE', autoSyncUrl: '',
-                                startDate: '', endDate: ''
+                                isActive: true, startDate: '', endDate: ''
                             })
                             setShowModal(true)
                         }}
@@ -212,6 +230,7 @@ export function ProgramManager() {
                                             commissionAmount: p.commissionAmount,
                                             rewardType: p.rewardType,
                                             autoSyncUrl: p.autoSyncUrl || '',
+                                            isActive: p.isActive,
                                             startDate: p.startDate ? new Date(p.startDate).toISOString().split('T')[0] : '',
                                             endDate: p.endDate ? new Date(p.endDate).toISOString().split('T')[0] : ''
                                         })
@@ -220,6 +239,19 @@ export function ProgramManager() {
                                     className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
                                 >
                                     <Edit size={14} /> Edit Config
+                                </button>
+                                <button
+                                    onClick={() => toggleProgramStatus(p)}
+                                    className={`text-xs font-bold flex items-center gap-1 px-3 py-1 rounded-lg border transition-all ${p.isActive
+                                            ? 'text-amber-600 border-amber-100 hover:bg-amber-50'
+                                            : 'text-emerald-600 border-emerald-100 hover:bg-emerald-50'
+                                        }`}
+                                >
+                                    {p.isActive ? (
+                                        <><X size={14} /> Stop Program</>
+                                    ) : (
+                                        <><CheckCheck size={14} /> Start Program</>
+                                    )}
                                 </button>
                             </div>
                         </div>
@@ -258,6 +290,24 @@ export function ProgramManager() {
                                             onChange={e => setForm({ ...form, title: e.target.value })}
                                         />
                                     </div>
+
+                                    {editingProgram && (
+                                        <div className="col-span-2 flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                            <div>
+                                                <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Program Status</p>
+                                                <p className="text-[10px] text-gray-500 font-medium">{form.isActive ? 'Actively tracking leads' : 'Tracking disabled'}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => setForm({ ...form, isActive: !form.isActive })}
+                                                className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${form.isActive
+                                                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100'
+                                                        : 'bg-gray-200 text-gray-500'
+                                                    }`}
+                                            >
+                                                {form.isActive ? 'Active' : 'Inactive'}
+                                            </button>
+                                        </div>
+                                    )}
 
                                     <div className="space-y-2 col-span-2">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Program Description (Ambassador Tagline)</label>
