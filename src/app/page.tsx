@@ -9,6 +9,7 @@ import { AuthLayout } from '@/components/auth/AuthLayout'
 import { MobileEntry } from '@/components/auth/MobileEntry'
 import { PasswordChallenge } from '@/components/auth/PasswordChallenge'
 import { OtpVerification } from '@/components/auth/OtpVerification'
+import { triggerVersionSync } from '@/components/VersionStability'
 import { RegistrationBasic } from '@/components/auth/RegistrationBasic'
 import { RegistrationRole } from '@/components/auth/RegistrationRole'
 import { PaymentGateway } from '@/components/auth/PaymentGateway'
@@ -113,7 +114,13 @@ export default function LoginPage() {
       }
     } catch (error: any) {
       setLoading(false)
-      toast.error('Connection error: ' + (error.message || 'Please try again'))
+      const errorMsg = error.message || ''
+      if (errorMsg.toLowerCase().includes('server action') && errorMsg.toLowerCase().includes('not found')) {
+        toast.info('Updating app version...')
+        triggerVersionSync()
+      } else {
+        toast.error('Connection error: ' + (errorMsg || 'Please try again'))
+      }
     }
   }
 
@@ -121,36 +128,58 @@ export default function LoginPage() {
   const handleLoginPassword = async (pwd: string) => {
     if (!pwd) return toast.error('Enter Password')
     setLoading(true)
-    const res = await loginWithPassword(mobile, pwd)
-    if (res.success) {
-      const redirectPath = await getLoginRedirect(mobile)
-      router.push(redirectPath)
-    } else {
+    try {
+      const res = await loginWithPassword(mobile, pwd)
+      if (res.success) {
+        const redirectPath = await getLoginRedirect(mobile)
+        router.push(redirectPath)
+      } else {
+        setLoading(false)
+        toast.error(res.error || 'Login Failed')
+      }
+    } catch (error: any) {
       setLoading(false)
-      toast.error(res.error || 'Login Failed')
+      const errorMsg = error.message || ''
+      if (errorMsg.toLowerCase().includes('server action') && errorMsg.toLowerCase().includes('not found')) {
+        toast.info('Updating app version...')
+        triggerVersionSync()
+      } else {
+        toast.error('Login error. Please try again.')
+      }
     }
   }
 
   const handleVerifyOtp = async () => {
     if (!otp || otp.length < 4) return toast.error('Enter valid 4-digit OTP')
     setLoading(true)
-    const res = await verifyOtpOnly(otp, mobile)
-    if (res.success) {
-      if (isForgotMode) {
-        setStep(5)
-        setLoading(false)
-      } else if (isNewUser) {
-        setStep(3)
-        setLoading(false)
-        // Campuses loaded in next step transition
+    try {
+      const res = await verifyOtpOnly(otp, mobile)
+      if (res.success) {
+        if (isForgotMode) {
+          setStep(5)
+          setLoading(false)
+        } else if (isNewUser) {
+          setStep(3)
+          setLoading(false)
+          // Campuses loaded in next step transition
+        } else {
+          toast.info('Please use password to login')
+          setStep(1.5)
+          setLoading(false)
+        }
       } else {
-        toast.info('Please use password to login')
-        setStep(1.5)
         setLoading(false)
+        toast.error(res.error || 'Invalid OTP')
       }
-    } else {
+    } catch (error: any) {
       setLoading(false)
-      toast.error(res.error || 'Invalid OTP')
+      const errorMsg = error.message || ''
+      if (errorMsg.toLowerCase().includes('server action') && errorMsg.toLowerCase().includes('not found')) {
+        toast.info('Updating app version...')
+        triggerVersionSync()
+      } else {
+        toast.error('Verification error. Please try again.')
+      }
     }
   }
 
@@ -166,9 +195,15 @@ export default function LoginPage() {
       } else {
         toast.error(res.error || 'Failed to send recovery OTP')
       }
-    } catch (e) {
+    } catch (error: any) {
       setLoading(false)
-      toast.error('Recovery failed. Try again.')
+      const errorMsg = error.message || ''
+      if (errorMsg.toLowerCase().includes('server action') && errorMsg.toLowerCase().includes('not found')) {
+        toast.info('Updating app version...')
+        triggerVersionSync()
+      } else {
+        toast.error('Recovery failed. Try again.')
+      }
     }
   }
 
@@ -182,14 +217,24 @@ export default function LoginPage() {
     }
 
     setLoading(true)
-    const res = await verifyOtpAndResetPassword(mobile, otp, newPwd)
-    if (res.success) {
-      toast.success('Password updated successfully! Please login.')
-      setStep(1.5)
-      setIsForgotMode(false)
-      setOtp('')
-    } else {
-      toast.error(res.error || 'Reset failed')
+    try {
+      const res = await verifyOtpAndResetPassword(mobile, otp, newPwd)
+      if (res.success) {
+        toast.success('Password updated successfully! Please login.')
+        setStep(1.5)
+        setIsForgotMode(false)
+        setOtp('')
+      } else {
+        toast.error(res.error || 'Reset failed')
+      }
+    } catch (error: any) {
+      const errorMsg = error.message || ''
+      if (errorMsg.toLowerCase().includes('server action') && errorMsg.toLowerCase().includes('not found')) {
+        toast.info('Updating app version...')
+        triggerVersionSync()
+      } else {
+        toast.error('Reset failed. Try again.')
+      }
     }
     setLoading(false)
   }
@@ -204,16 +249,27 @@ export default function LoginPage() {
     }
 
     setLoading(true)
-    const res = await registerUser({
-      ...formData,
-      mobileNumber: mobile
-    })
+    try {
+      const res = await registerUser({
+        ...formData,
+        mobileNumber: mobile
+      })
 
-    if (res.success) {
-      router.push('/dashboard')
-    } else {
-      toast.error(res.error)
+      if (res.success) {
+        router.push('/dashboard')
+      } else {
+        toast.error(res.error)
+        setLoading(false)
+      }
+    } catch (error: any) {
       setLoading(false)
+      const errorMsg = error.message || ''
+      if (errorMsg.toLowerCase().includes('server action') && errorMsg.toLowerCase().includes('not found')) {
+        toast.info('Updating app version...')
+        triggerVersionSync()
+      } else {
+        toast.error('Registration failed. Try again.')
+      }
     }
   }
 

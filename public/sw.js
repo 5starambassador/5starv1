@@ -1,4 +1,4 @@
-const CACHE_NAME = 'achariya-ambassador-v1.1'; // Increment version to force update
+const CACHE_NAME = 'achariya-ambassador-v1.2'; // Force refresh for action manifest sync
 const ASSETS_TO_CACHE = [
     '/manifest.json',
     '/icon-192x192.png',
@@ -40,8 +40,10 @@ self.addEventListener('fetch', (event) => {
 
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
+            // Strategy: Network-First for HTML/Navigation, Stale-while-revalidate for Assets
+            const isNavigation = event.request.mode === 'navigate';
+
             const fetchPromise = fetch(event.request).then((networkResponse) => {
-                // Cache the new response if it's a valid static asset
                 if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
                     const responseToCache = networkResponse.clone();
                     caches.open(CACHE_NAME).then((cache) => {
@@ -50,10 +52,15 @@ self.addEventListener('fetch', (event) => {
                 }
                 return networkResponse;
             }).catch(() => {
-                // Return cached response if network fails
                 return cachedResponse;
             });
 
+            // For navigation, try network FIRST, but fallback to cache if offline
+            if (isNavigation) {
+                return fetchPromise.then(res => res || cachedResponse);
+            }
+
+            // For others, return cached immediately if available
             return cachedResponse || fetchPromise;
         })
     );
