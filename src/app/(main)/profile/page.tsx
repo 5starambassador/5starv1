@@ -30,6 +30,7 @@ export default async function ProfilePage() {
 
     // Fetch Referrals for Benefit Calculation
     let projectedValue = 0
+    let securedValue = 0
     let confirmedCount = 0
 
     if (isUser) {
@@ -43,6 +44,7 @@ export default async function ProfilePage() {
         })
 
         projectedValue = stats.projectedValue
+        securedValue = stats.securedValue
         confirmedCount = stats.confirmedCount
     }
 
@@ -63,7 +65,8 @@ export default async function ProfilePage() {
         createdAt: 'createdAt' in user ? user.createdAt.toISOString() : new Date().toISOString(),
         confirmedReferralCount: confirmedCount,
         studentFee: 'studentFee' in user ? (user as any).studentFee : undefined,
-        projectedValue: projectedValue, // Passing calculated projected value
+        projectedValue: projectedValue,
+        securedValue: securedValue,
         // New Registration Fields
         bankAccountDetails: bankDetails, // Legacy
         bankName: isUser ? (user as any).bankName : undefined,

@@ -174,16 +174,15 @@ function ReferralFormContent() {
     }
 
     return (
-        <div className="fixed inset-0 w-full h-full overflow-y-auto bg-[#0f172a] text-white font-[family-name:var(--font-outfit)] flex flex-col z-40">
+        <div className="relative w-full text-white font-[family-name:var(--font-outfit)] flex flex-col">
             {/* Ambient Background Effects */}
-            <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-                <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px]" />
-                <div className="absolute top-[40%] right-[-10%] w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-[100px]" />
-                <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] bg-pink-600/5 rounded-full blur-[120px]" />
+            <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+                <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[var(--radiant-indigo)]/10 rounded-full blur-[120px]" />
+                <div className="absolute top-[40%] right-[-10%] w-[400px] h-[400px] bg-[var(--radiant-violet)]/10 rounded-full blur-[100px]" />
             </div>
 
             {/* Header */}
-            <header className="px-6 pt-12 pb-6 flex items-center justify-between sticky top-0 z-20">
+            <header className="px-6 pt-6 pb-6 flex items-center justify-between sticky top-0 z-20">
                 <button
                     onClick={() => step > 1 ? setStep(prev => prev - 1) : router.push('/dashboard')}
                     className="w-10 h-10 rounded-full flex items-center justify-center bg-white/15 border border-white/20 text-white hover:bg-white/25 transition-all z-50 group shadow-lg"
@@ -212,16 +211,16 @@ function ReferralFormContent() {
                                 initial={{ opacity: 0, height: 0, marginBottom: 0 }}
                                 animate={{ opacity: 1, height: 'auto', marginBottom: 24 }}
                                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                                className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500/10 to-amber-600/10 border border-amber-500/30 p-4 text-center shadow-[0_0_30px_-10px_rgba(245,158,11,0.2)]"
+                                className="relative overflow-hidden rounded-2xl !bg-gradient-to-br !from-amber-500/10 !via-amber-800/20 !to-yellow-950/40 border border-amber-400/30 p-4 text-center shadow-[0_20px_60px_rgba(245,158,11,0.2)] backdrop-blur-3xl backdrop-brightness-110"
                             >
                                 {/* Glow Effect */}
                                 <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/20 rounded-full blur-[40px] pointer-events-none"></div>
                                 <div className="absolute bottom-0 left-0 w-20 h-20 bg-amber-500/10 rounded-full blur-[40px] pointer-events-none"></div>
 
                                 <div className="relative z-10">
-                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/20 mb-2">
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/30 border border-amber-400/40 mb-2">
                                         <Star size={10} className="text-amber-400 fill-amber-400" />
-                                        <span className="text-[10px] font-black text-amber-300 uppercase tracking-widest">You are referred by</span>
+                                        <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">You are referred by</span>
                                     </div>
                                     <h3 className="text-xl font-black text-white tracking-tight drop-shadow-sm">{ambassadorName}</h3>
                                 </div>
@@ -251,21 +250,21 @@ function ReferralFormContent() {
                         )}
                     </AnimatePresence>
 
-                    {/* Glass Card */}
-                    <div className="relative bg-white/5 backdrop-blur-xl border border-white/20 rounded-[32px] p-8 overflow-hidden shadow-2xl">
+                    {/* Main Form Area - MATCHES DASHBOARD STAT CARD DEPTH */}
+                    <div className="relative !bg-gradient-to-br !from-indigo-950 !via-indigo-900/90 !to-blue-900 backdrop-blur-3xl border border-indigo-400/40 rounded-[32px] p-8 overflow-hidden shadow-2xl">
 
                         {/* Gold Glow Top */}
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-50 shadow-[0_0_20px_rgba(251,191,36,0.5)]"></div>
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-gradient-to-r from-transparent via-[var(--radiant-gold)] to-transparent opacity-50 shadow-[0_0_20px_rgba(251,191,36,0.5)]"></div>
 
                         {/* Steps Indicator */}
                         <div className="flex flex-col items-center mb-10">
-                            <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-200 to-amber-500 mb-4 drop-shadow-sm">
+                            <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-200 to-[var(--radiant-gold)] mb-4 drop-shadow-sm">
                                 {step}<span className="text-lg text-white/20 font-medium">/3</span>
                             </h2>
                             <div className="flex gap-2">
-                                <div className={`h-1.5 w-8 rounded-full transition-all ${step >= 1 ? 'bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.3)]' : 'bg-white/10'}`} />
-                                <div className={`h-1.5 w-8 rounded-full transition-all ${step >= 2 ? 'bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.3)]' : 'bg-white/10'}`} />
-                                <div className={`h-1.5 w-8 rounded-full transition-all ${step >= 3 ? 'bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.3)]' : 'bg-white/10'}`} />
+                                <div className={`h-1.5 w-8 rounded-full transition-all ${step >= 1 ? 'bg-[var(--radiant-gold)] shadow-[0_0_10px_rgba(251,191,36,0.3)]' : 'bg-white/10'}`} />
+                                <div className={`h-1.5 w-8 rounded-full transition-all ${step >= 2 ? 'bg-[var(--radiant-gold)] shadow-[0_0_10px_rgba(251,191,36,0.3)]' : 'bg-white/10'}`} />
+                                <div className={`h-1.5 w-8 rounded-full transition-all ${step >= 3 ? 'bg-[var(--radiant-gold)] shadow-[0_0_10px_rgba(251,191,36,0.3)]' : 'bg-white/10'}`} />
                             </div>
                         </div>
 
@@ -302,7 +301,7 @@ function ReferralFormContent() {
                                     <button
                                         onClick={isOffline ? () => setStep(3) : handleSendOtp}
                                         disabled={loading}
-                                        className="w-full h-16 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-600 text-black font-black text-sm uppercase tracking-widest shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-full h-16 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-black font-black text-sm uppercase tracking-widest shadow-lg shadow-amber-500/40 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-amber-300/30"
                                     >
                                         {loading ? (
                                             <div className="w-6 h-6 border-2 border-black/30 border-t-black rounded-full animate-spin" />

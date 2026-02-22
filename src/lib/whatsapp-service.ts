@@ -15,9 +15,11 @@ const WHATSAPP_PROVIDER = process.env.WHATSAPP_PROVIDER || 'mock'
  * WhatsApp Service using MSG91 WhatsApp API
  */
 class WhatsAppService {
-    private configCache: Map<string, { templateName: string, isEnabled: boolean }> = new Map()
+    private configCache: Map<string, { templateName: string, isEnabled: boolean, requiredVariablesCount: number }> = new Map()
+    private lastSentTime: Map<string, number> = new Map() // Rate limiting buffer
     private lastCacheUpdate: number = 0
     private CACHE_TTL = 60 * 1000 // 1 minute
+    private RATE_LIMIT_MS = 2000 // 2 seconds between messages to same number
 
     /**
      * Refreshes the local configuration cache from the database
@@ -30,7 +32,11 @@ class WhatsAppService {
             const configs = await prisma.whatsAppConfig.findMany()
             this.configCache.clear()
             configs.forEach(c => {
-                this.configCache.set(c.eventKey, { templateName: c.templateName, isEnabled: c.isEnabled })
+                this.configCache.set(c.eventKey, {
+                    templateName: c.templateName,
+                    isEnabled: c.isEnabled,
+                    requiredVariablesCount: (c as any).requiredVariablesCount
+                })
             })
             this.lastCacheUpdate = now
         } catch (error) {
@@ -49,19 +55,39 @@ class WhatsAppService {
         type: string = 'SYSTEM',
         refId?: string
     ): Promise<WhatsAppResponse> {
+        // 1. Rate Limiting Safety Buffer (Except for OTPs which might need retry)
+        if (eventKey !== 'REFERRAL_OTP') {
+            const lastSent = this.lastSentTime.get(mobile)
+            const now = Date.now()
+            if (lastSent && (now - lastSent < this.RATE_LIMIT_MS)) {
+                console.warn(`[WhatsApp] Rate limit hit for ${mobile}. Skipping ${eventKey}.`)
+                return { success: false, error: 'Rate limit exceeded. Please wait.' }
+            }
+            this.lastSentTime.set(mobile, now)
+        }
+
         await this.refreshConfigCache()
-        const config = this.configCache.get(eventKey)
+        let config = this.configCache.get(eventKey)
+
+        // 2. Resilient Fallback for Critical Events (in case DB/Cache fails)
+        if (!config && eventKey === 'REFERRAL_OTP') {
+            config = { templateName: 'referral_otp', isEnabled: true, requiredVariablesCount: 1 }
+        }
 
         if (!config) {
-            console.warn(`[WhatsApp] No config found for event: ${eventKey}. Falling back to hardcoded check.`)
-            // For backward compatibility during migration, we might want to still allow it if direct call but 
-            // since we want to move to event-based, we return error here.
+            console.warn(`[WhatsApp] No config found for event: ${eventKey}`)
             return { success: false, error: `Event ${eventKey} not configured` }
         }
 
         if (!config.isEnabled) {
             console.log(`[WhatsApp] Skipping ${eventKey} for ${mobile} (Disabled in settings)`)
             return { success: false, error: 'Event disabled' }
+        }
+
+        // 3. Variable Count Validation
+        if (variables.length !== config.requiredVariablesCount) {
+            console.error(`[WhatsApp] Variable mismatch for ${eventKey}. Expected ${config.requiredVariablesCount}, got ${variables.length}.`)
+            // We still try to send but log a major error
         }
 
         // Global override check
@@ -133,16 +159,16 @@ class WhatsAppService {
 
             if (response.ok && data.status === 'success') {
                 const messageId = data.message_id || data.request_id
-                await this.logMessage(mobile, templateName, variables.join(', '), type, 'SENT', messageId)
+                await this.logMessage(mobile, templateName, variables.join(', '), type, 'SENT', messageId, undefined, refId)
                 return { success: true, messageId }
             } else {
                 const errorMsg = data.message || 'WhatsApp API Error'
-                await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, errorMsg)
+                await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, errorMsg, refId)
                 console.error('WhatsApp API Error:', data)
                 return { success: false, error: errorMsg }
             }
         } catch (error: any) {
-            await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, error.message)
+            await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, error.message, refId)
             console.error('WhatsApp Service Exception:', error)
             return { success: false, error: error.message }
         }
@@ -229,7 +255,8 @@ class WhatsAppService {
         type: string,
         status: string,
         messageId?: string,
-        error?: string
+        error?: string,
+        refId?: string
     ) {
         try {
             await prisma.whatsAppLog.create({
@@ -239,8 +266,9 @@ class WhatsAppService {
                     content,
                     type,
                     status,
-                    errorMessage: error || null
-                }
+                    errorMessage: error || null,
+                    refId: refId || null
+                } as any
             })
         } catch (logErr) {
             console.error('Failed to log WhatsApp message to DB:', logErr)

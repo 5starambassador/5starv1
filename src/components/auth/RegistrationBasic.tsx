@@ -69,11 +69,12 @@ export const RegistrationBasic = ({ formData, setFormData, onNext, onBack }: Reg
                 <div>
                     <label className="text-blue-200/70 text-[10px] font-bold uppercase tracking-[0.2em] mb-2 block ml-1">Email Address</label>
                     <input
-                        type="email"
-                        className={`w-full bg-white/5 border border-white/10 rounded-xl px-4 h-12 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-sm font-medium ${formData.email && !validateEmail(formData.email) ? 'ring-rose-500/50 border-rose-500/50' : ''}`}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
                         placeholder="name@example.com"
-                        value={formData.email || ''}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        value={(formData.email || '').trim()}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value.toLowerCase().trim() })}
                     />
                     {formData.email && !validateEmail(formData.email) && (
                         <p className="text-[10px] text-rose-400 mt-1 font-medium ml-1">Please enter a valid email address</p>
@@ -85,13 +86,16 @@ export const RegistrationBasic = ({ formData, setFormData, onNext, onBack }: Reg
                         <label className="text-blue-200/70 text-[10px] font-bold uppercase tracking-[0.2em] mb-2 block ml-1">Create Password</label>
                         <div className="relative">
                             <input
-                                type={showRegisterPassword ? "text" : "password"}
+                                autoCapitalize="none"
+                                autoCorrect="off"
+                                spellCheck={false}
                                 className={`w-full bg-white/5 border border-white/10 rounded-xl pl-4 pr-10 h-12 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-sm font-medium ${isValidPassword ? 'ring-emerald-500/50 focus:ring-emerald-500/50' : ''}`}
                                 value={formData.password}
                                 placeholder='Strong password'
                                 onChange={(e) => {
-                                    setFormData({ ...formData, password: e.target.value })
-                                    setIsValidPassword(validatePassword(e.target.value))
+                                    const val = e.target.value.trim()
+                                    setFormData({ ...formData, password: val })
+                                    setIsValidPassword(validatePassword(val))
                                 }}
                             />
                             <button
@@ -113,11 +117,13 @@ export const RegistrationBasic = ({ formData, setFormData, onNext, onBack }: Reg
                     <div>
                         <label className="text-blue-200/70 text-[10px] font-bold uppercase tracking-[0.2em] mb-2 block ml-1">Confirm</label>
                         <input
-                            type={showConfirmPassword ? "text" : "password"}
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
                             className={`w-full bg-white/5 border border-white/10 rounded-xl px-4 h-12 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-sm font-medium ${formData.confirmPassword && formData.password === formData.confirmPassword ? 'ring-emerald-500/50 focus:ring-emerald-500/50' : ''}`}
                             value={formData.confirmPassword}
                             placeholder='Retype password'
-                            onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                            onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value.trim() })}
                         />
                         {formData.confirmPassword && formData.password !== formData.confirmPassword && (
                             <p className="text-[10px] text-rose-400 mt-1 font-bold ml-1 animate-in slide-in-from-top-1 fade-in">

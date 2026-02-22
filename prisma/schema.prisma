@@ -64,6 +64,7 @@ model User {
   @@index([fullName])
   @@index([referralCode])
   @@index([registrationSource])
+  @@index([academicYear])
   @@map("User")
 }
 
@@ -97,6 +98,7 @@ model Student {
   @@index([campusId])
   @@index([ambassadorId])
   @@index([createdAt])
+  @@index([academicYear])
 }
 
 model ReferralLead {
@@ -121,6 +123,7 @@ model ReferralLead {
   donationFeeCollected  Float?
   user                  User       @relation(fields: [userId], references: [userId], onDelete: Cascade)
   student               Student?
+  academicYear          String     @default("2025-2026")
 
   @@index([userId, leadStatus])
   @@index([userId])
@@ -128,6 +131,7 @@ model ReferralLead {
   @@index([leadStatus])
   @@index([createdAt])
   @@index([parentMobile])
+  @@index([academicYear])
 }
 
 model BenefitSlab {
@@ -624,18 +628,19 @@ model CampaignRecipient {
   readAt      DateTime?
   campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
-  @@unique([campaignId, mobile])
+  @@unique([campaignId, mobile, channel])
   @@index([campaignId])
   @@index([mobile])
 }
 
 model WhatsAppConfig {
-  id           Int      @id @default(autoincrement())
-  eventKey     String   @unique
-  templateName String
-  isEnabled    Boolean  @default(true)
-  description  String?
-  updatedAt    DateTime @updatedAt
+  id                     Int      @id @default(autoincrement())
+  eventKey               String   @unique
+  templateName           String
+  isEnabled              Boolean  @default(true)
+  requiredVariablesCount Int      @default(0)
+  description            String?
+  updatedAt              DateTime @updatedAt
 }
 
 model WhatsAppLog {
@@ -646,12 +651,14 @@ model WhatsAppLog {
   type         String
   status       String
   errorMessage String?
+  refId        String?
   createdAt    DateTime @default(now())
   metadata     Json?
 
   @@index([type])
   @@index([createdAt])
   @@index([mobile])
+  @@index([refId])
 }
 
 enum FeeType {

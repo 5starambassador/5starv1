@@ -80,6 +80,7 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
     // Get view from URL params (default to 'home')
     const initialView = getString(params.view) || 'home'
     const initialReportMode = (getString(params.mode) || 'classic') as 'classic' | 'visual'
+    const selectedYear = getString(params.year)
 
     // Default Empty Analytics Object
     const defaultAnalytics = {
@@ -124,8 +125,8 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
     urgentTicketCountPromise = import('@/app/ticket-actions').then(m => m.getUrgentTicketCount())
 
     if (initialView === 'home' || initialView === 'analytics') {
-        analyticsPromise = getSystemAnalytics()
-        campusComparisonPromise = getCampusComparison()
+        analyticsPromise = getSystemAnalytics('all', selectedYear)
+        campusComparisonPromise = getCampusComparison('all', selectedYear)
         marketingAssetsPromise = getAdminMarketingAssets() // Maybe?
         growthTrendPromise = getUserGrowthTrend()
         deepTrendsPromise = import('@/app/analytics-trends-actions').then(m => m.getAnalyticsTrends())

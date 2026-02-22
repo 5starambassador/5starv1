@@ -12,6 +12,7 @@ import { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { bulkUserAction } from '@/app/bulk-actions'
+import { useClickOutside } from '@/hooks/use-click-outside'
 
 interface UserTableProps {
     users: User[]
@@ -54,16 +55,7 @@ export function UserTable({
     const [showCampusDropdown, setShowCampusDropdown] = useState(false)
     const campusDropdownRef = useRef<HTMLDivElement>(null)
 
-    // Click outside handler for campus dropdown
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (campusDropdownRef.current && !campusDropdownRef.current.contains(event.target as Node)) {
-                setShowCampusDropdown(false)
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside)
-        return () => document.removeEventListener("mousedown", handleClickOutside)
-    }, [])
+    useClickOutside(campusDropdownRef, () => setShowCampusDropdown(false))
 
     // Bulk Confirmation State
     const [bulkConfirmation, setBulkConfirmation] = useState<{ isOpen: boolean, action: 'activate' | 'suspend' | 'delete' | 'deactivate' | null }>({

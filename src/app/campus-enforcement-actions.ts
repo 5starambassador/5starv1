@@ -8,8 +8,7 @@ import { logAction } from "@/lib/audit-logger"
 import { revalidatePath } from 'next/cache'
 
 /**
- * Server action to trigger a broadcast to users with missing campus information.
- * Enforces profile updates for Parent, Staff, and Alumni roles.
+ * Schedules a broadcast to users with missing campus information.
  */
 export async function triggerCampusEnforcementBroadcast() {
     const admin = await getCurrentUser()
@@ -18,49 +17,86 @@ export async function triggerCampusEnforcementBroadcast() {
     }
 
     try {
-        // 1. Identify users requiring update
-        const affectedUsers = await prisma.user.findMany({
+        // 1. Check for existing pending job
+        const existingJob = await prisma.job.findFirst({
             where: {
-                role: { in: ['Parent', 'Staff', 'Alumni'] },
-                campusId: null,
-                assignedCampus: null,
-                status: { not: 'Deleted' }
-            },
-            select: {
-                userId: true,
-                fullName: true,
-                mobileNumber: true,
-                email: true,
-                referralCode: true,
-                createdAt: true
+                type: 'SYSTEM_ENFORCEMENT',
+                status: 'PENDING'
             }
         })
 
-        if (affectedUsers.length === 0) {
-            return { success: true, sentCount: 0, message: 'No users found requiring campus update.' }
+        if (existingJob) {
+            return { success: false, error: 'Campus enforcement is already scheduled and awaiting processing.' }
         }
 
-        const { notifyCampusUpdateRequired } = await import('@/lib/notification-helper')
+        // 2. Create Background Job
+        await prisma.job.create({
+            data: {
+                type: 'SYSTEM_ENFORCEMENT',
+                status: 'PENDING',
+                payload: {}
+            }
+        })
 
-        let sentCount = 0
-        let smsCount = 0
-        let emailCount = 0
+        await logAction('Schedule Campus Enforcement', 'system', `Scheduled campus enforcement broadcast`, admin.userId.toString())
 
-        // 2. Process notifications in serial to avoid overwhelming services (or uses Promise.all if services handle it)
-        // Given 309 users, serial is safer for rate limits of mock/dev providers
-        for (const user of affectedUsers) {
-            const referralCode = user.referralCode || 'N/A'
-            const regDate = user.createdAt.toLocaleDateString('en-IN')
+        return {
+            success: true,
+            message: 'Enforcement broadcast scheduled successfully.'
+        }
 
-            // --- SMS Dispatch ---
-            const smsMessage = `Dear Ambassador, Your Achariya Partnership Program profile is incomplete. Please update your child's campus information to activate your benefits. Login: https://achariya-app.com Profile -> Update Campus. Referral code: ${referralCode}. Thank you! Achariya Team`
+    } catch (error: any) {
+        console.error('Campus Enforcement Schedule Error:', error)
+        return { success: false, error: error.message || 'Failed to schedule broadcast' }
+    }
+}
 
-            await smsService.sendAlert(user.mobileNumber, smsMessage)
-            smsCount++
+/**
+ * Internal logic for executing campus enforcement (moved from public action)
+ */
+export async function executeCampusEnforcementLogic() {
+    // 1. Identify users requiring update
+    const affectedUsers = await prisma.user.findMany({
+        where: {
+            role: { in: ['Parent', 'Staff', 'Alumni'] },
+            campusId: null,
+            assignedCampus: null,
+            status: { not: 'Deleted' }
+        },
+        select: {
+            userId: true,
+            fullName: true,
+            mobileNumber: true,
+            email: true,
+            referralCode: true,
+            createdAt: true
+        }
+    })
 
-            // --- Email Dispatch ---
-            if (user.email && !user.email.includes('N/A')) {
-                const emailHtml = `
+    if (affectedUsers.length === 0) {
+        return { success: true, sentCount: 0 }
+    }
+
+    const { notifyCampusUpdateRequired } = await import('@/lib/notification-helper')
+
+    let sentCount = 0
+    let smsCount = 0
+    let emailCount = 0
+
+    // Process notifications
+    for (const user of affectedUsers) {
+        const referralCode = user.referralCode || 'N/A'
+        const regDate = user.createdAt.toLocaleDateString('en-IN')
+
+        // --- SMS Dispatch ---
+        const smsMessage = `Dear Ambassador, Your Achariya Partnership Program profile is incomplete. Please update your child's campus information to activate your benefits. Login: https://achariya-app.com Profile -> Update Campus. Referral code: ${referralCode}. Thank you! Achariya Team`
+
+        await smsService.sendAlert(user.mobileNumber, smsMessage)
+        smsCount++
+
+        // --- Email Dispatch ---
+        if (user.email && !user.email.includes('N/A')) {
+            const emailHtml = `
                     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
                         <div style="background: #b91c1c; color: white; padding: 24px; text-align: center;">
                             <h2 style="margin: 0;">Complete Your Profile</h2>
@@ -87,31 +123,17 @@ export async function triggerCampusEnforcementBroadcast() {
                         </div>
                     </div>
                 `
-                await EmailService.sendCampaignEmail(user.email, 'Complete Your Achariya Partnership Program Profile', emailHtml)
-                emailCount++
-            }
-
-            // --- In-App Dispatch ---
-            await notifyCampusUpdateRequired(user.userId, user.fullName)
-
-            sentCount++
+            await EmailService.sendCampaignEmail(user.email, 'Complete Your Achariya Partnership Program Profile', emailHtml)
+            emailCount++
         }
 
-        // 3. Log the action
-        await logAction('BROADCAST', 'system', `Triggered Campus Enforcement Broadcast to ${sentCount} users`, admin.userId.toString())
+        // --- In-App Dispatch ---
+        await notifyCampusUpdateRequired(user.userId, user.fullName)
 
-        return {
-            success: true,
-            sentCount,
-            smsCount,
-            emailCount,
-            message: `Broadcast complete. ${sentCount} users notified via In-App, ${smsCount} via SMS, and ${emailCount} via Email.`
-        }
-
-    } catch (error: any) {
-        console.error('Campus Enforcement Broadcast Error:', error)
-        return { success: false, error: error.message || 'Failed to trigger broadcast' }
+        sentCount++
     }
+
+    return { sentCount, smsCount, emailCount }
 }
 
 /**

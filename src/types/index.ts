@@ -78,6 +78,7 @@ export interface User {
     childInAchariya?: boolean | null
     benefitStatus?: string | null
     childCampusId?: number | null
+    registrationSource?: string | null
 }
 
 export interface Student {

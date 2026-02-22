@@ -13,29 +13,34 @@ export async function GET(request: Request) {
     // For simplicity/low-concurrency, we'll just findFirst then update.
 
     try {
-        const job = await prisma.job.findFirst({
+        // 1. Fetch and Lock the oldest PENDING job atomically
+        // Using update with a where filter ensures only one worker picks up the job
+        const jobToProcess = await prisma.job.findFirst({
             where: { status: 'PENDING' },
-            orderBy: { createdAt: 'asc' }
+            orderBy: { createdAt: 'asc' },
+            select: { id: true }
         })
 
-        if (!job) {
+        if (!jobToProcess) {
             return NextResponse.json({ success: true, message: 'No jobs pending' })
         }
 
-        // Lock the job
-        await prisma.job.update({
-            where: { id: job.id },
+        // Atomic update to mark as PROCESSING
+        const job = await prisma.job.update({
+            where: {
+                id: jobToProcess.id,
+                status: 'PENDING' // Safety check: still pending?
+            },
             data: { status: 'PROCESSING' }
         })
 
-        console.log(`[JobProcessor] Processing Job #${job.id} Type: ${job.type}`)
+        console.log(`[JobProcessor] Locked Job #${job.id} Type: ${job.type} at ${new Date().toISOString()}`)
 
         // 2. Execute Logic based on Type
         if (job.type === 'CAMPAIGN_BATCH') {
             const { campaignId } = job.payload as any
 
             // Run the dispatcher
-            // Note: dispatchCampaignBatch handles its own logging to CampaignLog
             const result = await dispatchCampaignBatch(campaignId)
 
             if (result.success) {
@@ -50,6 +55,34 @@ export async function GET(request: Request) {
                         status: 'FAILED',
                         error: result.error || 'Unknown error'
                     }
+                })
+            }
+        } else if (job.type === 'SYSTEM_REENGAGEMENT') {
+            const { executeReengagementLogic } = await import('@/app/engagement-actions')
+            try {
+                const count = await executeReengagementLogic()
+                await prisma.job.update({
+                    where: { id: job.id },
+                    data: { status: 'COMPLETED' }
+                })
+            } catch (err: any) {
+                await prisma.job.update({
+                    where: { id: job.id },
+                    data: { status: 'FAILED', error: err.message || 'Re-engagement failed' }
+                })
+            }
+        } else if (job.type === 'SYSTEM_ENFORCEMENT') {
+            const { executeCampusEnforcementLogic } = await import('@/app/campus-enforcement-actions')
+            try {
+                const result = await executeCampusEnforcementLogic()
+                await prisma.job.update({
+                    where: { id: job.id },
+                    data: { status: 'COMPLETED' }
+                })
+            } catch (err: any) {
+                await prisma.job.update({
+                    where: { id: job.id },
+                    data: { status: 'FAILED', error: err.message || 'Enforcement failed' }
                 })
             }
         } else {

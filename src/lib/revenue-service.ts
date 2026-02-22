@@ -4,6 +4,7 @@ import { getSpecialBonusRate } from '@/lib/reward-constants'
 
 export interface RevenueStats {
     projectedValue: number
+    securedValue: number
     confirmedCount: number
     previousYearReferrals: ReferralData[]
     // We might need to return these for context if the UI needs them raw
@@ -38,7 +39,9 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
                     baseFee: true,
                     campusId: true,
                     academicYear: true,
-                    selectedFeeType: true
+                    selectedFeeType: true,
+                    admissionFeeCollected: true,
+                    donationFeeCollected: true
                 }
             }
         }
@@ -79,7 +82,7 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
         return createdDate < currentYearStart
     }).filter(r => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted')
 
-    const confirmedCount = currentReferrals.filter(r => r.leadStatus === 'Confirmed').length
+    const confirmedCount = currentReferrals.filter(r => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted').length
 
     // 3. Fetch Grade-1 Fees for Current Referrals
     const campusIds = Array.from(new Set(currentReferrals.map(r => r.campusId).filter(Boolean))) as number[]
@@ -101,11 +104,8 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
 
     // 4. Prepare Data for Calculator
     const currentReferralsData: ReferralData[] = currentReferrals.map(r => {
-        const feeType = r.selectedFeeType || r.student?.selectedFeeType || 'OTP'
         const campusFees = r.campusId ? campusFeeMap.get(r.campusId) : undefined
-        const selectedGrade1Fee = (feeType === 'WOTP')
-            ? (campusFees?.wotp || 0)
-            : (campusFees?.otp || 0)
+        const selectedGrade1Fee = campusFees?.wotp || campusFees?.otp || 0
 
         // Determine Special Bonus Rate (Centralized)
         const specialRate = getSpecialBonusRate(r.campus)
@@ -118,6 +118,8 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
             grade: r.gradeInterested || '',
             campusGrade1Fee: selectedGrade1Fee,
             actualFee: r.student?.annualFee || r.student?.baseFee || r.annualFee || 0,
+            admissionFeeCollected: r.student?.admissionFeeCollected || r.admissionFeeCollected || 0,
+            donationFeeCollected: r.student?.donationFeeCollected || r.donationFeeCollected || 0,
             specialBonusRate: specialRate
         }
     })
@@ -144,10 +146,19 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
         previousYearReferrals: previousReferralsData
     }
 
-    const { totalAmount } = calculateTotalBenefit(currentReferralsData, calcContext, slabs)
+    // A. Potential Value (All Current Leads)
+    const { totalAmount: projectedValue } = calculateTotalBenefit(currentReferralsData, calcContext, slabs)
+
+    // B. Secured Value (Confirmed/Admitted Only)
+    const confirmedReferralsData = currentReferralsData.filter(r => {
+        const lead = currentReferrals.find(ref => ref.leadId === r.id)
+        return lead?.leadStatus === 'Confirmed' || lead?.leadStatus === 'Admitted'
+    })
+    const { totalAmount: securedValue } = calculateTotalBenefit(confirmedReferralsData, calcContext, slabs)
 
     return {
-        projectedValue: totalAmount,
+        projectedValue,
+        securedValue,
         confirmedCount,
         previousYearReferrals: previousReferralsData,
         currentReferrals: currentReferrals

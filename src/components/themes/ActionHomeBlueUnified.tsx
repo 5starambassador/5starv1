@@ -327,7 +327,7 @@ export function ActionHomeBlueUnified({
                                         </CircularProgress>
                                     </div>
                                     <div className="mt-6">
-                                        {(user.lifetimeCount || 0) >= 5 ? (
+                                        {(user.isFiveStarMember || (user.lifetimeCount || 0) >= 5) ? (
                                             <motion.div
                                                 initial={{ scale: 0.8, opacity: 0 }}
                                                 animate={{ scale: 1, opacity: 1 }}
@@ -964,7 +964,7 @@ export function ActionHomeBlueUnified({
                                 ) : (
                                     <div className="divide-y divide-white/5 relative z-10">
                                         {recentReferrals.map((referral) => (
-                                            <div key={referral.id} className="p-5 hover:bg-white/5 transition-colors group/item">
+                                            <div key={referral.leadId} className="p-5 hover:bg-white/5 transition-colors group/item">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-10 h-10 bg-gradient-to-br from-indigo-500/10 to-blue-600/10 rounded-xl flex items-center justify-center text-white font-black shadow-inner border border-white/10 uppercase">
                                                         {(referral.studentName || referral.parentName).charAt(0)}

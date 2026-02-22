@@ -124,7 +124,11 @@ export default async function DashboardPage() {
         benefitStatus: userData.benefitStatus,
         status: currentAccountStatus,
         empId: userData.empId,
-        assignedCampus: userData.assignedCampus
+        assignedCampus: userData.assignedCampus,
+        accountNumber: userData.accountNumber,
+        ifscCode: userData.ifscCode,
+        paymentAmount: userData.paymentAmount,
+        confirmedReferralCount: userData.confirmedReferralCount
     }
 
     // Sanitize Referrals (Date -> String) to avoid serialization issues

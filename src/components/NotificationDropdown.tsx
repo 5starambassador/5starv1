@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useClickOutside } from '@/hooks/use-click-outside'
 import { Bell, Check, Info, AlertTriangle, XCircle, CheckCircle, X, ChevronLeft, Share2 } from 'lucide-react'
 import { getNotifications, markAllAsRead, markAsRead } from '@/app/notification-actions'
 import { useRouter } from 'next/navigation'
@@ -46,20 +47,14 @@ export function NotificationDropdown({ userName, referralCode }: { userName?: st
         return () => clearInterval(interval)
     }, [])
 
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsOpen(false)
-            }
-        }
+    useClickOutside(dropdownRef, () => setIsOpen(false))
 
+    useEffect(() => {
         // Listen for external trigger to open dropdown
         const handleOpenExternal = () => setIsOpen(true)
         window.addEventListener('open-notifications-dropdown', handleOpenExternal)
 
-        document.addEventListener("mousedown", handleClickOutside)
         return () => {
-            document.removeEventListener("mousedown", handleClickOutside)
             window.removeEventListener('open-notifications-dropdown', handleOpenExternal)
         }
     }, [])

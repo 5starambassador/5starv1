@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, Fragment } from 'react'
 import { Search, ChevronLeft, ChevronRight, ArrowUpDown, Filter, X, Check, MinusSquare, CheckSquare, Square } from 'lucide-react'
+import { useClickOutside } from '@/hooks/use-click-outside'
 
 interface Column<T> {
     header: string | React.ReactNode
@@ -73,16 +74,7 @@ export function DataTable<T>({
     const [filterSearchTerm, setFilterSearchTerm] = useState('')
     const filterRef = useRef<HTMLDivElement>(null)
 
-    // Close filter dropdown on click outside
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
-                setOpenFilterColumn(null)
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside)
-        return () => document.removeEventListener("mousedown", handleClickOutside)
-    }, [])
+    useClickOutside(filterRef, () => setOpenFilterColumn(null))
 
     // Identify Items (Unique Key)
     const getItemId = (item: T, index: number): any => {

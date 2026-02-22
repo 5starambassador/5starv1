@@ -53,13 +53,14 @@ export const PasswordChallenge = ({ mobile, onLogin, onBack, onForgotPassword, l
                         <input
                             type={showPassword ? "text" : "password"}
                             autoFocus
-                            autoComplete="current-password"
-                            disabled={loading}
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
                             className="block w-full bg-white/5 border border-white/10 rounded-2xl pl-6 pr-12 h-12 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-lg font-medium tracking-wide"
                             placeholder="Enter your password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && password && onLogin(password)}
+                            onKeyDown={(e) => e.key === 'Enter' && password && onLogin(password.trim())}
                         />
                         <button
                             type="button"
@@ -74,7 +75,7 @@ export const PasswordChallenge = ({ mobile, onLogin, onBack, onForgotPassword, l
                 <div className="flex flex-col gap-4">
                     <button
                         className={`w-full h-12 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-500 hover:to-blue-400 text-white font-bold tracking-[0.05em] text-sm shadow-lg shadow-blue-900/40 hover:shadow-blue-900/60 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 relative overflow-hidden group border border-white/10 ${!password || loading ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
-                        onClick={() => onLogin(password)}
+                        onClick={() => onLogin(password.trim())}
                         disabled={loading || !password}
                     >
                         <span className="relative z-10 flex items-center gap-2 transition-colors">

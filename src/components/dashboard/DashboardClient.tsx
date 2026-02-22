@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
+import { useClickOutside } from '@/hooks/use-click-outside'
 import { ActionHomeBlueUnified } from '@/components/themes/ActionHomeBlueUnified'
 import { calculateTotalBenefit, UserContext } from '@/lib/benefit-calculator'
-import { ChevronDown, Calendar } from 'lucide-react'
+import { ChevronDown, Calendar, IndianRupee, Settings } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GlassCard } from '@/components/ui/GlassCard'
+import Link from 'next/link'
 
 // Shared Logic for Filtering (Mirrors server logic but runs on client)
 const filterReferralsByYear = (referrals: any[], yearRecord: any, CURRENT_ACADEMIC_YEAR: string, PREVIOUS_ACADEMIC_YEAR: string) => {
@@ -102,6 +104,9 @@ export function DashboardClient({
     const defaultYear = activeYears.find(y => y.isCurrent) || activeYears[0]
     const [selectedYearId, setSelectedYearId] = useState<string>(defaultYear?.id || 'all')
     const [isFilterOpen, setIsFilterOpen] = useState(false)
+    const filterRef = useRef<HTMLDivElement>(null)
+
+    useClickOutside(filterRef, () => setIsFilterOpen(false))
 
     // Data Processing (Memoized)
     const { filteredReferrals, benefitStats } = useMemo(() => {
@@ -126,7 +131,10 @@ export function DashboardClient({
             const yearFees = (campusFeeMap as any)[year] || (campusFeeMap as any)[currentYear]
             const fees = yearFees ? (yearFees as any)[r.campusId] : null
 
-            const g1Fee = (feeType === 'WOTP') ? (fees?.wotp || 60000) : (fees?.otp || 60000)
+            const g1Fee = fees?.wotp || fees?.otp || 60000
+
+            // Dynamic rewards from constants (Special bonus rates)
+            const specialBonusRate = (r as any).specialBonusRate || 0
 
             return {
                 id: r.leadId,
@@ -134,7 +142,10 @@ export function DashboardClient({
                 campusName: r.campus || '',
                 grade: r.gradeInterested || '',
                 campusGrade1Fee: g1Fee,
-                actualFee: r.student?.annualFee || r.student?.baseFee || r.annualFee || 60000
+                actualFee: r.student?.annualFee || r.student?.baseFee || r.annualFee || 60000,
+                admissionFeeCollected: r.student?.admissionFeeCollected || r.admissionFeeCollected || 0,
+                donationFeeCollected: r.student?.donationFeeCollected || r.donationFeeCollected || 0,
+                specialBonusRate: specialBonusRate
             }
         })
 
@@ -156,7 +167,7 @@ export function DashboardClient({
         const userContext: UserContext = {
             role: user.role as 'Parent' | 'Staff' | 'Alumni' | 'Others',
             childInAchariya: user.childInAchariya,
-            studentFee: user.studentFee || 60000,
+            studentFee: dynamicStudentFee || user.studentFee || 60000,
             isFiveStarLastYear: user.isFiveStarMember,
             previousYearReferrals: previousYearReferrals.map((r: any) => ({
                 id: r.leadId,
@@ -193,11 +204,47 @@ export function DashboardClient({
         .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5)
 
+    // Proactive Reminder Logic — applies to ALL ambassador roles
+    // Bank details are needed for both: Group B cash payouts AND Group A refund processing
+    const hasMissingBankDetails = !user.accountNumber || !user.ifscCode
+    const showBankReminder = hasMissingBankDetails && (referrals.length > 0 || (user.paymentAmount || 0) > 0)
+
     return (
         <div className="space-y-6">
-            {/* Filter UI */}
+            {/* Bank Detail Reminder Banner */}
+            {showBankReminder && (
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-amber-500/20 to-orange-600/20 border border-amber-500/30 p-6 shadow-lg backdrop-blur-md"
+                >
+                    <div className="absolute top-0 right-0 p-8 opacity-10">
+                        <IndianRupee size={80} className="text-amber-500" />
+                    </div>
+                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-start gap-4">
+                            <div className="p-3 bg-amber-500/20 rounded-2xl border border-amber-500/30 text-amber-400">
+                                <Settings size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-white uppercase italic tracking-tight">Profile Readiness Required</h3>
+                                <p className="text-xs text-white/60 font-bold uppercase tracking-wider mt-1">
+                                    You have active referrals but your bank details are missing. Fix this to enable your **payouts and registration fee refunds**.
+                                </p>
+                            </div>
+                        </div>
+                        <Link
+                            href="/profile"
+                            className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all text-center"
+                        >
+                            Complete Profile
+                        </Link>
+                    </div>
+                </motion.div>
+            )}
+
             <div className="flex justify-end">
-                <div className="relative">
+                <div className="relative" ref={filterRef}>
                     <button
                         onClick={() => setIsFilterOpen(!isFilterOpen)}
                         className="flex items-center gap-2 px-4 py-2 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl text-sm font-medium hover:bg-white/10 transition-colors"

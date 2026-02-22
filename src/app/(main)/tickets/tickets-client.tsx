@@ -48,35 +48,35 @@ export function TicketsClient({ tickets, counts, role, adminId }: TicketsClientP
 
     const getStatusStyles = (status: string) => {
         switch (status) {
-            case 'Open': return 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-            case 'In-Progress': return 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-            case 'Resolved': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-            case 'Closed': return 'bg-gray-500/10 text-gray-400 border-gray-500/20'
-            default: return 'bg-gray-500/10 text-gray-400 border-gray-500/20'
+            case 'Open': return 'bg-blue-50 text-blue-700 border-blue-200'
+            case 'In-Progress': return 'bg-amber-50 text-amber-700 border-amber-200'
+            case 'Resolved': return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            case 'Closed': return 'bg-gray-100 text-gray-700 border-gray-200'
+            default: return 'bg-gray-50 text-gray-600 border-gray-100'
         }
     }
 
     const getPriorityStyles = (priority: string) => {
         switch (priority) {
-            case 'Urgent': return 'bg-gradient-to-r from-red-600 to-red-800 text-white'
-            case 'High': return 'bg-gradient-to-r from-orange-500 to-red-600 text-white'
-            case 'Medium': return 'bg-gradient-to-r from-amber-400 to-orange-500 text-white'
-            case 'Low': return 'bg-gradient-to-r from-emerald-400 to-emerald-600 text-white'
-            default: return 'bg-gray-500 text-white'
+            case 'Urgent': return 'bg-red-600 text-white'
+            case 'High': return 'bg-red-100 text-red-700 border border-red-200'
+            case 'Medium': return 'bg-gray-900 text-white'
+            case 'Low': return 'bg-gray-100 text-gray-700 border border-gray-200'
+            default: return 'bg-gray-50 text-gray-500'
         }
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-700">
-            {/* Premium Glass Header */}
-            <div className="bg-white/80 backdrop-blur-xl border border-gray-200 p-6 rounded-[2.5rem] shadow-xl shadow-gray-200/50 flex flex-wrap items-center justify-between gap-6">
+        <div className="space-y-6 animate-fade-in pb-20">
+            {/* Super Admin Classic Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white/80 backdrop-blur-md p-8 rounded-[40px] border border-white/50 shadow-xl shadow-gray-200/50">
                 <div className="flex items-center gap-5">
-                    <div className="p-4 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl shadow-lg shadow-indigo-500/30">
-                        <Ticket size={28} className="text-white" />
+                    <div className="p-4 bg-gray-900 text-white rounded-[20px] shadow-lg shadow-gray-200 border border-gray-800">
+                        <Ticket size={28} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-black italic text-gray-900 tracking-tight uppercase leading-none mb-2">Resolution Center</h1>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                        <h1 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic leading-none mb-1">Resolution Center</h1>
+                        <p className="text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] font-mono">
                             {role === 'Super Admin' ? 'Governance & Escalations' : `${role} Support Queue`}
                         </p>
                     </div>
@@ -84,59 +84,60 @@ export function TicketsClient({ tickets, counts, role, adminId }: TicketsClientP
 
                 <div className="flex items-center gap-3">
                     <div className="relative group">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-600 transition-colors" size={18} />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-gray-900 transition-colors" size={18} />
                         <input
                             type="text"
                             placeholder="Search tickets, names, IDs..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             suppressHydrationWarning
-                            className="pl-12 pr-6 py-3.5 bg-gray-50 border border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl text-sm font-bold text-gray-900 transition-all outline-none w-64 shadow-inner"
+                            className="pl-12 pr-6 py-4 bg-gray-50/50 border border-gray-100 focus:border-red-200 focus:bg-white rounded-2xl text-sm font-bold text-gray-900 transition-all outline-none md:w-72 shadow-inner"
                         />
                     </div>
                     <button
                         onClick={() => router.refresh()}
                         suppressHydrationWarning
-                        className="p-3.5 bg-gray-50 hover:bg-white border border-gray-100 hover:border-indigo-200 rounded-2xl text-gray-400 hover:text-indigo-600 transition-all shadow-sm hover:shadow-md active:scale-95"
+                        className="p-4 bg-white border border-gray-100 text-gray-400 hover:text-gray-900 rounded-2xl transition-all shadow-sm hover:shadow-md active:scale-95"
                     >
                         <RefreshCw size={20} className={isUpdating ? 'animate-spin' : ''} />
                     </button>
                 </div>
             </div>
 
-            {/* Performance Stats Cards */}
+            {/* Classic Metric Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
-                    { label: 'Open', count: counts.open, icon: Clock, color: 'text-blue-600', bg: 'bg-blue-500', shadow: 'shadow-blue-500/20' },
-                    { label: 'In-Progress', count: counts.inProgress, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-500', shadow: 'shadow-amber-500/20' },
-                    { label: 'Resolved', count: counts.resolved, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-500', shadow: 'shadow-emerald-500/20' }
+                    { label: 'Open', count: counts.open, icon: Clock, color: 'text-blue-600', ring: 'ring-blue-100', bg: 'bg-blue-50' },
+                    { label: 'In-Progress', count: counts.inProgress, icon: AlertCircle, color: 'text-amber-600', ring: 'ring-amber-100', bg: 'bg-amber-50' },
+                    { label: 'Resolved', count: counts.resolved, icon: CheckCircle2, color: 'text-emerald-600', ring: 'ring-emerald-100', bg: 'bg-emerald-50' }
                 ].map((stat) => (
                     <button
                         key={stat.label}
                         onClick={() => setStatusFilter(stat.label === 'Resolved' ? 'Resolved' : stat.label)}
                         suppressHydrationWarning
-                        className={`group relative overflow-hidden bg-white/80 backdrop-blur-xl border-2 p-8 rounded-[2.5rem] text-left transition-all duration-300 hover:-translate-y-1 ${statusFilter === stat.label || (statusFilter === 'Resolved' && stat.label === 'Resolved')
-                            ? 'border-indigo-500 shadow-2xl shadow-indigo-500/10'
-                            : 'border-transparent shadow-xl shadow-gray-200/50 hover:border-gray-200'
+                        className={`group relative bg-white/80 backdrop-blur-md p-8 rounded-[40px] border transition-all duration-300 ${statusFilter === stat.label || (statusFilter === 'Resolved' && stat.label === 'Resolved')
+                            ? 'border-gray-900 shadow-2xl shadow-gray-200 scale-[1.02]'
+                            : 'border-white/50 shadow-xl shadow-gray-200/30 hover:shadow-gray-200/50 hover:border-gray-200'
                             }`}
                     >
-                        <stat.icon className={`absolute -right-6 -bottom-6 w-32 h-32 opacity-5 scale-150 rotate-12 transition-transform group-hover:rotate-0`} />
-                        <div className="flex flex-col gap-1 relative z-10">
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">{stat.label}</span>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-5xl font-black italic tracking-tighter text-gray-900">{stat.count}</span>
-                                <div className={`w-2 h-2 rounded-full ${stat.bg} animate-pulse`} />
+                        <div className="flex items-center gap-4 relative z-10">
+                            <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color} ring-4 ${stat.ring}`}>
+                                <stat.icon size={24} strokeWidth={2.5} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">{stat.label}</p>
+                                <p className="text-4xl font-black text-gray-900 tracking-tighter italic">{stat.count}</p>
                             </div>
                         </div>
                     </button>
                 ))}
             </div>
 
-            {/* Filter Pills */}
+            {/* Neat Filter Scope */}
             <div className="flex items-center gap-4 px-2">
                 <div className="flex items-center gap-2 text-gray-400">
-                    <Filter size={16} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Filter By</span>
+                    <Filter size={14} />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400/60">Protocol Scope</span>
                 </div>
                 <div className="flex gap-2">
                     {['All', 'Open', 'In-Progress', 'Resolved'].map(status => (
@@ -144,9 +145,9 @@ export function TicketsClient({ tickets, counts, role, adminId }: TicketsClientP
                             key={status}
                             onClick={() => setStatusFilter(status)}
                             suppressHydrationWarning
-                            className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === status
+                            className={`px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === status
                                 ? 'bg-gray-900 text-white shadow-lg'
-                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                : 'bg-white border border-gray-100 text-gray-400 hover:bg-gray-50'
                                 }`}
                         >
                             {status}
@@ -155,15 +156,15 @@ export function TicketsClient({ tickets, counts, role, adminId }: TicketsClientP
                 </div>
             </div>
 
-            {/* Tickets Grid/List */}
-            <div className="space-y-4 pb-20">
+            {/* Classic Ticket List */}
+            <div className="space-y-4">
                 {filteredTickets.length === 0 ? (
-                    <div className="bg-white/50 backdrop-blur-sm border-2 border-dashed border-gray-200 rounded-[3rem] py-32 text-center">
-                        <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <MessageSquare size={40} className="text-gray-300" />
+                    <div className="bg-white/40 backdrop-blur-sm border-2 border-dashed border-gray-200 rounded-[40px] py-24 text-center">
+                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                            <MessageSquare size={24} className="text-gray-200" />
                         </div>
-                        <h3 className="text-2xl font-black text-gray-900 uppercase italic tracking-tight">Zone Clear</h3>
-                        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mt-2 px-10">No {statusFilter.toLowerCase()} tickets found matching your search</p>
+                        <h3 className="text-xl font-black text-gray-900 uppercase italic tracking-tight">Queue Clear</h3>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-2">No items matching current scope</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-4">
@@ -171,33 +172,31 @@ export function TicketsClient({ tickets, counts, role, adminId }: TicketsClientP
                             <div
                                 key={ticket.id}
                                 onClick={() => setSelectedTicket(ticket)}
-                                className="group relative bg-white/80 backdrop-blur-xl border border-gray-100 p-8 rounded-[2.5rem] hover:border-indigo-300 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-8 active:scale-[0.98]"
+                                className="group relative bg-white/70 backdrop-blur-md border border-white/50 p-8 rounded-[40px] hover:bg-white/95 hover:shadow-2xl hover:shadow-gray-200/50 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-8 active:scale-[0.99]"
                             >
-                                <div className="absolute left-0 top-0 w-1.5 h-full opacity-50 group-hover:opacity-100 transition-opacity bg-gradient-to-b from-indigo-500 via-purple-500 to-indigo-500" />
+                                <div className="absolute left-0 top-0 w-2 h-full bg-gray-900/5 group-hover:bg-red-600 transition-colors" />
 
                                 <div className="flex-1 space-y-4">
                                     <div className="flex items-center gap-3">
                                         <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${getStatusStyles(ticket.status)}`}>
                                             {ticket.status}
                                         </span>
-                                        <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg ${getPriorityStyles(ticket.priority)}`}>
+                                        <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm ${getPriorityStyles(ticket.priority)}`}>
                                             {ticket.priority}
                                         </span>
-                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">#{ticket.id}</span>
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest font-mono">#TCK-{ticket.id.toString().padStart(4, '0')}</span>
                                     </div>
-
                                     <div>
-                                        <h3 className="text-2xl font-black italic text-gray-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight line-clamp-1">{ticket.subject}</h3>
-                                        <p className="text-sm font-medium text-gray-500 line-clamp-2 mt-1 leading-relaxed">{ticket.message}</p>
+                                        <h3 className="text-xl font-black text-gray-900 group-hover:text-red-700 transition-colors uppercase tracking-tight italic line-clamp-1">{ticket.subject}</h3>
+                                        <p className="text-sm font-bold text-gray-500 line-clamp-1 mt-1 leading-relaxed">{ticket.message}</p>
                                     </div>
-
-                                    <div className="flex flex-wrap gap-6 items-center pt-2">
+                                    <div className="flex flex-wrap gap-8 items-center pt-2">
                                         <div className="flex items-center gap-2 group/user bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
-                                            <div className="w-6 h-6 bg-gray-900 rounded-lg flex items-center justify-center">
-                                                <User size={12} className="text-white" />
+                                            <div className="w-6 h-6 bg-white rounded-lg flex items-center justify-center border border-gray-100 shadow-sm">
+                                                <User size={12} className="text-gray-900" />
                                             </div>
                                             <span className="text-[11px] font-black uppercase tracking-tighter text-gray-900">{ticket.user?.fullName}</span>
-                                            <span className="text-[10px] font-bold text-violet-600/60 uppercase">{ticket.user?.role}</span>
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase">{ticket.user?.role}</span>
                                         </div>
                                         <div className="flex items-center gap-2 text-gray-400">
                                             <Tag size={16} />
@@ -206,7 +205,7 @@ export function TicketsClient({ tickets, counts, role, adminId }: TicketsClientP
                                         <div className="flex items-center gap-2 text-gray-400">
                                             <Calendar size={16} />
                                             <span className="text-[10px] font-black uppercase tracking-widest">
-                                                {mounted ? new Date(ticket.createdAt).toLocaleDateString() : 'Loading...'}
+                                                {mounted ? new Date(ticket.createdAt).toLocaleDateString() : '...'}
                                             </span>
                                         </div>
                                     </div>
@@ -218,9 +217,9 @@ export function TicketsClient({ tickets, counts, role, adminId }: TicketsClientP
                                             onClick={(e) => { e.stopPropagation(); handleStatusUpdate(ticket.id, 'In-Progress') }}
                                             disabled={isUpdating}
                                             suppressHydrationWarning
-                                            className="px-6 py-4 bg-gray-900 text-white rounded-2xl font-black italic text-xs uppercase tracking-[0.2em] shadow-xl hover:shadow-indigo-500/20 hover:-translate-y-1 transition-all"
+                                            className="px-8 py-4 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-red-100 hover:scale-105 active:scale-95 transition-all"
                                         >
-                                            🚀 Engage
+                                            Engage Hub
                                         </button>
                                     )}
                                     {ticket.status === 'In-Progress' && (
@@ -228,12 +227,12 @@ export function TicketsClient({ tickets, counts, role, adminId }: TicketsClientP
                                             onClick={(e) => { e.stopPropagation(); handleStatusUpdate(ticket.id, 'Resolved') }}
                                             disabled={isUpdating}
                                             suppressHydrationWarning
-                                            className="px-6 py-4 bg-emerald-600 text-white rounded-2xl font-black italic text-xs uppercase tracking-[0.2em] shadow-xl hover:shadow-emerald-500/20 hover:-translate-y-1 transition-all"
+                                            className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-gray-200 hover:scale-105 active:scale-95 transition-all"
                                         >
-                                            ✅ Finalize
+                                            Resolve TCK
                                         </button>
                                     )}
-                                    <div className="p-4 bg-gray-50 rounded-2xl text-indigo-600 group-hover:scale-110 transition-transform">
+                                    <div className="p-4 bg-gray-50 rounded-2xl text-gray-400 group-hover:text-red-600 group-hover:bg-red-50 transition-all border border-gray-100 shadow-inner">
                                         <MessageSquare size={24} />
                                     </div>
                                 </div>
@@ -258,4 +257,3 @@ export function TicketsClient({ tickets, counts, role, adminId }: TicketsClientP
         </div>
     )
 }
-

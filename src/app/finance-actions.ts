@@ -14,7 +14,7 @@ import { getSpecialBonusRate } from '@/lib/reward-constants'
 
 // --- Registration Transactions ---
 
-export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'All') {
+export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'All', academicYear?: string) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
 
@@ -38,6 +38,7 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
         const syncedUsersPromise = prisma.user.findMany({
             where: {
                 ...(admin.role.includes('Campus') && (admin as any).campusId ? { campusId: (admin as any).campusId } : {}),
+                ...(academicYear && academicYear !== 'All' ? { academicYear } : {}),
                 settlements: { some: { amount: 25, status: 'Processed' } }
             },
             select: {
@@ -66,6 +67,7 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
                     { paymentStatus: 'Success' },
                     { transactionId: { not: null } }
                 ],
+                ...(academicYear && academicYear !== 'All' ? { academicYear } : {}),
                 NOT: { settlements: { some: { amount: 25, status: 'Processed' } } } // Don't duplicate
             },
             select: {
@@ -232,7 +234,7 @@ export async function syncMissingPayments(force: boolean = false) {
 }
 
 
-export async function getSettlements(status: string = 'Pending') {
+export async function getSettlements(status: string = 'Pending', academicYear?: string) {
     const user = await getCurrentUser()
     if (!user) return { success: false, error: 'Unauthorized' }
 
@@ -240,6 +242,19 @@ export async function getSettlements(status: string = 'Pending') {
         const whereClause: any = {}
         if (status !== 'All') {
             whereClause.status = status
+        }
+
+        // Apply Academic Year Filter via Date Range
+        if (academicYear && academicYear !== 'All') {
+            const yearRecord = await prisma.academicYear.findUnique({
+                where: { year: academicYear }
+            })
+            if (yearRecord) {
+                whereClause.createdAt = {
+                    gte: yearRecord.startDate,
+                    lte: yearRecord.endDate
+                }
+            }
         }
 
         // Campus Head restriction
@@ -305,19 +320,44 @@ export async function getSettlements(status: string = 'Pending') {
     }
 }
 
-export async function getFinanceStats() {
+export async function getFinanceStats(academicYear?: string) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
 
     try {
-        const whereSettlement: any = {}
-        const whereUser: any = {
+        const whereUserRevenue: any = {
             OR: [
                 { paymentStatus: 'Completed' },
                 { paymentStatus: 'Success' },
                 { transactionId: { not: null } }
-            ]
+            ],
+            ...(academicYear && academicYear !== 'All' ? { academicYear } : {})
         }
+
+        // Activity-Anchored User Filter for counting active participants
+        const yearActivityFilter = academicYear && academicYear !== 'All' ? {
+            OR: [
+                { academicYear },
+                { referrals: { some: { admittedYear: academicYear } } }
+            ]
+        } : {};
+
+        let dateFilter: any = {};
+        if (academicYear && academicYear !== 'All') {
+            const yearRecord = await prisma.academicYear.findUnique({
+                where: { year: academicYear }
+            });
+            if (yearRecord) {
+                dateFilter = {
+                    createdAt: {
+                        gte: yearRecord.startDate,
+                        lte: yearRecord.endDate
+                    }
+                };
+            }
+        }
+
+        const whereSettlement: any = { ...dateFilter }
 
         if (admin.role.includes('Campus') && (admin as any).campusId) {
             // Fetch users in this campus to filter settlements
@@ -327,10 +367,10 @@ export async function getFinanceStats() {
             })
             const userIds = campusUsers.map(u => u.userId)
             whereSettlement.userId = { in: userIds }
-            whereUser.campusId = (admin as any).campusId
+            whereUserRevenue.campusId = (admin as any).campusId
         }
 
-        const [pending, processedCount, totalCount, revenueAgg] = await Promise.all([
+        const [pending, processedCount, totalCount, totalAmbassadors, revenueAgg] = await Promise.all([
             prisma.settlement.aggregate({
                 where: { status: 'Pending', ...whereSettlement },
                 _sum: { amount: true }
@@ -340,8 +380,14 @@ export async function getFinanceStats() {
                 _sum: { amount: true }
             }),
             prisma.settlement.count({ where: whereSettlement }),
+            prisma.user.count({
+                where: {
+                    ...(admin.role.includes('Campus') && (admin as any).campusId ? { campusId: (admin as any).campusId } : {}),
+                    ...yearActivityFilter
+                }
+            }),
             prisma.user.aggregate({
-                where: whereUser,
+                where: whereUserRevenue,
                 _sum: { paymentAmount: true }
             })
         ])
@@ -684,15 +730,30 @@ export async function bulkProcessPayoutsById(settlementIds: number[], transactio
     }
 }
 
-
-export async function getUsersReadyForRefund() {
+export async function getUsersReadyForRefund(academicYear?: string) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
 
     try {
+        let dateFilter: any = {};
+        if (academicYear && academicYear !== 'All') {
+            const yearRecord = await prisma.academicYear.findUnique({
+                where: { year: academicYear }
+            });
+            if (yearRecord) {
+                dateFilter = {
+                    createdAt: {
+                        gte: yearRecord.startDate,
+                        lte: yearRecord.endDate
+                    }
+                };
+            }
+        }
+
         const where: any = {
             paymentStatus: { in: ['Success', 'Completed'] },
             paymentAmount: { gt: 0 },
+            ...(academicYear && academicYear !== 'All' ? { academicYear } : {}),
             AND: [
                 { accountNumber: { not: null } },
                 { accountNumber: { not: '' } },
@@ -990,14 +1051,39 @@ export async function getAccruedPayoutLiabilities(academicYear?: string) {
 
         const yearFilter = academicYear || '2026-2027'
 
-        // 1. Fetch only confirmed referrals for the requested cycle
+        // 1. Fetch AcademicYear record for date boundaries
+        let dateRangeFilter: any = {}
+
+        if (yearFilter !== 'All') {
+            const yearRecord = await prisma.academicYear.findUnique({
+                where: { year: yearFilter }
+            })
+
+            dateRangeFilter = yearRecord ? {
+                createdAt: {
+                    gte: yearRecord.startDate,
+                    lte: yearRecord.endDate
+                }
+            } : {
+                createdAt: { gte: new Date('2025-01-01') } // Fallback
+            }
+        }
+
+        const referralYearFilter = yearFilter !== 'All' ? {
+            OR: [
+                { admittedYear: yearFilter },
+                dateRangeFilter
+            ]
+        } : {}
+
+        // 2. Fetch only confirmed referrals for the requested cycle
         const [users, slabs, gradeFees] = await Promise.all([
             prisma.user.findMany({
                 where: {
                     referrals: {
                         some: {
                             leadStatus: { in: ['Confirmed', 'Admitted'] },
-                            admittedYear: yearFilter
+                            ...referralYearFilter
                         }
                     }
                 },
@@ -1014,7 +1100,7 @@ export async function getAccruedPayoutLiabilities(academicYear?: string) {
                     referrals: {
                         where: {
                             leadStatus: { in: ['Confirmed', 'Admitted'] },
-                            admittedYear: yearFilter
+                            ...referralYearFilter
                         }
                     }
                 }
@@ -1025,7 +1111,7 @@ export async function getAccruedPayoutLiabilities(academicYear?: string) {
             prisma.gradeFee.findMany({
                 where: {
                     grade: { in: ['Grade - 1', 'Grade-1', 'Grade 1'] },
-                    academicYear: yearFilter
+                    ...(yearFilter !== 'All' ? { academicYear: yearFilter } : {})
                 }
             })
         ])
@@ -1187,7 +1273,8 @@ export async function getAccruedPayoutLiabilities(academicYear?: string) {
                 const specialBonus = getSpecialBonusRate(r.campus)
                 const referralTotal = specialBonus +
                     (r.annualFee ? (r.annualFee * (calcResult as any).tierPercent / 100) : 0) +
-                    (r.admissionFeeCollected ? (r.admissionFeeCollected * 0.1) : 0) // Placeholder for logic
+                    (r.admissionFeeCollected ? (r.admissionFeeCollected * 0.8) : 0) +
+                    (r.donationFeeCollected ? (r.donationFeeCollected * 0.5) : 0)
 
                 let status = 'PENDING'
                 let paidAmount = 0
@@ -1301,6 +1388,7 @@ export async function getAccruedPayoutLiabilities(academicYear?: string) {
 
                     // Child Details (Critical for A)
                     childName,
+                    childEprNo: (u as any).childEprNo || undefined,
                     childGrade,
                     childCampus,
                     childFee: displayChildFee,
@@ -1337,7 +1425,7 @@ export async function getAccruedPayoutLiabilities(academicYear?: string) {
 /**
  * Bulk creates pending settlement records for a list of users.
  */
-export async function bulkInitiateSettlements(requests: { userId: number, amount: number }[]) {
+export async function bulkInitiateSettlements(requests: { userId: number, amount: number, referralBreakdown?: string }[]) {
     const admin = await getCurrentUser()
     if (!admin || !await hasPermission('settlements')) {
         return { success: false, error: 'Unauthorized' }
@@ -1352,7 +1440,9 @@ export async function bulkInitiateSettlements(requests: { userId: number, amount
                         userId: req.userId,
                         amount: req.amount,
                         status: 'Pending',
-                        remarks: `Auto-generated from Liability Ledger by ${admin.fullName}`
+                        remarks: req.referralBreakdown
+                            ? `[BREAKDOWN:${req.referralBreakdown}] Auto-generated by ${admin.fullName}`
+                            : `Auto-generated from Liability Ledger by ${admin.fullName}`
                     }
                 })
                 created.push(s)
@@ -1372,7 +1462,7 @@ export async function bulkInitiateSettlements(requests: { userId: number, amount
     }
 }
 
-export async function bulkRecordWaiverAdjustments(requests: { userId: number, amount: number, childName?: string }[]) {
+export async function bulkRecordWaiverAdjustments(requests: { userId: number, amount: number, childName?: string, childEprNo?: string, referralBreakdown?: string }[]) {
     const admin = await getCurrentUser()
     if (!admin || !await hasPermission('settlements')) {
         return { success: false, error: 'Unauthorized' }
@@ -1387,7 +1477,9 @@ export async function bulkRecordWaiverAdjustments(requests: { userId: number, am
                         userId: req.userId,
                         amount: req.amount,
                         status: 'Processed',
-                        remarks: `Institutional Fee Waiver Applied for ${req.childName || 'Child'} (Cycle 2026-2027)`,
+                        remarks: req.referralBreakdown
+                            ? `[BREAKDOWN:${req.referralBreakdown}] [ERP:${req.childEprNo || 'N/A'}] Institutional Fee Waiver Applied for ${req.childName || 'Child'}`
+                            : `[ERP:${req.childEprNo || 'N/A'}] Institutional Fee Waiver Applied for ${req.childName || 'Child'} (Cycle 2026-2027)`,
                         bankReference: `WAIVER-${Date.now()}-${req.userId}`,
                         processedBy: Number(admin.userId),
                         payoutDate: new Date()
@@ -1399,7 +1491,7 @@ export async function bulkRecordWaiverAdjustments(requests: { userId: number, am
         })
 
         if (results.length > 0) {
-            await logAction('BULK_CREATE', 'finance', `Bulk recorded ${results.length} waiver adjustments.`, 'Bulk')
+            await logAction('BULK_CREATE', 'finance', `Bulk recorded ${results.length} waiver adjustments with breakdown persistence.`, 'Bulk')
         }
 
         revalidatePath('/finance')

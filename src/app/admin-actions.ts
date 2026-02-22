@@ -38,17 +38,8 @@ export async function getAllReferrals(
     },
     sort?: { field: string; order: 'asc' | 'desc' }
 ) {
-    const fs = require('fs')
-    const path = require('path')
-    const logFile = path.join(process.cwd(), 'debug_referrals.log')
-    const log = (msg: string) => { try { fs.appendFileSync(logFile, new Date().toISOString() + ': ' + msg + '\\n') } catch (e) { } }
-
-    log(`getAllReferrals called. Page: ${page}, Limit: ${limit}, Filters: ${JSON.stringify(filters || {})}`)
-
     const user = await getCurrentUser()
-    log(`User: ${user?.role} (${user?.userId || 'No ID'})`)
     if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus'))) {
-        log('Unauthorized: Role check failed')
         return { success: false, error: 'Unauthorized' }
     }
 
@@ -57,17 +48,12 @@ export async function getAllReferrals(
         useCampusName: true
     })
 
-    log(`Scope Filter Result: ${JSON.stringify(scopeFilter)}`)
-
     if (scopeFilter === null) {
-        log('DEBUG: No access to referral data (scopeFilter is null)')
         return { success: false, error: 'No access to referral data' }
     }
 
     // Build Dynamic Where Clause (Refactored)
     const where = buildReferralWhereClause(filters, scopeFilter)
-
-    log(`DEBUG: getAllReferrals WHERE: ${JSON.stringify(where)}`)
 
     // Build Order By
     let orderBy: any = { createdAt: 'desc' }
@@ -104,13 +90,6 @@ export async function getAllReferrals(
             })
         ])
 
-        log(`DEBUG: Fetched ${referrals.length} referrals. Total: ${total}`)
-        if (referrals.length > 0) {
-            const sample = referrals[0]
-            log(`Sample Lead: ${sample.leadId} - ${sample.user?.fullName} - ${sample.campus}`)
-        } else {
-            log('No referrals found.')
-        }
         if (referrals.length > 0) {
             console.log('DEBUG: Sample Lead:', JSON.stringify(referrals[0].user, null, 2))
         }
@@ -294,10 +273,17 @@ async function syncAmbassadorBenefits(tx: any, userId: number) {
         }
     })
 
-    // 3. Determine Benefit % based on the 5-Star system logic
-    const shortTermSlabs: Record<number, number> = { 1: 5, 2: 10, 3: 20, 4: 30, 5: 50 };
-    const lookupCount = Math.min(currentYearCount, 5);
-    let yearFeeBenefit = shortTermSlabs[lookupCount] || 0;
+    // 3. Determine Benefit % based on the dynamic BenefitSlab table
+    const slabs = await tx.benefitSlab.findMany({
+        orderBy: { referralCount: 'asc' }
+    });
+
+    const getPercent = (count: number) => {
+        const slab = slabs.find((s: any) => s.referralCount === Math.min(count, 5)) || slabs[slabs.length - 1];
+        return slab?.yearFeeBenefitPercent || 0;
+    };
+
+    let yearFeeBenefit = getPercent(currentYearCount);
 
     let longTermTotal = 0;
     const user = await tx.user.findUnique({ where: { userId } });
@@ -305,7 +291,12 @@ async function syncAmbassadorBenefits(tx: any, userId: number) {
     if (user?.isFiveStarMember) {
         const priorYearCount = count - currentYearCount;
         if (currentYearCount >= 1) {
-            const cumulativeBase = priorYearCount * 3;
+            // Long Term Law: 15% Base + 3% per prior referral + 5% per current referral
+            // Actually, the database has baseLongTermPercent (15) and longTermExtraPercent (3)
+            const basePercent = slabs[0]?.baseLongTermPercent || 15;
+            const extraPercent = slabs[0]?.longTermExtraPercent || 3;
+
+            const cumulativeBase = basePercent + (priorYearCount * extraPercent);
             const currentYearBoost = currentYearCount * 5;
             longTermTotal = cumulativeBase + currentYearBoost;
 

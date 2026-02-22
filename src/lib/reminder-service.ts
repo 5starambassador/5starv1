@@ -48,33 +48,148 @@ export class ReminderService {
 
     /**
      * 2. Profile Completion Reminder (Bank Details)
-     * Target: Active users (Paid) who have NO bank details.
+     * Target: ALL Active ambassadors (Group A & B) who have NO bank account OR IFSC code.
+     * Reason: Bank details are required for BOTH Group B cash payouts AND Group A refund processing.
+     * Channels: WhatsApp + In-App + Email + Push
      */
     async sendBankDetailsReminder() {
-        // Find Active users with missing bank details
+        // Find Active ambassadors missing accountNumber OR ifscCode
         const users = await prisma.user.findMany({
             where: {
                 status: 'Active',
-                bankAccountDetails: null,
-                role: { in: ['Parent', 'Staff', 'Alumni', 'Others'] }
+                role: { in: ['Parent', 'Staff', 'Alumni', 'Others'] },
+                OR: [
+                    { accountNumber: null },
+                    { accountNumber: '' },
+                    { ifscCode: null },
+                    { ifscCode: '' },
+                ]
             },
-            take: 50
+            select: {
+                userId: true,
+                mobileNumber: true,
+                fullName: true,
+                email: true,
+                DeviceToken: { select: { token: true } }
+            },
+            take: 100
         })
 
-        console.log(`[Reminder] Found ${users.length} active users missing bank details`)
+        console.log(`[Reminder] Found ${users.length} active ambassadors (all roles) missing bank details`)
+
+        // Collect push tokens for batch FCM send
+        const pushTokens: string[] = []
 
         for (const user of users) {
-            if (user.mobileNumber) {
-                // Template: bank_details_missing (Name)
-                await whatsappService.sendByEvent(
-                    user.mobileNumber,
-                    'BANK_DETAILS_REMINDER',
-                    [user.fullName || 'Ambassador'],
-                    'REMINDER'
-                )
+            const name = user.fullName || 'Ambassador'
+
+            // 1. WhatsApp
+            try {
+                if (user.mobileNumber) {
+                    await whatsappService.sendByEvent(
+                        user.mobileNumber,
+                        'BANK_DETAILS_REMINDER',
+                        [name],
+                        'REMINDER'
+                    )
+                }
+            } catch (e) {
+                console.warn(`[Reminder] WhatsApp failed for ${user.userId}:`, e)
+            }
+
+            // 2. In-App Notification (deduplicated — skip if unread reminder already exists)
+            try {
+                const existing = await prisma.notification.findFirst({
+                    where: {
+                        userId: user.userId,
+                        title: '⚠️ Update Bank Details',
+                        isRead: false,
+                    },
+                    select: { id: true }
+                })
+                if (!existing) {
+                    await prisma.notification.create({
+                        data: {
+                            userId: user.userId,
+                            title: '⚠️ Update Bank Details',
+                            message: 'Your bank account details are missing. Please update your profile to ensure timely payouts and refund processing.',
+                            type: 'system',
+                            link: '/profile',
+                        }
+                    })
+                }
+            } catch (e) {
+                console.warn(`[Reminder] In-app notification failed for ${user.userId}:`, e)
+            }
+
+            // 3. Email (via Resend)
+            try {
+                if (user.email) {
+                    await EmailService.sendCampaignEmail(
+                        user.email,
+                        '⚠️ Action Required: Update Your Bank Details',
+                        `
+                        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #f9fafb; border-radius: 12px;">
+                            <div style="background: #1e40af; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+                                <h1 style="color: white; margin: 0; font-size: 20px;">Achariya Ambassador Program</h1>
+                            </div>
+                            <div style="background: white; padding: 24px; border: 1px solid #e5e7eb; border-radius: 0 0 8px 8px;">
+                                <h2 style="color: #1e293b;">Hi ${name},</h2>
+                                <p style="color: #475569;">Your bank account details are currently <strong>missing</strong> from your profile.</p>
+                                <p style="color: #475569;">Bank details are required for:</p>
+                                <ul style="color: #475569;">
+                                    <li>💰 Cash payout settlements (Group B)</li>
+                                    <li>♻️ Refund processing (Group A)</li>
+                                </ul>
+                                <p style="color: #ef4444; font-weight: bold;">Please update your bank details immediately to avoid payout delays.</p>
+                                <a href="https://ambassador.achariya.in/profile" 
+                                   style="display: inline-block; background: #1d4ed8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 16px;">
+                                    Update Bank Details →
+                                </a>
+                                <p style="margin-top: 24px; color: #94a3b8; font-size: 12px;">
+                                    This is an automated reminder from the Achariya 5-Star Ambassador Portal.
+                                </p>
+                            </div>
+                        </div>
+                        `
+                    )
+                }
+            } catch (e) {
+                console.warn(`[Reminder] Email failed for ${user.userId}:`, e)
+            }
+
+            // 4. Collect push tokens
+            if (user.DeviceToken?.length > 0) {
+                user.DeviceToken.forEach((dt: { token: string }) => {
+                    if (dt.token) pushTokens.push(dt.token)
+                })
             }
         }
-        return { count: users.length }
+
+        // 4. Push Notifications (Firebase FCM — batch 500)
+        if (pushTokens.length > 0) {
+            try {
+                const { getFirebaseAdmin } = await import('@/lib/firebase-admin')
+                const adminFn = await getFirebaseAdmin()
+                if (adminFn) {
+                    for (let i = 0; i < pushTokens.length; i += 500) {
+                        const chunk = pushTokens.slice(i, i + 500)
+                        await adminFn.messaging().sendEachForMulticast({
+                            tokens: chunk,
+                            notification: {
+                                title: '⚠️ Update Bank Details',
+                                body: 'Your bank details are missing. Tap to update your profile now.'
+                            },
+                            data: { link: '/profile' }
+                        })
+                    }
+                }
+            } catch (e) {
+                console.warn('[Reminder] Push notification batch failed:', e)
+            }
+        }
+
+        return { count: users.length, pushTokensSent: pushTokens.length }
     }
 
     /**

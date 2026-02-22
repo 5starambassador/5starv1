@@ -199,6 +199,14 @@ export async function verifyOtpOnly(otp: string, mobileInput?: string) {
 
     console.log('[DEBUG] verifyOtpOnly called:', { otp, mobileInput, sanitized: mobile })
 
+    const verifyLimitKey = `verify:otp:${mobile}`
+    const verifyLimit = await prisma.rateLimit.findUnique({ where: { key: verifyLimitKey } })
+    const now = new Date()
+
+    if (verifyLimit && verifyLimit.resetAt > now && verifyLimit.count >= 5) {
+        const timeLeft = Math.ceil((verifyLimit.resetAt.getTime() - now.getTime()) / 60000)
+        return { success: false, error: `Too many failed attempts. Please try again in ${timeLeft} minutes.` }
+    }
 
     const record = await prisma.otpVerification.findUnique({
         where: { mobile }
@@ -209,7 +217,6 @@ export async function verifyOtpOnly(otp: string, mobileInput?: string) {
         return { success: false, error: 'OTP request expired or invalid. Try again.' }
     }
 
-    const now = new Date()
     const isExpired = now > record.expiresAt
     const isMatch = record.otp === otp
 
@@ -227,8 +234,20 @@ export async function verifyOtpOnly(otp: string, mobileInput?: string) {
     }
 
     if (!isMatch) {
+        // Increment failed attempt counter
+        await prisma.rateLimit.upsert({
+            where: { key: verifyLimitKey },
+            update: { count: { increment: 1 } },
+            create: { key: verifyLimitKey, count: 1, resetAt: new Date(now.getTime() + 15 * 60 * 1000) }
+        })
+
+        await logAction('OTP_VERIFY_FAILURE', 'auth', `Incorrect OTP attempt for ${mobile}`, mobile)
         return { success: false, error: 'Incorrect OTP. Please check and try again.' }
     }
+
+    // Success: Clear throttling counter
+    await prisma.rateLimit.delete({ where: { key: verifyLimitKey } }).catch(() => null)
+    await logAction('OTP_VERIFY_SUCCESS', 'auth', `OTP verified successfully for ${mobile}`, mobile)
 
     return { success: true }
 
@@ -238,8 +257,9 @@ export async function verifyOtpOnly(otp: string, mobileInput?: string) {
 
 }
 
-// Check password for existing users
-export async function loginWithPassword(mobile: string, password: string) {
+export async function loginWithPassword(mobileInput: string, password: string) {
+    const mobile = sanitizeMobile(mobileInput)
+
     // Check User
     const user = await prisma.user.findUnique({
         where: { mobileNumber: mobile }
@@ -247,6 +267,7 @@ export async function loginWithPassword(mobile: string, password: string) {
 
     if (user) {
         if (user.status === 'Deleted') {
+            await logAction('LOGIN_DELETED_ACCOUNT', 'auth', `Login attempt for deleted account: ${mobile}`, user.userId.toString(), user.userId, { isUser: true })
             return { success: false, error: 'This account has been deleted.' }
         }
         if (user.password) {
@@ -289,6 +310,8 @@ export async function loginWithPassword(mobile: string, password: string) {
         return { success: false, error: 'Incorrect password' }
     }
 
+    // NEW: Log attempt for non-existent user/admin
+    await logAction('LOGIN_USER_NOT_FOUND', 'auth', `Login attempt for non-existent mobile: ${mobile}`, mobile)
     return { success: false, error: 'User not found' }
 }
 
@@ -525,9 +548,20 @@ export async function registerUser(formData: any) {
                                     referralCode: upgradeCode,
                                     password: await bcrypt.hash(password, 10),
                                     bankAccountDetails: bankAccountDetails ? encrypt(bankAccountDetails) : existingUser.bankAccountDetails,
-                                    benefitStatus: AccountStatus.Active
+                                    benefitStatus: 'Active' as any // Use string for safety if enum desyncs
                                 }
                             })
+
+                            // Audit Upgrade
+                            await logAction(
+                                'USER_UPGRADE',
+                                'auth',
+                                `User ${mobileNumber} upgraded to Ambassador with code ${upgradeCode}`,
+                                updatedUser.userId.toString(),
+                                updatedUser.userId,
+                                { oldRole: existingUser.role, newRole: updatedUser.role, upgradeCode }
+                            )
+
                             return { success: true, userId: updatedUser.userId, role: updatedUser.role }
                         }
                         return null

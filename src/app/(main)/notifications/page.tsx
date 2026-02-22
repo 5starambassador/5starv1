@@ -117,6 +117,7 @@ export default function NotificationsPage() {
             </div>
 
             <div className="relative z-10 max-w-md mx-auto min-h-screen flex flex-col">
+                <div className="w-full h-32 shrink-0 md:hidden" />
 
                 {/* Header */}
                 <header className="px-6 pt-6 pb-6 flex items-center justify-between sticky top-0 z-20 bg-[#0f172a]/80 backdrop-blur-md">

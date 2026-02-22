@@ -45,6 +45,8 @@ interface ProfileClientProps {
         bankName?: string
         accountNumber?: string
         ifscCode?: string
+        securedValue?: number
+        projectedValue?: number
     }
     logoutAction: () => Promise<{ success: boolean; error?: string }>
 }
@@ -88,7 +90,7 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
     // Derived or safe default stats
     const referralCount = user.confirmedReferralCount || 0
     // Use projectedValue passed from server side calculations (Matches Dashboard Projected Growth)
-    const totalEarned = (user as any).projectedValue !== undefined ? (user as any).projectedValue : 0
+    const totalEarned = user.projectedValue !== undefined ? user.projectedValue : 0
 
     const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -205,29 +207,20 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
     }
 
     return (
-        <div className="fixed inset-0 w-full h-full overflow-y-auto bg-[#0f172a] z-[100] font-[family-name:var(--font-outfit)] overscroll-y-contain">
-            <ScrollLock />
-            {/* Force Dark Background Overlay to override global layout */}
-            {/* Force Dark Background Overlay to override global layout */}
-            <div className="absolute inset-0 bg-slate-900 z-0">
-                {/* Brightness Booster Layer */}
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 via-slate-900/50 to-slate-900 z-0 opacity-100" />
-            </div>
-
-            {/* Ambient Background Effects */}
+        <div className="relative w-full font-[family-name:var(--font-outfit)]">
+            {/* Ambient Background Effects - Sapphire Glows */}
             <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-                <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-500/20 rounded-full blur-[120px]" />
-                <div className="absolute top-[20%] right-[-10%] w-[400px] h-[400px] bg-purple-500/20 rounded-full blur-[100px]" />
-                <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-[120px]" />
+                <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px]" />
+                <div className="absolute top-[20%] right-[-10%] w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-[100px]" />
             </div>
 
-            {/* Main Content Container - Aggressively Centered for Visible Gaps */}
-            <PageAnimate className="relative z-10 w-[90%] max-w-sm mx-auto flex flex-col pb-24 top-0">
-                {/* SAFE SPACER - Forces content down below fixed headers */}
-                <div className="w-full h-14 shrink-0" />
+            {/* Main Content Container */}
+            <PageAnimate className="relative z-10 w-full max-w-sm mx-auto flex flex-col pb-24">
+                {/* Hero Profile Header - MATCHES DASHBOARD HERO */}
+                <div className="absolute top-0 left-[-50vw] right-[-50vw] h-96 !bg-gradient-to-br !from-blue-600 !to-blue-900 z-0 pointer-events-none opacity-100" />
 
-                <header className="py-6 flex items-center justify-between pl-2 relative">
-                    <h1 className="text-xl font-black text-white tracking-tight uppercase">My Profile</h1>
+                <header className="py-6 flex items-center justify-between pl-2 relative z-10">
+                    <h1 className="text-xl font-black text-white tracking-tight uppercase italic">My Profile</h1>
 
                     <div className="flex items-center gap-3">
                         {!isEditingProfile && !isEditingBank && (
@@ -235,8 +228,8 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                                 onClick={() => setIsEditingProfile(true)}
                                 className="w-10 h-10 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/20 active:scale-95 transition-all relative cursor-pointer"
                                 style={{
-                                    backgroundColor: '#fbbf24', // Amber-400
-                                    borderColor: '#fcd34d',     // Amber-300
+                                    backgroundColor: 'var(--accent-gold)',
+                                    borderColor: 'var(--accent-gold)',
                                     borderWidth: '1px',
                                     zIndex: 100,
                                     opacity: 1,
@@ -257,8 +250,8 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                 <div className="flex flex-col items-center py-6">
                     {/* Avatar with Gold Ring */}
                     <div className="relative mb-6 group">
-                        <div className="absolute -inset-1 bg-gradient-to-tr from-amber-300 to-amber-600 rounded-full blur opacity-70 animate-pulse"></div>
-                        <div className="relative w-28 h-28 rounded-full border-4 border-[#0f172a] bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden shadow-2xl">
+                        <div className="absolute -inset-1 bg-gradient-to-tr from-[var(--radiant-gold)] to-[var(--radiant-amber)] rounded-full blur opacity-70 animate-pulse"></div>
+                        <div className="relative w-28 h-28 rounded-full border-4 border-[#0f172a] bg-gradient-to-br from-[var(--radiant-indigo)] to-[var(--radiant-violet)] flex items-center justify-center overflow-hidden shadow-2xl">
                             {profileImage ? (
                                 <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
                             ) : (
@@ -287,26 +280,41 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                     <h2 className="text-2xl font-black text-white mb-1 text-center tracking-tight">{fullName}</h2>
 
                     {user.yearFeeBenefitPercent !== undefined && (
-                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 mb-6">
-                            <Star size={12} className="text-amber-400 fill-amber-400" />
-                            <span className="text-xs font-bold text-amber-300 uppercase tracking-wider">
+                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--radiant-gold)]/10 border border-[var(--radiant-gold)]/20 mb-6">
+                            <Star size={12} className="text-[var(--radiant-gold)] fill-[var(--radiant-gold)]" />
+                            <span className="text-xs font-bold text-[var(--radiant-gold)] uppercase tracking-wider">
                                 {referralCount >= 5 ? 'Prestigious Partner' : 'Ambassador'}
                             </span>
                         </div>
                     )}
 
-                    {/* Stats Row */}
-                    <div className="w-full grid grid-cols-2 gap-4 mb-8">
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center text-center backdrop-blur-sm">
-                            <span className="text-2xl font-bold text-white mb-0.5">{referralCount}</span>
-                            <span className="text-[10px] text-white/50 uppercase tracking-wider font-medium">Total Referrals</span>
+                    {/* Professional Metrics - MATCHES DASHBOARD STAT CARDS */}
+                    <div className="grid grid-cols-2 gap-3 mb-8 w-full px-2">
+                        <div className="!bg-gradient-to-br !from-indigo-950 !via-indigo-900/90 !to-blue-900 border border-white/10 rounded-2xl p-4 flex flex-col items-center text-center backdrop-blur-3xl shadow-xl">
+                            <span className="text-2xl font-black text-white mb-0.5">{referralCount}</span>
+                            <span className="text-[10px] text-white/40 uppercase tracking-widest font-black">Confirmed Units</span>
                         </div>
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center text-center backdrop-blur-sm relative overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent pointer-events-none" />
-                            <span className="text-2xl font-bold text-amber-400 mb-0.5">₹{totalEarned.toLocaleString('en-IN')}</span>
-                            <span className="text-[10px] text-amber-200/50 uppercase tracking-wider font-medium">Est. Value</span>
+                        <div className="!bg-gradient-to-br !from-indigo-950 !via-indigo-900/90 !to-blue-900 border border-white/10 rounded-2xl p-4 flex flex-col items-center text-center backdrop-blur-3xl shadow-xl relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-400/10 to-transparent pointer-events-none" />
+                            <span className="text-2xl font-black text-white mb-0.5">₹{(user as any).securedValue?.toLocaleString('en-IN') || '0'}</span>
+                            <span className="text-[10px] text-white/40 uppercase tracking-widest font-black">Total Yield</span>
                         </div>
                     </div>
+
+                    {/* Potential Growth Indicator */}
+                    {(user as any).projectedValue > (user as any).securedValue && (
+                        <div className="w-full px-2 mb-8">
+                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center justify-between backdrop-blur-xl">
+                                <div>
+                                    <p className="text-[9px] text-amber-400/60 font-black uppercase tracking-widest mb-1">Projected Potential</p>
+                                    <p className="text-lg font-black text-amber-400 tracking-tight">₹{(user as any).projectedValue?.toLocaleString('en-IN')}</p>
+                                </div>
+                                <div className="p-2 bg-amber-400/20 rounded-xl border border-amber-400/20">
+                                    <Award size={20} className="text-amber-400" />
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Student Details Card (For Parents & Staff with Linked Children) */}
@@ -318,7 +326,7 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
 
                             <div className="flex items-start justify-between mb-4 relative z-10">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-300 font-bold text-lg border border-indigo-500/30">
+                                    <div className="w-10 h-10 rounded-full bg-blue-600/20 flex items-center justify-center text-blue-300 font-bold text-lg border border-blue-400/30">
                                         <GraduationCap size={20} />
                                     </div>
                                     <div>
@@ -399,11 +407,11 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                         >
                             <span className="absolute inset-0 bg-gradient-to-r from-amber-400/50 via-amber-200/50 to-amber-400/50 opacity-100 group-hover:opacity-100 animate-gradient-xy transition-opacity" />
                             <div className="relative bg-slate-900 rounded-2xl p-5 flex items-center gap-4 transition-transform group-active:scale-[0.98]">
-                                <div className="w-12 h-12 rounded-full bg-amber-400/10 text-amber-400 flex items-center justify-center shrink-0 border border-amber-400/20 group-hover:bg-amber-400 group-hover:text-black transition-colors">
+                                <div className="w-12 h-12 rounded-full bg-[var(--radiant-gold)]/10 text-[var(--radiant-gold)] flex items-center justify-center shrink-0 border border-[var(--radiant-gold)]/20 group-hover:bg-[var(--radiant-gold)] group-hover:text-black transition-colors">
                                     <Shield size={24} strokeWidth={2.5} />
                                 </div>
                                 <div className="flex-1 text-left">
-                                    <h3 className="text-sm font-black text-amber-400 uppercase tracking-wide group-hover:text-white transition-colors">Link Child Details</h3>
+                                    <h3 className="text-sm font-black text-[var(--radiant-gold)] uppercase tracking-wide group-hover:text-white transition-colors">Link Child Details</h3>
                                     <p className="text-[10px] text-white/50 font-medium leading-tight mt-0.5">
                                         Claim your <strong>School Fee Discount</strong> by linking your child's ERP details.
                                     </p>
@@ -559,7 +567,7 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                                 <button
                                     onClick={handleSave}
                                     disabled={saving}
-                                    className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-700 text-white font-bold uppercase tracking-widest shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 mt-4"
+                                    className="w-full py-4 rounded-xl bg-gradient-to-r from-[var(--radiant-emerald)] to-emerald-700 text-white font-bold uppercase tracking-widest shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 mt-4"
                                 >
                                     {saving ? 'Saving...' : 'Save Profile Only'}
                                     {!saving && <Check size={18} />}
@@ -620,7 +628,7 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                                 <button
                                     onClick={handleSave}
                                     disabled={saving}
-                                    className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-700 text-white font-bold uppercase tracking-widest shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 mt-4"
+                                    className="w-full py-4 rounded-xl bg-gradient-to-r from-[var(--radiant-emerald)] to-emerald-700 text-white font-bold uppercase tracking-widest shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 mt-4"
                                 >
                                     {saving ? 'Saving...' : 'Update Bank Details'}
                                     {!saving && <Check size={18} />}
@@ -721,12 +729,12 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                                     className="w-full flex items-center justify-between p-4 rounded-2xl bg-red-500/5 border border-red-500/10 hover:bg-red-500/10 hover:border-red-500/20 transition-all group active:scale-[0.98]"
                                 >
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <div className="w-10 h-10 rounded-full bg-[var(--radiant-rose)]/10 text-[var(--radiant-rose)] flex items-center justify-center group-hover:scale-110 transition-transform">
                                             <Trash2 size={18} />
                                         </div>
                                         <div className="text-left">
-                                            <h3 className="font-bold text-red-400 text-sm">Delete Account</h3>
-                                            <p className="text-[10px] text-red-400/50 uppercase tracking-widest">Permanent action</p>
+                                            <h3 className="font-bold text-[var(--radiant-rose)] text-sm">Delete Account</h3>
+                                            <p className="text-[10px] text-[var(--radiant-rose)]/50 uppercase tracking-widest">Permanent action</p>
                                         </div>
                                     </div>
                                     <ChevronRight size={18} className="text-red-400/20 group-hover:text-red-400/50 transition-colors" />

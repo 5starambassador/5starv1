@@ -47,14 +47,28 @@ export function WaiverHistoryTable({ data }: WaiverHistoryTableProps) {
         {
             header: 'Adjustment Details',
             accessorKey: 'remarks',
-            cell: (row: Settlement) => (
-                <div className="text-xs max-w-[250px]">
-                    <div className="font-medium text-gray-700 flex items-start gap-1">
-                        <FileText size={12} className="mt-0.5 text-purple-400 shrink-0" />
-                        <span>{row.remarks || 'Fee Waiver Adjustment'}</span>
+            cell: (row: Settlement) => {
+                const remarks = row.remarks || ''
+                const hasBreakdown = remarks.includes('[BREAKDOWN:')
+                const hasERP = remarks.includes('[ERP:')
+
+                const mainRemark = hasBreakdown ? remarks.split('[BREAKDOWN:')[1].split(']')[0] : remarks
+                const erpNo = hasERP ? remarks.split('[ERP:')[1].split(']')[0] : null
+
+                return (
+                    <div className="text-xs max-w-[250px]">
+                        <div className="font-medium text-gray-700 flex items-start gap-1">
+                            <FileText size={12} className="mt-0.5 text-purple-400 shrink-0" />
+                            <span>{hasBreakdown ? `Covers: ${mainRemark}` : (remarks || 'Fee Waiver Adjustment')}</span>
+                        </div>
+                        {erpNo && (
+                            <div className="mt-1 font-mono text-[10px] text-gray-400">
+                                ERP: {erpNo}
+                            </div>
+                        )}
                     </div>
-                </div>
-            )
+                )
+            }
         },
         {
             header: 'Applied Date',
@@ -93,12 +107,54 @@ export function WaiverHistoryTable({ data }: WaiverHistoryTableProps) {
 
     return (
         <div className="space-y-4">
-            <div className="px-1">
-                <h3 className="text-lg font-black text-purple-900 flex items-center gap-2">
-                    <CheckCircle size={18} className="text-purple-600" />
-                    Fee Waiver History (Group A)
-                </h3>
-                <p className="text-xs text-purple-600/70">Record of institutional fee waivers applied to ambassador children.</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-1">
+                <div>
+                    <h3 className="text-lg font-black text-purple-900 flex items-center gap-2">
+                        <CheckCircle size={18} className="text-purple-600" />
+                        Fee Waiver History (Group A)
+                    </h3>
+                    <p className="text-xs text-purple-600/70">Record of institutional fee waivers applied to ambassador children.</p>
+                </div>
+
+                <button
+                    onClick={() => {
+                        const csvContent = [
+                            ['Ambassador Name', 'Mobile Number', 'Child Name', 'ERP No', 'Waiver Amount', 'Applied Date', 'Reference ID', 'Remarks'],
+                            ...data.map(row => {
+                                const remarks = row.remarks || ''
+                                const hasBreakdown = remarks.includes('[BREAKDOWN:')
+                                const hasERP = remarks.includes('[ERP:')
+
+                                const childName = hasBreakdown ? remarks.split('[BREAKDOWN:')[1].split(']')[0] : 'N/A'
+                                const erpNo = hasERP ? remarks.split('[ERP:')[1].split(']')[0] : 'N/A'
+
+                                return [
+                                    `"${row.user.fullName}"`,
+                                    `"${row.user.mobileNumber}"`,
+                                    `"${childName}"`,
+                                    `"${erpNo}"`,
+                                    row.amount,
+                                    row.payoutDate ? format(new Date(row.payoutDate), 'yyyy-MM-dd') : 'N/A',
+                                    `"${row.bankReference || 'N/A'}"`,
+                                    `"${remarks.replace(/"/g, '""')}"`
+                                ]
+                            })
+                        ].map(e => e.join(",")).join("\n")
+
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+                        const url = URL.createObjectURL(blob)
+                        const link = document.createElement("a")
+                        link.setAttribute("href", url)
+                        link.setAttribute("download", `MCB_ERP_Waivers_${new Date().toISOString().split('T')[0]}.csv`)
+                        document.body.appendChild(link)
+                        link.click()
+                        document.body.removeChild(link)
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700 transition-all shadow-md shadow-purple-900/10"
+                >
+                    <FileText size={14} />
+                    Download ERP Export
+                </button>
             </div>
 
             <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm overflow-hidden">

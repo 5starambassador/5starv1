@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { DataTable } from '@/components/ui/DataTable'
 import { CheckCircle, Info, Send, AlertTriangle, Download, Search } from 'lucide-react'
-import { bulkInitiateSettlements } from '@/app/finance-actions'
+import { bulkInitiateSettlements, bulkRecordWaiverAdjustments } from '@/app/finance-actions'
 import { toast } from 'sonner'
 
 interface Liability {
@@ -26,6 +26,8 @@ interface Liability {
     slabShare?: number
     specialBonusShare?: number
     appBonusPercent?: number
+    payoutStatus?: string;
+    childEprNo?: string;
     campusName?: string
     childName?: string
     childGrade?: string
@@ -62,10 +64,17 @@ export function LiabilityLedgerTable({ data, mode }: LiabilityLedgerTableProps) 
         const tid = toast.loading(`Initiating settlements for ${groupBSelected.length} ambassadors...`)
 
         try {
-            const requests = groupBSelected.map(l => ({
-                userId: l.userId,
-                amount: l.remainingAmount
-            }))
+            const requests = groupBSelected.map(l => {
+                // Generate a breakdown of referrals being settled
+                const unsettled = (l.referrals || []).filter(r => r.payoutStatus !== 'PAID')
+                const breakdownStr = unsettled.map(r => `${r.studentName || r.fullName} (₹${(l.remainingAmount / unsettled.length).toFixed(0)})`).join(', ')
+
+                return {
+                    userId: l.userId,
+                    amount: l.remainingAmount,
+                    referralBreakdown: breakdownStr
+                }
+            })
 
             const res = await bulkInitiateSettlements(requests)
             if (res.success) {
@@ -112,6 +121,7 @@ export function LiabilityLedgerTable({ data, mode }: LiabilityLedgerTableProps) 
                         <div className="text-xs font-black text-blue-700 leading-tight">{row.childName || 'N/A'}</div>
                         <div className="text-[10px] text-gray-500">{row.childGrade} • {row.childCampus}</div>
                         <div className="text-[10px] font-bold text-gray-400">Fee: {row.childFee ? `₹${row.childFee.toLocaleString()}` : 'N/A'}</div>
+                        {row.childEprNo && <div className="text-[9px] text-gray-400 font-mono">ERP: {row.childEprNo}</div>}
                     </div>
                 )
             }
@@ -179,7 +189,7 @@ export function LiabilityLedgerTable({ data, mode }: LiabilityLedgerTableProps) 
             cell: (row: Liability) => <span className="font-black text-sm text-gray-900">₹{(row.totalEarned || 0).toLocaleString()}</span>
         },
         {
-            header: mode === 'A' ? 'Corrent Payout' : 'Rem. Payout',
+            header: mode === 'A' ? 'Current Payout' : 'Rem. Payout',
             accessorKey: 'remainingAmount',
             cell: (row: Liability) => (
                 <div className="bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100 min-w-[80px] text-center">
@@ -190,6 +200,53 @@ export function LiabilityLedgerTable({ data, mode }: LiabilityLedgerTableProps) 
                         <div className="text-[8px] text-emerald-600/60 font-medium">
                             Settled: ₹{(row.totalSettled || 0).toLocaleString()}
                         </div>
+                    )}
+                </div>
+            )
+        },
+        // Action Column for Individual Processing
+        {
+            header: 'Action',
+            accessorKey: 'ledgerId',
+            cell: (row: Liability) => (
+                <div className="flex justify-center">
+                    {row.remainingAmount > 0 && (
+                        <button
+                            onClick={async () => {
+                                if (!confirm(`Apply ₹${row.remainingAmount.toLocaleString()} Institutional Fee Waiver for ${row.fullName}?`)) return
+
+                                setIsProcessing(true)
+                                const tid = toast.loading(`Applying waiver for ${row.fullName}...`)
+
+                                try {
+                                    const unsettled = (row.referrals || []).filter(r => r.payoutStatus !== 'PAID')
+                                    const breakdownStr = unsettled.map(r => `${r.studentName || r.fullName}`).join(', ')
+
+                                    const res = await bulkRecordWaiverAdjustments([{
+                                        userId: row.userId,
+                                        amount: row.remainingAmount,
+                                        childName: row.childName,
+                                        childEprNo: row.childEprNo,
+                                        referralBreakdown: breakdownStr
+                                    }])
+
+                                    if (res.success) {
+                                        toast.success(`Successfully applied waiver for ${row.fullName}.`, { id: tid })
+                                        setTimeout(() => window.location.reload(), 1000)
+                                    } else {
+                                        toast.error(res.error || "Failed to record waiver", { id: tid })
+                                    }
+                                } catch (err) {
+                                    toast.error("An error occurred", { id: tid })
+                                } finally {
+                                    setIsProcessing(false)
+                                }
+                            }}
+                            disabled={isProcessing}
+                            className="px-3 py-1 bg-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white rounded-md text-[10px] font-black transition-all border border-purple-200 uppercase tracking-tight"
+                        >
+                            Apply
+                        </button>
                     )}
                 </div>
             )
@@ -269,13 +326,19 @@ export function LiabilityLedgerTable({ data, mode }: LiabilityLedgerTableProps) 
 
                             try {
                                 const selectedItems = filteredData.filter(l => selectedIds.includes(l.ledgerId))
-                                const requests = selectedItems.map(l => ({
-                                    userId: l.userId,
-                                    amount: l.remainingAmount,
-                                    childName: l.childName
-                                }))
+                                const requests = selectedItems.map(l => {
+                                    const unsettled = (l.referrals || []).filter(r => r.payoutStatus !== 'PAID')
+                                    const breakdownStr = unsettled.map(r => `${r.studentName || r.fullName}`).join(', ')
 
-                                const { bulkRecordWaiverAdjustments } = await import('@/app/finance-actions')
+                                    return {
+                                        userId: l.userId,
+                                        amount: l.remainingAmount,
+                                        childName: l.childName,
+                                        childEprNo: l.childEprNo,
+                                        referralBreakdown: breakdownStr
+                                    }
+                                })
+
                                 const res = await bulkRecordWaiverAdjustments(requests)
 
                                 if (res.success) {
@@ -307,11 +370,9 @@ export function LiabilityLedgerTable({ data, mode }: LiabilityLedgerTableProps) 
                     data={filteredData}
                     searchKey="fullName"
                     searchPlaceholder="Search ambassador..."
-                    enableMultiSelection={mode === 'B'}
+                    enableMultiSelection={true}
                     onSelectionChange={(selected) => {
-                        if (mode === 'B') {
-                            setSelectedIds(selected.map(s => s.ledgerId))
-                        }
+                        setSelectedIds(selected.map(s => s.ledgerId))
                     }}
                     renderExpandedRow={(row) => (
                         <div className="bg-gray-50/50 p-4 rounded-xl border border-dashed border-gray-200">

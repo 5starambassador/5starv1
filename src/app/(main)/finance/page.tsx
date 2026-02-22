@@ -6,7 +6,6 @@ import prisma from '@/lib/prisma'
 import { getSettlements, getFinanceStats, getRegistrationTransactions, getUsersReadyForRefund, getAccruedPayoutLiabilities } from '@/app/finance-actions'
 import { Wallet, CheckCircle, Clock, CreditCard } from 'lucide-react'
 import { FinanceClientTabs } from '@/components/finance/FinanceClientTabs'
-import { FinanceOverviewChart } from '@/components/finance/FinanceOverviewChart'
 
 export default async function FinancePage({
     searchParams
@@ -17,7 +16,14 @@ export default async function FinancePage({
     if (!user) redirect('/')
 
     const { year } = await searchParams
-    const selectedYear = year || '2026-2027'
+    let selectedYear = year
+
+    if (!selectedYear) {
+        const currentYearRecord = await prisma.academicYear.findFirst({
+            where: { isCurrent: true }
+        })
+        selectedYear = currentYearRecord?.year || '2026-2027'
+    }
 
     // RBAC: Only roles with Finance & Settlements access
     if (!await hasPermission('settlements')) {
@@ -26,10 +32,10 @@ export default async function FinancePage({
 
     // Fetch Data
     const [settlementsRes, statsRes, registrationsRes, readyForRefundRes, liabilitiesRes, academicYears] = await Promise.all([
-        getSettlements('All'),
-        getFinanceStats(),
-        getRegistrationTransactions('All'),
-        getUsersReadyForRefund(),
+        getSettlements('All', selectedYear),
+        getFinanceStats(selectedYear),
+        getRegistrationTransactions('All', selectedYear),
+        getUsersReadyForRefund(selectedYear),
         getAccruedPayoutLiabilities(selectedYear),
         prisma.academicYear.findMany({
             orderBy: { year: 'desc' }
@@ -113,11 +119,7 @@ export default async function FinancePage({
                 </div>
             </div>
 
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <FinanceOverviewChart />
-            </div>
-
+            {/* Client Tabs Section */}
             <FinanceClientTabs
                 settlements={settlements}
                 registrations={registrations}

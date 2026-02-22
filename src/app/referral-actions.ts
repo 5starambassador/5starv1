@@ -12,6 +12,7 @@ import { notifyReferralSubmitted, notifyAdminNewReferral } from '@/lib/notificat
 
 import { referralSchema } from '@/lib/validators'
 import { LeadStatus } from '@prisma/client'
+import { logAction } from '@/lib/audit-logger'
 
 // Helper for consistent sanitization (match main actions.ts)
 function sanitizeMobile(input: string): string {
@@ -129,6 +130,15 @@ export async function verifyReferralOtp(mobileInput: string, otp: string) {
     // if (otp === '1234') return { success: true }
 
     try {
+        const verifyLimitKey = `verify:otp:${mobile}`
+        const verifyLimit = await prisma.rateLimit.findUnique({ where: { key: verifyLimitKey } })
+        const now = new Date()
+
+        if (verifyLimit && verifyLimit.resetAt > now && verifyLimit.count >= 5) {
+            const timeLeft = Math.ceil((verifyLimit.resetAt.getTime() - now.getTime()) / 60000)
+            return { success: false, error: `Too many failed attempts. Please try again in ${timeLeft} minutes.` }
+        }
+
         const record = await prisma.otpVerification.findUnique({ where: { mobile } })
 
         if (!record) {
@@ -136,7 +146,6 @@ export async function verifyReferralOtp(mobileInput: string, otp: string) {
             return { success: false, error: 'OTP request expired. Try again.' }
         }
 
-        const now = new Date()
         const isExpired = now > record.expiresAt
         const isMatch = record.otp === otp
 
@@ -150,10 +159,26 @@ export async function verifyReferralOtp(mobileInput: string, otp: string) {
         })
 
         if (isExpired) return { success: false, error: 'OTP has expired. Please request a new one.' }
-        if (!isMatch) return { success: false, error: 'Incorrect OTP. Please check and try again.' }
+
+        if (!isMatch) {
+            // Increment failed attempt counter
+            await prisma.rateLimit.upsert({
+                where: { key: verifyLimitKey },
+                update: { count: { increment: 1 } },
+                create: { key: verifyLimitKey, count: 1, resetAt: new Date(now.getTime() + 15 * 60 * 1000) }
+            })
+
+            await logAction('OTP_VERIFY_FAILURE', 'auth', `Incorrect Referral OTP attempt for ${mobile}`, mobile)
+            return { success: false, error: 'Incorrect OTP. Please check and try again.' }
+        }
 
         // OTP verified - clean up
         await prisma.otpVerification.delete({ where: { mobile } })
+
+        // Success: Clear throttling counter
+        await prisma.rateLimit.delete({ where: { key: verifyLimitKey } }).catch(() => null)
+        await logAction('OTP_VERIFY_SUCCESS', 'auth', `Referral OTP verified successfully for ${mobile}`, mobile)
+
         return { success: true }
     } catch (error) {
         logger.error('OTP Verification Error:', error)
@@ -251,7 +276,8 @@ export async function submitReferral(formData: {
                 campus,
                 campusId: resolvedCampusId,
                 gradeInterested,
-                admittedYear: '2026-2027' // Enforce current active year for form submissions
+                admittedYear: '2026-2027', // Form field for year
+                academicYear: '2026-2027' // System anchoring for performance/filtering
             }
         })
 
@@ -346,8 +372,20 @@ export async function getMyReferrals() {
         where: { userId: user.userId },
         include: {
             student: {
-                include: {
-                    campus: true
+                select: {
+                    studentId: true,
+                    fullName: true,
+                    academicYear: true,
+                    annualFee: true,
+                    baseFee: true,
+                    admissionFeeCollected: true,
+                    donationFeeCollected: true,
+                    campus: {
+                        select: {
+                            id: true,
+                            campusName: true
+                        }
+                    }
                 }
             }
         },
@@ -445,7 +483,7 @@ export async function getDynamicFeeForUser() {
                 })
 
                 if (feeStructure) {
-                    return feeStructure.annualFee_otp || 0
+                    return feeStructure.annualFee_wotp || feeStructure.annualFee_otp || 0
                 }
             }
         }

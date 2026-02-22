@@ -61,7 +61,7 @@ export const MobileEntry = ({ mobile, setMobile, onNext, loading }: MobileEntryP
                         type="tel"
                         autoFocus
                         autoComplete="tel"
-                        disabled={loading}
+                        inputMode="numeric"
                         className={`relative z-10 block w-full bg-white/5 border border-white/10 rounded-2xl pl-24 pr-6 h-14 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-xl transition-all text-lg sm:text-xl font-black tracking-[0.15em] sm:tracking-[0.3em] tabular-nums text-left ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         placeholder="00000 00000"
                         value={mobile}

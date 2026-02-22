@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getAudienceCount, exportCampaignData } from '@/app/campaign-actions'
+import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getAudienceCount, exportCampaignData, runCampaign } from '@/app/campaign-actions'
 import { dispatchCampaignBatch } from '@/app/campaign-dispatcher'
 import { getCampuses } from '@/app/campus-actions'
 import { toast } from 'sonner'
@@ -140,18 +140,18 @@ export function CampaignManager() {
 
     const executeRun = async () => {
         const { id, name } = confirmState.data
-        if (!id) return
+        if (!id || isProcessing) return
 
-        const tid = toast.loading('Dispatching campaign...')
+        const tid = toast.loading(`Initiating dispatch for ${name}...`)
         setConfirmState({ isOpen: false, type: null })
-
-        toast.loading('Dispatching campaign (Batch Mode)...', { id: tid })
-        setConfirmState({ isOpen: false, type: null })
+        setIsProcessing(true)
 
         // Using new Batch Dispatcher
-        const res = await dispatchCampaignBatch(id)
+        const res = await runCampaign(id) // Use runCampaign to schedule instead of direct dispatch
+        setIsProcessing(false)
+
         if (res.success) {
-            toast.success(`Batch Processed. Recipients: ${res.stats?.total}`, { id: tid })
+            toast.success(res.message || 'Campaign scheduled successfully', { id: tid })
             loadCampaigns()
         } else {
             toast.error(res.error || 'Failed to deploy', { id: tid })
@@ -399,9 +399,14 @@ export function CampaignManager() {
 
                                     <button
                                         onClick={() => handleRun(c.id, c.name)}
-                                        className="w-full py-4 bg-gray-900 text-white rounded-[20px] font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-black active:scale-[0.98] transition-all shadow-xl shadow-gray-100"
+                                        disabled={isProcessing || c.status === 'SCHEDULED' || c.logs?.[0]?.status === 'PROCESSING'}
+                                        className="w-full py-4 bg-gray-900 text-white rounded-[20px] font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-black active:scale-[0.98] transition-all shadow-xl shadow-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        <Play size={12} fill="currentColor" /> Initiate Dispatch
+                                        {c.logs?.[0]?.status === 'PROCESSING' || c.status === 'SCHEDULED' ? (
+                                            <><Loader2 size={12} className="animate-spin" /> Dispatching...</>
+                                        ) : (
+                                            <><Play size={12} fill="currentColor" /> Initiate Dispatch</>
+                                        )}
                                     </button>
                                 </motion.div>
                             ))}

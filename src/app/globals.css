@@ -6,14 +6,24 @@
 :root {
   /* Brand Colors - Achariya Official (Modern Refresh) */
   --primary-red: #E11D48;
-  /* Vibrant Rose/Crimson */
   --primary-red-hover: #BE123C;
   --accent-gold: #FDE68A;
-  /* Sun-washed Gold */
   --deep-gold: #D97706;
-  /* Deep Amber */
-  --olive-green: #475569;
-  /* Slate as neutral olive fallback */
+  --slate-neutral: #475569;
+
+  /* Radiant Luminous Palette (Enterprise Dashboard) */
+  --radiant-indigo: #4F46E5;
+  --radiant-sapphire: #0EA5E9;
+  --radiant-gold: #F59E0B;
+  --radiant-gold-light: #FDE68A;
+  --radiant-emerald: #10B981;
+  --radiant-rose: #E11D48;
+
+  /* Atmospheric & Depth Tokens */
+  --radiant-glow-blue: rgba(59, 130, 246, 0.15);
+  --radiant-glow-indigo: rgba(79, 70, 229, 0.15);
+  --radiant-glass-border: rgba(255, 255, 255, 0.1);
+  --radiant-glass-bg: rgba(255, 255, 255, 0.03);
 
   /* Enterprise Semantic Design Tokens */
   --ui-primary: var(--primary-red);
@@ -64,9 +74,9 @@
   --radius-md: 10px;
   --radius-full: 9999px;
 
-  /* Fonts - Achariya Official */
-  --font-sans: 'DM Sans', 'Inter', sans-serif;
-  --font-heading: 'DM Sans', 'Inter', sans-serif;
+  /* Fonts - Optimized for Premium Enterprise (Unified) */
+  --font-sans: var(--font-outfit), 'Inter', sans-serif;
+  --font-heading: var(--font-outfit), 'Inter', sans-serif;
 
   /* Premium Gradients (Refined) */
   --grad-crimson: linear-gradient(135deg, #E11D48 0%, #FB7185 100%);
@@ -313,8 +323,8 @@
 }
 
 html {
-  overflow-x: hidden;
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -322,12 +332,9 @@ body {
   color: var(--text-primary);
   font-family: var(--font-sans);
   min-height: 100vh;
-  overflow-x: hidden;
-  width: 100%;
-  max-width: 100vw;
   position: relative;
-  overscroll-behavior-y: none;
   scroll-padding-top: var(--header-height);
+  overflow-x: hidden;
 }
 
 /* Layout Utilities */

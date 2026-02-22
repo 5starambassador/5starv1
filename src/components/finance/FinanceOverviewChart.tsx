@@ -1,6 +1,6 @@
 'use client'
 
-
+import React, { useState, useEffect } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 const data = [
@@ -14,9 +14,23 @@ const data = [
 ]
 
 export function FinanceOverviewChart() {
+    const [isMounted, setIsMounted] = useState(false)
+
+    useEffect(() => {
+        setIsMounted(true)
+    }, [])
+
+    if (!isMounted) {
+        return (
+            <div className="col-span-1 md:col-span-4">
+                <div className="h-[400px] w-full bg-gray-50 animate-pulse rounded-xl border border-gray-200" />
+            </div>
+        )
+    }
+
     return (
         <div className="col-span-1 md:col-span-4">
-            <div className="col-span-1 md:col-span-4 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-w-0">
                 <div className="p-6">
                     <div className="mb-6">
                         <h3 className="text-lg font-bold text-gray-900">Cash Flow Overview</h3>

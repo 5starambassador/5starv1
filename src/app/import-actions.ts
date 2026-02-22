@@ -473,14 +473,17 @@ export async function importStudents(csvData: string) {
                             selectedFeeType: selectedFeeType,
                             annualFee: annualFeeAmount || (existingLead as any).annualFee
                         }
-                        if (existingLead.leadStatus !== 'Confirmed') {
+                        if (existingLead.leadStatus !== 'Confirmed' && existingLead.leadStatus !== 'Rejected') {
                             updateData.leadStatus = 'Confirmed'
                             updateData.confirmedDate = new Date()
                             usersToSync.add(ambassadorId) // Mark for stat update
                         }
                         const updatedLead = await prisma.referralLead.update({
                             where: { leadId: existingLead.leadId },
-                            data: updateData as any
+                            data: {
+                                ...updateData,
+                                academicYear: academicYearForRecord
+                            } as any
                         })
                         leadId = updatedLead.leadId
                     } else {
@@ -499,7 +502,8 @@ export async function importStudents(csvData: string) {
                                 admittedYear: row.academicYear || '2025-2026',
                                 admissionNumber: admissionNumber,
                                 selectedFeeType: selectedFeeType,
-                                annualFee: annualFeeAmount
+                                annualFee: annualFeeAmount,
+                                academicYear: academicYearForRecord
                             } as any
                         })
                         leadId = newLead.leadId
@@ -781,7 +785,8 @@ export async function importReferrals(csvData: string) {
                     admittedYear: row.academicyear || row.academicYear || row['academic year'] || '2025-2026',
                     admissionNumber: admissionNumber, // Storing ERP No
                     selectedFeeType: selectedFeeType,
-                    annualFee: annualFeeAmount
+                    annualFee: annualFeeAmount,
+                    academicYear: row.academicyear || row.academicYear || row['academic year'] || '2026-2027'
                 } as any
             })
 

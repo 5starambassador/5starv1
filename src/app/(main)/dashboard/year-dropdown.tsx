@@ -2,24 +2,14 @@
 'use client'
 
 import { ChevronDown } from 'lucide-react'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
+import { useClickOutside } from '@/hooks/use-click-outside'
 
 export function YearDropdown({ currentYear }: { currentYear: string }) {
     const [isOpen, setIsOpen] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
 
-    // Close on click outside
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsOpen(false)
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside)
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside)
-        }
-    }, [])
+    useClickOutside(dropdownRef, () => setIsOpen(false))
 
     return (
         <div className="relative" ref={dropdownRef} style={{ position: 'relative' }}>

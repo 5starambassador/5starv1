@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useClickOutside } from '@/hooks/use-click-outside'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, X, Edit2, Search, Database, Globe, Loader2, Save, Clock, GraduationCap, Building, User as UserIcon, CheckCircle2, AlertCircle, ArrowUpRight, TrendingUp, Users } from 'lucide-react'
 import { toast } from 'sonner'
@@ -44,6 +45,11 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
         status: true,
         actions: true
     })
+    const campusFilterRef = useRef<HTMLDivElement>(null)
+    const roleFilterRef = useRef<HTMLDivElement>(null)
+
+    useClickOutside(campusFilterRef, () => activeFilter === 'campus' && setActiveFilter(null))
+    useClickOutside(roleFilterRef, () => activeFilter === 'role' && setActiveFilter(null))
 
     // Edit Form State
     const [editForm, setEditForm] = useState({
@@ -261,7 +267,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                         />
                     </div>
 
-                    <div className="relative">
+                    <div className="relative" ref={campusFilterRef}>
                         <button
                             onClick={() => setActiveFilter(activeFilter === 'campus' ? null : 'campus')}
                             className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${filterCampus ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
@@ -281,7 +287,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                         )}
                     </div>
 
-                    <div className="relative">
+                    <div className="relative" ref={roleFilterRef}>
                         <button
                             onClick={() => setActiveFilter(activeFilter === 'role' ? null : 'role')}
                             className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${filterRole ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}

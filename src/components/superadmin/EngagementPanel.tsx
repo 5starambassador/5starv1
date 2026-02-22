@@ -16,7 +16,8 @@ export function EngagementPanel() {
     const [stats, setStats] = useState<{
         totalCampaigns: number,
         totalEmailsSent: number,
-        dormantAmbassadors: number
+        dormantAmbassadors: number,
+        activeJobs?: Record<string, string>
     } | null>(null)
     const [campusStats, setCampusStats] = useState<{ count: number } | null>(null)
 
@@ -31,6 +32,8 @@ export function EngagementPanel() {
 
     useEffect(() => {
         fetchStats()
+        const interval = setInterval(fetchStats, 10000) // Poll for job status
+        return () => clearInterval(interval)
     }, [])
 
     // Confirmation State
@@ -61,10 +64,8 @@ export function EngagementPanel() {
             try {
                 const res = await triggerReengagementCampaign()
                 if (res.success) {
-                    const count = res.sentCount || 0
-                    setLastResult({ sent: count, time: new Date() })
-                    if (count > 0) toast.success(`Deployment complete. Emails dispatched: ${count}`)
-                    else toast.info('Scan complete. Ecosystem is fully engaged.')
+                    toast.success(res.message || 'Re-engagement scheduled')
+                    fetchStats()
                 } else {
                     toast.error(res.error || 'Operation failed')
                 }
@@ -78,11 +79,8 @@ export function EngagementPanel() {
             try {
                 const res = await triggerCampusEnforcementBroadcast()
                 if (res.success) {
-                    const count = res.sentCount || 0
-                    setLastResult({ sent: count, time: new Date() })
-                    if (count > 0) toast.success(res.message || `Broadcast complete. ${count} users notified.`)
-                    else toast.info('No users found requiring update.')
-                    fetchStats() // Refresh counts
+                    toast.success(res.message || 'Broadcast scheduled')
+                    fetchStats()
                 } else {
                     toast.error(res.error || 'Broadcast failed')
                 }
@@ -93,6 +91,9 @@ export function EngagementPanel() {
             }
         }
     }
+
+    const isReengagementScheduled = stats?.activeJobs?.['SYSTEM_REENGAGEMENT']
+    const isEnforcementScheduled = stats?.activeJobs?.['SYSTEM_ENFORCEMENT']
 
     return (
         <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700">
@@ -207,20 +208,25 @@ export function EngagementPanel() {
                                         </div>
                                         <div className="bg-white/40 border border-white p-4 rounded-3xl">
                                             <MousePointer2 size={16} className="text-amber-500 mb-2" />
-                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Action</p>
-                                            <p className="text-xs font-black text-gray-900">Standard Nudge</p>
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Status</p>
+                                            <p className="text-xs font-black text-gray-900">{isReengagementScheduled ? (isReengagementScheduled === 'PROCESSING' ? 'Running...' : 'Scheduled') : 'Standard Nudge'}</p>
                                         </div>
                                     </div>
 
                                     <button
                                         onClick={handleTriggerCampaign}
-                                        disabled={loading || campusLoading}
+                                        disabled={loading || campusLoading || !!isReengagementScheduled}
                                         className="w-full py-5 bg-gray-900 hover:bg-black text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.25em] shadow-2xl shadow-gray-200 transition-all flex items-center justify-center gap-3 disabled:opacity-70 group/btn overflow-hidden relative"
                                     >
-                                        {loading ? (
+                                        {loading || isReengagementScheduled === 'PROCESSING' ? (
                                             <>
                                                 <Loader2 size={18} className="animate-spin" />
                                                 Optimizing Ecosystem...
+                                            </>
+                                        ) : isReengagementScheduled === 'PENDING' ? (
+                                            <>
+                                                <Clock size={18} />
+                                                Core Scheduled
                                             </>
                                         ) : (
                                             <>
@@ -264,20 +270,25 @@ export function EngagementPanel() {
                                         </div>
                                         <div className="bg-white/40 border border-white p-4 rounded-3xl">
                                             <ShieldAlert size={16} className="text-rose-500 mb-2" />
-                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Enforcement</p>
-                                            <p className="text-xs font-black text-gray-900">Mandatory Profile Update</p>
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Status</p>
+                                            <p className="text-xs font-black text-gray-900">{isEnforcementScheduled ? (isEnforcementScheduled === 'PROCESSING' ? 'Dispatching...' : 'Scheduled') : 'Mandatory Profile Update'}</p>
                                         </div>
                                     </div>
 
                                     <button
                                         onClick={handleTriggerCampusEnforcement}
-                                        disabled={loading || campusLoading}
+                                        disabled={loading || campusLoading || !!isEnforcementScheduled}
                                         className="w-full py-5 bg-rose-600 hover:bg-rose-700 text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.25em] shadow-2xl shadow-rose-100 transition-all flex items-center justify-center gap-3 disabled:opacity-70 group/btn overflow-hidden relative"
                                     >
-                                        {campusLoading ? (
+                                        {campusLoading || isEnforcementScheduled === 'PROCESSING' ? (
                                             <>
                                                 <Loader2 size={18} className="animate-spin" />
                                                 Processing Broadcast...
+                                            </>
+                                        ) : isEnforcementScheduled === 'PENDING' ? (
+                                            <>
+                                                <Clock size={18} />
+                                                Broadcast Scheduled
                                             </>
                                         ) : (
                                             <>

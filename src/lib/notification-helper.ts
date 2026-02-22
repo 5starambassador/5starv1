@@ -394,7 +394,7 @@ export async function notifyProgramLaunch(programTitle: string, slug: string) {
     })()
 
     // Batch create notifications for all active users
-    return prisma.notification.createMany({
+    await prisma.notification.createMany({
         data: activeUsers.map((user: { userId: number }) => ({
             userId: user.userId,
             title: '🚀 New Program Launched!',
@@ -403,6 +403,9 @@ export async function notifyProgramLaunch(programTitle: string, slug: string) {
             link: `/dashboard/gallery/${slug}`
         }))
     })
+
+    const { logAction } = await import('@/lib/audit-logger')
+    return logAction('Broadcast Program Launch', 'Marketing', `Launched program: ${programTitle} to ${activeUsers.length} active users`, undefined)
 }
 
 /**

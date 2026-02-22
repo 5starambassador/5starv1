@@ -8,6 +8,7 @@ import { ActivityHistory } from './ActivityHistory'
 import Image from 'next/image'
 import { getUserSettlements } from '@/app/settlement-actions'
 import { getUserReferrals } from '@/app/superadmin-actions'
+import { getAmbassadorLedger } from '@/app/financial-actions'
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -24,8 +25,11 @@ export function UserDetailPanel({ user, onClose, onEdit, onResetPassword, onView
     const [activeTab, setActiveTab] = useState<'overview' | 'referrals' | 'financials'>('overview')
     const [settlements, setSettlements] = useState<any[]>([])
     const [referrals, setReferrals] = useState<any[]>([])
+    const [ledger, setLedger] = useState<any[]>([])
+    const [ledgerSummary, setLedgerSummary] = useState<any>(null)
     const [loadingSettlements, setLoadingSettlements] = useState(false)
     const [loadingReferrals, setLoadingReferrals] = useState(false)
+    const [loadingLedger, setLoadingLedger] = useState(false)
 
     useEffect(() => {
         if (user?.userId) {
@@ -58,6 +62,19 @@ export function UserDetailPanel({ user, onClose, onEdit, onResetPassword, onView
                     console.error('Error loading referrals:', error)
                 } finally {
                     setLoadingReferrals(false)
+                }
+
+                setLoadingLedger(true)
+                try {
+                    const res = await getAmbassadorLedger(user.userId)
+                    if (res.success && res.data) {
+                        setLedger(res.data.ledger)
+                        setLedgerSummary(res.data.summary)
+                    }
+                } catch (error) {
+                    console.error('Error loading ledger:', error)
+                } finally {
+                    setLoadingLedger(false)
                 }
             }
             loadData()
@@ -319,50 +336,89 @@ export function UserDetailPanel({ user, onClose, onEdit, onResetPassword, onView
 
                         {activeTab === 'financials' && (
                             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                                {/* Financial Stats */}
-                                <div className="bg-emerald-50 rounded-2xl p-5 border border-emerald-100 flex items-center justify-between">
-                                    <div>
-                                        <h4 className="text-xs font-black text-emerald-400 uppercase tracking-widest">Total Payouts</h4>
-                                        <p className="text-2xl font-black text-emerald-900 mt-1">
-                                            ₹{settlements.reduce((acc, curr) => acc + (curr.status === 'Processed' ? curr.amount : 0), 0).toLocaleString()}
-                                        </p>
+                                {/* Financial Stats Overhaul */}
+                                {ledgerSummary && (
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
+                                            <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Total Earned</h4>
+                                            <p className="text-xl font-black text-emerald-900 mt-1">₹{ledgerSummary.totalEarned.toLocaleString()}</p>
+                                        </div>
+                                        <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
+                                            <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Total Settled</h4>
+                                            <p className="text-xl font-black text-indigo-900 mt-1">₹{ledgerSummary.totalSettled.toLocaleString()}</p>
+                                        </div>
+                                        <div className="col-span-2 bg-gray-900 rounded-2xl p-4 border border-gray-800 shadow-xl shadow-gray-200">
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Remaining Balance</h4>
+                                                    <p className="text-2xl font-black text-white mt-1">₹{ledgerSummary.outstanding.toLocaleString()}</p>
+                                                </div>
+                                                <div className="p-3 bg-white/10 rounded-xl">
+                                                    <Wallet size={24} className="text-white" />
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="p-2 bg-white rounded-xl shadow-sm">
-                                        <Wallet size={20} className="text-emerald-500" />
-                                    </div>
+                                )}
+
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Transaction Ledger</h3>
+                                    <span className="text-[9px] font-bold text-gray-400 bg-gray-50 px-2 py-0.5 rounded border">Cycle: 2026-2027</span>
                                 </div>
 
-                                <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Settlement Log</h3>
-                                <div className="space-y-3">
-                                    {loadingSettlements ? (
-                                        <div className="flex items-center justify-center py-4">
-                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-600"></div>
+                                <div className="space-y-3 pb-8">
+                                    {loadingLedger ? (
+                                        <div className="flex items-center justify-center py-12">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 opacity-20"></div>
                                         </div>
-                                    ) : settlements.length > 0 ? (
-                                        settlements.map((s) => (
-                                            <div key={s.id} className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm flex items-center justify-between group hover:border-red-100 transition-colors">
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`p-2 rounded-lg ${s.status === 'Processed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                                                        <IndianRupee size={14} />
+                                    ) : ledger.length > 0 ? (
+                                        ledger.map((item) => (
+                                            <div key={item.id} className="relative group">
+                                                {/* Vertical Connector Line */}
+                                                <div className="absolute left-6 top-10 bottom-0 w-px bg-gray-100 group-last:hidden" />
+
+                                                <div className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm flex items-start gap-4 hover:border-red-100 transition-all">
+                                                    <div className={`mt-1 p-2 rounded-lg shrink-0 ${item.direction === 'IN' ? 'bg-emerald-50 text-emerald-600' :
+                                                            item.type === 'WAIVER' ? 'bg-purple-50 text-purple-600' : 'bg-red-50 text-red-600'
+                                                        }`}>
+                                                        {item.direction === 'IN' ? <IndianRupee size={16} /> : <FileText size={16} />}
                                                     </div>
-                                                    <div>
-                                                        <p className="text-xs font-black text-gray-900">₹{s.amount.toLocaleString()}</p>
-                                                        <p className="text-[10px] font-bold text-gray-400">{format(new Date(s.createdAt), 'MMM dd, yyyy')}</p>
+                                                    <div className="flex-1">
+                                                        <div className="flex justify-between items-start">
+                                                            <div>
+                                                                <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-0.5">
+                                                                    {item.type} {item.txId && `• ${item.txId}`}
+                                                                </p>
+                                                                <p className="text-sm font-black text-gray-900 leading-tight">{item.remarks}</p>
+                                                                <p className="text-[10px] font-bold text-gray-400 mt-1" suppressHydrationWarning>
+                                                                    {format(new Date(item.date), 'dd MMM yyyy, hh:mm a')}
+                                                                </p>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className={`text-sm font-black ${item.direction === 'IN' ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                                    {item.direction === 'IN' ? '+' : '-'} ₹{item.amount.toLocaleString()}
+                                                                </p>
+                                                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase ${item.status === 'Processed' || item.status === 'Confirmed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                                                                    }`}>
+                                                                    {item.status}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Breakdown logic for settlements that have it */}
+                                                        {item.remarks && item.remarks.includes('[BREAKDOWN:') && (
+                                                            <div className="mt-2 text-[10px] bg-gray-50 p-2 rounded-lg border border-gray-100 italic text-gray-500">
+                                                                Covers: {item.remarks.split('[BREAKDOWN:')[1].split(']')[0]}
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter ${s.status === 'Processed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                                                        {s.status}
-                                                    </span>
-                                                    {s.bankReference && (
-                                                        <p className="text-[9px] font-mono text-gray-400 mt-0.5">{s.bankReference}</p>
-                                                    )}
                                                 </div>
                                             </div>
                                         ))
                                     ) : (
-                                        <div className="p-4 rounded-xl border border-dashed border-gray-200 text-center">
-                                            <p className="text-xs font-bold text-gray-400 italic">No automated payouts recorded yet.</p>
+                                        <div className="p-12 rounded-2xl border border-dashed border-gray-200 text-center">
+                                            <Wallet size={32} className="mx-auto text-gray-200 mb-4" />
+                                            <p className="text-sm font-bold text-gray-400 italic">No financial history available for this cycle.</p>
                                         </div>
                                     )}
                                 </div>

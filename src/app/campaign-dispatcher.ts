@@ -17,8 +17,17 @@ export async function dispatchCampaignBatch(campaignId: number) {
     const BATCH_SIZE = 200 // Process 200 users at a time to keep memory low
     const adminFn = await getFirebaseAdmin()
 
-    const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } })
+    const campaign = await prisma.campaign.findUnique({
+        where: { id: campaignId },
+        include: { logs: { where: { status: 'PROCESSING' }, take: 1 } }
+    })
     if (!campaign) return { success: false, error: 'Campaign not found' }
+
+    // Check if already processing
+    if (campaign.logs.length > 0) {
+        console.warn(`[CampaignDispatcher] Campaign #${campaignId} is already PROCESSING. Skipping duplicate dispatch.`)
+        return { success: false, error: 'Campaign already in progress' }
+    }
 
     // Parse Audience
     const audience = (campaign.targetAudience as any) || { role: 'All', campus: 'All', activityStatus: 'All' }
@@ -46,7 +55,8 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 status: 'PROCESSING',
                 recipientCount: 0,
                 sentCount: 0,
-                failedCount: 0
+                failedCount: 0,
+                runAt: new Date()
             } as any
         })
     } catch (e) {
@@ -72,6 +82,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
 
         while (hasMore) {
             let users: any[] = []
+            const waService = isWhatsapp ? (await import('@/lib/whatsapp-service')).whatsappService : null
 
             // FETCH BATCH based on Audience Type
             if (!audience.type || audience.type === 'AMBASSADORS') {
@@ -158,11 +169,10 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 }
 
                 // WhatsApp
-                if (isWhatsapp && user.mobileNumber) {
-                    const { whatsappService } = await import('@/lib/whatsapp-service')
+                if (isWhatsapp && waService && user.mobileNumber) {
                     const messageBody = aliasTokens(campaign.templateBody, user)
                     // Pass campaignId as refId (CRQID) for analytics
-                    promises.push(whatsappService.sendTemplateMessage(
+                    promises.push(waService.sendTemplateMessage(
                         user.mobileNumber,
                         'marketing_broadcast_v1',
                         [messageBody],

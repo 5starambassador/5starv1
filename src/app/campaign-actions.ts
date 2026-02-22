@@ -49,6 +49,10 @@ export async function createCampaign(data: {
 }) {
     try {
         await checkCampaignAccess()
+        if (!data.channels || data.channels.length === 0) {
+            return { success: false, error: 'At least one channel must be selected' }
+        }
+
         const campaign = await prisma.campaign.create({
             data: {
                 name: data.name,
@@ -193,23 +197,9 @@ async function getFilteredUsers(audience: { type?: string, role: string, campus:
 
         const users = await prisma.user.findMany({
             where,
-            include: {
-                referrals: { orderBy: { createdAt: 'desc' }, take: 1 }
-            }
+            orderBy: { createdAt: 'desc' }
         })
-
-        const fourteenDaysAgo = new Date()
-        fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14)
-
-        if (audience.activityStatus !== 'All') {
-            filtered = users.filter((u: any) => {
-                const lastActivity = u.referrals?.[0]?.createdAt || u.createdAt
-                const isDormant = new Date(lastActivity) < fourteenDaysAgo
-                return audience.activityStatus === 'Dormant' ? isDormant : !isDormant
-            })
-        } else {
-            filtered = users
-        }
+        filtered = users
     }
 
 
@@ -231,11 +221,27 @@ export async function runCampaign(id: number) {
     try {
         await checkCampaignAccess()
 
-        // 1. Verify Campaign Exists
-        const campaign = await prisma.campaign.findUnique({ where: { id } })
+        // 1. Verify Campaign Exists & Current Status
+        const campaign = await prisma.campaign.findUnique({
+            where: { id },
+            include: { logs: { where: { status: 'PROCESSING' }, take: 1 } }
+        })
         if (!campaign) return { success: false, error: 'Campaign not found' }
 
-        // 2. Create Background Job
+        // 2. CHECK: Is it already processing or scheduled?
+        const existingJob = await (prisma as any).job.findFirst({
+            where: {
+                type: 'CAMPAIGN_BATCH',
+                status: 'PENDING',
+                payload: { path: ['campaignId'], equals: id }
+            }
+        })
+
+        if (existingJob || campaign.logs.length > 0) {
+            return { success: false, error: 'This campaign is already scheduled or in progress.' }
+        }
+
+        // 3. Create Background Job
         await (prisma as any).job.create({
             data: {
                 type: 'CAMPAIGN_BATCH',
@@ -244,18 +250,13 @@ export async function runCampaign(id: number) {
             }
         })
 
-        // 3. Mark Campaign as Scheduled/Processing (Optional, helps UI)
+        // 4. Mark Campaign as Scheduled
         await prisma.campaign.update({
             where: { id },
             data: { status: 'SCHEDULED' }
         })
 
-        // 4. Trigger Worker (Fire-and-forget)
-        // We use a relative URL or full URL if needed. 
-        // In Server Actions, we might need full URL. 
-        // For now, let's rely on the cron or manual trigger, 
-        // or attempt a fetch if we can resolve the host.
-        // A simple way is to NOT wait for it.
+        // 5. Trigger Worker (Fire-and-forget)
         try {
             const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
             fetch(`${baseUrl}/api/cron/process-jobs`, { method: 'GET', cache: 'no-store' }).catch(err => console.error('Failed to trigger worker', err))
@@ -263,7 +264,7 @@ export async function runCampaign(id: number) {
             // Ignore trigger errors
         }
 
-        await logAction('Schedule Campaign', 'Marketing', `Scheduled campaign: ${campaign.name}`, undefined)
+        await logAction('Trigger Campaign', 'Marketing', `Initiated campaign dispatch: ${campaign.name}`, undefined)
         revalidatePath('/superadmin')
         return { success: true, message: 'Campaign scheduled for background processing' }
 

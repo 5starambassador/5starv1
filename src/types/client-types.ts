@@ -8,6 +8,7 @@ export interface ClientUser {
     isFiveStarMember?: boolean
     benefitStatus?: string
     status?: string // 'Active', 'Pending' etc.
+    paymentAmount?: number
     childInAchariya?: boolean
 
     // Fees & Campus

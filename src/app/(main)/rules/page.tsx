@@ -23,34 +23,34 @@ export default async function RulesPage() {
     const globalYield = 5 // Institutional protocol is linear 5% for long term
 
     return (
-        <div className="-mt-8 pt-8 min-h-screen relative font-[family-name:var(--font-outfit)] pb-20">
+        <div className="pt-16 md:pt-8 min-h-screen relative font-[family-name:var(--font-outfit)] pb-20">
             {/* Force Dark Background Overlay */}
             <div className="absolute inset-0 bg-[#0f172a] -z-10" />
 
-            {/* Ambient Background Effects */}
+            {/* Dashboard-Style Atmospheric Radiance - SAPPHIRE & INDIGO */}
             <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-                <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[120px]" />
-                <div className="absolute bottom-[20%] right-[-10%] w-[600px] h-[600px] bg-amber-500/10 rounded-full blur-[120px]" />
+                <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/15 rounded-full blur-[120px]" />
+                <div className="absolute bottom-[20%] right-[-10%] w-[600px] h-[600px] bg-indigo-600/15 rounded-full blur-[120px]" />
             </div>
 
             <PageAnimate className="max-w-4xl mx-auto space-y-8 pb-12 relative z-10 px-4 xl:px-0">
 
                 {/* Header */}
                 <PageItem className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-4">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20">
-                            <Trophy size={28} className="text-white" />
+                    <div className="flex items-center gap-5">
+                        <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-900 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/40 border border-white/20">
+                            <Trophy size={32} className="text-white fill-white/10" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-black text-white tracking-tight uppercase">Program Rules</h1>
-                            <p className="text-indigo-200 font-medium">How to unlock your 5-Star Rewards</p>
+                            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight uppercase italic leading-none mb-2">Program Rules</h1>
+                            <p className="text-blue-200/40 font-black uppercase tracking-[0.2em] text-[11px]">Operational Protocal & Reward Algorithms</p>
                         </div>
                     </div>
                 </PageItem>
 
                 {/* How it Works - Glass Card */}
-                <PageItem className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[32px] p-8 relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-indigo-500 opacity-50 group-hover:opacity-100 transition-opacity"></div>
+                <PageItem className="!bg-gradient-to-br !from-indigo-950 !via-indigo-900/90 !to-blue-900 border border-white/10 rounded-[2.5rem] p-10 relative overflow-hidden group shadow-2xl">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-amber-400/5 blur-[80px] rounded-full pointer-events-none group-hover:bg-amber-400/10 transition-all duration-1000" />
 
                     <h2 className="text-xl font-black mb-6 text-white uppercase tracking-wider flex items-center gap-2">
                         <Info size={20} className="text-amber-400" />
@@ -95,12 +95,12 @@ export default async function RulesPage() {
                             // Define color themes based on tier
                             const getTheme = (tier: string) => {
                                 switch (tier) {
-                                    case 'Starter': return 'from-slate-800/80 to-slate-900/80 border-slate-700/50 text-slate-300'
-                                    case 'Bronze': return 'from-orange-900/40 to-amber-900/40 border-amber-800/50 text-amber-500'
-                                    case 'Silver': return 'from-slate-800/60 to-slate-900/60 border-slate-400/30 text-slate-300'
-                                    case 'Gold': return 'from-amber-900/40 to-yellow-900/40 border-amber-500/40 text-amber-400'
-                                    case 'Platinum': return 'from-indigo-900/60 to-purple-900/60 border-indigo-500/40 text-indigo-400'
-                                    default: return 'from-slate-800/80 to-slate-900/80 border-slate-700/50 text-slate-300'
+                                    case 'Starter': return '!from-slate-800/80 !to-slate-900/80 border-slate-700/50 text-slate-300'
+                                    case 'Bronze': return '!from-orange-700/30 !via-orange-900/40 !to-indigo-950/60 border-orange-500/40 text-orange-400'
+                                    case 'Silver': return '!from-slate-700/30 !via-slate-900/40 !to-indigo-950/60 border-slate-400/40 text-slate-300'
+                                    case 'Gold': return '!from-amber-600/30 !via-amber-800/40 !to-indigo-950/60 border-amber-400/40 text-amber-400 shadow-amber-500/10'
+                                    case 'Platinum': return '!from-blue-600/30 !via-blue-800/40 !to-indigo-950/60 border-blue-400/40 text-blue-400 shadow-blue-500/10'
+                                    default: return '!from-slate-800/80 !to-slate-900/80 border-slate-700/50 text-slate-300'
                                 }
                             }
 
@@ -110,7 +110,7 @@ export default async function RulesPage() {
                             return (
                                 <div
                                     key={b.count}
-                                    className={`relative p-6 rounded-[24px] border transition-all duration-300 group overflow-hidden bg-gradient-to-br ${theme} hover:border-white/20 hover:shadow-xl hover:-translate-y-1`}
+                                    className={`relative p-8 rounded-[2rem] border transition-all duration-500 group overflow-hidden !bg-gradient-to-br ${theme} hover:border-white/30 hover:shadow-2xl hover:-translate-y-2`}
                                 >
                                     {isPremium && (
                                         <div className="absolute -right-10 -top-10 w-32 h-32 bg-white/5 rounded-full blur-3xl group-hover:bg-white/10 transition-colors" />
@@ -136,7 +136,7 @@ export default async function RulesPage() {
                 </PageItem>
 
                 {/* Elite Status Section */}
-                <PageItem className="bg-gradient-to-br from-indigo-900/80 to-purple-900/80 backdrop-blur-xl border border-indigo-500/40 rounded-[32px] p-8 md:p-10 relative overflow-hidden group shadow-2xl shadow-indigo-900/30">
+                <PageItem className="!bg-gradient-to-br !from-blue-600 !to-blue-900 border border-white/30 rounded-[2.5rem] p-10 md:p-14 relative overflow-hidden group shadow-2xl shadow-blue-950/50">
                     <div className="absolute inset-0 bg-[url('/noise.png')] opacity-20 mix-blend-overlay"></div>
                     <div className="absolute -right-20 -bottom-20 opacity-10 rotate-12 transition-transform duration-700 group-hover:rotate-[20deg] group-hover:scale-110">
                         <Star size={240} fill="white" />

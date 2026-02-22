@@ -50,7 +50,14 @@ export function NotificationTicker({ userName, referralCode }: { userName?: stri
             }, 5000) // 5 seconds per message
             return () => clearInterval(timer)
         }
-    }, [notifications, isPaused, timerResetKey])
+    }, [notifications.length, isPaused, timerResetKey])
+
+    // Reset index if notifications change and current index is out of bounds
+    useEffect(() => {
+        if (currentIndex >= notifications.length && notifications.length > 0) {
+            setCurrentIndex(0)
+        }
+    }, [notifications.length])
 
     const handleNext = (e?: React.MouseEvent) => {
         e?.stopPropagation()
@@ -89,13 +96,14 @@ export function NotificationTicker({ userName, referralCode }: { userName?: stri
     if (!isVisible || notifications.length === 0) return null
 
     const current = notifications[currentIndex]
+    if (!current) return null // Final safety guard
 
     return (
-        <div className="w-full sticky top-16 xl:top-0 z-30">
+        <div className="w-full fixed top-16 left-0 right-0 xl:sticky xl:top-0 z-[110]">
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="relative overflow-hidden bg-gradient-to-r from-indigo-600 via-violet-500 to-indigo-700 border-b border-white/20 backdrop-blur-2xl cursor-pointer group shadow-[0_4px_20px_rgba(79,70,229,0.3)]"
+                className="relative overflow-hidden bg-gradient-to-r from-[var(--radiant-indigo)] via-[var(--radiant-sapphire)] to-[var(--radiant-indigo)] border-b border-white/20 backdrop-blur-2xl cursor-pointer group shadow-[0_4px_20px_rgba(79,70,229,0.3)]"
                 onClick={handleTickerClick}
                 onMouseEnter={() => setIsPaused(true)}
                 onMouseLeave={() => setIsPaused(false)}

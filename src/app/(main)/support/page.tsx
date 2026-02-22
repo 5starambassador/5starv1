@@ -79,11 +79,9 @@ export default function SupportPage() {
     return (
         <div className="fixed inset-0 w-full h-[100dvh] overflow-y-auto bg-[#0f172a] z-[100] font-[family-name:var(--font-outfit)] overscroll-y-contain">
             <ScrollLock />
-            {/* Force Dark Background Overlay */}
-            {/* Force Dark Background Overlay */}
+            {/* Force Dark Background Overlay - SAPPHIRE & INDIGO */}
             <div className="absolute inset-0 bg-[#0f172a] -z-10">
-                {/* Brightness Booster Layer - Increased Intensity */}
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/40 via-slate-900/60 to-slate-900 z-0 opacity-100" />
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-indigo-950/60 to-[#0f172a] z-0 opacity-100" />
             </div>
 
             <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
@@ -94,54 +92,50 @@ export default function SupportPage() {
             {/* Main Content Container - Aggressively Centered for Visible Gaps (Matching Profile) */}
             <PageAnimate className="w-[90%] max-w-lg mx-auto flex flex-col gap-4 relative z-10 top-0">
                 {/* SAFE SPACER - Forces content down below fixed headers */}
-                <div className="w-full h-14 shrink-0" />
+                <div className="w-full h-32 shrink-0" />
 
-                {/* Premium Header - Glass Theme - Compacted */}
-                <PageItem className="bg-white/5 backdrop-blur-xl border border-white/10 p-4 rounded-[24px] shadow-2xl flex flex-wrap items-center justify-between gap-4 relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 opacity-50 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
-                            <MessageSquare size={20} className="text-white" />
+                <PageItem className="!bg-gradient-to-br !from-blue-600 !to-blue-900 border border-white/20 p-6 rounded-[2rem] shadow-2xl flex flex-wrap items-center justify-between gap-4 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full pointer-events-none group-hover:bg-white/20 transition-all duration-1000" />
+                    <div className="flex items-center gap-5">
+                        <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md shadow-2xl">
+                            <MessageSquare size={24} className="text-white fill-white/10" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-black text-white tracking-tight uppercase leading-none mb-2">Support Desk</h1>
-                            <p className="text-xs font-bold text-indigo-200 uppercase tracking-widest">Concierge assistance for your account</p>
+                            <h1 className="text-4xl font-black text-white tracking-tight uppercase leading-none italic mb-1">Support Desk</h1>
+                            <p className="text-[10px] font-black text-blue-100/60 uppercase tracking-widest">Resolution Concierge</p>
                         </div>
                     </div>
                     <button
                         onClick={() => setShowNewTicket(true)}
-                        className="flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all border border-indigo-400/30"
+                        className="flex items-center gap-2 px-10 py-5 bg-white text-[#0f172a] rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.25em] shadow-[0_15px_40px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95 transition-all relative overflow-hidden group/btn"
                     >
-                        <Plus size={18} strokeWidth={3} /> New Ticket
+                        <Plus size={18} strokeWidth={4} /> Open Ticket
                     </button>
                 </PageItem>
 
                 {/* Premium Stats Cards - Glass Theme - Compacted */}
                 <PageItem className="grid grid-cols-3 gap-3">
                     {/* Open */}
-                    <div className="bg-white/5 backdrop-blur-lg p-3 rounded-[20px] border border-white/10 shadow-xl relative overflow-hidden group hover:bg-white/10 transition-colors">
-                        <div className="absolute -right-4 -bottom-4 bg-blue-500/20 w-32 h-32 rounded-full blur-2xl group-hover:bg-blue-500/30 transition-colors" />
+                    <div className="!bg-gradient-to-br !from-blue-600/20 !to-blue-900/20 backdrop-blur-3xl p-4 rounded-[1.5rem] border border-blue-400/30 shadow-xl relative overflow-hidden group hover:bg-blue-600/30 transition-all">
                         <div className="flex flex-col items-center justify-center gap-1 relative z-10 text-center">
-                            <span className="text-[9px] font-black text-blue-200 uppercase tracking-wider">Open</span>
-                            <p className="text-2xl font-black text-white tracking-tighter">{openCount}</p>
+                            <span className="text-[10px] font-black text-blue-200 uppercase tracking-widest">Open</span>
+                            <p className="text-3xl font-black text-white tracking-tighter tabular-nums">{openCount}</p>
                         </div>
                     </div>
 
                     {/* In-Progress */}
-                    <div className="bg-white/5 backdrop-blur-lg p-3 rounded-[20px] border border-white/10 shadow-xl relative overflow-hidden group hover:bg-white/10 transition-colors">
-                        <div className="absolute -right-4 -bottom-4 bg-amber-500/20 w-32 h-32 rounded-full blur-2xl group-hover:bg-amber-500/30 transition-colors" />
+                    <div className="!bg-gradient-to-br !from-amber-600/20 !to-amber-900/20 backdrop-blur-3xl p-4 rounded-[1.5rem] border border-amber-400/30 shadow-xl relative overflow-hidden group hover:bg-amber-600/30 transition-all">
                         <div className="flex flex-col items-center justify-center gap-1 relative z-10 text-center">
-                            <span className="text-[9px] font-black text-amber-200 uppercase tracking-wider">Active</span>
-                            <p className="text-2xl font-black text-white tracking-tighter">{inProgressCount}</p>
+                            <span className="text-[10px] font-black text-amber-200 uppercase tracking-widest">Active</span>
+                            <p className="text-3xl font-black text-white tracking-tighter tabular-nums">{inProgressCount}</p>
                         </div>
                     </div>
 
                     {/* Resolved */}
-                    <div className="bg-white/5 backdrop-blur-lg p-3 rounded-[20px] border border-white/10 shadow-xl relative overflow-hidden group hover:bg-white/10 transition-colors">
-                        <div className="absolute -right-4 -bottom-4 bg-emerald-500/20 w-32 h-32 rounded-full blur-2xl group-hover:bg-emerald-500/30 transition-colors" />
+                    <div className="!bg-gradient-to-br !from-emerald-600/20 !to-emerald-900/20 backdrop-blur-3xl p-4 rounded-[1.5rem] border border-emerald-400/30 shadow-xl relative overflow-hidden group hover:bg-emerald-600/30 transition-all">
                         <div className="flex flex-col items-center justify-center gap-1 relative z-10 text-center">
-                            <span className="text-[9px] font-black text-emerald-200 uppercase tracking-wider">Done</span>
-                            <p className="text-2xl font-black text-white tracking-tighter">{resolvedCount}</p>
+                            <span className="text-[10px] font-black text-emerald-200 uppercase tracking-widest">Done</span>
+                            <p className="text-3xl font-black text-white tracking-tighter tabular-nums">{resolvedCount}</p>
                         </div>
                     </div>
                 </PageItem>
@@ -173,7 +167,7 @@ export default function SupportPage() {
                                     <div
                                         key={ticket.id}
                                         onClick={() => setSelectedTicket(ticket)}
-                                        className="p-6 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 hover:border-white/20 hover:shadow-xl transition-all cursor-pointer group"
+                                        className="p-7 !bg-gradient-to-br !from-indigo-950/80 !via-indigo-900/40 !to-blue-900/40 border border-white/10 rounded-2xl hover:border-white/20 hover:shadow-2xl transition-all cursor-pointer group active:scale-[0.98]"
                                     >
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                                             <div style={{ flex: 1 }}>

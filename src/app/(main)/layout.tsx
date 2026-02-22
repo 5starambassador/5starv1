@@ -2,7 +2,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { AccountStatus } from '@prisma/client'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Home, UserPlus, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, IndianRupee, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2, Zap, Lock, UserCog, Share2, Megaphone, Globe, Gift, CheckCircle, ExternalLink, MousePointerClick, LayoutDashboard, GraduationCap, GitFork, Calculator, History, UserCheck } from 'lucide-react'
+import { Home, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, IndianRupee, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2, Zap, Lock, UserCog, Share2, Megaphone, Globe, Gift, CheckCircle, ExternalLink, MousePointerClick, LayoutDashboard, GraduationCap, GitFork, Calculator, History, UserCheck } from 'lucide-react'
 import { MobileMenu } from '@/components/MobileMenu'
 import { NotificationDropdown } from '@/components/NotificationDropdown'
 import { NotificationTicker } from '@/components/NotificationTicker'
@@ -103,8 +103,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
         // Ambassador Portal Links (Only for Staff, Parents, Alumni, Others)
         if (isAmbassadorRole) {
-            if (permissions.referralSubmission.access) navItems.push({ label: 'Refer Now', href: '/refer', icon: <UserPlus /> })
             if (permissions.referralTracking.access) navItems.push({ label: 'My Referrals', href: '/referrals', icon: <List /> })
+            navItems.push({ label: 'My Earnings', href: '/earnings', icon: <IndianRupee /> })
             if (permissions.programLeads?.access) navItems.push({ label: 'Program Leads', href: '/program-leads', icon: <MousePointerClick /> })
             if (permissions.rulesAccess.access) navItems.push({ label: 'Rules', href: '/rules', icon: <BookOpen /> })
         }
@@ -189,11 +189,14 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                 </div>
             </aside>
 
+            {/* Desktop Sidebar Spacer */}
+            <div className="hidden xl:block w-[280px] shrink-0" />
+
             {/* Main Content Wrapper */}
-            <div className="flex-1 flex flex-col min-h-screen xl:ml-[280px] w-full items-center overflow-x-hidden relative">
+            <div className="flex-1 flex flex-col w-full min-w-0 items-center relative">
 
                 {/* Mobile Topbar */}
-                <div className={`mobile-topbar xl:hidden fixed top-0 left-0 right-0 h-16 border-b z-50 flex items-center justify-between px-4 backdrop-blur-xl shadow-lg ${isDarkTheme ? 'bg-[#0f172a]/80 border-white/10 text-white' : 'bg-white/80 border-gray-100 text-gray-900'}`}>
+                <div className={`mobile-topbar xl:hidden fixed top-0 left-0 right-0 h-16 border-b z-[120] flex items-center justify-between px-4 backdrop-blur-xl shadow-lg ${isDarkTheme ? 'bg-[#0f172a]/80 border-white/10 text-white' : 'bg-white/80 border-gray-100 text-gray-900'}`}>
                     <div className="flex items-center gap-3">
                         <MobileSidebarWrapper>
                             <MobileMenu
@@ -217,12 +220,12 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                     </div>
                 </div>
 
-                <div className="flex-1 w-full max-w-[1400px] flex flex-col pt-16 xl:pt-0">
+                <div className={`flex-1 w-full max-w-[1400px] flex flex-col pt-16 xl:pt-0 ${isAmbassadorRole ? 'md:pt-0' : ''}`}>
                     {isAmbassadorRole && (
                         <NotificationTicker userName={user.fullName} referralCode={(user as any).referralCode || ''} />
                     )}
 
-                    <main className="flex-1 w-full px-4 py-4 xl:p-8 pt-4 xl:pt-8 pb-20 xl:pb-8 relative z-10">
+                    <main className={`flex-1 w-full px-4 py-4 xl:p-8 ${isAmbassadorRole ? 'pt-16' : 'pt-4'} xl:pt-8 pb-20 xl:pb-8 relative z-10`}>
                         <header className="hidden xl:flex justify-end mb-4 absolute top-4 right-8 z-20">
                             <div className="bg-white/80 backdrop-blur-md p-1.5 rounded-full shadow-sm border border-white/50">
                                 <NotificationDropdown userName={user.fullName} referralCode={(user as any).referralCode || ''} />

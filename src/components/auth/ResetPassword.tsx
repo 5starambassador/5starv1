@@ -44,6 +44,9 @@ export const ResetPassword = ({ onReset, onCancel, loading }: ResetPasswordProps
                     <div className="relative">
                         <input
                             type={showPassword ? "text" : "password"}
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
                             className="block w-full bg-white/5 border border-white/10 rounded-2xl pl-6 pr-12 h-12 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-lg font-medium tracking-wide"
                             placeholder="Min 8 chars"
                             value={newPassword}
@@ -63,6 +66,9 @@ export const ResetPassword = ({ onReset, onCancel, loading }: ResetPasswordProps
                     <label className="text-blue-200/70 text-[10px] font-bold uppercase tracking-[0.2em] mb-2 block ml-1">Confirm Password</label>
                     <input
                         type={showPassword ? "text" : "password"}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
                         className="block w-full bg-white/5 border border-white/10 rounded-2xl pl-6 h-12 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-lg font-medium tracking-wide"
                         placeholder="Retype password"
                         value={confirmNewPassword}
@@ -73,7 +79,7 @@ export const ResetPassword = ({ onReset, onCancel, loading }: ResetPasswordProps
                 <div className="flex flex-col gap-4">
                     <button
                         className={`w-full h-12 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-500 hover:to-blue-400 text-white font-bold tracking-[0.15em] text-sm shadow-lg shadow-blue-900/40 hover:shadow-blue-900/60 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 relative overflow-hidden group border border-white/10 ${loading ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
-                        onClick={() => onReset(newPassword, confirmNewPassword)}
+                        onClick={() => onReset(newPassword.trim(), confirmNewPassword.trim())}
                         disabled={loading}
                     >
                         <span className="relative z-10 flex items-center gap-2 transition-colors">

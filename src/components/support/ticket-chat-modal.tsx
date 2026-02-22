@@ -34,6 +34,7 @@ interface TicketChatModalProps {
 export function TicketChatModal({ ticket, currentUserType, currentUserId, onClose, onStatusChange }: TicketChatModalProps) {
     const [mounted, setMounted] = useState(false)
     const [newMessage, setNewMessage] = useState('')
+    const [isInternal, setIsInternal] = useState(false)
     const [showEscalatePrompt, setShowEscalatePrompt] = useState(false)
 
     useEffect(() => {
@@ -79,13 +80,14 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
             senderType: currentUserType,
             senderId: currentUserId,
             message: newMessage,
+            isInternal,
             createdAt: new Date().toISOString()
         }
 
         setMessages(prev => [...prev, optimisticMsg])
         setNewMessage('')
 
-        const result = await addTicketMessage(ticket.id, optimisticMsg.message)
+        const result = await addTicketMessage(ticket.id, optimisticMsg.message, isInternal)
 
         if (!result.success) {
             toast.error(result.error || 'Failed to send message')
@@ -178,6 +180,7 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
                     {messages.map((msg, idx) => {
                         const isMe = msg.senderType === currentUserType
                         const isAdmin = msg.senderType === 'Admin'
+                        const isInternalNote = msg.isInternal
 
                         return (
                             <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'} w-full group animate-in slide-in-from-bottom-2 duration-300`}>
@@ -190,15 +193,18 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
                                         )}
                                         <span className={`text-[10px] font-black uppercase tracking-tighter ${isMe ? 'text-gray-400' : isAdmin ? 'text-red-600' : 'text-indigo-600'}`}>
                                             {isMe ? 'Authorized Agent' : isAdmin ? 'Support Executive' : 'Originator'}
+                                            {isInternalNote && <span className="ml-2 text-amber-500 font-bold">[Internal Note]</span>}
                                         </span>
                                         <span className="text-[9px] font-bold text-gray-300">
                                             {mounted ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                                         </span>
                                     </div>
 
-                                    <div className={`px-6 py-4 rounded-[2rem] text-sm font-bold leading-relaxed shadow-sm border ${isMe
-                                        ? 'bg-gray-900 text-white border-transparent rounded-tr-none'
-                                        : 'bg-white text-gray-900 border-gray-100 rounded-tl-none shadow-blue-500/5'
+                                    <div className={`px-6 py-4 rounded-[2rem] text-sm font-bold leading-relaxed shadow-sm border ${isInternalNote
+                                        ? 'bg-amber-50 border-amber-200 text-amber-900 rounded-tr-none'
+                                        : isMe
+                                            ? 'bg-gray-900 text-white border-transparent rounded-tr-none'
+                                            : 'bg-white text-gray-900 border-gray-100 rounded-tl-none shadow-blue-500/5'
                                         }`}>
                                         {msg.message}
                                     </div>
@@ -211,15 +217,33 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
 
                 {/* Footer/Input */}
                 <div className="p-8 bg-white border-t border-gray-100">
+                    {currentUserType === 'Admin' && (
+                        <div className="flex items-center gap-2 mb-4 px-2">
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                                <div className={`w-10 h-6 rounded-full p-1 transition-all ${isInternal ? 'bg-amber-500 shadow-lg shadow-amber-500/20' : 'bg-gray-200'}`}>
+                                    <div className={`w-4 h-4 bg-white rounded-full transition-transform ${isInternal ? 'translate-x-4' : 'translate-x-0'}`} />
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    className="hidden"
+                                    checked={isInternal}
+                                    onChange={(e) => setIsInternal(e.target.checked)}
+                                />
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${isInternal ? 'text-amber-600' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                                    {isInternal ? 'Private Audit Note' : 'Public Reply'}
+                                </span>
+                            </label>
+                        </div>
+                    )}
                     <div className="relative flex items-end gap-4">
                         <textarea
                             value={newMessage}
                             onChange={(e) => setNewMessage(e.target.value)}
                             onKeyDown={handleKeyDown}
                             suppressHydrationWarning
-                            placeholder={ticket.status === 'Resolved' ? "Case is closed." : "Protocol update..."}
+                            placeholder={ticket.status === 'Resolved' ? "Case is closed." : isInternal ? "Enter private internal note..." : "Protocol update..."}
                             disabled={ticket.status === 'Resolved' || ticket.status === 'Closed' || isSending}
-                            className="flex-1 bg-gray-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-[2rem] px-8 py-5 text-sm font-bold text-gray-900 outline-none transition-all resize-none shadow-inner min-h-[70px] max-h-[150px]"
+                            className={`flex-1 bg-gray-50 border-2 border-transparent focus:bg-white rounded-[2rem] px-8 py-5 text-sm font-bold outline-none transition-all resize-none shadow-inner min-h-[70px] max-h-[150px] ${isInternal ? 'focus:border-amber-500 text-amber-950' : 'focus:border-indigo-500 text-gray-900'}`}
                         />
                         <button
                             onClick={handleSend}
@@ -227,7 +251,9 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
                             suppressHydrationWarning
                             className={`w-[70px] h-[70px] rounded-[2rem] flex items-center justify-center transition-all shadow-lg active:scale-90 ${!newMessage.trim() || isSending || ticket.status === 'Resolved'
                                 ? 'bg-gray-100 text-gray-300 pointer-events-none shadow-none'
-                                : 'bg-gray-900 text-white hover:bg-black hover:shadow-indigo-500/20'
+                                : isInternal
+                                    ? 'bg-amber-500 text-white hover:bg-amber-600 hover:shadow-amber-500/20'
+                                    : 'bg-gray-900 text-white hover:bg-black hover:shadow-indigo-500/20'
                                 }`}
                         >
                             {isSending ? <Loader2 size={24} className="animate-spin" /> : <Send size={24} className="translate-x-0.5 -translate-y-0.5" />}

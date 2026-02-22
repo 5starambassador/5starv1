@@ -61,6 +61,7 @@ export async function getUserTickets() {
             orderBy: { createdAt: 'desc' },
             include: {
                 messages: {
+                    where: { isInternal: false },
                     orderBy: { createdAt: 'asc' }
                 }
             }
@@ -188,14 +189,9 @@ export async function addTicketMessage(ticketId: number, message: string, isInte
             return { success: false, error: 'Access Denied: You do not own this ticket' }
         }
 
-        if (senderType === 'Admin') {
-            if (!await hasPermission('supportDesk')) return { success: false, error: 'Permission Denied' }
-            // Scoped Check for Admin
-            const { filter } = await getScopeFilter('supportDesk', { campusField: 'campus', useCampusName: true })
-            const isAccessible = await prisma.supportTicket.findFirst({
-                where: { id: ticketId, ...filter }
-            })
-            if (!isAccessible) return { success: false, error: 'Access Denied: Ticket outside of campus scope' }
+        // Message Level Security: Only admins can mark messages as internal
+        if (isInternal && senderType !== 'Admin') {
+            return { success: false, error: 'Access Denied: Only administrators can create internal notes' }
         }
 
         const ticketMessage = await prisma.ticketMessage.create({
@@ -302,7 +298,12 @@ export async function getTicketMessages(ticketId: number) {
             return { success: false, error: 'Access Denied' }
         }
 
-        return { success: true, messages: ticket.messages, status: ticket.status }
+        // Filter messages for users
+        const filteredMessages = adminId
+            ? ticket.messages
+            : ticket.messages.filter(m => !m.isInternal)
+
+        return { success: true, messages: filteredMessages, status: ticket.status }
     } catch (error: any) {
         return { success: false, error: error.message }
     }

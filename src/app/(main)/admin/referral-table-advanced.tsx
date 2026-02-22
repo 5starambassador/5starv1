@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition, Fragment, useRef, useMemo } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { ChevronRight, CheckCircle, Filter, ChevronDown, Clock, AlertCircle, Phone, MapPin, User, Search, Square, CheckSquare, Trash, XCircle, Download, X, Pencil, ArrowUp, ArrowDown, RefreshCcw, Layout, Calendar, CreditCard, Hash, Shield, Key, Upload } from 'lucide-react'
+import { useClickOutside } from '@/hooks/use-click-outside'
 
 import { DataTable } from '@/components/ui/DataTable'
 import { toast } from 'sonner'
@@ -232,6 +233,8 @@ export function ReferralManagementTable({
         fee: true
     })
     const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false)
+    const columnMenuRef = useRef<HTMLDivElement>(null)
+    useClickOutside(columnMenuRef, () => setIsColumnMenuOpen(false))
 
     // Selection
     const [selectedIds, setSelectedIds] = useState<number[]>([])
@@ -316,23 +319,15 @@ export function ReferralManagementTable({
 
     // --- Export State ---
     const [isExportMenuOpen, setIsExportMenuOpen] = useState(false)
+    const exportMenuRef = useRef<HTMLDivElement>(null)
+    useClickOutside(exportMenuRef, () => setIsExportMenuOpen(false))
     const ALL_EXPORT_COLUMNS = ['Lead ID', 'Parent Name', 'Parent Mobile', 'Student Name', 'Grade', 'Section', 'Campus', 'Status', 'Referrer', 'Referrer Role', 'Referrer Code', 'Referrer Campus', 'Referrer Mobile', 'Date Created', 'Confirmed Date', 'ERP Number', 'Academic Year', 'Fee Plan', 'Annual Fee', 'Admission Fee', 'Donation Fee', 'Rejection Reason']
     const [selectedExportColumns, setSelectedExportColumns] = useState<string[]>([...ALL_EXPORT_COLUMNS])
 
     // --- Excel-Like Filter Logic (Headers) ---
     const [openFilterColumn, setOpenFilterColumn] = useState<string | null>(null)
     const filterRef = useRef<HTMLDivElement>(null)
-
-    // Close on outside click
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
-                setOpenFilterColumn(null)
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside)
-        return () => document.removeEventListener("mousedown", handleClickOutside)
-    }, [])
+    useClickOutside(filterRef, () => setOpenFilterColumn(null))
 
     const handleFilterClick = (key: string) => {
         if (openFilterColumn === key) {
@@ -796,7 +791,7 @@ export function ReferralManagementTable({
                 </button>
 
                 {/* Export Dropdown */}
-                <div className="relative">
+                <div className="relative" ref={exportMenuRef}>
                     <button
                         onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
                         suppressHydrationWarning={true}
@@ -849,7 +844,7 @@ export function ReferralManagementTable({
                 </div>
 
                 {/* Column Toggle */}
-                <div className="relative">
+                <div className="relative" ref={columnMenuRef}>
                     <button
                         onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
                         suppressHydrationWarning={true}

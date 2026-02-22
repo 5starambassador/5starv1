@@ -88,6 +88,23 @@ export function PayoutHistoryTable({ data }: PayoutHistoryTableProps) {
             )
         },
         {
+            header: 'Adjustment Details',
+            accessorKey: 'remarks',
+            cell: (row: Settlement) => {
+                const remarks = row.remarks || ''
+                const hasBreakdown = remarks.includes('[BREAKDOWN:')
+                const mainRemark = hasBreakdown ? remarks.split('[BREAKDOWN:')[1].split(']')[0] : remarks
+
+                return (
+                    <div className="text-[10px] max-w-[200px]">
+                        <div className="font-medium text-gray-700 flex items-start gap-1">
+                            <span>{hasBreakdown ? `Covers: ${mainRemark}` : remarks}</span>
+                        </div>
+                    </div>
+                )
+            }
+        },
+        {
             header: 'Status',
             accessorKey: 'status',
             filterable: true,

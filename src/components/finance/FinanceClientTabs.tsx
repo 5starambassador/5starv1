@@ -132,15 +132,16 @@ export function FinanceClientTabs({
                     </div>
 
                     <div className="flex items-center gap-4">
-                        {activeTab.startsWith('liabilities_') && availableYears.length > 0 && (
-                            <div className="flex items-center gap-2 bg-white/50 border border-purple-100 px-3 py-1.5 rounded-xl shadow-sm">
-                                <span className="text-[10px] font-black text-purple-900 uppercase tracking-tighter">Cycle:</span>
+                        {availableYears.length > 0 && (
+                            <div className="flex items-center gap-2 bg-white/50 border border-gray-200 px-3 py-1.5 rounded-xl shadow-sm">
+                                <span className="text-[10px] font-black text-gray-900 uppercase tracking-tighter">Cycle:</span>
                                 <select
                                     value={selectedYear}
                                     onChange={(e) => handleYearChange(e.target.value)}
                                     suppressHydrationWarning={true}
-                                    className="bg-transparent text-xs font-bold text-purple-700 outline-none cursor-pointer focus:ring-0"
+                                    className="bg-transparent text-xs font-bold text-gray-900 outline-none cursor-pointer focus:ring-0"
                                 >
+                                    <option value="All">Lifetime (All)</option>
                                     {availableYears.map(y => (
                                         <option key={y} value={y}>{y}</option>
                                     ))}

@@ -20,7 +20,7 @@ export interface BenefitSlabData {
 export async function getBenefitSlabs() {
     try {
         const user = await getCurrentUser()
-        if (!user || user.role !== 'Super Admin') return { success: false, error: 'Unauthorized' }
+        if (!user) return { success: false, error: 'Unauthorized' }
 
         const slabs = await prisma.benefitSlab.findMany({
             orderBy: { referralCount: 'asc' }

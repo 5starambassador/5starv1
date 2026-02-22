@@ -65,11 +65,17 @@ export async function syncUserStats(userId: number) {
         const defaultSlabs: Record<number, number> = { 0: 0, 1: 5, 2: 10, 3: 25, 4: 30, 5: 50 }
         const slabBenefit = slab ? slab.yearFeeBenefitPercent : (defaultSlabs[lookupCount] || 0)
 
+        // ELITE UPGRADE LOGIC: Determine 5-Star status (Excludes special campuses)
+        // Note: confirmedLeadsCount ALREADY excludes EXCLUDED_FROM_SLAB based on the query at line 51
+        const nonSpecialConfirmedCount = confirmedLeadsCount
+
         updatedUserDetails = {
             ...updatedUserDetails,
             confirmedReferralCount: confirmedLeadsCount,
             yearFeeBenefitPercent: slabBenefit,
-            benefitStatus: confirmedLeadsCount > 0 ? 'Active' : (hasKids ? 'Active' : user.benefitStatus)
+            benefitStatus: confirmedLeadsCount > 0 ? 'Active' : (hasKids ? 'Active' : user.benefitStatus),
+            // ELITE UPGRADE: Auto-flag as 5-Star Member upon reaching milestone
+            isFiveStarMember: user.isFiveStarMember || nonSpecialConfirmedCount >= 5
         }
 
         // Apply Updates

@@ -7,7 +7,7 @@ const rateLimit = new Map<string, { count: number; resetTime: number }>()
 
 const LIMITS = {
     login: { max: 5, window: 15 * 60 * 1000 }, // 5 per 15 min
-    otp: { max: 3, window: 5 * 60 * 1000 },    // 3 per 5 min
+    otp: { max: 2, window: 60 * 1000 },        // 2 per 1 min (Defensive)
     api: { max: 1000, window: 60 * 1000 },      // 1000 per min (Increased for dev)
 }
 

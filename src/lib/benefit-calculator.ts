@@ -57,8 +57,8 @@ export function calculateTotalBenefit(
     let specialBonusShare = 0
     let appBonusPercentResult = 0
 
-    // SAFETY: If student fee is missing or invalidly low, don't use a default; let result be 0 for admin visibility
-    const safeStudentFee = (!user.studentFee || user.studentFee < 1000) ? 0 : user.studentFee
+    // SAFETY: Use the dynamic student fee provided in context (Campus + Grade specific)
+    const safeStudentFee = (!user.studentFee || user.studentFee < 1000) ? 60000 : user.studentFee
 
     // 1. Calculate Historic Base Value (Fixed Cash Sum derived from Top 5 Previous Year Referrals)
     // Formula: SUM(3% x Actual Fee)
@@ -110,7 +110,7 @@ export function calculateTotalBenefit(
         if (isGroupAWaiver) {
             const amount = (safeStudentFee * tierPercent) / 100
             slabShare += amount
-            breakdown.push(`⚡ WAIVER GROUP A: ${tierPercent}% of Child Fee ₹${safeStudentFee.toLocaleString()} = ₹${amount.toLocaleString()}`)
+            breakdown.push(`⚡ FEE WAIVER: ${tierPercent}% Slab Reward (₹${amount.toLocaleString('en-IN')})`)
 
             // App Enrollment Bonus (Dynamic targeting from global governance)
             // Note: 5% Bonus is NOT for long term
@@ -149,7 +149,7 @@ export function calculateTotalBenefit(
                 const g1Fee = ref.campusGrade1Fee || 0  // 0 when fee not seeded; UI shows N/A
                 const amount = (g1Fee * slicePercent) / 100
                 slabShare += amount
-                breakdown.push(`🔥 REF-${count}: ${slicePercent}% yield of ₹${g1Fee.toLocaleString()} (G1) = ₹${amount.toLocaleString()}`)
+                breakdown.push(`🔥 REF-${count}: ${slicePercent}% Slab Reward (₹${amount.toLocaleString('en-IN')})`)
             })
         }
     }
@@ -165,7 +165,13 @@ export function calculateTotalBenefit(
                 const donBonus = donFee * REWARD_RATES.DONATION_PROFIT_SHARE
                 admissionShare += admBonus
                 donationShare += donBonus
-                breakdown.push(`💰 PROFIT SHARE (${ref.campusName || 'Normal'}): ${REWARD_RATES.ADMISSION_PROFIT_SHARE * 100}% Adm (₹${admBonus.toLocaleString()}) + ${REWARD_RATES.DONATION_PROFIT_SHARE * 100}% Don (₹${donBonus.toLocaleString()}) = ₹${(admBonus + donBonus).toLocaleString()}`)
+
+                if (admBonus > 0) {
+                    breakdown.push(`💰 ADMISSION FEE SHARE: 80% of ₹${admFee.toLocaleString('en-IN')} = ₹${admBonus.toLocaleString('en-IN')}`)
+                }
+                if (donBonus > 0) {
+                    breakdown.push(`💰 DONATION FEE SHARE: 50% of ₹${donFee.toLocaleString('en-IN')} = ₹${donBonus.toLocaleString('en-IN')}`)
+                }
             }
         }
     })
