@@ -1,4 +1,4 @@
-import { BenefitSlabData } from '@/app/benefit-actions'
+import type { BenefitSlabData } from '@/types/benefit'
 import { REWARD_RATES } from './reward-constants'
 
 export interface ReferralData {
@@ -27,7 +27,8 @@ export interface UserContext {
 export function calculateTotalBenefit(
     currentReferrals: ReferralData[],
     user: UserContext,
-    slabs: BenefitSlabData[]
+    slabs: BenefitSlabData[],
+    forceActivateLongTerm: boolean = false
 ): {
     totalAmount: number,
     breakdown: string[],
@@ -44,7 +45,7 @@ export function calculateTotalBenefit(
     const referralCount = currentReferrals.length
     const isFiveStar = user.isFiveStarLastYear || false
     // ACTIVATION LAW: Long Term benefits trigger ONLY if 1+ current referral exists
-    const isActive = referralCount >= 1
+    const isActive = referralCount >= 1 || forceActivateLongTerm
 
     let breakdown: string[] = []
     let currentYearAmount = 0

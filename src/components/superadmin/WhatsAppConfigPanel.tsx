@@ -11,7 +11,7 @@ export default function WhatsAppConfigPanel() {
     const [saving, setSaving] = useState<number | null>(null)
     const [showAddForm, setShowAddForm] = useState(false)
     const [isCreating, setIsCreating] = useState(false)
-    const [newConfig, setNewConfig] = useState({ eventKey: '', templateName: '', description: '' })
+    const [newConfig, setNewConfig] = useState({ eventKey: '', templateName: '', description: '', requiredVariablesCount: 2 })
 
     const fetchConfigs = async () => {
         setLoading(true)
@@ -62,7 +62,7 @@ export default function WhatsAppConfigPanel() {
         const res = await createWhatsAppConfig({ ...newConfig, isEnabled: true })
         if (res.success) {
             toast.success('Mapping created successfully')
-            setNewConfig({ eventKey: '', templateName: '', description: '' })
+            setNewConfig({ eventKey: '', templateName: '', description: '', requiredVariablesCount: 2 })
             setShowAddForm(false)
             await fetchConfigs()
         } else {
@@ -163,6 +163,17 @@ export default function WhatsAppConfigPanel() {
                                 onChange={(e) => setNewConfig({ ...newConfig, description: e.target.value })}
                                 className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500"
                                 placeholder="Used for..."
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Variable Count</label>
+                            <input
+                                type="number"
+                                value={newConfig.requiredVariablesCount}
+                                onChange={(e) => setNewConfig({ ...newConfig, requiredVariablesCount: parseInt(e.target.value) || 0 })}
+                                className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500"
+                                placeholder="0"
+                                min="0"
                             />
                         </div>
                     </div>

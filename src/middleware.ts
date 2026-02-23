@@ -1,6 +1,20 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { verifySessionToken } from '@/lib/session'
+import { jwtVerify } from 'jose'
+
+// Inline JWT verification for Edge Middleware (cannot use session.ts which requires next/headers)
+async function verifySessionToken(token: string) {
+    try {
+        const secretKey = process.env.JWT_SECRET || 'fallback-for-build-only'
+        const encodedKey = new TextEncoder().encode(secretKey)
+        const { payload } = await jwtVerify(token, encodedKey, {
+            algorithms: ['HS256'],
+        })
+        return payload as any
+    } catch {
+        return null
+    }
+}
 
 // In-memory rate limiting store (Note: In a serverless/multi-instance env, this would be Redis)
 const rateLimit = new Map<string, { count: number; resetTime: number }>()

@@ -2,7 +2,8 @@
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
-import { BenefitSlabData, updateBenefitSlab, resetDefaultSlabs } from '@/app/benefit-actions'
+import { updateBenefitSlab, resetDefaultSlabs } from '@/app/benefit-actions'
+import type { BenefitSlabData } from '@/types/benefit'
 import { toast } from 'sonner'
 import {
     CheckCircle2, RefreshCw, Calculator, DollarSign, Save, Info,

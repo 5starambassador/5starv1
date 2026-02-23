@@ -51,15 +51,15 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
     const currentReferrals = allReferrals.filter(r => {
         // Priority 1: Check admittedYear first
         if (r.admittedYear) {
-            if (r.admittedYear === PREVIOUS_ACADEMIC_YEAR) return false
             if (r.admittedYear === CURRENT_ACADEMIC_YEAR || r.admittedYear === '2026-2027') return true
+            return false
         }
 
         // Priority 2: Check student's academic year
         const s = r.student
         if (s?.academicYear) {
-            if (s.academicYear === PREVIOUS_ACADEMIC_YEAR) return false
             if (s.academicYear === CURRENT_ACADEMIC_YEAR || s.academicYear === '2026-2027') return true
+            return false
         }
 
         // Priority 3: Fallback to creation date
@@ -68,19 +68,13 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
         return createdDate >= currentYearStart
     })
 
-    const previousReferrals = allReferrals.filter(r => {
-        // Priority 1: Check admittedYear
-        if (r.admittedYear) return r.admittedYear === PREVIOUS_ACADEMIC_YEAR
+    const historicalReferrals = allReferrals.filter(r => {
+        // Exclude current referrals
+        if (currentReferrals.some(curr => curr.leadId === r.leadId)) return false
 
-        // Priority 2: Check student's academic year
-        const s = r.student
-        if (s?.academicYear) return s.academicYear === PREVIOUS_ACADEMIC_YEAR
-
-        // Priority 3: Fallback to creation date
-        const createdDate = new Date(r.createdAt)
-        const currentYearStart = new Date(currentYearRecord.startDate)
-        return createdDate < currentYearStart
-    }).filter(r => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted')
+        // Only count confirmed/admitted for historical yield
+        return r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted'
+    })
 
     const confirmedCount = currentReferrals.filter(r => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted').length
 
@@ -124,7 +118,7 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
         }
     })
 
-    const previousReferralsData: ReferralData[] = previousReferrals.map(r => ({
+    const historicalReferralsData: ReferralData[] = historicalReferrals.map((r: any) => ({
         id: r.leadId,
         campusId: r.campusId || 0,
         campusName: r.campus || '',
@@ -143,11 +137,11 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
         childInAchariya: userContext.childInAchariya,
         studentFee: userContext.studentFee,
         isFiveStarLastYear: userContext.isFiveStarMember,
-        previousYearReferrals: previousReferralsData
+        previousYearReferrals: historicalReferralsData
     }
 
-    // A. Potential Value (All Current Leads)
-    const { totalAmount: projectedValue } = calculateTotalBenefit(currentReferralsData, calcContext, slabs)
+    // A. Potential Value (All Current Leads + Historical Bonus)
+    const { totalAmount: projectedValue } = calculateTotalBenefit(currentReferralsData, calcContext, slabs, true)
 
     // B. Secured Value (Confirmed/Admitted Only)
     const confirmedReferralsData = currentReferralsData.filter(r => {
@@ -160,7 +154,7 @@ export async function getUserRevenueStats(userId: number, userRole: string, user
         projectedValue,
         securedValue,
         confirmedCount,
-        previousYearReferrals: previousReferralsData,
+        previousYearReferrals: historicalReferralsData,
         currentReferrals: currentReferrals
     }
 }

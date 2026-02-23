@@ -1368,14 +1368,31 @@ export async function updateUserStatus(userId: number, status: AccountStatus) {
     }
 
     try {
+        const isActivating = status === AccountStatus.Active
+
         await prisma.user.update({
             where: { userId },
-            data: { status }
+            data: {
+                status,
+                // If activating manually, we MUST satisfy the payment guards
+                ...(isActivating && {
+                    paymentStatus: 'Success',
+                    paymentAmount: 25,
+                    benefitStatus: AccountStatus.Active
+                })
+            }
         })
 
-        await logAction('UPDATE', 'user', `Updated user ${userId} status to ${status}`, userId.toString())
+        // Force a deep sync to ensure slab/benefit consistency
+        if (isActivating) {
+            const { syncUserStats } = await import('@/app/sync-actions')
+            await syncUserStats(userId)
+        }
+
+        await logAction('UPDATE', 'user', `Updated user ${userId} status to ${status} (Manual Activation)`, userId.toString())
 
         revalidatePath('/superadmin/users')
+        revalidatePath('/dashboard')
         return { success: true }
     } catch (error) {
         console.error('Update user status error:', error)

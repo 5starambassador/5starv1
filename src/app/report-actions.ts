@@ -1,8 +1,8 @@
 'use server'
 
-import prisma from '@/lib/prisma'
-import { cookies } from 'next/headers'
 import { getCurrentUser } from '@/lib/auth-service'
+import { hasPermission, getPermissionScope } from '@/lib/permission-service'
+import prisma from '@/lib/prisma'
 
 // Bypass stale Prisma types - Using string literals for statuses
 const _LeadStatus = {
@@ -25,7 +25,8 @@ const _UserRole = {
 // ===================== REPORT #1: REFERRAL PERFORMANCE =====================
 export async function generateReferralPerformanceReport(filters?: { startDate?: string, endDate?: string, campus?: string }) {
     const admin = await getCurrentUser()
-    if (!admin || !admin.role.includes('Super Admin')) {
+    const canAccess = await hasPermission('reports')
+    if (!admin || !canAccess) {
         return { success: false, error: 'Unauthorized' }
     }
 
@@ -39,8 +40,13 @@ export async function generateReferralPerformanceReport(filters?: { startDate?: 
             if (filters.endDate) whereClause.createdAt.lte = new Date(filters.endDate)
         }
 
-        // Apply Campus Filter
-        if (filters?.campus && filters.campus !== 'All') {
+        // Apply Campus Filter & Scoping
+        const scope = await getPermissionScope('reports')
+        const isSuperAdmin = admin.role === 'Super Admin'
+
+        if (!isSuperAdmin && scope === 'campus' && admin.assignedCampus) {
+            whereClause.assignedCampus = admin.assignedCampus
+        } else if (filters?.campus && filters.campus !== 'All') {
             whereClause.assignedCampus = filters.campus
         }
 
@@ -81,7 +87,8 @@ export async function generateReferralPerformanceReport(filters?: { startDate?: 
 // ===================== REPORT #2: PENDING LEADS =====================
 export async function generatePendingLeadsReport(filters?: { startDate?: string, endDate?: string, campus?: string }) {
     const admin = await getCurrentUser()
-    if (!admin || !admin.role.includes('Super Admin')) {
+    const canAccess = await hasPermission('reports')
+    if (!admin || !canAccess) {
         return { success: false, error: 'Unauthorized' }
     }
 
@@ -114,7 +121,7 @@ export async function generatePendingLeadsReport(filters?: { startDate?: string,
 
         let csv = 'Lead Name,Parent Mobile,Interested Campus,Grade,Status,Referred By,Ambassador Mobile,Days Pending,Created Date\n'
 
-        pendingLeads.forEach(lead => {
+        pendingLeads.forEach((lead: any) => {
             const daysPending = Math.floor((new Date().getTime() - new Date(lead.createdAt).getTime()) / (1000 * 60 * 60 * 24))
             csv += `"${lead.parentName}",${lead.parentMobile},"${lead.campus || 'Not Specified'}","${lead.gradeInterested || 'Not Specified'}",${lead.leadStatus},"${lead.user.fullName}",${lead.user.mobileNumber},${daysPending},${new Date(lead.createdAt).toLocaleDateString()}\n`
         })
@@ -584,7 +591,7 @@ export async function generateConversionFunnelData(filters?: { startDate?: strin
         })
 
         const avgVelocity = confirmedLeads.length > 0
-            ? (confirmedLeads.reduce((acc, lead) => {
+            ? (confirmedLeads.reduce((acc: number, lead: any) => {
                 const diff = new Date(lead.confirmedDate!).getTime() - new Date(lead.createdAt).getTime()
                 return acc + Math.max(0, diff / (1000 * 60 * 60 * 24))
             }, 0) / confirmedLeads.length).toFixed(1)
@@ -694,7 +701,7 @@ export async function generateTargetAchievementData(filters?: { campus?: string 
             }
         })
 
-        const chartData = await Promise.all(campuses.map(async (c) => {
+        const chartData = await Promise.all(campuses.map(async (c: any) => {
             const target = c.targets[0]?.admissionTarget || 10
             const actual = await prisma.referralLead.count({
                 where: {
@@ -833,7 +840,7 @@ export async function generateAdmissionIntelligenceData(filters?: { campus?: str
             where: { isActive: true, ...campusWhere }
         })
 
-        const intelligenceData = await Promise.all(campuses.map(async (c) => {
+        const intelligenceData = await Promise.all(campuses.map(async (c: any) => {
             // 1. Calculate Velocity (Days to confirm) for this campus
             const confirmedLeads = await prisma.referralLead.findMany({
                 where: {
@@ -847,7 +854,7 @@ export async function generateAdmissionIntelligenceData(filters?: { campus?: str
             })
 
             const velocity = confirmedLeads.length > 0
-                ? (confirmedLeads.reduce((acc, lead) => {
+                ? (confirmedLeads.reduce((acc: number, lead: any) => {
                     const diff = new Date(lead.confirmedDate!).getTime() - new Date(lead.createdAt).getTime()
                     return acc + Math.max(0, diff / (1000 * 60 * 60 * 24))
                 }, 0) / confirmedLeads.length).toFixed(1)
@@ -951,9 +958,9 @@ export async function generateRetentionAnalyticsData(filters?: { campus?: string
             select: { createdAt: true, leadStatus: true, confirmedDate: true }
         })
 
-        const confirmedLeads = leads.filter(l => l.leadStatus === 'Confirmed' && l.confirmedDate)
+        const confirmedLeads = leads.filter((l: any) => l.leadStatus === 'Confirmed' && l.confirmedDate)
         const avgDaysToConfirm = confirmedLeads.length > 0
-            ? (confirmedLeads.reduce((acc, lead) => {
+            ? (confirmedLeads.reduce((acc: number, lead: any) => {
                 const diff = new Date(lead.confirmedDate!).getTime() - new Date(lead.createdAt).getTime()
                 return acc + Math.max(0, diff / (1000 * 60 * 60 * 24))
             }, 0) / confirmedLeads.length).toFixed(1)
@@ -1002,7 +1009,7 @@ export async function generateAuditTrailReport(filters?: { startDate?: string, e
         })
 
         let csv = 'Timestamp,Actor ID,Action,Module,Target ID,Description,IP Address\n'
-        logs.forEach(log => {
+        logs.forEach((log: any) => {
             const actor = log.adminId ? `Admin:${log.adminId}` : log.userId ? `User:${log.userId}` : 'System'
             csv += `${new Date(log.createdAt).toLocaleString()},${actor},"${log.action}","${log.module}","${log.targetId || ''}","${log.description.replace(/"/g, '""')}","${log.ipAddress || ''}"\n`
         })
@@ -1037,8 +1044,8 @@ export async function generateSettlementIntegrityReport() {
 
         let csv = 'Ambassador Name,Mobile,Lead Name,Confirmed Date,Status,Settlement Status\n'
 
-        leads.forEach(lead => {
-            const hasSettlement = settlements.some(s => s.userId === lead.userId)
+        leads.forEach((lead: any) => {
+            const hasSettlement = settlements.some((s: any) => s.userId === lead.userId)
             const settlementStatus = hasSettlement ? 'Settled' : 'Unsettled'
             csv += `"${lead.user.fullName}",${lead.user.mobileNumber},"${lead.parentName}",${new Date(lead.confirmedDate || lead.createdAt).toLocaleDateString()},${lead.leadStatus},${settlementStatus}\n`
         })
@@ -1080,7 +1087,7 @@ export async function generateMasterPipelineExport(filters?: { startDate?: strin
 
         let csv = 'Lead ID,Created Date,Lead Name,Parent Mobile,Campus,Grade,Status,Referred By,Ambassador Mobile,Referral Code,Confirmed Date,Annual Fee,Admission Fee,Donation Fee,Rejection Reason\n'
 
-        leads.forEach(lead => {
+        leads.forEach((lead: any) => {
             const row = [
                 lead.leadId,
                 new Date(lead.createdAt).toLocaleDateString(),
@@ -1146,7 +1153,7 @@ export async function generateMasterReferralReport(filters?: { startDate?: strin
 
         let csv = headers.join(',') + '\n'
 
-        leads.forEach(lead => {
+        leads.forEach((lead: any) => {
             const row = [
                 lead.leadId,
                 `"${(lead.parentName || '').replace(/"/g, '""')}"`,

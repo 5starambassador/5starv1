@@ -93,12 +93,12 @@ export async function getMyEarningsStats(academicYear?: string): Promise<{
         const { getDynamicFeeForUser } = await import('./referral-actions')
         const dynamicFee = await getDynamicFeeForUser()
 
-        const context = {
+        const context: any = {
             role: user.role as any,
             childInAchariya: (user as any).childInAchariya,
             studentFee: dynamicFee || (user as any).studentFee || 60000,
             isFiveStarLastYear: (user as any).isFiveStarMember,
-            previousYearReferrals: [] // For now, we scale this if needed
+            previousYearReferrals: []
         }
 
         // Fetch Grade-1 fees for the current cycle to enable slab rewards (Group B)
@@ -117,7 +117,9 @@ export async function getMyEarningsStats(academicYear?: string): Promise<{
         const { getSpecialBonusRate } = await import('@/lib/reward-constants')
 
         // Format referrals for calculator
-        const formattedReferrals = currentReferrals
+        const confirmedReferrals = referrals.filter((r: any) => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted')
+
+        const currentFormatted = currentReferrals
             .filter((r: any) => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted')
             .map((r: any) => {
                 const g1Fee = grade1FeeMap.get(r.campusId)
@@ -134,7 +136,19 @@ export async function getMyEarningsStats(academicYear?: string): Promise<{
                 }
             })
 
-        const benefitResult = calculateTotalBenefit(formattedReferrals, context, slabs)
+        const historicalFormatted = confirmedReferrals
+            .filter((r: any) => !currentReferrals.some((curr: any) => curr.leadId === r.leadId))
+            .map((r: any) => ({
+                id: r.leadId,
+                campusId: r.campusId || 0,
+                campusName: r.campus,
+                grade: r.gradeInterested,
+                actualFee: r.student?.annualFee || r.annualFee || 60000
+            }))
+
+        context.previousYearReferrals = historicalFormatted
+
+        const benefitResult = calculateTotalBenefit(currentFormatted, context, slabs)
 
         // Calculate Manual Adjustments
         // IMPORTANT: Refunds (registration fee returns) are NOT earnings — tracked separately.
@@ -189,7 +203,7 @@ export async function getMyEarningsStats(academicYear?: string): Promise<{
                 remainingBalance: Math.max(0, totalEarned - earningsSettled),
                 settlements: JSON.parse(JSON.stringify(settlements)),
                 breakdown: finalBreakdown,
-                referralCount: formattedReferrals.length
+                referralCount: currentFormatted.length
             }
         }
 

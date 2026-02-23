@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useMemo } from 'react'
-import { BenefitSlabData } from '@/app/benefit-actions'
+import type { BenefitSlabData } from '@/types/benefit'
 import {
     ShieldCheck, History, DollarSign, Calculator,
     TrendingUp, Coins, Save, Percent, Award

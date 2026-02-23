@@ -60,7 +60,7 @@ const filterReferralsByYear = (referrals: any[], yearRecord: any, CURRENT_ACADEM
     }
 }
 
-import { BenefitSlabData } from '@/app/benefit-actions'
+import type { BenefitSlabData } from '@/types/benefit'
 import { ClientUser } from '@/types/client-types'
 import nextDynamic from 'next/dynamic'
 
@@ -160,16 +160,28 @@ export function DashboardClient({
         // - If viewing All Time: Sum them? No, All Time is tricky.
 
         // Simpler approach:
-        // Always pass the FULL list of previous year referrals (calculated once globally) to the context
-        const previousYearReferrals = filterReferralsByYear(referrals, activeYears.find(y => y.year === prevYear), currentYear, prevYear)
+        // Always pass the FULL list of historical confirmed referrals to the context
+        const currentYearStr = activeYears.find(y => y.isCurrent)?.year || currentYear
+        const currentYearStart = new Date(activeYears.find(y => y.isCurrent)?.startDate || '2026-04-01')
+
+        const historicalReferrals = referrals
             .filter((r: any) => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted')
+            .filter((r: any) => {
+                const rYear = r.admittedYear || r.student?.academicYear
+                if (rYear) {
+                    // It's historical if it's NOT the current year
+                    return rYear !== currentYearStr && rYear !== '2026-2027'
+                }
+                // Fallback: It's historical if created before the current year started
+                return new Date(r.createdAt) < currentYearStart
+            })
 
         const userContext: UserContext = {
             role: user.role as 'Parent' | 'Staff' | 'Alumni' | 'Others',
             childInAchariya: user.childInAchariya,
             studentFee: dynamicStudentFee || user.studentFee || 60000,
             isFiveStarLastYear: user.isFiveStarMember,
-            previousYearReferrals: previousYearReferrals.map((r: any) => ({
+            previousYearReferrals: historicalReferrals.map((r: any) => ({
                 id: r.leadId,
                 campusId: r.campusId || 0,
                 campusName: r.campus || '',
@@ -183,7 +195,7 @@ export function DashboardClient({
         const allProspectsSet = currentSet.filter((r: any) => !['Rejected', 'Closed'].includes(r.leadStatus))
 
         const earnedBenefits = calculateTotalBenefit(formatForCalculator(confirmedSet), userContext, slabs)
-        const potentialBenefits = calculateTotalBenefit(formatForCalculator(allProspectsSet), userContext, slabs)
+        const potentialBenefits = calculateTotalBenefit(formatForCalculator(allProspectsSet), userContext, slabs, true)
 
         const benefitStats = {
             earned: earnedBenefits.totalAmount,

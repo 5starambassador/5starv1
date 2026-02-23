@@ -1189,6 +1189,20 @@ export async function bulkConvertLeadsToStudents(leadIds: number[]) {
                     data: { leadStatus: 'Admitted' }
                 })
 
+                // SYNC PARENT DATA (Surgical Addition)
+                // Ensure parent account reflects their new status as an active parent
+                await prisma.user.update({
+                    where: { userId: actualParentId },
+                    data: {
+                        childInAchariya: true,
+                        childEprNo: lead.admissionNumber,
+                        childName: lead.studentName,
+                        grade: lead.gradeInterested,
+                        status: 'Active',
+                        benefitStatus: 'Active'
+                    }
+                })
+
                 // Notify Ambassador
                 await notifyReferralAdmitted(lead.userId, lead.studentName || lead.parentName)
 

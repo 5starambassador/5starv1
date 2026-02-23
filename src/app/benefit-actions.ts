@@ -3,18 +3,7 @@
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { getCurrentUser } from '@/lib/auth-service'
-
-export interface BenefitSlabData {
-    slabId: number
-    referralCount: number
-    yearFeeBenefitPercent: number
-    longTermExtraPercent: number
-    appBonusPercent: number
-    appBonusEligibility: string
-    baseLongTermPercent: number
-    tierName?: string | null
-    description?: string | null
-}
+import { BenefitSlabData } from '@/types/benefit'
 
 // Get All Slabs
 export async function getBenefitSlabs() {

@@ -38,11 +38,7 @@ export async function getAmbassadorLedger(userId: number, academicYear: string =
                 },
                 referrals: {
                     where: {
-                        leadStatus: { in: ['Confirmed', 'Admitted'] },
-                        OR: [
-                            { admittedYear: academicYear },
-                            dateFilter
-                        ]
+                        leadStatus: { in: ['Confirmed', 'Admitted'] }
                     },
                     orderBy: { createdAt: 'desc' }
                 }
@@ -67,8 +63,16 @@ export async function getAmbassadorLedger(userId: number, academicYear: string =
             grade1FeeMap.set(gf.campusId, gf.annualFee_wotp || gf.annualFee_otp || 0)
         })
 
-        // 4. Calculate accurate earnings using the official calculator
-        const calculatorReferrals = u.referrals.map((r: any) => ({
+        // 4. Split Referrals into Current Cycle vs Historical
+        const currentReferrals = u.referrals.filter((r: any) => {
+            const isTargetYear = r.admittedYear === academicYear
+            const isDateMatch = yearRecord && r.createdAt >= yearRecord.startDate && r.createdAt <= yearRecord.endDate
+            return isTargetYear || isDateMatch
+        })
+
+        const historicalReferrals = u.referrals.filter((r: any) => !currentReferrals.some((curr: any) => curr.leadId === r.leadId))
+
+        const calculatorReferrals = currentReferrals.map((r: any) => ({
             id: r.leadId,
             campusId: r.campusId || 0,
             campusName: r.campus || undefined,
@@ -80,15 +84,31 @@ export async function getAmbassadorLedger(userId: number, academicYear: string =
             specialBonusRate: getSpecialBonusRate(r.campus)
         }))
 
+        const historicalFormatted = historicalReferrals.map((r: any) => ({
+            id: r.leadId,
+            campusId: r.campusId || 0,
+            campusName: r.campus || undefined,
+            grade: r.gradeInterested || 'Grade-1',
+            actualFee: r.annualFee || 0
+        }))
+
         const calc = calculateTotalBenefit(calculatorReferrals, {
             role: u.role as any,
             childInAchariya: u.childInAchariya,
             studentFee: u.studentFee || 60000,
-            isFiveStarLastYear: u.isFiveStarMember
+            isFiveStarLastYear: u.isFiveStarMember,
+            previousYearReferrals: historicalFormatted
         }, slabs as any)
 
         // 5. Construct chronological ledger entries
         const ledgerEntries: any[] = []
+
+        // Filter ledger referrals to only show the ones relevant to this cycle if needed?
+        // Actually, Ledger usually shows everything, but the summary is for the cycle.
+        // Let's keep all settlements but only show current cycle earnings in ledger to match summary.
+        // Or show all, but summary is cycle-specific. 
+        // User said: "atleast one referral activation is required for get the benefit for this year 2026-2027"
+        // So the ledger should reflect the ACTIVATED earnings.
 
         // A. Add Settlements (Payouts/Waivers) as DEBITS (reduces remaining amount)
         u.settlements.forEach((s: any) => {
@@ -107,8 +127,8 @@ export async function getAmbassadorLedger(userId: number, academicYear: string =
             })
         })
 
-        // B. Add Earnings (Confirmed Referrals) as CREDITS (increases total amount)
-        u.referrals.forEach((r: any) => {
+        // B. Add Earnings (Current Cycle Confirmed Referrals)
+        currentReferrals.forEach((r: any) => {
             // Recalculate individual share for this specific referral
             const specialBonus = getSpecialBonusRate(r.campus) || 0
             const admBonus = (r.admissionFeeCollected || 0) * 0.8
@@ -139,6 +159,21 @@ export async function getAmbassadorLedger(userId: number, academicYear: string =
             })
         })
 
+        // C. If long term is active, add historical yield as a single ledger entry or split?
+        // Usually, it's a "bonus" applied to the account.
+        if (calc.longTermBaseAmount > 0) {
+            ledgerEntries.push({
+                id: `L-HISTORIC`,
+                type: 'BONUS',
+                txId: '5-STAR-BONUS',
+                amount: calc.longTermBaseAmount,
+                date: currentReferrals[0]?.confirmedDate || u.referrals[0]?.createdAt,
+                status: 'Confirmed',
+                remarks: `5-Star Loyalty Bonus (3% Historical Yield)`,
+                direction: 'IN'
+            })
+        }
+
         // Sort by date DESC
         ledgerEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
@@ -154,7 +189,7 @@ export async function getAmbassadorLedger(userId: number, academicYear: string =
                     totalEarned: calc.totalAmount,
                     totalSettled: totalSettledCounted,
                     outstanding: calc.totalAmount - totalSettledCounted,
-                    referralCount: u.referrals.length,
+                    referralCount: currentReferrals.length,
                     tierPercent: calc.tierPercent
                 }
             }
