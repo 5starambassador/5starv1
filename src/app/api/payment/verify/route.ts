@@ -61,6 +61,9 @@ export async function GET(req: Request) {
                 }
             })
 
+            // CRITICAL: Perform a deep-sync to ensure benefits/slabs/student-records are all in line
+            await syncUserStats(updatedPayment.userId)
+
         }
 
 

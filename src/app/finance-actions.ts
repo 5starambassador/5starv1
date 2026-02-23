@@ -910,7 +910,7 @@ export async function initiateBulkRefunds(userIds: number[]) {
 
 export async function syncPastRefunds(records: {
     mobile: string,
-    utr: string,
+    utr?: string,
     bankName?: string,
     accountNumber?: string,
     ifscCode?: string,
@@ -961,11 +961,11 @@ export async function syncPastRefunds(records: {
             // 2. Perform updates record-by-record for robustness (Avoiding chunk timeouts)
             for (const [normalizedMobile, record] of inputMap.entries()) {
                 const mobile = record.mobile.trim()
-                const utr = record.utr.trim()
+                const utr = record.utr?.trim() || `REF-MANUAL-${Date.now()}` // Fallback if UTR is missing
 
-                if (!mobile || !utr) {
+                if (!mobile) {
                     results.skipped++
-                    results.results.push({ mobile, amount: 0, transactionId: utr, status: 'Skipped', message: 'Missing mobile or UTR' })
+                    results.results.push({ mobile, amount: 0, transactionId: utr, status: 'Skipped', message: 'Missing mobile number' })
                     continue
                 }
 

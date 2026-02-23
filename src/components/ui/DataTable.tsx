@@ -309,7 +309,7 @@ export function DataTable<T>({
                                     <th
                                         key={i}
                                         className={`
-                                            p-4 text-left text-[11px] font-black uppercase tracking-widest text-gray-400 relative whitespace-nowrap group hover:bg-gray-50/80 transition-colors ${!enableMultiSelection && i === 0 ? 'pl-6' : ''}
+                                            px-1.5 py-3.5 text-left text-[11px] font-black uppercase tracking-tight text-gray-400 relative whitespace-nowrap group hover:bg-gray-50/80 transition-colors ${!enableMultiSelection && i === 0 ? 'pl-3' : ''}
                                             ${isFiltered ? 'text-red-600 bg-red-50/30' : ''}
                                         `}
                                     >
@@ -458,7 +458,7 @@ export function DataTable<T>({
                                             {columns.map((column, j) => (
                                                 <td
                                                     key={j}
-                                                    className={`block md:table-cell p-4 text-sm font-medium text-gray-600 border-b last:border-0 md:border-none md:first:pl-6 flex justify-between items-center md:block ${!enableMultiSelection && j === 0 ? 'md:first:pl-6' : ''}`}
+                                                    className={`block md:table-cell px-2 py-3 text-sm font-medium text-gray-600 border-b last:border-0 md:border-none md:first:pl-4 flex justify-between items-center md:block ${!enableMultiSelection && j === 0 ? 'md:first:pl-4' : ''}`}
                                                 >
                                                     <span className="md:hidden font-black text-gray-400 text-[10px] uppercase tracking-widest">{column.header}</span>
                                                     <div className="text-right md:text-left w-full md:w-auto pl-4 md:pl-0 group-hover:text-gray-900 transition-colors">

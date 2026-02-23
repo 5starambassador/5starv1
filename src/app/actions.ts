@@ -476,7 +476,7 @@ export async function registerUser(formData: any) {
                     empId: empId || null,
                     aadharNo: encrypt(aadharNo) || null,
                     // Payment Info
-                    status: transactionId ? AccountStatus.Active : AccountStatus.Pending,
+                    status: AccountStatus.Pending, // Gatekeeper: All registrations start Pending
                     paymentStatus: transactionId ? 'Success' : 'Pending',
                     transactionId: transactionId || null,
                     paymentAmount: transactionId ? 25 : 0

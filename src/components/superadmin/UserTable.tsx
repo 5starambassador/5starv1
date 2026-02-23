@@ -112,7 +112,7 @@ export function UserTable({
                             {user.referralCode || 'N/A'}
                         </span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <Badge variant={user.role === 'Staff' ? 'info' : 'outline'} className="font-black text-[9px] tracking-wider uppercase px-1.5 py-0">
                             {user.role}
                         </Badge>
@@ -135,10 +135,10 @@ export function UserTable({
                             {[...Array(5)].map((_, i) => (
                                 <Star
                                     key={i}
-                                    size={14}
+                                    size={12}
                                     fill={i < stars.starCount ? "currentColor" : "none"}
                                     className={`${i < stars.starCount ? (stars.tier === '5-Star' ? 'text-red-600' : 'text-amber-400') : 'text-gray-200'}`}
-                                    strokeWidth={i < stars.starCount ? 0 : 1.5}
+                                    strokeWidth={i < stars.starCount ? 0 : 1}
                                 />
                             ))}
                         </div>
@@ -154,8 +154,8 @@ export function UserTable({
             cell: (user: User) => (
                 <div className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-1.5">
-                        <Building size={12} className="text-gray-400" />
-                        <span className="text-xs font-bold text-gray-600 truncate max-w-[120px]">{user.assignedCampus || 'Global'}</span>
+                        <Building size={10} className="text-gray-400" />
+                        <span className="text-[11px] font-bold text-gray-600 truncate max-w-[100px]">{user.assignedCampus || 'Global'}</span>
                     </div>
                     {user.grade && (
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider pl-4">
@@ -184,13 +184,22 @@ export function UserTable({
             filterable: true,
             cell: (user: User) => {
                 const source = (user as any).registrationSource || 'System'
-                const isManual = source === 'Manual' || source === 'Admin Created'
+                const isManual = source === 'Manual' || source === 'Admin Created' || source === 'Manual_Import'
+
+                // Map the labels for a cleaner display
+                const labelMap: Record<string, string> = {
+                    'Manual_Import': 'Manual',
+                    'Admin Created': 'Admin',
+                    'Manual': 'Manual',
+                    'System': 'System'
+                }
+
                 return (
                     <Badge
                         variant={isManual ? 'outline' : 'info'}
-                        className={`font-black text-[9px] tracking-wider uppercase w-fit ${isManual ? 'border-amber-200 text-amber-700 bg-amber-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}
+                        className={`font-black text-[8px] tracking-tighter uppercase w-fit px-1 py-0 ${isManual ? 'border-amber-200 text-amber-700 bg-amber-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}
                     >
-                        {source === 'Admin Created' ? 'Admin' : (source === 'Manual' ? 'Manual' : 'System')}
+                        {labelMap[source] || source}
                     </Badge>
                 )
             }
@@ -206,7 +215,7 @@ export function UserTable({
                     <div className="flex flex-col gap-1">
                         <Badge
                             variant={isDeleted ? 'error' : (user.status === 'Active' ? 'success' : 'outline')}
-                            className="font-black text-[9px] tracking-wider uppercase w-fit"
+                            className="font-black text-[8px] tracking-tighter uppercase w-fit px-1 py-0"
                         >
                             {user.status}
                         </Badge>
@@ -221,7 +230,7 @@ export function UserTable({
             header: 'Actions',
             accessorKey: (user: User) => user.userId,
             cell: (user: User) => (
-                <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                     <button
                         onClick={() => setSelectedUserForDetail(user)}
                         className="p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all border border-gray-100 shadow-sm bg-white hover:scale-110 active:scale-95"

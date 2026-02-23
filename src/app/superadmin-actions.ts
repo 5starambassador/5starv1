@@ -816,7 +816,7 @@ export async function addUser(data: {
                 aadharNo: data.aadharNo || null,
                 empId: data.empId || null,
                 childEprNo: data.childEprNo || null,
-                status: data.status || 'Active',
+                status: data.status || 'Pending',
                 benefitStatus: data.benefitStatus || 'Pending',
                 accountNumber: data.accountNumber || null,
                 bankName: data.bankName || null,
@@ -827,7 +827,7 @@ export async function addUser(data: {
                 confirmedReferralCount: 0,
                 isFiveStarMember: data.isFiveStarMember || false,
                 // @ts-ignore - Prisma client out of sync but field exists in schema
-                registrationSource: 'Admin Created'
+                registrationSource: 'Manual_Import'
             }
         })
 
@@ -1097,7 +1097,7 @@ export async function bulkAddUsers(users: Array<{
                     referralCode,
                     childInAchariya: false,
                     assignedCampus: userData.assignedCampus,
-                    status: 'Active',
+                    status: 'Pending',
                     yearFeeBenefitPercent: 0,
                     longTermBenefitPercent: 0,
                     confirmedReferralCount: 0,
@@ -1106,7 +1106,7 @@ export async function bulkAddUsers(users: Array<{
                     empId: userData.empId || null,
                     childEprNo: userData.childEprNo || null,
                     // @ts-ignore - Prisma client out of sync but field exists in schema
-                    registrationSource: 'Manual'
+                    registrationSource: 'Manual_Import'
                 }
             })
             added++

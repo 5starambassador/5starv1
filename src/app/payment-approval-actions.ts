@@ -53,7 +53,11 @@ export async function approveManualPayment(orderId: string) {
             })
         })
 
-        // 4. Log Action
+        // 4. CRITICAL: Perform a deep-sync to ensure benefits/slabs/student-records are all in line
+        const { syncUserStats } = await import('@/app/sync-actions')
+        await syncUserStats(payment.userId)
+
+        // 5. Log Action
         await logAction(
             'PAYMENT_APPROVED',
             'finance',

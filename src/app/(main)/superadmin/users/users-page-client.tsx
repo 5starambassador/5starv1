@@ -55,7 +55,7 @@ export default function UsersPageClient({ users, campuses, currentUserRole }: Us
         email: '',
         address: '',
         aadharNo: '',
-        status: 'Active' as any,
+        status: 'Pending' as any,
         benefitStatus: 'Pending' as any,
         accountNumber: '',
         bankName: '',
@@ -126,7 +126,7 @@ export default function UsersPageClient({ users, campuses, currentUserRole }: Us
             setEditingUser(null)
             setUserForm({
                 fullName: '', mobileNumber: '', role: 'Parent', assignedCampus: '', empId: '', childEprNo: '', grade: '',
-                email: '', address: '', aadharNo: '', status: 'Active' as any, benefitStatus: 'Pending' as any,
+                email: '', address: '', aadharNo: '', status: 'Pending' as any, benefitStatus: 'Pending' as any,
                 accountNumber: '', bankName: '', ifscCode: '', bankAccountDetails: '',
                 isFiveStarMember: false, yearFeeBenefitPercent: 0, longTermBenefitPercent: 0,
                 childName: '', childInAchariya: false
@@ -237,7 +237,7 @@ export default function UsersPageClient({ users, campuses, currentUserRole }: Us
                     setEditingUser(null);
                     setUserForm({
                         fullName: '', mobileNumber: '', role: 'Parent', assignedCampus: '', empId: '', childEprNo: '', grade: '',
-                        email: '', address: '', aadharNo: '', status: 'Active' as any, benefitStatus: 'Pending' as any,
+                        email: '', address: '', aadharNo: '', status: 'Pending' as any, benefitStatus: 'Pending' as any,
                         accountNumber: '', bankName: '', ifscCode: '', bankAccountDetails: '',
                         isFiveStarMember: false, yearFeeBenefitPercent: 0, longTermBenefitPercent: 0,
                         childName: '', childInAchariya: false

@@ -228,7 +228,7 @@ export async function importAmbassadors(csvData: string) {
                 grade,
                 benefitStatus: benefitStatus as any,
                 password: password || null,
-                registrationSource: 'Manual',
+                registrationSource: 'Manual_Import',
                 academicYear,
                 aadharNo,
                 address,
@@ -329,7 +329,7 @@ export async function importStudents(csvData: string) {
                             referralCode: null, // No code = must pay registration fee to become ambassador
                             assignedCampus: campusName,
                             childEprNo: admissionNumber || null,
-                            registrationSource: 'Manual',
+                            registrationSource: 'Manual_Import',
                             academicYear: academicYearForRecord,
                             isFiveStarMember: false,
                             childInAchariya: true,

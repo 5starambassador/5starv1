@@ -21,8 +21,20 @@ export async function syncUserStats(userId: number) {
         if (!user) return { success: false, error: 'User not found' }
 
         // --- 1. ACTIVATION (Standard Compliance) ---
-        const hasPaid = user.paymentStatus === 'Success'
+        // AS SENIOR EXPERT RULE: Account Status is strictly driven by Payment Status
+        // Accepted Paid Statuses: 'Success' or 'Completed'
+        const normalizedPaymentStatus = (user.paymentStatus || '').toLowerCase()
+        const hasPaid = normalizedPaymentStatus === 'success' || normalizedPaymentStatus === 'completed'
+        const currentStatus = user.status
         let updatedUserDetails: any = {}
+
+        if (!hasPaid) {
+            // Force status to Pending if payment is not Success
+            updatedUserDetails.status = 'Pending'
+        } else if (currentStatus === 'Pending') {
+            // Auto-activate if they have paid but were still stuck in Pending
+            updatedUserDetails.status = 'Active'
+        }
 
         // --- 2. SYNC AS PARENT: Check for children studying in Achariya ---
         const studentRecords = await prisma.student.findMany({
@@ -36,14 +48,13 @@ export async function syncUserStats(userId: number) {
         if (hasKids) {
             const latestStudent = studentRecords[0]
             updatedUserDetails = {
+                ...updatedUserDetails,
                 benefitStatus: 'Active',
                 childInAchariya: true,
                 childEprNo: user.childEprNo || latestStudent.admissionNumber,
                 childName: user.childName || latestStudent.fullName,
                 grade: user.grade || latestStudent.grade,
                 studentFee: user.studentFee || latestStudent.annualFee || 60000,
-                // SELF-HEALING: Only move from Pending to Active if financial obligation is met
-                status: (user.status === 'Pending' && hasPaid) ? 'Active' : user.status
             }
         }
 
@@ -66,7 +77,6 @@ export async function syncUserStats(userId: number) {
         const slabBenefit = slab ? slab.yearFeeBenefitPercent : (defaultSlabs[lookupCount] || 0)
 
         // ELITE UPGRADE LOGIC: Determine 5-Star status (Excludes special campuses)
-        // Note: confirmedLeadsCount ALREADY excludes EXCLUDED_FROM_SLAB based on the query at line 51
         const nonSpecialConfirmedCount = confirmedLeadsCount
 
         updatedUserDetails = {
