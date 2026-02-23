@@ -248,8 +248,8 @@ export function DataTable<T>({
         <div className={`space-y-6 ${className}`}>
             <div className="flex justify-between items-end gap-4">
                 {searchKey && (
-                    <div className="relative group max-w-sm ml-1 flex-1">
-                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-red-500 transition-colors" size={20} />
+                    <div className="relative group w-full md:w-80">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-red transition-colors" size={16} />
                         <input
                             type="text"
                             placeholder={searchPlaceholder}
@@ -261,9 +261,23 @@ export function DataTable<T>({
                                 if (!manualPagination) setInternalPage(1)
                                 if (onPageChange && manualPagination) onPageChange(1)
                             }}
-                            className="w-full pl-14 pr-6 py-4 bg-white border-transparent ring-1 ring-gray-200 rounded-[20px] outline-none focus:ring-2 focus:ring-red-500 focus:shadow-lg focus:shadow-red-500/10 transition-all text-sm font-bold text-gray-700 placeholder:text-gray-400 placeholder:font-medium"
+                            className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary-red/10 focus:border-primary-red"
                             suppressHydrationWarning
                         />
+                        {searchTerm && (
+                            <button
+                                onClick={() => {
+                                    if (searchValue === undefined) setInternalSearchTerm('')
+                                    onSearchChange?.('')
+                                    if (!manualPagination) setInternalPage(1)
+                                    if (onPageChange && manualPagination) onPageChange(1)
+                                }}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 hover:bg-gray-200 rounded-full transition-all"
+                                title="Clear search"
+                            >
+                                <X size={14} />
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
@@ -495,13 +509,14 @@ export function DataTable<T>({
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-between p-4 mt-6 bg-white/50 backdrop-blur-sm rounded-[24px] border border-gray-100 gap-4">
-                <p className="text-[10px] sm:text-[11px] font-black text-gray-400 uppercase tracking-widest pl-2">
-                    SHOWING <span className="text-gray-900 ml-1">
-                        {manualPagination ? ((currentPage - 1) * pageSize + 1) : ((currentPage - 1) * pageSize + 1)}
-                        TO
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest leading-none">
+                    SHOWING <span className="text-gray-900 mx-1">
+                        {(currentPage - 1) * pageSize + 1}
+                        {' '}TO{' '}
                         {manualPagination ? Math.min(currentPage * pageSize, (rowCount || pageCount! * pageSize)) : Math.min(currentPage * pageSize, sortedData.length)}
-                    </span> OF <span className="text-gray-900 ml-1">{manualPagination ? (rowCount || 'MANY') : sortedData.length}</span>
+                    </span> OF <span className="text-gray-900 mx-1">{manualPagination ? (rowCount || 'MANY') : sortedData.length}</span> RESULTS
                 </p>
+
                 <div className="flex items-center gap-3">
                     <button
                         onClick={(e) => {

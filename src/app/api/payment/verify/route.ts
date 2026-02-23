@@ -40,17 +40,29 @@ export async function GET(req: Request) {
 
         // 2. If success, activate user and sync fields
         if (successPayment && updatedPayment.userId) {
+            const user = (updatedPayment as any).user;
+            let referralCode = user?.referralCode;
+
+            // FIX: If upgraded passive user, generate referral code
+            if (!referralCode && user) {
+                const { generateSmartReferralCode } = await import('@/lib/referral-service');
+                referralCode = await generateSmartReferralCode(user.role);
+                console.log(`[PAYMENT_VERIFY] Generating referral code for upgraded user ${user.userId}: ${referralCode}`);
+            }
+
             await prisma.user.update({
                 where: { userId: updatedPayment.userId },
                 data: {
                     status: 'Active',
                     paymentStatus: 'Success',
+                    referralCode, // Ensure it's set
                     transactionId: successPayment.cf_payment_id ? String(successPayment.cf_payment_id) : undefined,
                     paymentAmount: successPayment.payment_amount || undefined
                 }
             })
 
         }
+
 
         // Redirect directly to dashboard on success, or back to payment on failure
         if (paymentStatusFormatted === 'Success') {

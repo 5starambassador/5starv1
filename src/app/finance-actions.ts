@@ -14,31 +14,51 @@ import { getSpecialBonusRate } from '@/lib/reward-constants'
 
 // --- Registration Transactions ---
 
-export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'All', academicYear?: string) {
+export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'All', academicYear?: string, query?: string) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
 
     try {
-        // Build where clause
-        const where: any = {
-            OR: [
-                { paymentStatus: 'Completed' },
-                { paymentStatus: 'Success' },
-                { transactionId: { not: null } },
-                { settlements: { some: { amount: 25, status: 'Processed' } } }
+        // Build base search filter
+        const searchFilter: any = {}
+        if (query) {
+            searchFilter.OR = [
+                { fullName: { contains: query, mode: 'insensitive' } },
+                { mobileNumber: { contains: query, mode: 'insensitive' } },
+                { transactionId: { contains: query, mode: 'insensitive' } }
             ]
+        }
+
+        const paymentStatusFilter = [
+            { paymentStatus: 'Completed' },
+            { paymentStatus: 'Success' },
+            { transactionId: { not: null } },
+            { settlements: { some: { amount: 25, status: 'Processed' } } }
+        ]
+
+        // Build where clause
+        const baseWhere: any = {
+            AND: [
+                ...(query ? [searchFilter] : []),
+                { OR: paymentStatusFilter }
+            ]
+        }
+
+
+        // Project-wide Year Filter
+        if (academicYear && academicYear !== 'All') {
+            baseWhere.academicYear = academicYear
         }
 
         // Campus Head restriction
         if (admin.role.includes('Campus') && (admin as any).campusId) {
-            where.campusId = (admin as any).campusId
+            baseWhere.campusId = (admin as any).campusId
         }
 
-        // Query 1: Get ALL users who have a processed settlement (Crucial for Refund History)
+        // Query 1: Get ALL users who match and have processed settlements
         const syncedUsersPromise = prisma.user.findMany({
             where: {
-                ...(admin.role.includes('Campus') && (admin as any).campusId ? { campusId: (admin as any).campusId } : {}),
-                ...(academicYear && academicYear !== 'All' ? { academicYear } : {}),
+                ...baseWhere,
                 settlements: { some: { amount: 25, status: 'Processed' } }
             },
             select: {
@@ -47,6 +67,7 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
                 payments: {
                     select: { paymentMethod: true, transactionId: true, bankReference: true, paidAt: true, settlementDate: true, adminRemarks: true },
                     where: { paymentStatus: 'Success' },
+                    orderBy: { createdAt: 'desc' },
                     take: 1
                 },
                 settlements: {
@@ -55,20 +76,14 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
                 }
             },
             orderBy: { createdAt: 'desc' },
-            take: 500 // Safety limit
+            take: query ? 1000 : 10000
         })
 
-        // Query 2: Get recent successful registrations (Limit to keep payload safe)
+        // Query 2: Get matching users without processed settlements
         const recentSuccessPromise = prisma.user.findMany({
             where: {
-                ...(admin.role.includes('Campus') && (admin as any).campusId ? { campusId: (admin as any).campusId } : {}),
-                OR: [
-                    { paymentStatus: 'Completed' },
-                    { paymentStatus: 'Success' },
-                    { transactionId: { not: null } }
-                ],
-                ...(academicYear && academicYear !== 'All' ? { academicYear } : {}),
-                NOT: { settlements: { some: { amount: 25, status: 'Processed' } } } // Don't duplicate
+                ...baseWhere,
+                NOT: { settlements: { some: { amount: 25, status: 'Processed' } } }
             },
             select: {
                 userId: true, fullName: true, role: true, mobileNumber: true, paymentAmount: true,
@@ -76,6 +91,7 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
                 payments: {
                     select: { paymentMethod: true, transactionId: true, bankReference: true, paidAt: true, settlementDate: true, adminRemarks: true },
                     where: { paymentStatus: 'Success' },
+                    orderBy: { createdAt: 'desc' },
                     take: 1
                 },
                 settlements: {
@@ -84,17 +100,23 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
                 }
             },
             orderBy: { createdAt: 'desc' },
-            take: filter === 'Recent' ? 10 : 500
+            take: query ? 2000 : (filter === 'Recent' ? 10 : 10000)
         })
+
+
+
 
         const [syncedUsers, recentSuccess] = await Promise.all([syncedUsersPromise, recentSuccessPromise])
 
-        // Merge and re-sort to ensure absolute chronological order across both queries
-        const transactions = [...syncedUsers, ...recentSuccess].sort((a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        )
+        // Merge and re-sort by ACTUAL payment date (or creation date if no payment date found)
+        const transactions = [...syncedUsers, ...recentSuccess].sort((a, b) => {
+            const dateA = a.payments?.[0]?.paidAt || a.createdAt
+            const dateB = b.payments?.[0]?.paidAt || b.createdAt
+            return new Date(dateB).getTime() - new Date(dateA).getTime()
+        })
 
-        // Manual populate campusName since relation is missing in schema
+
+        // Manual populate campusName
         const campusIds = transactions.map(t => t.campusId).filter(Boolean) as number[]
         const uniqueCampusIds = Array.from(new Set(campusIds))
 
@@ -116,6 +138,7 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
         return { success: false, error: `Failed to fetch transactions: ${error?.message || 'Unknown error'}` }
     }
 }
+
 
 // AUTO-SYNC UPDATE: 'force' param allows lightweight check on load vs heavy check on button click
 export async function syncMissingPayments(force: boolean = false) {
@@ -239,20 +262,29 @@ export async function getSettlements(status: string = 'Pending', academicYear?: 
     if (!user) return { success: false, error: 'Unauthorized' }
 
     try {
+        // IMPORTANT: Pending settlements must ALWAYS be fetched (they are active work items),
+        // regardless of academic year date range. Date filtering only applies to Processed records.
         const whereClause: any = {}
         if (status !== 'All') {
             whereClause.status = status
         }
 
-        // Apply Academic Year Filter via Date Range
-        if (academicYear && academicYear !== 'All') {
+        // Apply Academic Year Filter via Date Range — only for Processed settlements
+        // Pending settlements are excluded from date-filtering so they always appear in the queue
+        if (academicYear && academicYear !== 'All' && status !== 'Pending') {
             const yearRecord = await prisma.academicYear.findUnique({
                 where: { year: academicYear }
             })
             if (yearRecord) {
-                whereClause.createdAt = {
-                    gte: yearRecord.startDate,
-                    lte: yearRecord.endDate
+                // When fetching 'All' status, use OR to keep all Pending but date-filter Processed
+                if (status === 'All') {
+                    whereClause.OR = [
+                        { status: 'Pending' }, // Always show pending
+                        {
+                            status: 'Processed',
+                            createdAt: { gte: yearRecord.startDate, lte: yearRecord.endDate }
+                        }
+                    ]
                 }
             }
         }
@@ -755,6 +787,8 @@ export async function getUsersReadyForRefund(academicYear?: string) {
             paymentAmount: { gt: 0 },
             ...(academicYear && academicYear !== 'All' ? { academicYear } : {}),
             AND: [
+                { bankName: { not: null } },
+                { bankName: { not: '' } },
                 { accountNumber: { not: null } },
                 { accountNumber: { not: '' } },
                 { ifscCode: { not: null } },

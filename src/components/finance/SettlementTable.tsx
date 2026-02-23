@@ -75,36 +75,72 @@ export function SettlementTable({ data }: SettlementTableProps) {
             return
         }
 
-        // Updated Headers (Removed Ref ID and Bank Transaction Ref)
-        const headers = ['Beneficiary Name,Mobile,Bank Name (Optional),Account Number,IFSC Code,Amount,Date,Remarks']
-        const rows = pendingPayouts.map(s => {
-            // Clean strings for CSV
-            const name = s.user.fullName.replace(/,/g, ' ')
+        const csvHeaders = [
+            'Beneficiary Name',
+            'Role',
+            'Mobile',
+            'Bank Name',
+            'Account Number',
+            'IFSC Code',
+            'Amount',
+            'Request Date',
+            'Remarks'
+        ]
 
-            // Prefer structured data
-            let bankName = (s.user.bankName || 'N/A').replace(/,/g, ' ')
-            let accNo = (s.user.accountNumber || 'N/A').replace(/,/g, ' ')
-            let ifsc = (s.user.ifscCode || 'N/A').replace(/,/g, ' ')
-            let remarks = (s.remarks || '').replace(/,/g, ';')
+        // Senior Expert CSV Formatting Helper
+        const formatCSVField = (val: string | number | null | undefined, isNumericId: boolean = false) => {
+            if (val === null || val === undefined) return '""'
+            let str = String(val).replace(/"/g, '""') // Escape quotes
 
-            // Fallback: If structured data missing but legacy string exists, try to use it or just dump it in bankName
-            if ((!s.user.bankName || !s.user.accountNumber) && s.user.bankAccountDetails && s.user.bankAccountDetails !== 'N/A') {
-                bankName = s.user.bankAccountDetails.replace(/,/g, ';')
-                accNo = ''
-                ifsc = ''
+            // Critical Prefix for Bank Exports:
+            // Excel strips leading zeros and converts long IDs to scientific notation (1.23E+14).
+            // Prefixing with a TAB (\t) is the most professional way to force Excel to treat it as TEXT
+            // without showing a visible character like a single quote.
+            if (isNumericId && str && str !== 'N/A') {
+                return `"\t${str}"`
             }
 
-            return `${name},${s.user.mobileNumber},${bankName},${accNo},${ifsc},${s.amount},${format(new Date(s.createdAt), 'yyyy-MM-dd')},${remarks}`
+            return `"${str}"`
+        }
+
+        const rows = pendingPayouts.map(s => {
+            // Use the specific fields exactly as the user updated them
+            // No more 'hasStructuredData' switch that overwrites individual updates
+            let bankName = s.user.bankName || ''
+            let accNo = s.user.accountNumber || ''
+            let ifsc = s.user.ifscCode || ''
+
+            // Fallback to legacy blob ONLY for the bankName field if it's empty
+            // Ensuring we don't blanket overwrite any partial updates the user made to individual fields
+            if (!bankName && s.user.bankAccountDetails && s.user.bankAccountDetails !== 'N/A') {
+                bankName = s.user.bankAccountDetails
+            }
+
+            return [
+                formatCSVField(s.user.fullName),
+                formatCSVField(s.user.role),
+                formatCSVField(s.user.mobileNumber, true), // Mobile as text
+                formatCSVField(bankName),
+                formatCSVField(accNo, true),     // Account as text
+                formatCSVField(ifsc),
+                formatCSVField(s.amount),
+                formatCSVField(format(new Date(s.createdAt), 'dd-MM-yyyy')), // standard format for Indian banks
+                formatCSVField(s.remarks || 'Payout Batch')
+            ].join(',')
         })
 
-        const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n")
-        const encodedUri = encodeURI(csvContent)
+        // CSV Construction with \uFEFF BOM (Byte Order Mark) for Excel UTF-8 identification
+        const csvContent = "\uFEFF" + csvHeaders.join(',') + "\n" + rows.join("\n")
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
         const link = document.createElement("a")
-        link.setAttribute("href", encodedUri)
+        link.setAttribute("href", url)
         link.setAttribute("download", `Payout_Batch_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`)
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
+        URL.revokeObjectURL(url)
     }
 
     const handleBulkExportSelected = () => {
@@ -140,16 +176,19 @@ export function SettlementTable({ data }: SettlementTableProps) {
     }
 
     const handleDownloadTemplate = () => {
-        const headers = ['Beneficiary Name,Mobile,Bank Name (Optional),Account Number,IFSC Code,Amount,Date,Remarks']
-        const sampleRow = 'John Doe,9876543210,Bank Name,123456789,ABCD0001234,25,2026-01-19,Registration Fee Refund'
-        const csvContent = "data:text/csv;charset=utf-8," + [headers, sampleRow].join("\n")
-        const encodedUri = encodeURI(csvContent)
+        const headers = ['Beneficiary Name', 'Role', 'Mobile', 'Bank Name', 'Account Number', 'IFSC Code', 'Amount', 'Date', 'Remarks']
+        const sampleRow = ['John Doe', 'Staff', "'9876543210", 'Bank Name', "'123456789", 'ABCD0001234', '25', '2026-01-19', 'Registration Fee Refund']
+        const csvContent = "\uFEFF" + headers.join(',') + "\n" + sampleRow.join(',')
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
         const link = document.createElement("a")
-        link.setAttribute("href", encodedUri)
+        link.setAttribute("href", url)
         link.setAttribute("download", "Payout_Upload_Template.csv")
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
+        URL.revokeObjectURL(url)
     }
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -185,8 +224,17 @@ export function SettlementTable({ data }: SettlementTableProps) {
 
                 const cleanVal = (val: string | undefined) => {
                     if (!val) return ""
+                    // Remove quotes and whitespace
                     let cleaned = val.replace(/^"|"$/g, '').trim()
-                    // Handle Scientific Notation in Account Numbers (Excel issue)
+
+                    // Senior Expert Handling: Strip invisible prefixes (Tab or Quote)
+                    // We add a TAB (\t) or quote (') in export to stop scientific notation.
+                    // We must strip it here so the ID (mobile/account) is clean.
+                    if (cleaned.startsWith("'") || cleaned.startsWith("\t")) {
+                        cleaned = cleaned.substring(1).trim()
+                    }
+
+                    // Handle Scientific Notation in Account Numbers (Excel fallback issue)
                     if (cleaned.toLowerCase().includes('e+')) {
                         const num = Number(cleaned)
                         if (!isNaN(num)) return num.toLocaleString('fullwide', { useGrouping: false })
@@ -199,9 +247,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
                     const cols = parseCSVLine(rows[i])
                     if (cols.length < 2) continue
 
-                    const mobile = cleanVal(cols[1])
-                    if (!mobile) continue
-
+                    let mobile = ''
                     let bankName = '', accountNumber = '', ifscCode = '', utr = '', dateStr = '', amountStr = ''
 
                     const getBestUTR = (candidates: string[]) => {
@@ -215,31 +261,45 @@ export function SettlementTable({ data }: SettlementTableProps) {
                         // 2. Fallback to anything non-empty and non-remark
                         for (const v of candidates) {
                             if (!v) continue
-                            if (!skipTerms.some(t => v.toLowerCase().includes(t))) return v
+                            const lower = v.toLowerCase()
+                            if (!skipTerms.some(t => lower.includes(t))) return v
                         }
-                        // 3. Absolute fallback to the first possible value
-                        return candidates[0] || candidates[1] || candidates[candidates.length - 1] || ""
+                        return candidates[0] || ''
                     }
 
                     if (cols.length >= 10) {
+                        mobile = cleanVal(cols[2]) // Mobile is at index 2 in the new format with Role
+                        bankName = cleanVal(cols[4]) // Shifted due to Role col if exists
+                        accountNumber = cleanVal(cols[5])
+                        ifscCode = cleanVal(cols[6])
+                        amountStr = cleanVal(cols[7])
+                        dateStr = cleanVal(cols[8])
+                        utr = getBestUTR([cleanVal(cols[9]), cleanVal(cols[10]), cleanVal(cols[cols.length - 1])])
+                    } else if (cols.length === 9) {
+                        // New Standard Export Order: 0:Name, 1:Role, 2:Mobile, 3:Bank, 4:Acc, 5:IFSC, 6:Amount, 7:Date, 8:Remarks
+                        mobile = cleanVal(cols[2])
                         bankName = cleanVal(cols[3])
                         accountNumber = cleanVal(cols[4])
                         ifscCode = cleanVal(cols[5])
                         amountStr = cleanVal(cols[6])
                         dateStr = cleanVal(cols[7])
-                        utr = getBestUTR([cleanVal(cols[8]), cleanVal(cols[9]), cleanVal(cols[cols.length - 1])])
-                    } else if (cols.length >= 8) {
-                        // Standard Export Order: 0:Name, 1:Mobile, 2:Bank, 3:Acc, 4:IFSC, 5:Amount, 6:Date, 7:Remarks
+                        utr = getBestUTR([cleanVal(cols[8])])
+                    } else if (cols.length === 8) {
+                        // Legacy Export Order: 0:Name, 1:Mobile, 2:Bank, 3:Acc, 4:IFSC, 5:Amount, 6:Date, 7:Remarks
+                        mobile = cleanVal(cols[1])
                         bankName = cleanVal(cols[2])
                         accountNumber = cleanVal(cols[3])
                         ifscCode = cleanVal(cols[4])
                         amountStr = cleanVal(cols[5])
                         dateStr = cleanVal(cols[6])
-                        // Use Remarks as the primary UTR candidate if no other col
                         utr = getBestUTR([cleanVal(cols[7])])
                     } else {
+                        // Fallback for older or simpler formats, assume mobile is at index 1
+                        mobile = cleanVal(cols[1])
                         utr = cleanVal(cols[cols.length - 1])
                     }
+
+                    if (!mobile) continue
 
                     if (!utr || utr.length < 3) {
                         const prefix = syncMode === 'mobile' ? 'Bulk-Synced' : 'Bulk'

@@ -66,9 +66,12 @@ export function RefundHistoryTable({ data }: RefundHistoryTableProps) {
                 const settlement = row.settlements?.find((s: any) => s.amount === 25 && s.status === 'Processed')
 
                 const remarkMatch = details?.adminRemarks?.match(/on ([\d-T:.Z]+)/)
-                const refundDate = settlement?.payoutDate
+                const rawDate = settlement?.payoutDate
                     ? new Date(settlement.payoutDate)
                     : (remarkMatch ? new Date(remarkMatch[1]) : null)
+
+                // Safety: Only show dates that are in the past or today
+                const refundDate = rawDate && rawDate <= new Date() ? rawDate : null
 
                 return (
                     <div className="flex flex-col gap-1">

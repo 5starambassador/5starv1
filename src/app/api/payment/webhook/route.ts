@@ -91,11 +91,24 @@ export async function POST(req: Request) {
 
             // 5. Activate User
             if (updatedPayment.userId) {
+                const user = await prisma.user.findUnique({
+                    where: { userId: updatedPayment.userId },
+                    select: { role: true, referralCode: true }
+                });
+
+                let referralCode = user?.referralCode;
+                if (!referralCode && user) {
+                    const { generateSmartReferralCode } = await import('@/lib/referral-service');
+                    referralCode = await generateSmartReferralCode(user.role);
+                    console.log(`[WEBHOOK] Generating referral code for upgraded user ${updatedPayment.userId}: ${referralCode}`);
+                }
+
                 await prisma.user.update({
                     where: { userId: updatedPayment.userId },
                     data: {
                         status: 'Active',
                         paymentStatus: 'Success',
+                        referralCode, // Ensure it's set
                         transactionId: payment.cf_payment_id ? String(payment.cf_payment_id) : undefined
                     }
                 });
@@ -103,6 +116,7 @@ export async function POST(req: Request) {
                 // Centralized Sync: Creates Student record and confirms referrals
                 await syncUserStats(updatedPayment.userId)
             }
+
 
             await prisma.activityLog.create({
                 data: {

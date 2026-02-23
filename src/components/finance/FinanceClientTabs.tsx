@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { SettlementTable } from '@/components/finance/SettlementTable'
 import { RegistrationTable } from '@/components/finance/RegistrationTable'
@@ -21,6 +21,7 @@ interface FinanceClientTabsProps {
     liabilities: any[]
     availableYears?: string[]
     selectedYear?: string
+    search?: string
 }
 
 export function FinanceClientTabs({
@@ -29,17 +30,51 @@ export function FinanceClientTabs({
     eligibleRefunds,
     liabilities,
     availableYears = [],
-    selectedYear = '2026-2027'
+    selectedYear = '2026-2027',
+    search = ''
 }: FinanceClientTabsProps) {
+
     const [activeTab, setActiveTab] = useState<'payouts' | 'payout_history' | 'waiver_history' | 'registrations' | 'ready_refund' | 'refund_history' | 'liabilities_a' | 'liabilities_b'>('payouts')
+    const [displaySearch, setDisplaySearch] = useState(search)
+    const isTypingRef = useRef(false)
     const router = useRouter()
     const pathname = usePathname()
+
+    useEffect(() => {
+        // Only update local state from props if the user is NOT actively typing
+        // This prevents the search box from jumping back to a previous partial value
+        // while the server is still catching up.
+        if (!isTypingRef.current) {
+            setDisplaySearch(search)
+        }
+    }, [search])
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (displaySearch !== search) {
+                const params = new URLSearchParams(window.location.search)
+                if (displaySearch) params.set('search', displaySearch)
+                else params.delete('search')
+                router.push(`${pathname}?${params.toString()}`, { scroll: false })
+            }
+            isTypingRef.current = false
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [displaySearch, search, pathname, router])
 
     const handleYearChange = (year: string) => {
         const params = new URLSearchParams(window.location.search)
         params.set('year', year)
         router.push(`${pathname}?${params.toString()}`)
     }
+
+    const handleSearchChange = (val: string) => {
+        isTypingRef.current = true
+        setDisplaySearch(val)
+    }
+
+
+
     const [isSyncing, setIsSyncing] = useState(false)
     const [isAutoSyncing, setIsAutoSyncing] = useState(false)
 
@@ -288,7 +323,12 @@ export function FinanceClientTabs({
                 ) : activeTab === 'payout_history' ? (
                     <PayoutHistoryTable data={payoutHistoryData} />
                 ) : activeTab === 'registrations' ? (
-                    <RegistrationTable data={registrations || []} />
+                    <RegistrationTable
+                        data={registrations || []}
+                        search={displaySearch}
+                        onSearchChange={handleSearchChange}
+                    />
+
                 ) : activeTab === 'ready_refund' ? (
                     <RefundReadyTable data={eligibleRefunds} />
                 ) : activeTab === 'refund_history' ? (

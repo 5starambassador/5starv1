@@ -10,12 +10,12 @@ import { FinanceClientTabs } from '@/components/finance/FinanceClientTabs'
 export default async function FinancePage({
     searchParams
 }: {
-    searchParams: Promise<{ year?: string }>
+    searchParams: Promise<{ year?: string; search?: string }>
 }) {
     const user = await getCurrentUser()
     if (!user) redirect('/')
 
-    const { year } = await searchParams
+    const { year, search } = await searchParams
     let selectedYear = year
 
     if (!selectedYear) {
@@ -34,13 +34,14 @@ export default async function FinancePage({
     const [settlementsRes, statsRes, registrationsRes, readyForRefundRes, liabilitiesRes, academicYears] = await Promise.all([
         getSettlements('All', selectedYear),
         getFinanceStats(selectedYear),
-        getRegistrationTransactions('All', selectedYear),
+        getRegistrationTransactions('All', selectedYear, search),
         getUsersReadyForRefund(selectedYear),
         getAccruedPayoutLiabilities(selectedYear),
         prisma.academicYear.findMany({
             orderBy: { year: 'desc' }
         })
     ])
+
 
     const settlements = (settlementsRes.success && settlementsRes.data) ? settlementsRes.data : []
     const registrations = (registrationsRes.success && registrationsRes.data) ? registrationsRes.data : []
@@ -127,7 +128,9 @@ export default async function FinancePage({
                 liabilities={liabilities}
                 availableYears={years}
                 selectedYear={selectedYear}
+                search={search}
             />
+
         </div>
     )
 }

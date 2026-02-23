@@ -44,10 +44,13 @@ interface Registration {
 
 interface RegistrationTableProps {
     data: Registration[]
+    search?: string
+    onSearchChange?: (val: string) => void
 }
 
-export function RegistrationTable({ data }: RegistrationTableProps) {
+export function RegistrationTable({ data, search = '', onSearchChange }: RegistrationTableProps) {
     const [filter, setFilter] = useState('All')
+
     const [showExportModal, setShowExportModal] = useState(false)
 
     // Helper to get payment details
@@ -298,9 +301,12 @@ export function RegistrationTable({ data }: RegistrationTableProps) {
                     data={data}
                     columns={columns as any}
                     searchKey={["fullName", "mobileNumber", "transactionId"]}
-                    searchPlaceholder="Search by name, mobile or UTR..."
+                    searchPlaceholder="Search by name, mobile or UTR (Server-side)..."
                     pageSize={10}
+                    searchValue={search}
+                    onSearchChange={onSearchChange}
                 />
+
             </div>
             <ExportDateRangeModal
                 isOpen={showExportModal}

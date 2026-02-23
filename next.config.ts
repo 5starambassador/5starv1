@@ -9,9 +9,10 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      bodySizeLimit: '2mb',
+      bodySizeLimit: '10mb',
       allowedOrigins: ['localhost:3000', 'localhost:3001', process.env.VERCEL_URL || '5starv1.vercel.app'],
     },
+
   },
   env: {
     // Expose APP URL to client preference: process.env > calculated fallback
