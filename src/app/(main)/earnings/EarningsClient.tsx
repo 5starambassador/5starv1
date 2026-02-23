@@ -334,25 +334,13 @@ export function EarningsClient({ stats, user, activeYears, selectedYear }: Earni
                                 </div>
                             )}
 
-                            {/* Registration Fee Refund — shown separately, clearly NOT earnings */}
-                            {stats.refundAmount > 0 && (
-                                <div className="mt-5 pt-4 border-t border-white/5">
-                                    <div className="flex items-center justify-between p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                                        <div>
-                                            <p className="text-[9px] font-black text-purple-300/70 uppercase tracking-widest mb-0.5">Reg. Fee Refund</p>
-                                            <p className="text-[8px] text-white/20 font-medium">Not counted in earnings</p>
-                                        </div>
-                                        <span className="text-sm font-black text-purple-300 tabular-nums">₹{stats.refundAmount.toLocaleString('en-IN')}</span>
-                                    </div>
-                                </div>
-                            )}
                         </GlassCard>
                     </div>
                 </PageItem>
 
                 {/* ── Earning Components Breakdown ───────────────────── */}
-                <PageItem className="mb-10">
-                    <h3 className="text-[9px] font-black text-white/25 uppercase tracking-[0.3em] mb-5 flex items-center gap-3">
+                <PageItem className="mb-14">
+                    <h3 className="text-[9px] font-black text-white/25 uppercase tracking-[0.3em] mb-7 flex items-center gap-3">
                         <PieChart size={13} className="text-blue-400/50" />
                         Earning Breakdown
                     </h3>

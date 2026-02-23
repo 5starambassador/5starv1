@@ -232,12 +232,12 @@ export async function runCampaign(id: number) {
         const existingJob = await (prisma as any).job.findFirst({
             where: {
                 type: 'CAMPAIGN_BATCH',
-                status: 'PENDING',
+                status: { in: ['PENDING', 'PROCESSING'] },
                 payload: { path: ['campaignId'], equals: id }
             }
         })
 
-        if (existingJob || campaign.logs.length > 0) {
+        if (existingJob || (campaign.logs.length > 0 && campaign.logs[0].status === 'PROCESSING')) {
             return { success: false, error: 'This campaign is already scheduled or in progress.' }
         }
 
@@ -258,7 +258,12 @@ export async function runCampaign(id: number) {
 
         // 5. Trigger Worker (Fire-and-forget)
         try {
-            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+            let baseUrl = process.env.NEXT_PUBLIC_APP_URL
+            if (!baseUrl && process.env.NODE_ENV === 'development') {
+                baseUrl = 'http://localhost:3001' // Default to our dev port
+            } else if (!baseUrl) {
+                baseUrl = 'http://localhost:3000'
+            }
             fetch(`${baseUrl}/api/cron/process-jobs`, { method: 'GET', cache: 'no-store' }).catch(err => console.error('Failed to trigger worker', err))
         } catch (e) {
             // Ignore trigger errors
@@ -271,6 +276,41 @@ export async function runCampaign(id: number) {
     } catch (error) {
         console.error('runCampaign error:', error)
         return { success: false, error: 'Failed to schedule campaign' }
+    }
+}
+
+export async function resetStuckCampaign(id: number) {
+    try {
+        await checkCampaignAccess()
+
+        // 1. Mark Log as Failed
+        await prisma.campaignLog.updateMany({
+            where: { campaignId: id, status: 'PROCESSING' },
+            data: { status: 'FAILED', errorLog: 'Manually reset by administrator' } as any
+        })
+
+        // 2. Cleanup stuck jobs for this campaign
+        await (prisma as any).job.updateMany({
+            where: {
+                type: 'CAMPAIGN_BATCH',
+                status: { in: ['PENDING', 'PROCESSING'] },
+                payload: { path: ['campaignId'], equals: id }
+            },
+            data: { status: 'FAILED', error: 'Manually reset by administrator' }
+        })
+
+        // 3. Mark Campaign back to ACTIVE (so it can be re-run) or DRAFT
+        await prisma.campaign.update({
+            where: { id },
+            data: { status: 'ACTIVE' }
+        })
+
+        revalidatePath('/superadmin')
+        return { success: true, message: 'Campaign state reset successfully' }
+
+    } catch (error: any) {
+        console.error('resetStuckCampaign error:', error)
+        return { success: false, error: error.message || 'Failed to reset campaign' }
     }
 }
 

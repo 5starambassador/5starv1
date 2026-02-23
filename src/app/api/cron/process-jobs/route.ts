@@ -94,10 +94,25 @@ export async function GET(request: Request) {
         }
 
         // 3. Recursive Call?
-        // If there are more jobs, we could trigger ourselves again, but let's keep it simple.
-        // The cron/scheduler should call this endpoint periodically.
+        // If there are more jobs, trigger ourselves again to process sequentially
+        const nextJob = await prisma.job.findFirst({
+            where: { status: 'PENDING' },
+            select: { id: true }
+        })
 
-        return NextResponse.json({ success: true, jobId: job.id })
+        if (nextJob) {
+            let baseUrl = process.env.NEXT_PUBLIC_APP_URL
+            if (!baseUrl && process.env.NODE_ENV === 'development') {
+                baseUrl = 'http://localhost:3001' // Default to our dev port
+            } else if (!baseUrl) {
+                baseUrl = 'http://localhost:3000'
+            }
+
+            // Trigger next run (Fire-and-forget)
+            fetch(`${baseUrl}/api/cron/process-jobs`, { method: 'GET', cache: 'no-store' }).catch(err => console.error('[JobProcessor] Failed to trigger next job', err))
+        }
+
+        return NextResponse.json({ success: true, jobId: job.id, nextPending: !!nextJob })
 
     } catch (error: any) {
         console.error('[JobProcessor] Error:', error)

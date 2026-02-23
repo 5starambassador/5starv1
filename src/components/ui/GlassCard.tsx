@@ -25,7 +25,7 @@ export function GlassCard({ children, className = '', onClick }: GlassCardProps)
             <div className="absolute top-0 left-0 w-full h-[1.5px] bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-20" />
 
             {/* Content Wrapper */}
-            <div className="relative z-10 w-full h-full">
+            <div className="relative z-10 w-full">
                 {children}
             </div>
 

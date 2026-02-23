@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getAudienceCount, exportCampaignData, runCampaign } from '@/app/campaign-actions'
+import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getAudienceCount, exportCampaignData, runCampaign, resetStuckCampaign } from '@/app/campaign-actions'
 import { dispatchCampaignBatch } from '@/app/campaign-dispatcher'
 import { getCampuses } from '@/app/campus-actions'
 import { toast } from 'sonner'
@@ -24,7 +24,7 @@ export function CampaignManager() {
     // Confirmation State
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean
-        type: 'run' | 'delete' | null
+        type: 'run' | 'delete' | 'reset' | null
         data?: any
     }>({
         isOpen: false,
@@ -177,6 +177,27 @@ export function CampaignManager() {
         }
     }
 
+    const handleReset = (id: number, name: string) => {
+        setConfirmState({ isOpen: true, type: 'reset', data: { id, name } })
+    }
+
+    const executeReset = async () => {
+        const { id, name } = confirmState.data
+        if (!id || isProcessing) return
+
+        setIsProcessing(true)
+        const res = await resetStuckCampaign(id)
+        setIsProcessing(false)
+        setConfirmState({ isOpen: false, type: null })
+
+        if (res.success) {
+            toast.success(`Campaign '${name}' reset successfully`)
+            loadCampaigns()
+        } else {
+            toast.error(res.error || 'Failed to reset')
+        }
+    }
+
     const openEdit = (c: any) => {
         setEditingCampaign(c)
         setForm({
@@ -313,10 +334,13 @@ export function CampaignManager() {
                                             <Send size={24} />
                                         </div>
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
-                                            <button onClick={() => openPreview(c)} className="p-2.5 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-indigo-600 hover:shadow-sm transition-all"><Eye size={16} /></button>
+                                            <button onClick={() => openPreview(c)} className="p-2.5 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-indigo-600 hover:shadow-sm transition-all" title="Preview Sandbox"><Eye size={16} /></button>
                                             <button onClick={() => handleExport(c.id)} className="p-2.5 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-blue-600 hover:shadow-sm transition-all" title="Download Report"><Download size={16} /></button>
-                                            <button onClick={() => openEdit(c)} className="p-2.5 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-indigo-600 hover:shadow-sm transition-all"><Edit size={16} /></button>
-                                            <button onClick={() => handleDelete(c.id)} className="p-2.5 bg-rose-50 border border-rose-100 rounded-xl text-rose-400 hover:bg-rose-600 hover:text-white hover:shadow-sm transition-all"><Trash2 size={16} /></button>
+                                            <button onClick={() => openEdit(c)} className="p-2.5 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-indigo-600 hover:shadow-sm transition-all" title="Edit Logic"><Edit size={16} /></button>
+                                            {(c.status === 'SCHEDULED' || c.logs?.[0]?.status === 'PROCESSING') && (
+                                                <button onClick={() => handleReset(c.id, c.name)} className="p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-amber-500 hover:bg-amber-100 hover:shadow-sm transition-all" title="Reset Stuck State"><AlertTriangle size={16} /></button>
+                                            )}
+                                            <button onClick={() => handleDelete(c.id)} className="p-2.5 bg-rose-50 border border-rose-100 rounded-xl text-rose-400 hover:bg-rose-600 hover:text-white hover:shadow-sm transition-all" title="Purge Artifact"><Trash2 size={16} /></button>
                                         </div>
                                     </div>
 
@@ -344,6 +368,22 @@ export function CampaignManager() {
                                         {c.logs && c.logs.length > 0 ? (
                                             c.logs.slice(0, 1).map((log: any, idx: number) => (
                                                 <div key={idx} className="space-y-3">
+                                                    {log.status === 'PROCESSING' && (
+                                                        <div className="space-y-1.5">
+                                                            <div className="flex justify-between items-center text-[9px] font-black text-indigo-500 uppercase tracking-widest">
+                                                                <span>Live Dispatching...</span>
+                                                                <span>{log.recipientCount > 0 ? Math.min(100, Math.round((log.sentCount / log.recipientCount) * 100)) : 0}%</span>
+                                                                <span>{log.sentCount} / {log.recipientCount}</span>
+                                                            </div>
+                                                            <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+                                                                <motion.div
+                                                                    initial={{ width: 0 }}
+                                                                    animate={{ width: `${log.recipientCount > 0 ? (log.sentCount / log.recipientCount) * 100 : 0}%` }}
+                                                                    className="h-full bg-indigo-500 rounded-full"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                     <div className="flex flex-col gap-3">
                                                         <div className="flex items-end justify-between">
                                                             <div className="flex-1">
@@ -752,11 +792,15 @@ export function CampaignManager() {
 
                     <ConfirmDialog
                         isOpen={confirmState.isOpen}
-                        title={confirmState.type === 'run' ? 'Fire Workflow Dispatch?' : 'Purge Campaign Artifact?'}
+                        title={confirmState.type === 'run' ? 'Fire Workflow Dispatch?' : confirmState.type === 'reset' ? 'Emergency Reset Workflow?' : 'Purge Campaign Artifact?'}
                         description={
                             confirmState.type === 'run' ? (
                                 <p className="font-medium text-gray-500 italic">
                                     Final warning: Initiating dispatch for <strong className="text-gray-900 underline decoration-indigo-200">{confirmState.data?.name}</strong> will push to <strong className="text-indigo-600">{(campaigns.find(c => c.id === confirmState.data?.id)?.channels || ['EMAIL']).join(', ')}</strong> instantly.
+                                </p>
+                            ) : confirmState.type === 'reset' ? (
+                                <p className="font-medium text-gray-500 italic">
+                                    This will forcefully terminate the current dispatch process for <strong className="text-gray-900 underline decoration-amber-200">{confirmState.data?.name}</strong>. Use only if the campaign is stuck in "Dispatching" for more than 10 minutes.
                                 </p>
                             ) : (
                                 <p className="font-medium text-gray-500 italic">
@@ -765,10 +809,11 @@ export function CampaignManager() {
                                 </p>
                             )
                         }
-                        confirmText={confirmState.type === 'run' ? 'Commence Dispatch' : 'Confirm Purge'}
-                        variant={confirmState.type === 'run' ? 'info' : 'danger'}
+                        confirmText={confirmState.type === 'run' ? 'Commence Dispatch' : confirmState.type === 'reset' ? 'Force Reset State' : 'Confirm Purge'}
+                        variant={confirmState.type === 'run' ? 'info' : confirmState.type === 'reset' ? 'warning' : 'danger'}
                         onConfirm={() => {
                             if (confirmState.type === 'run') executeRun()
+                            else if (confirmState.type === 'reset') executeReset()
                             else executeDelete()
                         }}
                         onCancel={() => setConfirmState({ isOpen: false, type: null })}

@@ -48,8 +48,9 @@ export async function dispatchCampaignBatch(campaignId: number) {
     }
 
     // Initialize Log
+    let logId: number | null = null
     try {
-        await prisma.campaignLog.create({
+        const log = await prisma.campaignLog.create({
             data: {
                 campaignId: campaignId,
                 status: 'PROCESSING',
@@ -59,6 +60,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 runAt: new Date()
             } as any
         })
+        logId = log.id
     } catch (e) {
         console.error('Failed to create initial log', e)
     }
@@ -281,6 +283,22 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 }
             }
 
+            // Incremental Log Update for Progress Tracking
+            if (logId) {
+                await prisma.campaignLog.update({
+                    where: { id: logId },
+                    data: {
+                        recipientCount: stats.total,
+                        sentCount: stats.emailSent + stats.pushSent + stats.inAppSent + stats.whatsappSent,
+                        failedCount: stats.emailFailed + stats.pushFailed + stats.whatsappFailed,
+                        emailSent: stats.emailSent,
+                        pushSent: stats.pushSent,
+                        inAppSent: stats.inAppSent,
+                        whatsappSent: stats.whatsappSent
+                    } as any
+                }).catch(e => console.error('Failed to update incremental log', e))
+            }
+
             // Move to next batch
             skip += BATCH_SIZE
 
@@ -289,19 +307,21 @@ export async function dispatchCampaignBatch(campaignId: number) {
         }
 
         // Final Log Update
-        await prisma.campaignLog.create({
-            data: {
-                campaignId: campaignId,
-                status: 'COMPLETED',
-                recipientCount: stats.total,
-                sentCount: stats.emailSent + stats.pushSent + stats.inAppSent + stats.whatsappSent,
-                failedCount: stats.emailFailed + stats.pushFailed + stats.whatsappFailed,
-                emailSent: stats.emailSent, emailFailed: stats.emailFailed,
-                pushSent: stats.pushSent, pushFailed: stats.pushFailed,
-                inAppSent: stats.inAppSent,
-                whatsappSent: stats.whatsappSent, whatsappFailed: stats.whatsappFailed
-            } as any
-        })
+        if (logId) {
+            await prisma.campaignLog.update({
+                where: { id: logId },
+                data: {
+                    status: 'COMPLETED',
+                    recipientCount: stats.total,
+                    sentCount: stats.emailSent + stats.pushSent + stats.inAppSent + stats.whatsappSent,
+                    failedCount: stats.emailFailed + stats.pushFailed + stats.whatsappFailed,
+                    emailSent: stats.emailSent, emailFailed: stats.emailFailed,
+                    pushSent: stats.pushSent, pushFailed: stats.pushFailed,
+                    inAppSent: stats.inAppSent,
+                    whatsappSent: stats.whatsappSent, whatsappFailed: stats.whatsappFailed
+                } as any
+            })
+        }
 
         // Update Campaign Status
         await prisma.campaign.update({
@@ -317,14 +337,16 @@ export async function dispatchCampaignBatch(campaignId: number) {
         console.error('Batch Dispatch Error:', error)
 
         // Log Failure
-        await prisma.campaignLog.create({
-            data: {
-                campaignId: campaignId,
-                status: 'FAILED',
-                recipientCount: stats.total,
-                errorLog: JSON.stringify({ error: error.message })
-            } as any
-        })
+        if (logId) {
+            await prisma.campaignLog.update({
+                where: { id: logId },
+                data: {
+                    status: 'FAILED',
+                    recipientCount: stats.total,
+                    errorLog: JSON.stringify({ error: error.message })
+                } as any
+            })
+        }
 
         return { success: false, error: 'Campaign dispatch failed mid-process' }
     }

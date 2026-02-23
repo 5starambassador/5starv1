@@ -72,6 +72,7 @@ export const RegistrationBasic = ({ formData, setFormData, onNext, onBack }: Reg
                         autoCapitalize="none"
                         autoCorrect="off"
                         spellCheck={false}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 h-12 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-sm font-medium"
                         placeholder="name@example.com"
                         value={(formData.email || '').trim()}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value.toLowerCase().trim() })}
@@ -86,6 +87,7 @@ export const RegistrationBasic = ({ formData, setFormData, onNext, onBack }: Reg
                         <label className="text-blue-200/70 text-[10px] font-bold uppercase tracking-[0.2em] mb-2 block ml-1">Create Password</label>
                         <div className="relative">
                             <input
+                                type={showRegisterPassword ? "text" : "password"}
                                 autoCapitalize="none"
                                 autoCorrect="off"
                                 spellCheck={false}
@@ -116,15 +118,25 @@ export const RegistrationBasic = ({ formData, setFormData, onNext, onBack }: Reg
                     </div>
                     <div>
                         <label className="text-blue-200/70 text-[10px] font-bold uppercase tracking-[0.2em] mb-2 block ml-1">Confirm</label>
-                        <input
-                            autoCapitalize="none"
-                            autoCorrect="off"
-                            spellCheck={false}
-                            className={`w-full bg-white/5 border border-white/10 rounded-xl px-4 h-12 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-sm font-medium ${formData.confirmPassword && formData.password === formData.confirmPassword ? 'ring-emerald-500/50 focus:ring-emerald-500/50' : ''}`}
-                            value={formData.confirmPassword}
-                            placeholder='Retype password'
-                            onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value.trim() })}
-                        />
+                        <div className="relative">
+                            <input
+                                type={showConfirmPassword ? "text" : "password"}
+                                autoCapitalize="none"
+                                autoCorrect="off"
+                                spellCheck={false}
+                                className={`w-full bg-white/5 border border-white/10 rounded-xl pl-4 pr-10 h-12 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-sm font-medium ${formData.confirmPassword && formData.password === formData.confirmPassword ? 'ring-emerald-500/50 focus:ring-emerald-500/50' : ''}`}
+                                value={formData.confirmPassword}
+                                placeholder='Retype password'
+                                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value.trim() })}
+                            />
+                            <button
+                                type="button"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-amber-400 transition-colors"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            >
+                                {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                        </div>
                         {formData.confirmPassword && formData.password !== formData.confirmPassword && (
                             <p className="text-[10px] text-rose-400 mt-1 font-bold ml-1 animate-in slide-in-from-top-1 fade-in">
                                 Passwords do not match
