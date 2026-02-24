@@ -210,6 +210,7 @@ export function ReferralTable({
                         <option value="New">New</option>
                         <option value="Follow-up">Follow-up</option>
                         <option value="Confirmed">Confirmed</option>
+                        <option value="Admitted">Admitted</option>
                     </select>
                 </div>
 
@@ -300,14 +301,14 @@ export function ReferralTable({
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex items-center justify-center gap-2">
-                                                <div className={`w-2 h-2 rounded-full ${r.leadStatus === 'Confirmed' ? 'bg-green-500' : r.leadStatus === 'Follow-up' ? 'bg-amber-500' : 'bg-gray-400'}`}></div>
-                                                <span className={`text-sm font-bold ${r.leadStatus === 'Confirmed' ? 'text-green-700' : r.leadStatus === 'Follow-up' ? 'text-amber-700' : 'text-gray-600'}`}>
+                                                <div className={`w-2 h-2 rounded-full ${r.leadStatus === 'Admitted' ? 'bg-indigo-500' : r.leadStatus === 'Confirmed' ? 'bg-green-500' : r.leadStatus === 'Follow-up' ? 'bg-amber-500' : 'bg-gray-400'}`}></div>
+                                                <span className={`text-sm font-bold ${r.leadStatus === 'Admitted' ? 'text-indigo-700' : r.leadStatus === 'Confirmed' ? 'text-green-700' : r.leadStatus === 'Follow-up' ? 'text-amber-700' : 'text-gray-600'}`}>
                                                     {r.leadStatus}
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            {r.leadStatus !== 'Confirmed' ? (
+                                            {r.leadStatus !== 'Confirmed' && r.leadStatus !== 'Admitted' ? (
                                                 !isReadOnly && (
                                                     <button
                                                         onClick={() => handleConfirmClick(r.leadId)}

@@ -172,6 +172,7 @@ export interface SystemAnalytics {
     avgLeadsPerAmbassador: number
     totalEstimatedRevenue: number
     conversionFunnel: { stage: string; count: number }[]
+    missingStudentCount?: number
 }
 
 export interface AdminAnalytics {
@@ -203,6 +204,8 @@ export interface AdminAnalytics {
         count: number
         totalValue?: number
     }[]
+    totalStudents?: number
+    missingStudentCount?: number
 }
 
 export interface CampusPerformance {

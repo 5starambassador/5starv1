@@ -321,24 +321,25 @@ export function FinanceClientTabs({
                 {activeTab === 'payouts' ? (
                     <SettlementTable data={settlements.filter(s => s.status !== 'Processed')} />
                 ) : activeTab === 'payout_history' ? (
-                    <PayoutHistoryTable data={payoutHistoryData} />
+                    <PayoutHistoryTable data={payoutHistoryData} academicYear={selectedYear} />
                 ) : activeTab === 'registrations' ? (
                     <RegistrationTable
                         data={registrations || []}
                         search={displaySearch}
                         onSearchChange={handleSearchChange}
+                        academicYear={selectedYear}
                     />
 
                 ) : activeTab === 'ready_refund' ? (
-                    <RefundReadyTable data={eligibleRefunds} />
+                    <RefundReadyTable data={eligibleRefunds} academicYear={selectedYear} />
                 ) : activeTab === 'refund_history' ? (
-                    <RefundHistoryTable data={refundHistory} />
+                    <RefundHistoryTable data={refundHistory} academicYear={selectedYear} />
                 ) : activeTab === 'liabilities_a' ? (
-                    <LiabilityLedgerTable key="ledger-a" data={liabilities} mode="A" />
+                    <LiabilityLedgerTable key="ledger-a" data={liabilities} mode="A" academicYear={selectedYear} />
                 ) : activeTab === 'waiver_history' ? (
-                    <WaiverHistoryTable data={waiverHistoryData} />
+                    <WaiverHistoryTable data={waiverHistoryData} academicYear={selectedYear} />
                 ) : (
-                    <LiabilityLedgerTable key="ledger-b" data={liabilities} mode="B" />
+                    <LiabilityLedgerTable key="ledger-b" data={liabilities} mode="B" academicYear={selectedYear} />
                 )}
             </div>
         </div>

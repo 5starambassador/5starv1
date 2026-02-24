@@ -1,10 +1,13 @@
 'use client'
 
+import { AcademicYearFilter } from '@/components/AcademicYearFilter'
+import { StudentSourceFilter } from '@/components/StudentSourceFilter'
+
 import { useState, useEffect, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { MessageSquare, Calculator, X, School, ArrowRight, Phone, IndianRupee, Users, Plus, Edit, Target, Save, Loader2, TrendingUp, TrendingDown } from 'lucide-react'
+import { MessageSquare, Calculator, X, School, ArrowRight, Phone, IndianRupee, Users, Plus, Edit, Target, Save, Loader2, TrendingUp, TrendingDown, RefreshCw, CheckCircle } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 // Import only what's needed for client-managed state
@@ -33,7 +36,7 @@ import { getWhatsAppAnalytics, WhatsAppAnalytics } from '@/app/automation-action
 
 import { getSettlements, processSettlement, deleteSettlement } from '@/app/settlement-actions'
 import { getRolePermissions, updateRolePermissions, resetRolePermissions } from '@/app/permission-actions'
-import { confirmReferral, convertLeadToStudent, rejectReferral } from '@/app/admin-actions'
+import { confirmReferral, convertLeadToStudent, rejectReferral, syncLegacyConfirmedLeads } from '@/app/admin-actions'
 import { Modal } from '@/components/ui/Modal'
 
 import { User, Student, SystemAnalytics, CampusPerformance, Admin, SystemSettings, MarketingAsset, Campus, BenefitSlab, RolePermissions } from '@/types'
@@ -241,6 +244,21 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
         toast.info("Weekly report trigger not implemented in this refactor yet.")
     }
 
+    const handleSyncLegacy = async () => {
+        const tid = toast.loading('Syncing legacy records...')
+        try {
+            const res = await syncLegacyConfirmedLeads() as any
+            if (res.success) {
+                toast.success(`Synced ${res.processed} records`, { id: tid })
+                router.refresh()
+            } else {
+                toast.error(res.error || 'Sync failed', { id: tid })
+            }
+        } catch (e) {
+            toast.error('An error occurred during sync', { id: tid })
+        }
+    }
+
     // Role Permissions State
     const [rolePermissionsMatrix, setRolePermissionsMatrix] = useState<Record<string, RolePermissions>>({})
     useEffect(() => {
@@ -293,6 +311,37 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
 
                 {(selectedView === 'analytics' || selectedView === 'home') && (
                     <div className="space-y-10">
+                        {/* Data Integrity / Maintenance Section */}
+                        {(analyticsData?.missingStudentCount || 0) > 0 && (
+                            <div className="bg-gradient-to-br from-indigo-600 to-violet-700 p-8 rounded-3xl shadow-2xl shadow-indigo-100 border border-indigo-400/20 text-white animate-in slide-in-from-top-4 duration-700 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full translate-x-32 -translate-y-32 group-hover:scale-110 transition-transform duration-1000" />
+                                <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-[24px] flex items-center justify-center border border-white/30 shadow-inner group-hover:rotate-12 transition-transform">
+                                            <RefreshCw size={32} className="text-white animate-spin-slow" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-2xl font-black tracking-tight italic uppercase">Data Sync Required</h3>
+                                            <p className="text-indigo-100 text-sm font-bold mt-1 max-w-md leading-relaxed">
+                                                We found <span className="text-white underline underline-offset-4 decoration-2">{analyticsData.missingStudentCount} confirmed leads</span> that need to be synchronized with the master student database.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={handleSyncLegacy}
+                                        className="w-full md:w-auto px-10 py-4 bg-white text-indigo-700 rounded-2xl font-black text-xs shadow-2xl hover:shadow-white/20 hover:-translate-y-1 active:scale-95 transition-all flex items-center justify-center gap-3 uppercase tracking-widest group/btn"
+                                    >
+                                        <CheckCircle size={18} className="group-hover/btn:scale-110 transition-transform" />
+                                        Repair Records Now
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end px-2">
+                            <StudentSourceFilter />
+                            <AcademicYearFilter />
+                        </div>
                         <AnalyticsDashboard
                             analyticsData={analyticsData}
                             trendData={trendData}

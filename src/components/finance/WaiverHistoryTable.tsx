@@ -1,8 +1,12 @@
 'use client'
 
 import { DataTable } from '@/components/ui/DataTable'
-import { CheckCircle, Calendar, FileText } from 'lucide-react'
+import { CheckCircle, Calendar, FileText, FileDown } from 'lucide-react'
 import { format } from 'date-fns'
+import { useState } from 'react'
+import { ExportDateRangeModal } from './ExportDateRangeModal'
+import { exportWaivers } from '@/app/export-actions'
+import { toast } from 'sonner'
 
 interface Settlement {
     id: number
@@ -22,9 +26,40 @@ interface Settlement {
 
 interface WaiverHistoryTableProps {
     data: Settlement[]
+    academicYear?: string
 }
 
-export function WaiverHistoryTable({ data }: WaiverHistoryTableProps) {
+export function WaiverHistoryTable({ data, academicYear }: WaiverHistoryTableProps) {
+    const [showExportModal, setShowExportModal] = useState(false)
+
+    const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
+        const res = await exportWaivers(start, end, selectedColumns, academicYear)
+        if (res.success && res.csv) {
+            const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
+            const link = document.createElement('a')
+            const url = URL.createObjectURL(blob)
+            link.setAttribute('href', url)
+            link.setAttribute('download', res.filename || 'waiver_history.csv')
+            link.style.visibility = 'hidden'
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            toast.success('Waiver History downloaded')
+        } else {
+            toast.error(res.error || 'Failed to export')
+        }
+    }
+
+    const exportColumns = [
+        { id: 'fullName', label: 'Ambassador Name', defaultChecked: true },
+        { id: 'mobile', label: 'Mobile Number', defaultChecked: true },
+        { id: 'childName', label: 'Child Name', defaultChecked: true },
+        { id: 'erpNo', label: 'ERP No', defaultChecked: true },
+        { id: 'amount', label: 'Waiver Amount', defaultChecked: true },
+        { id: 'date', label: 'Applied Date', defaultChecked: true },
+        { id: 'bankRef', label: 'Reference ID', defaultChecked: true },
+        { id: 'remarks', label: 'Remarks', defaultChecked: true }
+    ]
     const columns = [
         {
             header: 'Ambassador',
@@ -117,42 +152,11 @@ export function WaiverHistoryTable({ data }: WaiverHistoryTableProps) {
                 </div>
 
                 <button
-                    onClick={() => {
-                        const csvContent = [
-                            ['Ambassador Name', 'Mobile Number', 'Child Name', 'ERP No', 'Waiver Amount', 'Applied Date', 'Reference ID', 'Remarks'],
-                            ...data.map(row => {
-                                const remarks = row.remarks || ''
-                                const hasBreakdown = remarks.includes('[BREAKDOWN:')
-                                const hasERP = remarks.includes('[ERP:')
-
-                                const childName = hasBreakdown ? remarks.split('[BREAKDOWN:')[1].split(']')[0] : 'N/A'
-                                const erpNo = hasERP ? remarks.split('[ERP:')[1].split(']')[0] : 'N/A'
-
-                                return [
-                                    `"${row.user.fullName}"`,
-                                    `"${row.user.mobileNumber}"`,
-                                    `"${childName}"`,
-                                    `"${erpNo}"`,
-                                    row.amount,
-                                    row.payoutDate ? format(new Date(row.payoutDate), 'yyyy-MM-dd') : 'N/A',
-                                    `"${row.bankReference || 'N/A'}"`,
-                                    `"${remarks.replace(/"/g, '""')}"`
-                                ]
-                            })
-                        ].map(e => e.join(",")).join("\n")
-
-                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-                        const url = URL.createObjectURL(blob)
-                        const link = document.createElement("a")
-                        link.setAttribute("href", url)
-                        link.setAttribute("download", `MCB_ERP_Waivers_${new Date().toISOString().split('T')[0]}.csv`)
-                        document.body.appendChild(link)
-                        link.click()
-                        document.body.removeChild(link)
-                    }}
+                    onClick={() => setShowExportModal(true)}
+                    suppressHydrationWarning={true}
                     className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700 transition-all shadow-md shadow-purple-900/10"
                 >
-                    <FileText size={14} />
+                    <FileDown size={14} />
                     Download ERP Export
                 </button>
             </div>
@@ -167,6 +171,15 @@ export function WaiverHistoryTable({ data }: WaiverHistoryTableProps) {
                     uniqueKey="id"
                 />
             </div>
+
+            <ExportDateRangeModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                onExport={handleServerExport}
+                title="Export Fee Waivers"
+                showStatusFilter={false}
+                columns={exportColumns}
+            />
         </div>
     )
 }

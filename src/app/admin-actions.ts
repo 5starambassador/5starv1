@@ -9,6 +9,8 @@ import { mapLeadStatus, mapUserRole, mapAccountStatus, toLeadStatus } from '@/li
 import { notifyReferralConfirmed, notifyFiveStarAchievement, notifyReferralStatusChanged, notifyReferralRejected, notifyReferralAdmitted } from '@/lib/notification-helper'
 import { AdminAnalytics } from '@/types'
 import { buildReferralWhereClause } from '@/lib/filter-utils'
+import { generateSmartReferralCode } from '@/lib/referral-service'
+import { decrypt } from '@/lib/encryption'
 
 /**
  * Fetches all referral leads with ambassador information.
@@ -35,6 +37,7 @@ export async function getAllReferrals(
         feeType?: string
         dateRange?: { from: string; to: string } // ISO strings
         grade?: string
+        academicYear?: string
     },
     sort?: { field: string; order: 'asc' | 'desc' }
 ) {
@@ -103,7 +106,7 @@ export async function getAllReferrals(
                 limit,
                 totalPages: Math.ceil(total / limit),
                 totalPending: await prisma.referralLead.count({ where: { ...where, leadStatus: { in: ['New', 'Follow_up'] } } }),
-                totalConfirmed: await prisma.referralLead.count({ where: { ...where, leadStatus: 'Confirmed' } })
+                totalConfirmed: await prisma.referralLead.count({ where: { ...where, leadStatus: { in: ['Confirmed', 'Admitted'] } } })
             },
             isReadOnly
         }
@@ -119,7 +122,7 @@ export async function getAllReferrals(
  * 
  * @returns Object containing detailed metrics and success status
  */
-export async function getAdminAnalytics(): Promise<{ success: boolean; error?: string } & Partial<AdminAnalytics>> {
+export async function getAdminAnalytics(academicYear?: string, studentSource: 'referral' | 'all' | 'organic' = 'referral'): Promise<{ success: boolean; error?: string } & Partial<AdminAnalytics>> {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Admin')) return { success: false, error: 'Unauthorized' }
 
@@ -129,17 +132,26 @@ export async function getAdminAnalytics(): Promise<{ success: boolean; error?: s
     }
 
     // Get scope filter based on permission settings
-    const { filter: referralFilter } = await getScopeFilter('referralTracking', {
+    const { filter: referralFilterScope } = await getScopeFilter('referralTracking', {
         campusField: 'campus',
         useCampusName: true
     })
 
-    const { filter: userFilter } = await getScopeFilter('userManagement', {
+    const { filter: userFilterScope } = await getScopeFilter('userManagement', {
         campusField: 'assignedCampus',
         useCampusName: true
     })
 
-    if (referralFilter === null || userFilter === null) return { success: false, error: 'Access Denied' }
+    if (referralFilterScope === null || userFilterScope === null) return { success: false, error: 'Access Denied' }
+
+    // Enhanced Referral Filter using buildReferralWhereClause for consistency
+    const referralFilter = buildReferralWhereClause({ academicYear }, referralFilterScope)
+
+    // User Filter
+    const userFilter = {
+        ...userFilterScope,
+        ...(academicYear && academicYear !== 'All' ? { academicYear } : {})
+    }
 
     try {
         const [
@@ -149,10 +161,11 @@ export async function getAdminAnalytics(): Promise<{ success: boolean; error?: s
             campusCounts,
             roleCounts,
             totalAmbassadors,
-            topPerformersData
+            topPerformersData,
+            missingStudentCount
         ] = await prisma.$transaction([
             prisma.referralLead.count({ where: referralFilter }),
-            prisma.referralLead.count({ where: { ...referralFilter, leadStatus: 'Confirmed' } }),
+            prisma.referralLead.count({ where: { ...referralFilter, leadStatus: { in: ['Confirmed', 'Admitted'] } } }),
             prisma.referralLead.groupBy({
                 by: ['leadStatus'],
                 _count: { _all: true },
@@ -173,7 +186,8 @@ export async function getAdminAnalytics(): Promise<{ success: boolean; error?: s
                 where: referralFilter,
                 orderBy: { _count: { userId: 'desc' } },
                 take: 5
-            })
+            }),
+            prisma.referralLead.count({ where: { leadStatus: 'Confirmed', student: { is: null } } })
         ])
 
         const pendingLeads = totalLeads - confirmedLeads
@@ -229,6 +243,18 @@ export async function getAdminAnalytics(): Promise<{ success: boolean; error?: s
             }
         })
 
+        const studentWhere: any = {
+            ...(academicYear && academicYear !== 'All' ? { academicYear } : {})
+        }
+
+        if (studentSource === 'referral') {
+            studentWhere.referralLeadId = { not: null }
+        } else if (studentSource === 'organic') {
+            studentWhere.referralLeadId = null
+        }
+
+        const totalStudents = await prisma.student.count({ where: studentWhere })
+
         return {
             success: true,
             totalLeads,
@@ -241,8 +267,10 @@ export async function getAdminAnalytics(): Promise<{ success: boolean; error?: s
             campusDistribution,
             roleBreakdown,
             statusBreakdown,
-            topPerformers
-        }
+            topPerformers: topPerformers.filter(p => p.count > 0),
+            totalStudents,
+            missingStudentCount
+        } as any
     } catch (e: any) {
         console.error('getAdminAnalytics error:', e)
         return { success: false, error: 'Failed to calc analytics' }
@@ -260,7 +288,7 @@ async function syncAmbassadorBenefits(tx: any, userId: number) {
     const currentYearCount = await tx.referralLead.count({
         where: {
             userId,
-            leadStatus: 'Confirmed',
+            leadStatus: { in: ['Confirmed', 'Admitted'] },
             confirmedDate: { gte: currentYearStart }
         }
     })
@@ -269,7 +297,7 @@ async function syncAmbassadorBenefits(tx: any, userId: number) {
     const count = await tx.referralLead.count({
         where: {
             userId,
-            leadStatus: 'Confirmed'
+            leadStatus: { in: ['Confirmed', 'Admitted'] }
         }
     })
 
@@ -362,7 +390,7 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
             // 0. Fetch the correct fee snapshot
             const leadRecord = await tx.referralLead.findUnique({
                 where: { leadId },
-                select: { campusId: true, campus: true, gradeInterested: true, admittedYear: true }
+                select: { campusId: true, campus: true, gradeInterested: true, admittedYear: true, academicYear: true, section: true }
             })
 
             if (!leadRecord || !leadRecord.gradeInterested) {
@@ -440,21 +468,82 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
                 }
             }
 
-            // 1. Update Lead
+            // 1. Update Lead (MARK AS ADMITTED)
             const lead = await tx.referralLead.update({
                 where: { leadId },
                 include: { user: true },
                 data: {
-                    leadStatus: 'Confirmed',
+                    leadStatus: 'Admitted',
                     confirmedDate: new Date(),
                     admissionNumber: admissionNumber,
                     selectedFeeType: selectedFeeType,
                     annualFee: finalAnnualFee,
                     admissionFeeCollected: admissionFee,
                     donationFeeCollected: donationFee,
-                    admittedYear: academicYear || leadRecord.admittedYear
+                    admittedYear: academicYear || leadRecord.admittedYear,
+                    academicYear: academicYear || leadRecord.academicYear
                 } as any
             }).then(l => l as any)
+
+            // 1.1 CREATE STUDENT RECORD (AUTOMATION)
+            // Resolve Parent
+            let actualParentId = null
+            const existingParent = await tx.user.findUnique({
+                where: { mobileNumber: lead.parentMobile }
+            })
+
+            if (existingParent) {
+                actualParentId = existingParent.userId
+            } else {
+                const referralCode = await generateSmartReferralCode('Parent')
+                const newParent = await tx.user.create({
+                    data: {
+                        fullName: lead.parentName,
+                        mobileNumber: lead.parentMobile,
+                        role: 'Parent',
+                        referralCode,
+                        childInAchariya: true,
+                        status: 'Active',
+                        benefitStatus: 'Active',
+                        academicYear: lead.admittedYear || '2025-2026'
+                    }
+                })
+                actualParentId = newParent.userId
+            }
+
+            // Create Student
+            await tx.student.create({
+                data: {
+                    fullName: lead.studentName || 'Unknown',
+                    parentId: actualParentId,
+                    campusId: finalCampusId || 0,
+                    grade: lead.gradeInterested || 'N/A',
+                    section: leadRecord.section || undefined,
+                    academicYear: lead.admittedYear || '2025-2026',
+                    referralLeadId: lead.leadId,
+                    admissionNumber: lead.admissionNumber,
+                    ambassadorId: lead.userId,
+                    selectedFeeType: lead.selectedFeeType,
+                    annualFee: lead.annualFee,
+                    baseFee: lead.annualFee || 0,
+                    admissionFeeCollected: admissionFee,
+                    donationFeeCollected: donationFee,
+                    status: 'Active'
+                } as any
+            })
+
+            // 1.2 SYNC PARENT DATA
+            await tx.user.update({
+                where: { userId: actualParentId },
+                data: {
+                    childInAchariya: true,
+                    childEprNo: lead.admissionNumber,
+                    childName: lead.studentName,
+                    grade: lead.gradeInterested,
+                    status: 'Active',
+                    benefitStatus: 'Active'
+                }
+            })
 
             // 2. Update User Counts & Benefits (Automation)
             const syncResult = await syncAmbassadorBenefits(tx, lead.userId)
@@ -519,9 +608,19 @@ export async function revertReferralConfirmation(leadId: number) {
 
     try {
         await prisma.$transaction(async (tx) => {
-            const lead = await tx.referralLead.findUnique({ where: { leadId } })
-            if (!lead || lead.leadStatus !== 'Confirmed') {
-                throw new Error('Lead is not currently confirmed')
+            const lead = await tx.referralLead.findUnique({
+                where: { leadId },
+                include: { student: true }
+            })
+            if (!lead || !['Confirmed', 'Admitted'].includes(lead.leadStatus)) {
+                throw new Error('Lead is not currently confirmed or admitted')
+            }
+
+            // [Surgical Addition]: Delete linked student record if exists
+            if (lead.student) {
+                await tx.student.delete({
+                    where: { studentId: lead.student.studentId }
+                })
             }
 
             // 1. Revert Lead Status & Clear Confirmation Data
@@ -574,7 +673,7 @@ export async function revertReferralConfirmation(leadId: number) {
  * Respects permission scope settings from the matrix.
  * @returns Object containing success status and array of user records.
  */
-export async function getAdminUsers() {
+export async function getAdminUsers(academicYear?: string) {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
         return { success: false, error: 'Unauthorized' }
@@ -589,8 +688,11 @@ export async function getAdminUsers() {
     if (filter === null) return { success: false, error: 'No access to user data' }
 
     try {
-        const users = await prisma.user.findMany({
-            where: filter,
+        const dbUsers = await prisma.user.findMany({
+            where: {
+                ...filter,
+                ...(academicYear && academicYear !== 'All' ? { academicYear } : {})
+            },
             orderBy: { createdAt: 'desc' },
             select: {
                 userId: true,
@@ -600,9 +702,41 @@ export async function getAdminUsers() {
                 assignedCampus: true,
                 status: true,
                 confirmedReferralCount: true,
-                createdAt: true
+                createdAt: true,
+                email: true,
+                empId: true,
+                grade: true,
+                academicYear: true,
+                bankName: true,
+                accountNumber: true,
+                ifscCode: true,
+                bankAccountDetails: true,
+                address: true,
+                aadharNo: true,
+                childName: true,
+                childEprNo: true,
+                isFiveStarMember: true,
+                benefitStatus: true,
+                registrationSource: true
             }
         })
+
+        // Decrypt bank details server-side before passing to client
+        const users = dbUsers.map(u => {
+            let decryptedBank = u.bankAccountDetails
+            if (u.bankAccountDetails && u.bankAccountDetails.length > 20) {
+                try {
+                    decryptedBank = decrypt(u.bankAccountDetails) || u.bankAccountDetails
+                } catch (e) {
+                    console.error(`Failed to decrypt bank details for user ${u.userId}`)
+                }
+            }
+            return {
+                ...u,
+                bankAccountDetails: decryptedBank
+            }
+        })
+
         return { success: true, users }
     } catch (error) {
         console.error('getAdminUsers error:', error)
@@ -615,7 +749,7 @@ export async function getAdminUsers() {
  * Respects permission scope settings from the matrix.
  * @returns Object containing success status and array of student records.
  */
-export async function getAdminStudents() {
+export async function getAdminStudents(academicYear?: string, studentSource: 'referral' | 'all' | 'organic' = 'referral') {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
         return { success: false, error: 'Unauthorized' }
@@ -631,7 +765,12 @@ export async function getAdminStudents() {
 
     try {
         const students = await prisma.student.findMany({
-            where: filter,
+            where: {
+                ...(studentSource === 'referral' ? { referralLeadId: { not: null } } :
+                    studentSource === 'organic' ? { referralLeadId: null } : {}),
+                ...filter,
+                ...(academicYear && academicYear !== 'All' ? { academicYear } : {})
+            },
             include: {
                 parent: { select: { fullName: true, mobileNumber: true } },
                 campus: { select: { campusName: true } },
@@ -685,7 +824,7 @@ export async function getAdminAdmins() {
  * Calculates performance comparison data across campuses for the admin view.
  * @returns Object containing success status and performance comparison metrics.
  */
-export async function getAdminCampusPerformance() {
+export async function getAdminCampusPerformance(academicYear?: string, studentSource: 'referral' | 'all' | 'organic' = 'referral') {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('CampusHead') && !user.role.includes('Admin'))) {
         return { success: false, error: 'Unauthorized' }
@@ -715,24 +854,45 @@ export async function getAdminCampusPerformance() {
 
         for (const campus of campusNames) {
             const totalLeads = await prisma.referralLead.count({
-                where: { campus }
+                where: { campus, ...(academicYear && academicYear !== 'All' ? { academicYear } : {}) }
             })
 
             const confirmed = await prisma.referralLead.count({
-                where: { campus, leadStatus: 'Confirmed' }
+                where: { campus, leadStatus: { in: ['Confirmed', 'Admitted'] }, ...(academicYear && academicYear !== 'All' ? { academicYear } : {}) }
             })
 
             const pending = await prisma.referralLead.count({
-                where: { campus, leadStatus: { in: ['New', 'Follow_up'] } }
+                where: { campus, leadStatus: { in: ['New', 'Follow_up'] }, ...(academicYear && academicYear !== 'All' ? { academicYear } : {}) }
             })
 
             const conversionRate = totalLeads > 0
                 ? (confirmed / totalLeads) * 100
                 : 0
 
+            const studentWhere: any = {
+                campusId: undefined, // Will be set below
+                ...(academicYear && academicYear !== 'All' ? { academicYear } : {})
+            }
+
+            if (studentSource === 'referral') {
+                studentWhere.referralLeadId = { not: null }
+            } else if (studentSource === 'organic') {
+                studentWhere.referralLeadId = null
+            }
+
+            // Get campus ID for student filtering
+            const campusRecord = await prisma.campus.findUnique({
+                where: { campusName: campus },
+                select: { id: true }
+            })
+
+            const totalStudents = campusRecord ? await prisma.student.count({
+                where: { ...studentWhere, campusId: campusRecord.id }
+            }) : 0
+
             // Count unique ambassadors for this campus
             const ambassadorIds = await prisma.referralLead.findMany({
-                where: { campus },
+                where: { campus, ...(academicYear && academicYear !== 'All' ? { academicYear } : {}) },
                 select: { userId: true },
                 distinct: ['userId']
             })
@@ -743,7 +903,8 @@ export async function getAdminCampusPerformance() {
                 confirmed,
                 pending,
                 conversionRate: Number(conversionRate.toFixed(2)),
-                ambassadors: ambassadorIds.length
+                ambassadors: ambassadorIds.length,
+                totalStudents
             })
         }
 
@@ -864,6 +1025,7 @@ export async function getReferralStats(filters?: {
     search?: string
     dateRange?: { from: string; to: string }
     grade?: string
+    academicYear?: string
 }) {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus'))) return { success: false, error: 'Unauthorized' }
@@ -890,7 +1052,7 @@ export async function getReferralStats(filters?: {
         const total = await prisma.referralLead.count({ where })
 
         const confirmed = await prisma.referralLead.count({
-            where: { ...where, leadStatus: 'Confirmed' }
+            where: { ...where, leadStatus: { in: ['Confirmed', 'Admitted'] } }
         })
 
         // Use 'Follow_up' (underscore) to match Prisma Enum / DB Value
@@ -927,6 +1089,7 @@ export async function exportReferrals(filters?: {
     search?: string
     dateRange?: { from: string; to: string }
     grade?: string
+    academicYear?: string
     columns?: string[] // [NEW] User selected columns
 }) {
     const user = await getCurrentUser()
@@ -1026,7 +1189,7 @@ export async function bulkConfirmReferrals(leadIds: number[], forcedFeeType?: 'O
         const leads = await prisma.referralLead.findMany({
             where: {
                 leadId: { in: leadIds },
-                leadStatus: { not: 'Confirmed' },
+                leadStatus: { notIn: ['Confirmed', 'Admitted'] },
                 admissionNumber: { not: null }, // MUST have ERP number
                 // If forcedFeeType is provided, we don't strictly require selectedFeeType to be set already
                 ...(forcedFeeType ? {} : { selectedFeeType: { not: null } })
@@ -1038,7 +1201,7 @@ export async function bulkConfirmReferrals(leadIds: number[], forcedFeeType?: 'O
             const alreadyConfirmed = await prisma.referralLead.count({
                 where: {
                     leadId: { in: leadIds },
-                    leadStatus: 'Confirmed'
+                    leadStatus: { in: ['Confirmed', 'Admitted'] }
                 }
             })
 
@@ -1223,6 +1386,37 @@ export async function bulkConvertLeadsToStudents(leadIds: number[]) {
 }
 
 /**
+ * Syncs all legacy "Confirmed" leads that are missing their Student records.
+ */
+export async function syncLegacyConfirmedLeads() {
+    const user = await getCurrentUser()
+    if (!user || (!user.role.includes('Admin') && !user.role.includes('Campus'))) return { success: false, error: 'Unauthorized' }
+
+    if (!await hasPermission('studentManagement')) return { success: false, error: 'Permission Denied' }
+
+    try {
+        const missingLeads = await prisma.referralLead.findMany({
+            where: {
+                leadStatus: 'Confirmed',
+                student: { is: null }
+            },
+            select: { leadId: true }
+        })
+
+        if (missingLeads.length === 0) return { success: true, processed: 0, message: 'No records to sync' }
+
+        const leadIds = missingLeads.map(l => l.leadId)
+        const result = await bulkConvertLeadsToStudents(leadIds)
+
+        revalidatePath('/admin')
+        return result
+    } catch (e: any) {
+        console.error('syncLegacyConfirmedLeads error:', e)
+        return { success: false, error: e.message }
+    }
+}
+
+/**
  * Converts a single confirmed referral lead into a Student record.
  * Creates a shadow Parent account if needed.
  */
@@ -1323,7 +1517,8 @@ export async function updateReferral(leadId: number, data: {
                     annualFee: data.annualFee ? Number(data.annualFee) : null,
                     selectedFeeType: (!data.selectedFeeType || (data.selectedFeeType as any) === '') ? null : data.selectedFeeType as any,
                     admissionFeeCollected: data.admissionFeeCollected,
-                    donationFeeCollected: data.donationFeeCollected
+                    donationFeeCollected: data.donationFeeCollected,
+                    academicYear: data.admittedYear || undefined
                 } as any
             })
 

@@ -21,8 +21,8 @@ export default async function ProgramLeadsPage() {
                             <ChevronLeft size={20} className="text-white/80 group-hover:text-white" />
                         </Link>
                         <div>
-                            <h1 className="text-3xl font-black tracking-tight text-white uppercase italic">Program Leads</h1>
-                            <p className="text-[10px] text-blue-200/40 font-black uppercase tracking-[0.2em] mt-1">Your External Yield Pipeline</p>
+                            <h1 className="text-4xl font-black tracking-tight text-white uppercase italic">Program Leads</h1>
+                            <p className="text-xs text-blue-200/40 font-black uppercase tracking-[0.2em] mt-1">Your External Yield Pipeline</p>
                         </div>
                     </div>
                 </header>

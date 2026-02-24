@@ -506,6 +506,7 @@ export function ReferralManagementTable({
                 role: roleValues.length > 0 ? roleValues.join(',') : undefined,
                 campus: campusValues.length > 0 ? campusValues.join(',') : undefined,
                 feeType: feeTypeValues.length > 0 ? feeTypeValues.join(',') : undefined,
+                academicYear: searchParams.get('year') || undefined, // ADDED
                 grade: searchParams.get('grade') || undefined,
                 search: search || undefined,
                 dateRange: (dateFrom && dateTo) ? { from: dateFrom, to: dateTo } : undefined,
@@ -640,19 +641,20 @@ export function ReferralManagementTable({
             accessorKey: 'leadStatus',
             cell: (row: any) => {
                 const isConfirmed = row.leadStatus === 'Confirmed'
+                const isAdmitted = row.leadStatus === 'Admitted'
                 const isRejected = row.leadStatus === 'Rejected'
-                const isFollowUp = row.leadStatus === 'Follow-up'
+                const isFollowUp = row.leadStatus === 'Follow-up' || row.leadStatus === 'Follow_up'
 
                 return (
                     <div className="relative group/status flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded text-[10px] font-black uppercase transition-all duration-300 border ${isConfirmed ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm shadow-emerald-500/10' :
-                            isRejected ? 'bg-rose-50 text-rose-700 border-rose-100' :
-                                isFollowUp ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                                    'bg-gray-100 text-gray-700 border-gray-200'
+                        <span className={`px-2 py-1 rounded text-[10px] font-black uppercase transition-all duration-300 border ${isAdmitted ? 'bg-indigo-50 text-indigo-700 border-indigo-100 shadow-sm shadow-indigo-500/10' :
+                            isConfirmed ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm shadow-emerald-500/10' :
+                                isRejected ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                    isFollowUp ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                        'bg-gray-100 text-gray-700 border-gray-200'
                             }`}>
                             {row.leadStatus}
                         </span>
-
                     </div>
                 )
             }
@@ -745,7 +747,7 @@ export function ReferralManagementTable({
                     <div>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Action Needed</p>
                         <h4 className="text-xl font-black text-gray-900 leading-none mt-1">
-                            {meta.totalPending !== undefined ? meta.totalPending : referrals.filter(r => ['New', 'Follow_up'].includes(r.leadStatus)).length}
+                            {meta.totalPending !== undefined ? meta.totalPending : referrals.filter(r => ['New', 'Follow_up', 'Follow-up', 'Interested'].includes(r.leadStatus)).length}
                         </h4>
                     </div>
                 </div>
@@ -755,9 +757,9 @@ export function ReferralManagementTable({
                         <CheckCircle size={20} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Confirmed</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Admitted/Confirmed</p>
                         <h4 className="text-xl font-black text-gray-900 leading-none mt-1">
-                            {meta.totalConfirmed !== undefined ? meta.totalConfirmed : referrals.filter(r => r.leadStatus === 'Confirmed').length}
+                            {meta.totalConfirmed !== undefined ? meta.totalConfirmed : referrals.filter(r => ['Confirmed', 'Admitted'].includes(r.leadStatus)).length}
                         </h4>
                     </div>
                 </div>
@@ -771,7 +773,7 @@ export function ReferralManagementTable({
                         <h4 className="text-xl font-black text-gray-900 leading-none mt-1">
                             {meta.totalConfirmed !== undefined && meta.total > 0
                                 ? ((meta.totalConfirmed / meta.total) * 100).toFixed(0)
-                                : (referrals.length > 0 ? Math.round((referrals.filter(r => r.leadStatus === 'Confirmed').length / referrals.length) * 100) : 0)
+                                : (referrals.length > 0 ? Math.round((referrals.filter(r => ['Confirmed', 'Admitted'].includes(r.leadStatus)).length / referrals.length) * 100) : 0)
                             }%
                         </h4>
                     </div>
@@ -967,6 +969,7 @@ export function ReferralManagementTable({
                     <option value="New">New</option>
                     <option value="Follow-up">Follow-up</option>
                     <option value="Confirmed">Confirmed</option>
+                    <option value="Admitted">Admitted</option>
                     <option value="Rejected">Rejected</option>
                 </select>
 
@@ -1120,7 +1123,7 @@ export function ReferralManagementTable({
                     if (res?.success) {
                         setSelectedLeadForDetail((prev: any) => prev?.leadId === id ? {
                             ...prev,
-                            leadStatus: 'Confirmed',
+                            leadStatus: 'Admitted',
                             admissionNumber: erp,
                             selectedFeeType: feeType,
                             annualFee,

@@ -2,7 +2,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { redirect } from 'next/navigation'
 import { getAllReferrals, getAdminAnalytics, getAdminUsers, getAdminStudents, getAdminAdmins, getAdminCampusPerformance, getReferralStats } from '@/app/admin-actions'
 import { getCampuses } from '@/app/campus-actions'
-import { confirmReferral } from '@/app/admin-actions'
+import { confirmReferral, syncLegacyConfirmedLeads } from '@/app/admin-actions'
 import { AdminClient } from './admin-client'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
@@ -32,10 +32,10 @@ type SearchParams = Promise<{
     search?: string
     from?: string
     to?: string
-    // Add other filters as needed
-    // Add other filters as needed
+    year?: string
     feeType?: string
     grade?: string
+    source?: string
 }>
 
 export default async function AdminPage({ searchParams }: { searchParams: SearchParams }) {
@@ -48,13 +48,15 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
 
     // Parse Filters
     const filters = {
-        status: params.status,
-        role: params.role,
-        campus: params.campus,
-        search: params.search,
-        feeType: params.feeType,
-        grade: params.grade,
-        dateRange: (params.from && params.to) ? { from: params.from, to: params.to } : undefined
+        status: params.status as string,
+        role: params.role as string,
+        campus: params.campus as string,
+        search: params.search as string,
+        feeType: params.feeType as string,
+        grade: params.grade as string,
+        academicYear: params.year as string,
+        studentSource: (params.source || 'referral') as 'referral' | 'all' | 'organic',
+        dateRange: (params.from && params.to) ? { from: params.from as string, to: params.to as string } : undefined
     }
 
     // Conditional Data Fetching
@@ -69,7 +71,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
 
     // Determine what to fetch based on View
     if (view === 'home' || view === 'analytics' || view === 'reports') {
-        analyticsPromise = getAdminAnalytics()
+        analyticsPromise = getAdminAnalytics(filters.academicYear, filters.studentSource)
         // Home view might use referral stats too?
     }
 
@@ -80,12 +82,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
     }
 
     if (view === 'users') {
-        usersPromise = getAdminUsers()
+        usersPromise = getAdminUsers(filters.academicYear)
         campusesPromise = getCampuses()
     }
 
     if (view === 'students') {
-        studentsPromise = getAdminStudents()
+        studentsPromise = getAdminStudents(filters.academicYear, filters.studentSource)
         campusesPromise = getCampuses()
     }
 
@@ -95,7 +97,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
     }
 
     if (view === 'campuses') {
-        campusPerformancePromise = getAdminCampusPerformance()
+        campusPerformancePromise = getAdminCampusPerformance(filters.academicYear) // Note: getAdminCampusPerformance doesn't support studentSource yet, but keeping for now or I can update it
         campusesPromise = getCampuses()
     }
 
@@ -131,6 +133,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
                 campusPerformance={serializeData(campusPerformance.success ? campusPerformance.campusPerformance : []) as any}
                 permissions={permissions || undefined}
                 userRole={user.role}
+                syncLegacyConfirmedLeads={syncLegacyConfirmedLeads}
             />
         </ErrorBoundary>
     )

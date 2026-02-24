@@ -1,8 +1,12 @@
 'use client'
 
 import { DataTable } from '@/components/ui/DataTable'
-import { CheckCircle, Calendar } from 'lucide-react'
+import { CheckCircle, Calendar, FileDown } from 'lucide-react'
 import { format } from 'date-fns'
+import { useState } from 'react'
+import { ExportDateRangeModal } from './ExportDateRangeModal'
+import { exportPayouts } from '@/app/export-actions'
+import { toast } from 'sonner'
 
 interface Settlement {
     id: number
@@ -25,9 +29,45 @@ interface Settlement {
 
 interface PayoutHistoryTableProps {
     data: Settlement[]
+    academicYear?: string
 }
 
-export function PayoutHistoryTable({ data }: PayoutHistoryTableProps) {
+export function PayoutHistoryTable({ data, academicYear }: PayoutHistoryTableProps) {
+    const [showExportModal, setShowExportModal] = useState(false)
+
+    const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
+        const res = await exportPayouts(start, end, status || 'Processed', selectedColumns, academicYear)
+        if (res.success && res.csv) {
+            const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
+            const link = document.createElement('a')
+            const url = URL.createObjectURL(blob)
+            link.setAttribute('href', url)
+            link.setAttribute('download', res.filename || 'payout_history.csv')
+            link.style.visibility = 'hidden'
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            toast.success('Payout History downloaded')
+        } else {
+            toast.error(res.error || 'Failed to export')
+        }
+    }
+
+    const exportColumns = [
+        { id: 'date', label: 'Request Date', defaultChecked: true },
+        { id: 'id', label: 'Settlement ID', defaultChecked: true },
+        { id: 'name', label: 'Ambassador Name', defaultChecked: true },
+        { id: 'mobile', label: 'Mobile', defaultChecked: true },
+        { id: 'role', label: 'Role', defaultChecked: true },
+        { id: 'amount', label: 'Amount', defaultChecked: true },
+        { id: 'status', label: 'Status', defaultChecked: true },
+        { id: 'payoutDate', label: 'Payout Date', defaultChecked: true },
+        { id: 'bankRef', label: 'Bank Reference', defaultChecked: true },
+        { id: 'bankName', label: 'Bank Name', defaultChecked: true },
+        { id: 'accountNumber', label: 'Account Number', defaultChecked: true },
+        { id: 'ifscCode', label: 'IFSC Code', defaultChecked: true },
+        { id: 'remarks', label: 'Remarks', defaultChecked: true }
+    ]
     const columns = [
         {
             header: 'Ambassador',
@@ -119,12 +159,22 @@ export function PayoutHistoryTable({ data }: PayoutHistoryTableProps) {
 
     return (
         <div className="space-y-4">
-            <div className="px-1">
-                <h3 className="text-lg font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                    <CheckCircle size={18} className="text-emerald-600" />
-                    Benefit Payout History
-                </h3>
-                <p className="text-xs text-gray-500">Record of all successfully processed benefit payouts.</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-1">
+                <div>
+                    <h3 className="text-lg font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                        <CheckCircle size={18} className="text-emerald-600" />
+                        Benefit Payout History
+                    </h3>
+                    <p className="text-xs text-gray-500">Record of all successfully processed benefit payouts.</p>
+                </div>
+                <button
+                    onClick={() => setShowExportModal(true)}
+                    suppressHydrationWarning={true}
+                    className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-xl text-xs font-bold hover:bg-gray-50 transition-all shadow-sm"
+                >
+                    <FileDown size={14} />
+                    Download History Export
+                </button>
             </div>
 
             <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -137,6 +187,15 @@ export function PayoutHistoryTable({ data }: PayoutHistoryTableProps) {
                     uniqueKey="id"
                 />
             </div>
+
+            <ExportDateRangeModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                onExport={handleServerExport}
+                title="Export Payout History"
+                showStatusFilter={false}
+                columns={exportColumns}
+            />
         </div>
     )
 }

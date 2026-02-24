@@ -473,8 +473,8 @@ export async function importStudents(csvData: string) {
                             selectedFeeType: selectedFeeType,
                             annualFee: annualFeeAmount || (existingLead as any).annualFee
                         }
-                        if (existingLead.leadStatus !== 'Confirmed' && existingLead.leadStatus !== 'Rejected') {
-                            updateData.leadStatus = 'Confirmed'
+                        if (existingLead.leadStatus !== 'Admitted' && existingLead.leadStatus !== 'Rejected') {
+                            updateData.leadStatus = 'Admitted'
                             updateData.confirmedDate = new Date()
                             usersToSync.add(ambassadorId) // Mark for stat update
                         }
@@ -497,7 +497,7 @@ export async function importStudents(csvData: string) {
                                 gradeInterested: grade,
                                 campusId,
                                 campus: campusName,
-                                leadStatus: 'Confirmed',
+                                leadStatus: 'Admitted',
                                 confirmedDate: new Date(),
                                 admittedYear: row.academicYear || '2025-2026',
                                 admissionNumber: admissionNumber,
@@ -644,10 +644,10 @@ export async function importReferrals(csvData: string) {
             const ambassadorName = row.ambassadorname || row.ambassadorName || row['ambassador name'] || null
             const admissionNumber = row.admissionnumber || row.admissionNumber || row['erp no'] || row['admission number'] || null
 
-            // Auto-confirm if ERP number is present, otherwise default to status column or 'Confirmed'
+            // Auto-Admit if ERP number is present, otherwise default to status column or 'Confirmed'
             let status = row.status || row['status'] || 'Confirmed'
             if (admissionNumber && !row.status) {
-                status = 'Confirmed'
+                status = 'Admitted'
             }
 
             if (!parentName || !parentMobile || !grade || !campusName) {
@@ -804,7 +804,7 @@ export async function importReferrals(csvData: string) {
 
             for (const userId of ambassadorsToUpdate) {
                 const count = await prisma.referralLead.count({
-                    where: { userId, leadStatus: 'Confirmed' }
+                    where: { userId, leadStatus: { in: ['Confirmed', 'Admitted'] } }
                 })
 
                 const lookupCount = Math.min(count, 5)

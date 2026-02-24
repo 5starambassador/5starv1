@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { ReferralManagementTable } from '@/app/(main)/admin/referral-table-advanced'
+import { AcademicYearFilter } from '@/components/AcademicYearFilter'
 import CSVUploader from '@/components/CSVUploader'
 import { confirmReferral, convertLeadToStudent, rejectReferral } from '@/app/admin-actions'
 import { Campus } from '@/types'
@@ -23,6 +24,7 @@ export default function ReferralsPageClient({ referrals, meta, campuses }: Refer
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-black text-gray-900 tracking-tighter">Referral Management</h1>
+                <AcademicYearFilter />
             </div>
 
             <ReferralManagementTable

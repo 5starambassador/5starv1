@@ -36,6 +36,7 @@ interface SystemAnalytics {
     avgLeadsPerAmbassador: number
     totalEstimatedRevenue: number
     conversionFunnel: { stage: string; count: number }[]
+    missingStudentCount?: number
 }
 
 interface CampusComparison {
@@ -78,7 +79,7 @@ interface UserRecord {
  * @param timeRange - Filter window: '7d', '30d', or 'all'
  * @returns SystemAnalytics object containing KPI metrics
  */
-export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all', academicYear?: string): Promise<SystemAnalytics> {
+export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all', academicYear?: string, studentSource: 'referral' | 'all' | 'organic' = 'referral'): Promise<SystemAnalytics> {
     const user = await getCurrentUser()
     const canAccess = await hasPermission('analytics')
     if (!user || !canAccess) {
@@ -106,12 +107,15 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
     const yearLeadFilter = academicYear && academicYear !== 'All' ? { admittedYear: academicYear } : {};
 
     // Activity-Anchored User Filter: Include users registered in the year OR with referrals in that year
-    const yearActivityFilter = academicYear && academicYear !== 'All' ? {
-        OR: [
-            { academicYear },
-            { referrals: { some: { admittedYear: academicYear } } }
-        ]
-    } : {};
+    const yearActivityFilter: any = {
+        referralCode: { not: null },
+        ...(academicYear && academicYear !== 'All' ? {
+            OR: [
+                { academicYear },
+                { referrals: { some: { admittedYear: academicYear } } }
+            ]
+        } : {})
+    };
 
     const { filter: scopeFilterUsers } = await getScopeFilter('userManagement')
     const { filter: scopeFilterLeads } = await getScopeFilter('analytics')
@@ -129,23 +133,28 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
             prevLeads,
             prevConfirmedRecords,
             legacyLeadSummary,
-            totalActiveCampuses
+            totalActiveCampuses,
+            missingStudentCount
         ] = await Promise.all([
             prisma.user.count({ where: { ...dateFilter, ...scopeFilterUsers, ...yearActivityFilter } }),
             prisma.referralLead.count({ where: { ...dateFilter, ...scopeFilterLeads, ...yearLeadFilter } }),
-            prisma.referralLead.count({ where: { leadStatus: LeadStatus.Confirmed, ...dateFilter, ...scopeFilterLeads, ...yearLeadFilter } }),
+            prisma.referralLead.count({ where: { leadStatus: { in: [LeadStatus.Confirmed, LeadStatus.Admitted] }, ...dateFilter, ...scopeFilterLeads, ...yearLeadFilter } }),
             prevDateFilter ? prisma.user.count({ where: { ...prevDateFilter, ...scopeFilterUsers, ...yearActivityFilter } }) : Promise.resolve(undefined),
             prevDateFilter ? prisma.referralLead.count({ where: { ...prevDateFilter, ...scopeFilterLeads, ...yearLeadFilter } }) : Promise.resolve(undefined),
-            prevDateFilter ? prisma.referralLead.count({ where: { leadStatus: LeadStatus.Confirmed, ...prevDateFilter, ...scopeFilterLeads, ...yearLeadFilter } }) : Promise.resolve(undefined),
+            prevDateFilter ? prisma.referralLead.count({ where: { leadStatus: { in: [LeadStatus.Confirmed, LeadStatus.Admitted] }, ...prevDateFilter, ...scopeFilterLeads, ...yearLeadFilter } }) : Promise.resolve(undefined),
             prisma.user.aggregate({
                 where: { ...dateFilter, ...scopeFilterUsers, ...yearActivityFilter },
                 _sum: { confirmedReferralCount: true }
             }),
-            prisma.campus.count({ where: { isActive: true } })
+            prisma.campus.count({ where: { isActive: true } }),
+            prisma.referralLead.count({ where: { leadStatus: { in: [LeadStatus.Confirmed, LeadStatus.Admitted] }, student: { is: null }, ...dateFilter, ...scopeFilterLeads, ...yearLeadFilter } })
         ])
 
         // Use legacy count if it's higher (fallback for imported data missing detailed lead records)
-        const legacyConfirmedCount = legacyLeadSummary._sum.confirmedReferralCount || 0
+        // CRITICAL: Only apply legacy fallback for 'All' views. For year-specific views, rely ONLY on records.
+        const legacyConfirmedCount = (!academicYear || academicYear === 'All')
+            ? (legacyLeadSummary._sum.confirmedReferralCount || 0)
+            : 0;
         const totalConfirmed = Math.max(totalConfirmedRecords, legacyConfirmedCount)
         const totalCampuses = totalActiveCampuses
 
@@ -183,7 +192,11 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
         const userRoles = await prisma.user.groupBy({
             by: ['role'],
             _count: { role: true },
-            where: { ...dateFilter, ...(academicYear && academicYear !== 'All' ? { academicYear } : {}) }
+            where: {
+                ...dateFilter,
+                ...yearActivityFilter,
+                referralCode: { not: null }
+            }
         })
 
         const userRoleDistribution = userRoles.map(u => ({
@@ -191,7 +204,19 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
             value: u._count.role
         }))
 
-        const totalStudents = await prisma.student.count({ where: academicYear && academicYear !== 'All' ? { academicYear } : {} })
+        const studentWhere: any = {
+            ...(academicYear && academicYear !== 'All' ? { academicYear } : {})
+        }
+
+        if (studentSource === 'referral') {
+            studentWhere.referralLeadId = { not: null }
+        } else if (studentSource === 'organic') {
+            studentWhere.referralLeadId = null
+        }
+
+        const totalStudents = await prisma.student.count({
+            where: studentWhere
+        })
         const staffCount = userRoles.find(u => u.role === UserRole.Staff)?._count.role || 0
         const parentCount = userRoles.find(u => u.role === UserRole.Parent)?._count.role || 0
         const alumniCount = userRoles.find(u => u.role === UserRole.Alumni)?._count.role || 0
@@ -212,6 +237,7 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
             userRoleDistribution,
             avgLeadsPerAmbassador: totalAmbassadors > 0 ? Number((finalTotalLeads / totalAmbassadors).toFixed(2)) : 0,
             totalEstimatedRevenue: totalConfirmed * 60000,
+            missingStudentCount,
             prevAmbassadors,
             prevLeads,
             prevConfirmed: prevConfirmedRecords,
@@ -313,7 +339,7 @@ export async function getUserGrowthTrend(timeRange: '7d' | '30d' | 'all' = '30d'
  * @param timeRange - Analysis window
  * @returns Array of campus-specific performance metrics
  */
-export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all', academicYear?: string): Promise<CampusComparison[]> {
+export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all', academicYear?: string, studentSource: 'referral' | 'all' | 'organic' = 'referral'): Promise<CampusComparison[]> {
     const user = await getCurrentUser()
     if (!user || !await hasPermission('campusPerformance')) {
         throw new Error('Unauthorized')
@@ -340,14 +366,25 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
     const yearLeadFilter = academicYear && academicYear !== 'All' ? { admittedYear: academicYear } : {};
 
     // Activity-Anchored User Filter: Include users registered in the year OR with referrals in that year
-    const yearActivityFilter = academicYear && academicYear !== 'All' ? {
-        OR: [
-            { academicYear },
-            { referrals: { some: { admittedYear: academicYear } } }
-        ]
-    } : {};
+    const yearActivityFilter: any = {
+        referralCode: { not: null },
+        ...(academicYear && academicYear !== 'All' ? {
+            OR: [
+                { academicYear },
+                { referrals: { some: { admittedYear: academicYear } } }
+            ]
+        } : {})
+    };
 
-    const yearStudentFilter = academicYear && academicYear !== 'All' ? { academicYear } : {};
+    const yearStudentFilter: any = {
+        ...(academicYear && academicYear !== 'All' ? { academicYear } : {})
+    };
+
+    if (studentSource === 'referral') {
+        yearStudentFilter.referralLeadId = { not: null }
+    } else if (studentSource === 'organic') {
+        yearStudentFilter.referralLeadId = null
+    }
 
     // Optimized Aggregation: Fetch all stats in parallel grouping queries
     // Batch 1: Core Campus and Lead Stats (Fastest)
@@ -371,7 +408,7 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
         }),
         prisma.referralLead.groupBy({
             by: ['campus'],
-            where: { campus: { not: null }, leadStatus: 'Confirmed', ...dateFilter, ...yearLeadFilter },
+            where: { campus: { not: null }, leadStatus: { in: ['Confirmed', 'Admitted'] }, ...dateFilter, ...yearLeadFilter },
             _count: { _all: true }
         }),
         prisma.referralLead.groupBy({
@@ -391,7 +428,7 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
         }) : Promise.resolve([]),
         prevDateFilter ? prisma.referralLead.groupBy({
             by: ['campus'],
-            where: { campus: { not: null }, leadStatus: 'Confirmed', ...prevDateFilter, ...yearLeadFilter },
+            where: { campus: { not: null }, leadStatus: { in: ['Confirmed', 'Admitted'] }, ...prevDateFilter, ...yearLeadFilter },
             _count: { _all: true }
         }) : Promise.resolve([])
     ]);
@@ -426,7 +463,7 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
                 assignedCampus: { not: null },
                 ...dateFilter,
                 ...yearActivityFilter,
-                referrals: { some: { leadStatus: 'Confirmed', ...yearLeadFilter } }
+                referrals: { some: { leadStatus: { in: ['Confirmed', 'Admitted'] }, ...yearLeadFilter } }
             },
             select: {
                 assignedCampus: true,
@@ -440,7 +477,7 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
                 assignedCampus: { not: null },
                 ...prevDateFilter,
                 ...yearActivityFilter,
-                referrals: { some: { leadStatus: 'Confirmed', ...yearLeadFilter } }
+                referrals: { some: { leadStatus: { in: ['Confirmed', 'Admitted'] }, ...yearLeadFilter } }
             },
             select: {
                 assignedCampus: true,
@@ -527,7 +564,8 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
 
             // Heuristic fallback: if we have NO leads in the table for this campus 
             // but the user has confirmed counts, we trust the user counts.
-            if (u.confirmedReferralCount > 0) {
+            // CRITICAL: Only apply if doing 'All' view. For specific years, trust the record list.
+            if (u.confirmedReferralCount > 0 && (!academicYear || academicYear === 'All')) {
                 // We add it to the entry if it's currently 0 to avoid double counting 
                 // but since the lead table is empty, this will ignite the 0s.
                 // If some leads exist, we take the MAX to be safe.
@@ -559,16 +597,19 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
 }
 
 // getCampusDetails removed (not used)
-export async function getAllUsers(): Promise<User[]> {
+export async function getAllUsers(academicYear?: string): Promise<User[]> {
     const user = await getCurrentUser()
     if (!user) throw new Error('Unauthorized')
 
     const { filter: scopeFilter } = await getScopeFilter('userManagement')
 
+    const yearFilter = academicYear && academicYear !== 'All' ? { academicYear } : {}
+
     try {
         const users = await prisma.user.findMany({
             where: {
                 ...scopeFilter,
+                ...yearFilter,
                 referralCode: { not: null }
             },
             select: {
@@ -651,14 +692,21 @@ export async function getAllAdmins() {
  * Retrieves all registered students with parent, ambassador, and campus details.
  * @returns Array of Student records with inclusions
  */
-export async function getAllStudents(): Promise<Student[]> {
+export async function getAllStudents(academicYear?: string, studentSource: 'referral' | 'all' | 'organic' = 'referral'): Promise<Student[]> {
     const user = await getCurrentUser()
     if (!user) throw new Error('Unauthorized')
 
     const { filter: scopeFilter } = await getScopeFilter('studentManagement')
 
+    const yearFilter = academicYear && academicYear !== 'All' ? { academicYear } : {}
+
     const students = await prisma.student.findMany({
-        where: scopeFilter || { id: -1 },
+        where: {
+            ...(studentSource === 'referral' ? { referralLeadId: { not: null } } :
+                studentSource === 'organic' ? { referralLeadId: null } : {}),
+            ...(scopeFilter || { id: -1 }),
+            ...yearFilter
+        },
         include: {
             parent: { select: { fullName: true, mobileNumber: true } },
             ambassador: { select: { fullName: true, mobileNumber: true, referralCode: true, role: true } },

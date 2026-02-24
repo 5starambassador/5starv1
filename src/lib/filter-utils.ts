@@ -8,6 +8,7 @@ export interface ReferralFilterParams {
     search?: string
     dateRange?: { from: string; to: string }
     grade?: string
+    academicYear?: string
 }
 
 /**
@@ -25,6 +26,11 @@ export function buildReferralWhereClause(
     const where: any = { ...scopeFilter }
 
     if (!filters) return where
+
+    // Academic Year Filter
+    if (filters.academicYear && filters.academicYear !== 'All') {
+        where.academicYear = { in: filters.academicYear.split(',') }
+    }
 
     // Status Filter
     if (filters.status && filters.status !== 'All') {

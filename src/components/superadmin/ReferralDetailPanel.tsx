@@ -329,9 +329,10 @@ export function ReferralDetailPanel({
                                         {referral.studentName || 'New Lead'}
                                     </h2>
                                     <div className="flex items-center gap-2 mt-1">
-                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${referral.leadStatus === 'Confirmed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                            referral.leadStatus === 'Rejected' ? 'bg-red-50 text-red-600 border-red-100' :
-                                                'bg-amber-50 text-amber-600 border-amber-100'
+                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${referral.leadStatus === 'Admitted' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                                                referral.leadStatus === 'Confirmed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                    referral.leadStatus === 'Rejected' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                        'bg-amber-50 text-amber-600 border-amber-100'
                                             }`} suppressHydrationWarning>
                                             {referral.leadStatus}
                                         </span>
@@ -348,7 +349,7 @@ export function ReferralDetailPanel({
                         </div>
 
                         {/* Status Stepper */}
-                        {referral.leadStatus !== 'Rejected' && referral.leadStatus !== 'Confirmed' && (
+                        {referral.leadStatus !== 'Rejected' && referral.leadStatus !== 'Confirmed' && referral.leadStatus !== 'Admitted' && (
                             <div className="flex items-center justify-between mb-6 px-2 relative">
                                 {/* Connector Line */}
                                 <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-gray-100 -z-10" />
@@ -566,7 +567,7 @@ export function ReferralDetailPanel({
                         </section>
 
                         {/* Confirmation Form (Conditional) */}
-                        {referral.leadStatus !== 'Confirmed' && referral.leadStatus !== 'Rejected' && (
+                        {referral.leadStatus !== 'Confirmed' && referral.leadStatus !== 'Admitted' && referral.leadStatus !== 'Rejected' && (
                             <section className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100/50 space-y-6">
                                 <div className="flex items-center justify-between">
                                     <h3 className="text-xs font-black text-indigo-600 uppercase tracking-[0.2em]">Confirm Admission</h3>
@@ -666,8 +667,8 @@ export function ReferralDetailPanel({
                             </section>
                         )}
 
-                        {/* Confirmation Details (If Confirmed) */}
-                        {referral.leadStatus === 'Confirmed' && (
+                        {/* Confirmation Details (If Confirmed/Admitted) */}
+                        {(referral.leadStatus === 'Confirmed' || referral.leadStatus === 'Admitted') && (
                             <section className="bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100/50 space-y-4">
                                 <div className="flex items-center justify-between mb-2">
                                     <h3 className="text-xs font-black text-emerald-600 uppercase tracking-[0.2em]">Admission Details</h3>

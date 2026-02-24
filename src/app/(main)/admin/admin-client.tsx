@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Users, TrendingUp, Award, BarChart3, IndianRupee, CheckCircle, RefreshCw, Trophy, Building2, BookOpen, Shield, GraduationCap, Phone, Mail, Clock, Plus, Filter, Search, X, Pencil } from 'lucide-react'
+import { Users, TrendingUp, Award, BarChart3, IndianRupee, CheckCircle, RefreshCw, Trophy, Building2, BookOpen, Shield, GraduationCap, Phone, Mail, Clock, Plus, Filter, Search, X, Pencil, UserPlus } from 'lucide-react'
 import { ReferralManagementTable } from './referral-table-advanced'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
@@ -16,6 +16,8 @@ import {
 } from '@/app/report-actions'
 import { addStudent, updateStudent } from '@/app/student-actions'
 import { User, Student, ReferralLead, RolePermissions, AdminAnalytics, CampusPerformance, Admin, Campus } from '@/types'
+import { AcademicYearFilter } from '@/components/AcademicYearFilter'
+import { StudentSourceFilter } from '@/components/StudentSourceFilter'
 
 interface AdminClientProps {
     referrals: ReferralLead[]
@@ -43,9 +45,10 @@ interface AdminClientProps {
     campusPerformance?: CampusPerformance[]
     permissions?: RolePermissions
     userRole?: string
+    syncLegacyConfirmedLeads?: () => Promise<any>
 }
 
-export function AdminClient({ referrals, referralMeta, referralStats, analytics, confirmReferral, initialView = 'analytics', campuses = [], users = [], students = [], admins = [], campusPerformance = [], permissions, userRole }: AdminClientProps) {
+export function AdminClient({ referrals, referralMeta, referralStats, analytics, confirmReferral, initialView = 'analytics', campuses = [], users = [], students = [], admins = [], campusPerformance = [], permissions, userRole, syncLegacyConfirmedLeads }: AdminClientProps) {
     const router = useRouter()
     const searchParams = useSearchParams()
     const [statusFilter, setStatusFilter] = useState<string>('All')
@@ -110,6 +113,20 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
         finally { setModalLoading(false) }
     }
 
+    const handleSyncLegacy = async () => {
+        if (!syncLegacyConfirmedLeads) return
+        const tid = toast.loading('Syncing records...')
+        try {
+            const res = await syncLegacyConfirmedLeads()
+            if (res.success) {
+                toast.success(`Synced ${res.processed} records`, { id: tid })
+                router.refresh()
+            } else {
+                toast.error(res.error || 'Sync failed', { id: tid })
+            }
+        } catch (e) { toast.error('An error occurred', { id: tid }) }
+    }
+
     // View state
     const [selectedView, setSelectedView] = useState<string>(initialView)
 
@@ -156,12 +173,16 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                     <h1 className="text-2xl font-bold text-gray-900">{getTitle()}</h1>
                     <p className="text-sm text-gray-500 mt-1">{getSubtitle()}</p>
                 </div>
-                <button
-                    onClick={() => router.refresh()}
-                    className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-all shadow-sm"
-                >
-                    <RefreshCw size={16} /> Refresh
-                </button>
+                <div className="flex items-center gap-4">
+                    <StudentSourceFilter />
+                    <AcademicYearFilter />
+                    <button
+                        onClick={() => router.refresh()}
+                        className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-all shadow-sm"
+                    >
+                        <RefreshCw size={16} /> Refresh
+                    </button>
+                </div>
             </div>
 
             {/* CONTENT VIEWS */}
@@ -198,6 +219,13 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                             icon={TrendingUp}
                             iconColor="bg-purple-50 text-purple-600"
                             subtext="Leads to Confirmed"
+                        />
+                        <CleanStatCard
+                            title="Active Students"
+                            value={analytics?.totalStudents || 0}
+                            icon={BookOpen}
+                            iconColor="bg-violet-50 text-violet-600"
+                            subtext="In achievement portals"
                         />
                     </div>
 
@@ -254,56 +282,130 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                         </div>
                     </div>
 
-                    {/* Top Performers & Role Distribution */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                <Trophy className="text-amber-500" size={20} />
-                                Top Performers
-                            </h2>
-                            <div className="space-y-4">
-                                {(analytics?.topPerformers || []).slice(0, 5).map((performer, idx) => (
-                                    <div key={idx} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 hover:bg-gray-50 px-2 rounded -mx-2">
-                                        <div className="flex items-center gap-3">
-                                            <span className="w-6 h-6 bg-gray-100 text-gray-600 rounded text-xs font-bold flex items-center justify-center">{idx + 1}</span>
-                                            <div>
-                                                <span className="text-sm font-medium text-gray-900 block">{performer.name}</span>
-                                                <p className="text-xs text-gray-500">{performer.role}</p>
+                    {/* Data Integrity / Maintenance Section */}
+                    {(analytics?.missingStudentCount || 0) > 0 && permissions?.studentManagement?.access && (
+                        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 p-6 rounded-2xl shadow-xl shadow-indigo-200 border border-indigo-400/20 text-white animate-in slide-in-from-bottom-2 duration-500">
+                            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30">
+                                        <RefreshCw size={28} className="text-white animate-spin-slow" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black tracking-tight">Data Sync Required</h3>
+                                        <p className="text-indigo-100 text-sm font-medium mt-0.5">
+                                            Found <span className="font-black underline underline-offset-4">{analytics.missingStudentCount} confirmed leads</span> that are not in the student database.
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={handleSyncLegacy}
+                                    className="w-full md:w-auto px-8 py-3 bg-white text-indigo-700 rounded-xl font-bold text-sm shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center justify-center gap-2 group"
+                                >
+                                    <CheckCircle size={18} className="group-hover:scale-110 transition-transform" />
+                                    Sync All Records Now
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Main Layout Grid */}
+                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                        {/* Highlights & Top Stats */}
+                        <div className="xl:col-span-2 space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Top Performers Card */}
+                                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full translate-x-16 -translate-y-16 group-hover:scale-110 transition-transform" />
+                                    <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                                        <Trophy className="text-amber-500" size={20} />
+                                        Top Performers
+                                    </h2>
+                                    <div className="space-y-4 relative z-10">
+                                        {(analytics?.topPerformers || []).slice(0, 5).map((performer, idx) => (
+                                            <div key={idx} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50/80 px-3 rounded-xl transition-colors">
+                                                <div className="flex items-center gap-4">
+                                                    <span className={`w-8 h-8 rounded-lg text-xs font-black flex items-center justify-center ${idx === 0 ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-gray-100 text-gray-600'}`}>{idx + 1}</span>
+                                                    <div>
+                                                        <span className="text-sm font-bold text-gray-900 block leading-tight">{performer.name}</span>
+                                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight mt-0.5">{performer.role}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-sm font-black text-indigo-600">{performer.count}</span>
+                                                    <p className="text-[9px] font-black text-gray-400 underline decoration-indigo-200">LEADS</p>
+                                                </div>
                                             </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Role Distribution Card */}
+                                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50/50 rounded-full translate-x-16 -translate-y-16 group-hover:scale-110 transition-transform" />
+                                    <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                                        <Users className="text-blue-500" size={20} />
+                                        Role Distribution
+                                    </h2>
+                                    <div className="grid grid-cols-1 gap-4 relative z-10">
+                                        <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-2xl border border-gray-100">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-red-100 text-red-600 rounded-xl flex items-center justify-center">
+                                                    <Users size={20} />
+                                                </div>
+                                                <span className="text-sm font-bold text-gray-700">Parents</span>
+                                            </div>
+                                            <span className="text-xl font-black text-gray-900">{analytics?.roleBreakdown?.parent?.count || 0}</span>
                                         </div>
-                                        <div className="text-right">
-                                            <span className="text-sm font-bold text-gray-900">{performer.count} Leads</span>
+                                        <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-2xl border border-gray-100">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center">
+                                                    <Shield size={20} />
+                                                </div>
+                                                <span className="text-sm font-bold text-gray-700">Staff Members</span>
+                                            </div>
+                                            <span className="text-xl font-black text-gray-900">{analytics?.roleBreakdown?.staff?.count || 0}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between p-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                                                    <Award size={20} />
+                                                </div>
+                                                <span className="text-sm font-bold text-indigo-900">Total Ambassadors</span>
+                                            </div>
+                                            <span className="text-xl font-black text-indigo-700">{analytics?.totalAmbassadors || 0}</span>
                                         </div>
                                     </div>
-                                ))}
-                                {(!analytics?.topPerformers || analytics.topPerformers.length === 0) && (
-                                    <p className="text-center text-gray-400 text-sm py-4">No data available</p>
-                                )}
+                                </div>
                             </div>
                         </div>
 
-                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                <Users className="text-blue-500" size={20} />
-                                Role Distribution
-                            </h2>
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                    <span className="text-sm font-medium text-gray-700">Parents</span>
-                                    <span className="text-lg font-bold text-gray-900">{analytics?.roleBreakdown?.parent?.count || 0}</span>
+                        {/* Side Sidebar / Quick Support/Add */}
+                        <div className="space-y-8">
+                            {/* Quick Register Student Card */}
+                            <div className="bg-gradient-to-br from-white to-gray-50/50 p-8 rounded-[32px] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-center gap-6 hover:border-red-400 hover:shadow-2xl hover:shadow-red-500/5 transition-all group relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-40 h-40 bg-red-500/5 rounded-full translate-x-10 -translate-y-10 group-hover:scale-125 transition-transform" />
+                                <div className="w-20 h-20 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center group-hover:bg-red-600 group-hover:text-white transition-all transform group-hover:rotate-12 shadow-xl shadow-red-500/10 active:scale-90">
+                                    <UserPlus size={40} />
                                 </div>
-                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                    <span className="text-sm font-medium text-gray-700">Staff</span>
-                                    <span className="text-lg font-bold text-gray-900">{analytics?.roleBreakdown?.staff?.count || 0}</span>
+                                <div>
+                                    <h3 className="text-2xl font-black text-gray-900 leading-tight">Add Organic<br />Student</h3>
+                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-2 px-4">Direct system entry</p>
                                 </div>
-                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                    <span className="text-sm font-medium text-gray-700">Total Ambassadors</span>
-                                    <span className="text-lg font-bold text-gray-900">{analytics?.totalAmbassadors || 0}</span>
-                                </div>
-                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                    <span className="text-sm font-medium text-gray-700">Est. Value</span>
-                                    <span className="text-lg font-bold text-gray-900">₹{(analytics?.totalEstimatedValue || 0).toLocaleString('en-IN')}</span>
-                                </div>
+                                <button
+                                    onClick={() => {
+                                        setEditingStudent(null)
+                                        setStudentForm({
+                                            fullName: '', parentId: '', campusId: '', grade: '', section: '',
+                                            rollNumber: '', baseFee: undefined, discountPercent: 0,
+                                            isNewParent: false, newParentName: '', newParentMobile: ''
+                                        })
+                                        setShowStudentModal(true)
+                                    }}
+                                    className="w-full px-8 py-4 bg-gray-900 text-white rounded-2xl text-sm font-black hover:bg-black transition-all shadow-2xl shadow-gray-900/20 active:scale-95"
+                                >
+                                    Open Form
+                                </button>
+                                <p className="text-[10px] font-bold text-gray-400 italic">No referral code required for organic entries</p>
                             </div>
                         </div>
                     </div>
@@ -428,6 +530,13 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                             icon={IndianRupee}
                             iconColor="bg-indigo-50 text-indigo-600"
                             subtext="Incentive Value"
+                        />
+                        <CleanStatCard
+                            title="Active Students"
+                            value={analytics?.totalStudents || 0}
+                            icon={BookOpen}
+                            iconColor="bg-violet-50 text-violet-600"
+                            subtext="In achievement portals"
                         />
                     </div>
 
@@ -780,7 +889,15 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
                                     {students
-                                        .filter(student => student.fullName.toLowerCase().includes(studentSearch.toLowerCase()))
+                                        .filter(student => {
+                                            const matchesSearch = student.fullName.toLowerCase().includes(studentSearch.toLowerCase())
+                                            const selectedSource = searchParams.get('source') || 'referral'
+                                            const matchesSource =
+                                                selectedSource === 'all' ? true :
+                                                    selectedSource === 'referral' ? !!student.ambassador :
+                                                        selectedSource === 'organic' ? !student.ambassador : true
+                                            return matchesSearch && matchesSource
+                                        })
                                         .map((student) => (
                                             <tr key={student.studentId} className="hover:bg-gray-50/50 transition-colors">
                                                 <td className="px-6 py-4 font-bold text-gray-800">{student.fullName}</td>

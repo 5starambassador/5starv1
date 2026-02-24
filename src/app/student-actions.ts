@@ -363,7 +363,7 @@ export async function convertLeadToStudent(leadId: number, studentDetails: {
             // 5. Update Referral Lead Status
             await tx.referralLead.update({
                 where: { leadId: lead.leadId },
-                data: { leadStatus: 'Confirmed' } // Or 'Admitted' if you prefer, but UI usually expects 'Confirmed'
+                data: { leadStatus: 'Admitted' }
             })
 
             // 6. Increment Ambassador's count and promote to 5-Star if threshold reached

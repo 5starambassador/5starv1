@@ -11,6 +11,7 @@ import CSVUploader from '@/components/CSVUploader'
 import { addStudent, updateStudent, bulkAddStudents } from '@/app/student-actions'
 import { backfillStudentFees, generateMissingGradeFeeReport } from '@/app/import-actions'
 import { getGradesForCampus } from '@/lib/grade-utils'
+import { AcademicYearFilter } from '@/components/AcademicYearFilter'
 import { AnimatePresence } from 'framer-motion'
 
 interface StudentsPageClientProps {
@@ -283,6 +284,11 @@ export default function StudentsPageClient({ students, users, campuses }: Studen
 
     return (
         <div className="space-y-6 animate-fade-in relative min-h-screen pb-20">
+            {/* Header with Title and Year Filter */}
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-black text-gray-900 tracking-tighter">Student Database</h1>
+            </div>
+
             <StudentTable
                 students={students}
                 searchTerm={searchQuery}

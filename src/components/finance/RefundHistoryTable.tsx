@@ -1,8 +1,12 @@
 'use client'
 
 import { DataTable } from '@/components/ui/DataTable'
-import { BadgeCheck } from 'lucide-react'
+import { BadgeCheck, FileDown } from 'lucide-react'
 import { format } from 'date-fns'
+import { useState } from 'react'
+import { ExportDateRangeModal } from './ExportDateRangeModal'
+import { exportRefunds } from '@/app/export-actions'
+import { toast } from 'sonner'
 
 interface Registration {
     id: number
@@ -34,9 +38,39 @@ interface Registration {
 
 interface RefundHistoryTableProps {
     data: Registration[]
+    academicYear?: string
 }
 
-export function RefundHistoryTable({ data }: RefundHistoryTableProps) {
+export function RefundHistoryTable({ data, academicYear }: RefundHistoryTableProps) {
+    const [showExportModal, setShowExportModal] = useState(false)
+
+    const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
+        const res = await exportRefunds(start, end, selectedColumns, academicYear)
+        if (res.success && res.csv) {
+            const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
+            const link = document.createElement('a')
+            const url = URL.createObjectURL(blob)
+            link.setAttribute('href', url)
+            link.setAttribute('download', res.filename || 'refund_history.csv')
+            link.style.visibility = 'hidden'
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            toast.success('Refund History downloaded')
+        } else {
+            toast.error(res.error || 'Failed to export')
+        }
+    }
+
+    const exportColumns = [
+        { id: 'fullName', label: 'Full Name', defaultChecked: true },
+        { id: 'mobile', label: 'Mobile Number', defaultChecked: true },
+        { id: 'amount', label: 'Refund Amount', defaultChecked: true },
+        { id: 'status', label: 'Refund Status', defaultChecked: true },
+        { id: 'payoutDate', label: 'Refund Date', defaultChecked: true },
+        { id: 'bankRef', label: 'Bank Ref (UTR)', defaultChecked: true },
+        { id: 'remarks', label: 'Audit Remarks', defaultChecked: true }
+    ]
     const columns = [
         {
             header: 'User Details',
@@ -115,12 +149,22 @@ export function RefundHistoryTable({ data }: RefundHistoryTableProps) {
 
     return (
         <div className="space-y-6">
-            <div className="px-1">
-                <h3 className="text-lg font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                    <BadgeCheck size={18} className="text-emerald-500" />
-                    Refund Tracking History
-                </h3>
-                <p className="text-xs text-gray-500">Pakka record of all registration fees successfully refunded.</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-1">
+                <div>
+                    <h3 className="text-lg font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                        <BadgeCheck size={18} className="text-emerald-500" />
+                        Refund Tracking History
+                    </h3>
+                    <p className="text-xs text-gray-500">Pakka record of all registration fees successfully refunded.</p>
+                </div>
+                <button
+                    onClick={() => setShowExportModal(true)}
+                    suppressHydrationWarning={true}
+                    className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-xl text-xs font-bold hover:bg-gray-50 transition-all shadow-sm"
+                >
+                    <FileDown size={14} />
+                    Download Refund Report
+                </button>
             </div>
 
             <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -132,6 +176,15 @@ export function RefundHistoryTable({ data }: RefundHistoryTableProps) {
                     pageSize={10}
                 />
             </div>
+
+            <ExportDateRangeModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                onExport={handleServerExport}
+                title="Export Refund History"
+                showStatusFilter={false}
+                columns={exportColumns}
+            />
         </div>
     )
 }

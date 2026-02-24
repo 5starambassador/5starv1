@@ -35,10 +35,13 @@ export default async function SuperAdminStudentsPage({ searchParams }: PageProps
     if (!user) redirect('/')
     if (user.role !== 'Super Admin') redirect('/dashboard')
 
+    const year = Array.isArray(params.year) ? params.year[0] : params.year
+    const source = (Array.isArray(params.source) ? params.source[0] : params.source || 'referral') as 'referral' | 'all' | 'organic'
+
     // Parallel Fetching
     const [students, users, campusesData] = await Promise.all([
-        getAllStudents(),
-        getAllUsers(), // Needed for parent lookup in modals
+        getAllStudents(year, source),
+        getAllUsers(year), // Needed for parent lookup in modals
         getCampuses()
     ])
 

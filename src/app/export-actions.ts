@@ -5,8 +5,9 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { format } from 'date-fns'
 import { decrypt } from '@/lib/encryption'
 import { logAction } from '@/lib/audit-logger'
+import { getAccruedPayoutLiabilities, getUsersReadyForRefund } from './finance-actions'
 
-export async function exportRegistrations(startDate: Date, endDate: Date, selectedColumns?: string[]) {
+export async function exportRegistrations(startDate: Date, endDate: Date, selectedColumns?: string[], academicYear?: string) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
 
@@ -19,7 +20,8 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
                 createdAt: {
                     gte: startDate,
                     lte: end
-                }
+                },
+                ...(academicYear && academicYear !== 'All' ? { academicYear } : {})
             },
             include: {
                 students: true,
@@ -138,16 +140,31 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
     }
 }
 
-export async function exportPayouts(startDate: Date, endDate: Date, status?: string, selectedColumns?: string[]) {
+export async function exportPayouts(startDate: Date, endDate: Date, status?: string, selectedColumns?: string[], academicYear?: string) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
 
     try {
-        const end = new Date(endDate)
-        end.setHours(23, 59, 59, 999)
+        let finalStart = startDate
+        let finalEnd = new Date(endDate)
+        finalEnd.setHours(23, 59, 59, 999)
+
+        // Apply Academic Year Filter via Date Range
+        if (academicYear && academicYear !== 'All') {
+            const yearRecord = await prisma.academicYear.findUnique({
+                where: { year: academicYear }
+            })
+            if (yearRecord) {
+                // We use the year's range if it's more specific or if status is 'All'
+                if (status === 'All' || status === 'Processed') {
+                    finalStart = yearRecord.startDate
+                    finalEnd = yearRecord.endDate
+                }
+            }
+        }
 
         const whereClause: any = {
-            createdAt: { gte: startDate, lte: end }
+            createdAt: { gte: finalStart, lte: finalEnd }
         }
 
         if (status && status !== 'All') {
@@ -332,6 +349,260 @@ export async function exportRejectedPayments(search?: string) {
 
     } catch (error) {
         console.error('Export Rejected Payments Error:', error)
+        return { success: false, error: 'Failed to generate export' }
+    }
+}
+
+export async function exportRefunds(startDate: Date, endDate: Date, selectedColumns?: string[], academicYear?: string, type: 'Ready' | 'History' = 'History') {
+    const admin = await getCurrentUser()
+    if (!admin) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const start = new Date(startDate)
+        const end = new Date(endDate)
+        end.setHours(23, 59, 59, 999)
+
+        let users: any[] = []
+
+        if (type === 'Ready') {
+            const res = await getUsersReadyForRefund(academicYear)
+            if (res.success && res.data) {
+                users = res.data.filter((u: any) => {
+                    const created = new Date(u.createdAt)
+                    return created >= start && created <= end
+                })
+            }
+        } else {
+            users = await prisma.user.findMany({
+                where: {
+                    paymentAmount: { gt: 0 },
+                    createdAt: { gte: start, lte: end },
+                    ...(academicYear && academicYear !== 'All' ? { academicYear } : {}),
+                    OR: [
+                        { payments: { some: { adminRemarks: { contains: 'REFUNDED', mode: 'insensitive' } } } },
+                        { settlements: { some: { amount: 25, status: 'Processed' } } }
+                    ]
+                },
+                include: {
+                    payments: {
+                        where: { paymentStatus: 'Success' },
+                        orderBy: { createdAt: 'desc' },
+                        take: 1
+                    },
+                    settlements: {
+                        where: { amount: 25, status: 'Processed' },
+                        select: { amount: true, status: true, bankReference: true, payoutDate: true, remarks: true }
+                    }
+                },
+                orderBy: { createdAt: 'desc' }
+            })
+        }
+
+        const safeString = (str: string | null | undefined) => `"${(String(str || '')).replace(/"/g, '""')}"`
+
+        const colDefs: Record<string, { header: string, accessor: (u: any) => string | number | null }> = {
+            'fullName': { header: 'Full Name', accessor: (u) => u.fullName },
+            'mobile': { header: 'Mobile Number', accessor: (u) => `="${u.mobileNumber}"` },
+            'campus': { header: 'Campus', accessor: (u) => u.campusName || u.assignedCampus || 'N/A' },
+            'amount': { header: 'Refund Amount', accessor: (u) => 25 },
+            'status': { header: 'Refund Status', accessor: (u) => type === 'Ready' ? 'Pending' : 'Processed' },
+            'payoutDate': {
+                header: type === 'Ready' ? 'Registration Date' : 'Refund Date',
+                accessor: (u) => {
+                    if (type === 'Ready') return format(new Date(u.createdAt), 'yyyy-MM-dd')
+                    const settlement = u.settlements?.[0]
+                    return settlement?.payoutDate ? format(new Date(settlement.payoutDate), 'yyyy-MM-dd') : 'Processed'
+                }
+            },
+            'bankName': { header: 'Bank Name', accessor: (u) => u.bankName || 'N/A' },
+            'accountNo': { header: 'Account Number', accessor: (u) => u.accountNumber ? `="${u.accountNumber}"` : 'N/A' },
+            'ifsc': { header: 'IFSC Code', accessor: (u) => u.ifscCode || 'N/A' },
+            'bankRef': { header: 'Bank Ref (UTR)', accessor: (u) => u.settlements?.[0]?.bankReference || 'N/A' },
+            'remarks': { header: 'Audit Remarks', accessor: (u) => u.settlements?.[0]?.remarks || u.payments?.[0]?.adminRemarks || '-' }
+        }
+
+        const columnsToExport = selectedColumns && selectedColumns.length > 0
+            ? selectedColumns.filter(k => colDefs[k])
+            : Object.keys(colDefs)
+
+        const csvHeaders = columnsToExport.map(k => colDefs[k].header).join(',')
+        const csvRows = users.map(user => {
+            return columnsToExport.map(k => {
+                const val = colDefs[k].accessor(user)
+                if (typeof val === 'string' && val.startsWith('=')) return val
+                return safeString(val as string)
+            }).join(',')
+        })
+
+        const csvContent = [csvHeaders, ...csvRows].join('\n')
+
+        await logAction('EXPORT', 'finance', `Exported ${users.length} refunds (${type}) CSV`, null)
+
+        return {
+            success: true,
+            csv: csvContent,
+            filename: `${type}_Refunds_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`
+        }
+
+    } catch (error) {
+        console.error('Export Refunds Error:', error)
+        return { success: false, error: 'Failed to generate export' }
+    }
+}
+
+export async function exportWaivers(startDate: Date, endDate: Date, selectedColumns?: string[], academicYear?: string) {
+    const admin = await getCurrentUser()
+    if (!admin) return { success: false, error: 'Unauthorized' }
+
+    try {
+        let finalStart = startDate
+        let finalEnd = new Date(endDate)
+        finalEnd.setHours(23, 59, 59, 999)
+
+        // Apply Academic Year Filter via Date Range (Waivers are Settlements)
+        if (academicYear && academicYear !== 'All') {
+            const yearRecord = await prisma.academicYear.findUnique({
+                where: { year: academicYear }
+            })
+            if (yearRecord) {
+                finalStart = yearRecord.startDate
+                finalEnd = yearRecord.endDate
+            }
+        }
+
+        const settlements = await prisma.settlement.findMany({
+            where: {
+                status: 'Processed',
+                remarks: { contains: 'waiver', mode: 'insensitive' },
+                createdAt: { gte: finalStart, lte: finalEnd }
+            },
+            include: {
+                user: {
+                    select: {
+                        fullName: true,
+                        mobileNumber: true,
+                        role: true
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        })
+
+        const safeString = (str: string | null | undefined) => `"${(String(str || '')).replace(/"/g, '""')}"`
+
+        const colDefs: Record<string, { header: string, accessor: (s: any) => string | number | null }> = {
+            'fullName': { header: 'Ambassador Name', accessor: (s) => s.user.fullName },
+            'mobile': { header: 'Mobile Number', accessor: (s) => `="${s.user.mobileNumber}"` },
+            'childName': {
+                header: 'Child Name',
+                accessor: (s) => {
+                    const r = s.remarks || ''
+                    return r.includes('[BREAKDOWN:') ? r.split('[BREAKDOWN:')[1].split(']')[0] : 'N/A'
+                }
+            },
+            'erpNo': {
+                header: 'ERP No',
+                accessor: (s) => {
+                    const r = s.remarks || ''
+                    return r.includes('[ERP:') ? r.split('[ERP:')[1].split(']')[0] : 'N/A'
+                }
+            },
+            'amount': { header: 'Waiver Amount', accessor: (s) => s.amount },
+            'date': { header: 'Applied Date', accessor: (s) => s.payoutDate ? format(new Date(s.payoutDate), 'yyyy-MM-dd') : format(new Date(s.createdAt), 'yyyy-MM-dd') },
+            'bankRef': { header: 'Reference ID', accessor: (s) => s.bankReference || 'N/A' },
+            'remarks': { header: 'Remarks', accessor: (s) => s.remarks || '-' }
+        }
+
+        const columnsToExport = selectedColumns && selectedColumns.length > 0
+            ? selectedColumns.filter(k => colDefs[k])
+            : Object.keys(colDefs)
+
+        const csvHeaders = columnsToExport.map(k => colDefs[k].header).join(',')
+        const csvRows = settlements.map(settlement => {
+            return columnsToExport.map(k => {
+                const val = colDefs[k].accessor(settlement)
+                if (typeof val === 'string' && val.startsWith('=')) return val
+                return safeString(val as string)
+            }).join(',')
+        })
+
+        const csvContent = [csvHeaders, ...csvRows].join('\n')
+
+        await logAction('EXPORT', 'finance', `Exported ${settlements.length} waivers CSV`, null)
+
+        return {
+            success: true,
+            csv: csvContent,
+            filename: `Waiver_History_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`
+        }
+
+    } catch (error) {
+        console.error('Export Waivers Error:', error)
+        return { success: false, error: 'Failed to generate export' }
+    }
+}
+
+export async function exportLiabilities(startDate: Date, endDate: Date, selectedColumns?: string[], academicYear?: string, group?: 'A' | 'B') {
+    const admin = await getCurrentUser()
+    if (!admin) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const res = await getAccruedPayoutLiabilities(academicYear)
+        if (!res.success || !res.data) {
+            return { success: false, error: res.error || 'Failed to fetch liabilities' }
+        }
+
+        let liabilities = res.data
+        if (group) {
+            liabilities = liabilities.filter((l: any) => l.group.includes(group))
+        }
+
+        const safeString = (str: string | null | undefined) => `"${(String(str || '')).replace(/"/g, '""')}"`
+
+        const colDefs: Record<string, { header: string, accessor: (l: any) => string | number | null }> = {
+            'fullName': { header: 'Ambassador Name', accessor: (l) => l.fullName },
+            'mobile': { header: 'Mobile Number', accessor: (l) => `="${l.mobileNumber}"` },
+            'role': { header: 'Role', accessor: (l) => l.role },
+            'campus': { header: 'Ambassador Campus', accessor: (l) => l.campusName || 'N/A' },
+            'referrals': { header: 'Confirmed Referrals', accessor: (l) => l.confirmedReferralCount },
+            'totalEarned': { header: 'Total Earned', accessor: (l) => l.totalEarned },
+            'totalSettled': { header: 'Total Settled', accessor: (l) => l.totalSettled },
+            'remaining': { header: 'Outstanding', accessor: (l) => l.remainingAmount },
+            'slab': { header: 'Slab Reward', accessor: (l) => l.slabShare || 0 },
+            'admission': { header: 'Admission Share', accessor: (l) => l.admissionShare || 0 },
+            'donation': { header: 'Donation Share', accessor: (l) => l.donationShare || 0 },
+            'childName': { header: 'Child Name', accessor: (l) => l.childName || 'N/A' },
+            'erpNo': { header: 'Child ERP No', accessor: (l) => l.childEprNo || 'N/A' },
+            'childGrade': { header: 'Child Grade', accessor: (l) => l.childGrade || 'N/A' },
+            'childFee': { header: 'Child Fee', accessor: (l) => l.childFee || 0 },
+            'group': { header: 'Ledger Group', accessor: (l) => l.group }
+        }
+
+        const columnsToExport = selectedColumns && selectedColumns.length > 0
+            ? selectedColumns.filter(k => colDefs[k])
+            : Object.keys(colDefs)
+
+        const csvHeaders = columnsToExport.map(k => colDefs[k].header).join(',')
+        const csvRows = liabilities.map(lib => {
+            return columnsToExport.map(k => {
+                const val = colDefs[k].accessor(lib)
+                if (typeof val === 'string' && val.startsWith('=')) return val
+                return safeString(val as string)
+            }).join(',')
+        })
+
+        const csvContent = [csvHeaders, ...csvRows].join('\n')
+
+        await logAction('EXPORT', 'finance', `Exported ${liabilities.length} liabilities CSV`, null)
+
+        return {
+            success: true,
+            csv: csvContent,
+            filename: `Liability_Ledger_${group || 'ALL'}_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`
+        }
+
+    } catch (error) {
+        console.error('Export Liabilities Error:', error)
         return { success: false, error: 'Failed to generate export' }
     }
 }

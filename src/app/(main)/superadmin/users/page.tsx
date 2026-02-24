@@ -39,9 +39,11 @@ export default async function SuperAdminUsersPage({ searchParams }: PageProps) {
     if (!await hasPermission('userManagement')) {
         redirect('/dashboard')
     }
+    const year = Array.isArray(params.year) ? params.year[0] : params.year
+
     // Parallel Fetching
     const [users, campusesData] = await Promise.all([
-        getAllUsers(),
+        getAllUsers(year),
         getCampuses()
     ])
 

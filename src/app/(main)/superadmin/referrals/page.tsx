@@ -29,6 +29,7 @@ export default async function SuperAdminReferralsPage({ searchParams }: PageProp
         role: Array.isArray(params.role) ? params.role[0] : params.role,
         campus: Array.isArray(params.campus) ? params.campus[0] : params.campus,
         search: Array.isArray(params.search) ? params.search[0] : params.search,
+        academicYear: Array.isArray(params.year) ? params.year[0] : params.year,
         dateRange: (params.from && params.to) ? {
             from: Array.isArray(params.from) ? params.from[0] : params.from,
             to: Array.isArray(params.to) ? params.to[0] : params.to

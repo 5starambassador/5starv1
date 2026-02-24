@@ -7,6 +7,7 @@ import { X } from 'lucide-react'
 import { User, Campus, BulkUserData } from '@/types'
 import { UserTable } from '@/components/superadmin/UserTable'
 import { addUser, updateUser, removeUser, updateUserStatus, bulkAddUsers, purgeUserPermanently } from '@/app/superadmin-actions'
+import { AcademicYearFilter } from '@/components/AcademicYearFilter'
 import dynamic from 'next/dynamic'
 
 // Dynamic imports for bundle optimization
@@ -208,6 +209,7 @@ export default function UsersPageClient({ users, campuses, currentUserRole }: Us
         <div className="space-y-6 animate-fade-in min-h-screen pb-20">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-black text-gray-900 tracking-tighter">User Operations</h1>
+                <AcademicYearFilter />
             </div>
 
             {/* View Toggle */}

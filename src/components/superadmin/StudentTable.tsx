@@ -5,7 +5,7 @@ import {
     User, Phone, Calendar, CreditCard, Hash, Copy, Eye,
     RefreshCcw, Layout, MoreHorizontal, FileSpreadsheet, FileText
 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 
 import { DataTable } from '@/components/ui/DataTable'
@@ -13,6 +13,8 @@ import { Badge } from '@/components/ui/Badge'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FilterDropdown } from '@/components/ui/FilterDropdown'
 import { Student } from '@/types'
+import { AcademicYearFilter } from '@/components/AcademicYearFilter'
+import { StudentSourceFilter } from '@/components/StudentSourceFilter'
 import { exportToCSV } from '@/lib/export-utils'
 import { bulkStudentAction } from '@/app/bulk-student-actions'
 
@@ -46,6 +48,7 @@ export function StudentTable({
     onGenerateReport
 }: StudentTableProps) {
     const router = useRouter()
+    const searchParams = useSearchParams()
 
     // --- State ---
     const [searchTerm, setSearchTerm] = useState(initialSearch || '')
@@ -110,9 +113,18 @@ export function StudentTable({
                 if (!filters.feeType.includes(type === 'OTP' ? 'One Time' : 'Installment')) return false
             }
 
+            // Academic Year Filter
+            const selectedYear = searchParams.get('year')
+            if (selectedYear && selectedYear !== 'All' && s.academicYear !== selectedYear) return false
+
+            // Student Source Filter
+            const selectedSource = searchParams.get('source') || 'referral'
+            if (selectedSource === 'referral' && !s.ambassador) return false
+            if (selectedSource === 'organic' && s.ambassador) return false
+
             return true
         })
-    }, [initialStudents, searchTerm, filters])
+    }, [initialStudents, searchTerm, filters, searchParams])
 
     // Stats Logic
     const stats = useMemo(() => {
@@ -502,10 +514,10 @@ export function StudentTable({
             </div>
 
             {/* Toolbar - Redesigned for Clarity */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between sticky top-4 z-30">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col lg:flex-row flex-wrap gap-4 items-start lg:items-center justify-between sticky top-4 z-30">
 
                 {/* Left Zone: Discovery (Search + Filters) */}
-                <div className="flex flex-col md:flex-row gap-3 w-full xl:w-auto items-stretch md:items-center flex-grow xl:flex-grow-0">
+                <div className="flex flex-col md:flex-row flex-wrap gap-3 w-full lg:w-auto items-stretch md:items-center flex-grow lg:flex-grow-0">
                     {/* Search */}
                     <div className="relative flex-grow md:flex-grow-0 md:w-64 group">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors" size={16} />
@@ -519,62 +531,72 @@ export function StudentTable({
                         />
                     </div>
 
-                    {/* Filters Row */}
-                    <div className="flex items-center gap-2 flex-wrap pb-1 md:pb-0">
-                        {[
-                            { id: 'campus', label: 'Campus', icon: Building, count: filters.campus.length, options: filterOptions.campus },
-                            { id: 'grade', label: 'Grade', icon: GraduationCap, count: filters.grade.length, options: filterOptions.grade },
-                            { id: 'status', label: 'Status', icon: CheckCircle, count: filters.status.length, options: filterOptions.status },
-                        ].map((filter) => (
-                            <div key={filter.id} className="relative">
-                                <button
-                                    onClick={() => setActiveFilter(activeFilter === filter.id ? null : filter.id)}
-                                    className={`h-10 px-3.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 whitespace-nowrap ${filter.count > 0
-                                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm'
-                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
-                                        }`}
-                                    suppressHydrationWarning
-                                >
-                                    <filter.icon size={14} className={filter.count > 0 ? 'text-indigo-600' : 'text-gray-400'} />
-                                    {filter.label}
-                                    {filter.count > 0 && (
-                                        <Badge variant="purple" className="ml-1 px-1.5 py-0 h-5 min-w-[1.25rem]">{filter.count}</Badge>
+                    {/* Global View Filters (Grouped) */}
+                    <div className="flex items-center gap-2 bg-gray-50/50 p-1 rounded-2xl border border-gray-100 shadow-sm">
+                        <AcademicYearFilter />
+                        <div className="w-px h-6 bg-gray-200 hidden md:block"></div>
+                        <StudentSourceFilter />
+                    </div>
+
+                    {/* Data Filters Column-specific */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 p-1 bg-white border border-gray-200 rounded-2xl shadow-sm">
+                            {[
+                                { id: 'campus', label: 'Campus', icon: Building, count: filters.campus.length, options: filterOptions.campus },
+                                { id: 'grade', label: 'Grade', icon: GraduationCap, count: filters.grade.length, options: filterOptions.grade },
+                                { id: 'status', label: 'Status', icon: CheckCircle, count: filters.status.length, options: filterOptions.status },
+                            ].map((filter) => (
+                                <div key={filter.id} className="relative">
+                                    <button
+                                        onClick={() => setActiveFilter(activeFilter === filter.id ? null : filter.id)}
+                                        className={`h-9 px-3 rounded-xl text-[11px] font-black uppercase tracking-widest border transition-all flex items-center gap-2 whitespace-nowrap ${filter.count > 0
+                                            ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm'
+                                            : 'bg-transparent border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                                            }`}
+                                        suppressHydrationWarning
+                                    >
+                                        <filter.icon size={12} className={filter.count > 0 ? 'text-indigo-600' : 'text-gray-400'} />
+                                        {filter.label}
+                                        {filter.count > 0 && (
+                                            <span className="ml-1 px-1.5 py-0.5 bg-indigo-600 text-white text-[10px] rounded-full min-w-[1.25rem]">{filter.count}</span>
+                                        )}
+                                    </button>
+                                    {activeFilter === filter.id && (
+                                        <FilterDropdown
+                                            label={filter.label}
+                                            options={filter.options}
+                                            activeValues={filters[filter.id as keyof typeof filters] as string[]}
+                                            onApply={(vals) => setFilters(prev => ({ ...prev, [filter.id]: vals }))}
+                                            onClose={() => setActiveFilter(null)}
+                                        />
                                     )}
-                                </button>
-                                {activeFilter === filter.id && (
-                                    <FilterDropdown
-                                        label={filter.label}
-                                        options={filter.options}
-                                        activeValues={filters[filter.id as keyof typeof filters] as string[]}
-                                        onApply={(vals) => setFilters(prev => ({ ...prev, [filter.id]: vals }))}
-                                        onClose={() => setActiveFilter(null)}
-                                    />
-                                )}
-                            </div>
-                        ))}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
                 {/* Right Zone: Actions */}
-                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full xl:w-auto">
+                <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full lg:w-auto">
 
                     {/* Utility Group (Compact) */}
-                    <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200 self-start md:self-auto">
-                        <button
-                            onClick={() => setLiveMode(!liveMode)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${liveMode ? 'bg-green-100 text-green-700' : 'text-gray-400 hover:bg-white hover:shadow-sm hover:text-gray-600'}`}
-                            title={liveMode ? "Live Mode: ON" : "Live Mode: OFF"}
-                            suppressHydrationWarning
-                        >
-                            <RefreshCcw size={14} className={liveMode ? 'animate-spin' : ''} />
-                        </button>
-                        <div className="w-px h-4 bg-gray-200 mx-0.5"></div>
-                        <div className="relative">
+                    {/* Main Actions Group */}
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200">
+                            <button
+                                onClick={() => setLiveMode(!liveMode)}
+                                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${liveMode ? 'bg-green-100 text-green-700' : 'text-gray-400 hover:bg-white hover:text-gray-600'}`}
+                                title={liveMode ? "Live Mode: ON" : "Live Mode: OFF"}
+                                suppressHydrationWarning
+                            >
+                                <RefreshCcw size={14} className={liveMode ? 'animate-spin' : ''} />
+                            </button>
+                            <div className="w-px h-4 bg-gray-200 mx-0.5"></div>
                             <button
                                 onClick={() => setShowColumnMenu(!showColumnMenu)}
-                                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${showColumnMenu ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:bg-white hover:shadow-sm hover:text-gray-600'}`}
+                                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${showColumnMenu ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:bg-white hover:text-gray-600'}`}
                                 title="Manage Columns"
-                                suppressHydrationWarning
+                                suppressHydrationWarning={true}
                             >
                                 <Layout size={14} />
                             </button>
@@ -594,29 +616,27 @@ export function StudentTable({
                                     ))}
                                 </div>
                             )}
+                            <div className="w-px h-4 bg-gray-200 mx-0.5"></div>
+                            <button
+                                onClick={() => exportToCSV(filteredStudents, 'Student_List', [
+                                    { header: 'Full Name', accessor: (s) => s.fullName },
+                                    { header: 'Admission No', accessor: (s) => s.admissionNumber },
+                                    { header: 'Grade', accessor: (s) => s.grade },
+                                    { header: 'Parent', accessor: (s) => s.parent?.fullName || '' },
+                                    { header: 'Mobile', accessor: (s) => s.parent?.mobileNumber || '' },
+                                    { header: 'Ambassador', accessor: (s) => s.ambassador?.fullName || '' },
+                                    { header: 'Status', accessor: (s) => s.status },
+                                    { header: 'Fee Plan', accessor: (s) => (s as any).selectedFeeType || 'WOTP' },
+                                    { header: 'Annual Fee', accessor: (s) => (s.baseFee || (s as any).annualFee || 0).toString() }
+                                ])}
+                                className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:bg-white hover:text-gray-600 hover:shadow-sm"
+                                title="Download Results"
+                                suppressHydrationWarning
+                            >
+                                <Download size={14} />
+                            </button>
                         </div>
-                        <button
-                            onClick={() => exportToCSV(filteredStudents, 'Student_List', [
-                                { header: 'Full Name', accessor: (s) => s.fullName },
-                                { header: 'Admission No', accessor: (s) => s.admissionNumber },
-                                { header: 'Grade', accessor: (s) => s.grade },
-                                { header: 'Parent', accessor: (s) => s.parent?.fullName || '' },
-                                { header: 'Mobile', accessor: (s) => s.parent?.mobileNumber || '' },
-                                { header: 'Ambassador', accessor: (s) => s.ambassador?.fullName || '' },
-                                { header: 'Status', accessor: (s) => s.status },
-                                { header: 'Fee Plan', accessor: (s) => (s as any).selectedFeeType || 'WOTP' },
-                                { header: 'Annual Fee', accessor: (s) => (s.baseFee || (s as any).annualFee || 0).toString() }
-                            ])}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-white hover:shadow-sm hover:text-gray-600 transition-all"
-                            title="Export CSV"
-                            suppressHydrationWarning
-                        >
-                            <Download size={14} />
-                        </button>
-                    </div>
 
-                    {/* Primary Actions Group */}
-                    <div className="flex items-center gap-2">
                         {onBackfillFees && (
                             <button
                                 onClick={onBackfillFees}

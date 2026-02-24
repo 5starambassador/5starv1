@@ -46,9 +46,10 @@ interface RegistrationTableProps {
     data: Registration[]
     search?: string
     onSearchChange?: (val: string) => void
+    academicYear?: string
 }
 
-export function RegistrationTable({ data, search = '', onSearchChange }: RegistrationTableProps) {
+export function RegistrationTable({ data, search = '', onSearchChange, academicYear }: RegistrationTableProps) {
     const [filter, setFilter] = useState('All')
 
     const [showExportModal, setShowExportModal] = useState(false)
@@ -233,7 +234,7 @@ export function RegistrationTable({ data, search = '', onSearchChange }: Registr
     }
 
     const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
-        const res = await exportRegistrations(start, end, selectedColumns)
+        const res = await exportRegistrations(start, end, selectedColumns, academicYear)
         if (res.success && res.csv) {
             // Trigger Download
             const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })

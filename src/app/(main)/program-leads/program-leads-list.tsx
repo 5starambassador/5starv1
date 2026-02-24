@@ -2,7 +2,7 @@
 
 import { GlassCard } from '@/components/ui/GlassCard'
 import { PageAnimate, PageItem } from '@/components/PageAnimate'
-import { CheckCircle2, Clock, ExternalLink, MessageSquare, IndianRupee, Star, MousePointerClick, ChevronRight, User } from 'lucide-react'
+import { CheckCircle2, Clock, ExternalLink, MessageSquare, IndianRupee, Star, MousePointerClick, ChevronRight, User, Phone } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 interface ProgramLeadsListProps {
@@ -29,33 +29,33 @@ export function ProgramLeadsList({ leads, programs = [] }: ProgramLeadsListProps
             </div>
 
             {/* Quick Stats (Global) - MATCHES DASHBOARD STAT PATTERNS */}
-            <div className="grid grid-cols-2 gap-6 relative z-10">
+            <div className="grid grid-cols-2 gap-4 relative z-10">
                 <GlassCard
                     onClick={() => setFilter('CLICKED')}
-                    className={`cursor-pointer transition-all duration-300 active:scale-95 !border-2 ${filter === 'CLICKED'
-                        ? 'border-blue-400 !bg-blue-600/20 shadow-2xl shadow-blue-500/20'
+                    className={`cursor-pointer transition-all duration-300 active:scale-95 !border-2 py-3 px-4 ${filter === 'CLICKED'
+                        ? 'border-orange-400 !bg-orange-600/20 shadow-2xl shadow-orange-500/20'
                         : 'border-white/5 bg-white/5 hover:border-white/10'}`}
                 >
-                    <p className="text-blue-200/40 text-[10px] font-black uppercase tracking-[0.3em] mb-4">Total Discovery</p>
-                    <div className="flex items-end justify-between">
-                        <p className="text-5xl font-black text-white italic tracking-tighter tabular-nums">{leads.length}</p>
-                        <div className="w-12 h-12 rounded-[1.2rem] bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-400 shadow-xl shadow-blue-500/10">
-                            <MousePointerClick size={24} />
+                    <p className="text-orange-200/40 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Discovery</p>
+                    <div className="flex items-center justify-between">
+                        <p className="text-4xl font-black text-white italic tracking-tighter tabular-nums">{leads.length}</p>
+                        <div className="w-10 h-10 rounded-xl bg-orange-500/20 border border-orange-400/30 flex items-center justify-center text-orange-400">
+                            <MousePointerClick size={20} />
                         </div>
                     </div>
                 </GlassCard>
 
                 <GlassCard
                     onClick={() => setFilter('REGISTERED')}
-                    className={`cursor-pointer transition-all duration-300 active:scale-95 !border-2 ${filter === 'REGISTERED'
+                    className={`cursor-pointer transition-all duration-300 active:scale-95 !border-2 py-3 px-4 ${filter === 'REGISTERED'
                         ? 'border-emerald-400 !bg-emerald-600/20 shadow-2xl shadow-emerald-500/20'
                         : 'border-white/5 bg-white/5 hover:border-white/10'}`}
                 >
-                    <p className="text-emerald-200/40 text-[10px] font-black uppercase tracking-[0.3em] mb-4">Conversions</p>
-                    <div className="flex items-end justify-between">
-                        <p className="text-5xl font-black text-white italic tracking-tighter tabular-nums">{registered.length}</p>
-                        <div className="w-12 h-12 rounded-[1.2rem] bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shadow-xl shadow-emerald-500/10">
-                            <CheckCircle2 size={24} />
+                    <p className="text-emerald-200/40 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Conversions</p>
+                    <div className="flex items-center justify-between">
+                        <p className="text-4xl font-black text-white italic tracking-tighter tabular-nums">{registered.length}</p>
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400">
+                            <CheckCircle2 size={20} />
                         </div>
                     </div>
                 </GlassCard>
@@ -65,21 +65,27 @@ export function ProgramLeadsList({ leads, programs = [] }: ProgramLeadsListProps
             <div className="flex items-center gap-3 pb-2 overflow-x-auto relative z-10 scrollbar-none">
                 <button
                     onClick={() => setFilter('CLICKED')}
-                    className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all border shrink-0 flex items-center gap-2 ${filter === 'CLICKED' ? 'bg-blue-600 text-white border-blue-500 shadow-[0_0_20px_rgba(37,99,235,0.3)]' : 'bg-blue-600/10 text-blue-400 border-blue-500/20 hover:bg-blue-600/20'}`}
+                    className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all border shrink-0 flex items-center gap-2 ${filter === 'CLICKED'
+                        ? 'bg-orange-500 text-white border-orange-400 shadow-[0_0_20px_rgba(249,115,22,0.3)]'
+                        : 'bg-orange-500/10 text-orange-400/70 border-orange-500/20 hover:border-orange-500/40 hover:bg-orange-500/20'}`}
                 >
-                    <MousePointerClick size={12} strokeWidth={3} /> Clicks Only
+                    <MousePointerClick size={12} strokeWidth={3} /> Clicks
                 </button>
                 <button
                     onClick={() => setFilter('REGISTERED')}
-                    className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all border shrink-0 flex items-center gap-2 ${filter === 'REGISTERED' ? 'bg-emerald-600 text-white border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)]' : 'bg-emerald-600/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-600/20'}`}
+                    className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all border shrink-0 flex items-center gap-2 ${filter === 'REGISTERED'
+                        ? 'bg-emerald-500 text-white border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)]'
+                        : 'bg-emerald-500/10 text-emerald-400/70 border-emerald-500/20 hover:border-emerald-500/40 hover:bg-emerald-500/20'}`}
                 >
                     <CheckCircle2 size={12} strokeWidth={3} /> Converted
                 </button>
                 <button
                     onClick={() => setFilter('ALL')}
-                    className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all border shrink-0 ${filter === 'ALL' ? 'bg-white text-slate-900 border-white shadow-[0_0_20px_rgba(255,255,255,0.3)]' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
+                    className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all border shrink-0 ${filter === 'ALL'
+                        ? 'bg-white text-slate-900 border-white shadow-[0_0_20px_rgba(255,255,255,0.1)]'
+                        : 'bg-white/5 text-white/40 border-white/10 hover:border-white/20 hover:bg-white/10'}`}
                 >
-                    Show All
+                    All
                 </button>
             </div>
 
@@ -98,11 +104,11 @@ export function ProgramLeadsList({ leads, programs = [] }: ProgramLeadsListProps
                                 <div key={program.id} className="space-y-6">
                                     <div className="flex flex-col gap-3 px-2">
                                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                                            <h2 className="text-[14px] font-black text-white uppercase tracking-[0.2em] leading-snug max-w-[80%]">{program.title}</h2>
+                                            <h2 className="text-[16px] font-black text-white uppercase tracking-[0.2em] leading-snug max-w-[80%]">{program.title}</h2>
                                             <div className="h-px min-w-[30px] flex-1 bg-gradient-to-r from-blue-500/40 to-transparent" />
                                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 shrink-0">
-                                                <span className="text-[10px] font-black text-blue-400 tracking-tighter italic">{programLeads.length}</span>
-                                                <span className="text-[8px] font-black text-blue-500/50 uppercase tracking-widest">Leads</span>
+                                                <span className="text-[11px] font-black text-blue-400 tracking-tighter italic">{programLeads.length}</span>
+                                                <span className="text-[9px] font-black text-blue-500/50 uppercase tracking-widest">Leads</span>
                                             </div>
                                         </div>
                                     </div>
@@ -112,9 +118,9 @@ export function ProgramLeadsList({ leads, programs = [] }: ProgramLeadsListProps
                                             <p className="text-white/20 text-xs font-medium uppercase tracking-wider">No {filter === 'ALL' ? '' : filter.toLowerCase()} leads for this program</p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-3">
+                                        <div className="space-y-1">
                                             {programLeads.map((lead: any) => (
-                                                <LeadCard key={lead.id} lead={lead} />
+                                                <LeadListItem key={lead.id} lead={lead} />
                                             ))}
                                         </div>
                                     )}
@@ -128,85 +134,71 @@ export function ProgramLeadsList({ leads, programs = [] }: ProgramLeadsListProps
     )
 }
 
-function LeadCard({ lead }: { lead: any }) {
-    const isRegistered = lead.status === 'REGISTERED'
+function LeadListItem({ lead }: { lead: any }) {
+    const isRegistered = lead.status === 'REGISTERED' || lead.status === 'COVERED'
     const [mounted, setMounted] = useState(false)
 
     useEffect(() => {
         setMounted(true)
     }, [])
 
+    const theme = isRegistered
+        ? { text: 'text-emerald-400', bg: 'bg-emerald-500/5', border: 'border-emerald-500/20', dot: 'bg-emerald-500', icon: 'text-emerald-400/50' }
+        : { text: 'text-orange-400', bg: 'bg-orange-500/5', border: 'border-orange-500/20', dot: 'bg-orange-500', icon: 'text-orange-400/50' }
+
     return (
         <PageItem>
-            <GlassCard
-                className={`group !p-8 !bg-gradient-to-br !from-indigo-950 !via-indigo-900/90 !to-blue-900 border transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] ${isRegistered ? 'border-emerald-400/40 shadow-2xl shadow-emerald-500/10' : 'border-white/10 hover:border-white/20 shadow-xl'}`}
-            >
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.15em] border ${isRegistered ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-blue-500/10 border-blue-500/20 text-blue-400'}`}>
-                                {lead.program?.title || 'External Program'}
-                            </div>
-                            {lead.program?.rewardType === 'CASH' && (
-                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500">
-                                    <IndianRupee size={10} strokeWidth={3} />
-                                    <span className="text-[9px] font-black uppercase tracking-[0.1em] italic">Cash Reward</span>
-                                </div>
-                            )}
+            <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl border transition-all duration-300 hover:bg-white/[0.04] ${theme.bg} ${theme.border}`}>
+                <div className="flex items-center gap-5 min-w-0 flex-1">
+                    <div className="relative shrink-0">
+                        <div className={`w-11 h-11 rounded-xl bg-white/5 flex items-center justify-center ${theme.text} border border-white/10`}>
+                            <User size={20} />
                         </div>
-
-                        <h3 className="text-xl font-black text-white group-hover:text-blue-400 transition-colors tracking-tight mb-4 italic uppercase">
-                            {lead.studentName || lead.visitorName || 'Lead Discovery'}
-                        </h3>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="flex flex-col gap-1.5 p-3 rounded-2xl bg-white/[0.03] border border-white/5">
-                                <span className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em]">Contact Node</span>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
-                                        <User size={14} />
-                                    </div>
-                                    <span className="text-xs font-bold text-white/70">{lead.visitorName || 'Referral Source'}</span>
-                                </div>
-                            </div>
-                            <div className="flex flex-col gap-1.5 p-3 rounded-2xl bg-white/[0.03] border border-white/5">
-                                <span className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em]">Link Transmission</span>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
-                                        <MousePointerClick size={14} />
-                                    </div>
-                                    <span className="text-xs font-bold text-white/70">{lead.visitorMobile}</span>
-                                </div>
-                            </div>
+                        <div className={`absolute -bottom-1 -right-1 w-4.5 h-4.5 rounded-full border-2 border-slate-950 flex items-center justify-center ${theme.dot} shadow-lg shadow-black/50`}>
+                            {isRegistered ? <CheckCircle2 size={10} className="text-white" strokeWidth={4} /> : <MousePointerClick size={10} className="text-white" strokeWidth={4} />}
                         </div>
                     </div>
 
-                    <div className="flex flex-col items-end gap-3 shrink-0">
-                        <div className={`px-4 py-2 rounded-2xl border flex items-center gap-2 shadow-sm ${isRegistered ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300' : 'bg-blue-500/10 border-blue-500/20 text-blue-300'}`}>
-                            {isRegistered ? <CheckCircle2 size={14} strokeWidth={3} /> : <Clock size={14} strokeWidth={3} />}
-                            <span className="text-[11px] font-black uppercase tracking-[0.2em] italic">{lead.status}</span>
-                        </div>
+                    <div className="min-w-0">
+                        <h4 className="text-[17px] font-black text-white truncate uppercase tracking-tight flex items-center gap-3">
+                            {lead.studentName || lead.visitorName || 'Lead Discovery'}
+                        </h4>
+                        {lead.visitorName && (lead.studentName ? lead.studentName !== lead.visitorName : true) && (
+                            <p className="text-[12px] font-bold text-white/30 uppercase tracking-[0.15em] leading-none mt-1.5">
+                                Parent: <span className="text-white/60 font-black">{lead.visitorName}</span>
+                            </p>
+                        )}
+                    </div>
+                </div>
 
+                <div className="flex flex-row items-center justify-between sm:justify-end gap-8 sm:gap-14 shrink-0 border-t sm:border-t-0 border-white/5 pt-4 sm:pt-0">
+                    <div className="flex flex-col items-start sm:items-end leading-none gap-2">
+                        <span className="text-[12px] font-black text-white/50 tracking-wide flex items-center gap-2 group/meta">
+                            <Phone size={11} className={`${theme.icon} group-hover:text-white transition-colors`} />
+                            <span className="courier-prime group-hover:text-white transition-colors">{lead.visitorMobile}</span>
+                        </span>
+                        <span className="text-[10px] font-bold text-white/20 italic tracking-wider flex items-center gap-1.5">
+                            <Clock size={10} className="text-white/10" />
+                            {mounted ? new Date(lead.clickedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '...'}
+                        </span>
+                    </div>
+
+                    <div className="flex items-center gap-5">
                         {lead.program?.commissionAmount > 0 && (
-                            <div className={`flex flex-col items-end p-3 rounded-2xl border ${isRegistered ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-white/5 border-white/10 opacity-50'}`}>
-                                <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em] mb-1">Potential Yield</span>
-                                <div className={`flex items-center gap-2 font-black italic ${isRegistered ? 'text-emerald-400' : 'text-blue-400'}`}>
-                                    <span className="text-2xl tracking-tighter">
-                                        {lead.program.rewardType === 'CASH' ? '₹' : ''}{lead.program.commissionAmount}
-                                    </span>
-                                    <span className="text-[10px] uppercase tracking-widest bg-white/10 px-1.5 py-0.5 rounded-md">
-                                        {lead.program.rewardType === 'CASH' ? 'Cash' : 'Points'}
-                                    </span>
+                            <div className="flex flex-col items-end leading-none">
+                                <div className={`text-base font-black italic ${theme.text} mb-0.5`}>
+                                    {lead.program.rewardType === 'CASH' ? '₹' : ''}{lead.program.commissionAmount}
                                 </div>
+                                <div className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em] not-italic">Yield</div>
                             </div>
                         )}
-
-                        <div className="flex items-center gap-2 text-white/20 text-[9px] font-black uppercase tracking-[0.2em] mt-2">
-                            <Clock size={10} /> {mounted ? new Date(lead.clickedAt).toLocaleDateString() : 'Syncing...'}
+                        <div className={`px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-[0.2em] italic flex items-center gap-2.5 shadow-xl transition-all hover:scale-105 active:scale-95 ${theme.bg} ${theme.border} ${theme.text}`}>
+                            <div className={`w-2 h-2 rounded-full ${theme.dot} animate-pulse shadow-[0_0_10px_${isRegistered ? 'rgba(16,185,129,0.5)' : 'rgba(249,115,22,0.5)'}]`} />
+                            {lead.status === 'CLICKED' ? 'Clicked' : 'Converted'}
                         </div>
                     </div>
                 </div>
-            </GlassCard>
+            </div>
         </PageItem>
     )
 }

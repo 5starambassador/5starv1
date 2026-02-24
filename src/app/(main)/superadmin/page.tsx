@@ -4,7 +4,7 @@ import { getSession } from '@/lib/session'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { isIpWhitelisted } from '@/lib/security'
-import { getSystemAnalytics, getCampusComparison, getAllAdmins, getUserGrowthTrend } from '@/app/superadmin-actions'
+import { getSystemAnalytics, getCampusComparison, getAllAdmins, getUserGrowthTrend, getAllStudents } from '@/app/superadmin-actions'
 import { getAdminMarketingAssets } from '@/app/marketing-actions'
 import { getSystemSettings, getSecuritySettings } from '@/app/settings-actions'
 import SuperadminClient from './superadmin-client' // Client component
@@ -81,6 +81,7 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
     const initialView = getString(params.view) || 'home'
     const initialReportMode = (getString(params.mode) || 'classic') as 'classic' | 'visual'
     const selectedYear = getString(params.year)
+    const selectedSource = (getString(params.source) || 'referral') as 'referral' | 'all' | 'organic'
 
     // Default Empty Analytics Object
     const defaultAnalytics = {
@@ -125,12 +126,16 @@ export default async function SuperadminPage({ searchParams }: PageProps) {
     urgentTicketCountPromise = import('@/app/ticket-actions').then(m => m.getUrgentTicketCount())
 
     if (initialView === 'home' || initialView === 'analytics') {
-        analyticsPromise = getSystemAnalytics('all', selectedYear)
-        campusComparisonPromise = getCampusComparison('all', selectedYear)
+        analyticsPromise = getSystemAnalytics('all', selectedYear, selectedSource)
+        campusComparisonPromise = getCampusComparison('all', selectedYear, selectedSource)
         marketingAssetsPromise = getAdminMarketingAssets() // Maybe?
         growthTrendPromise = getUserGrowthTrend()
         deepTrendsPromise = import('@/app/analytics-trends-actions').then(m => m.getAnalyticsTrends())
         // Pre-fetch users for search? checking getAllUsers... it's heavy.
+    }
+
+    if (initialView === 'students') {
+        studentsPromise = getAllStudents(selectedYear, selectedSource)
     }
 
     if (initialView === 'admins') {

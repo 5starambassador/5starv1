@@ -6,6 +6,9 @@ import { DataTable } from '@/components/ui/DataTable'
 import { CheckCircle, Info, Send, AlertTriangle, Download, Search } from 'lucide-react'
 import { bulkInitiateSettlements, bulkRecordWaiverAdjustments } from '@/app/finance-actions'
 import { toast } from 'sonner'
+import { FileDown } from 'lucide-react'
+import { ExportDateRangeModal } from './ExportDateRangeModal'
+import { exportLiabilities } from '@/app/export-actions'
 
 interface Liability {
     ledgerId: string // Unique identifier for the ledger row (e.g. userId-A, userId-B)
@@ -42,9 +45,48 @@ interface Liability {
 interface LiabilityLedgerTableProps {
     data: Liability[]
     mode: 'A' | 'B'
+    academicYear?: string
 }
 
-export function LiabilityLedgerTable({ data, mode }: LiabilityLedgerTableProps) {
+export function LiabilityLedgerTable({ data, mode, academicYear }: LiabilityLedgerTableProps) {
+    const [showExportModal, setShowExportModal] = useState(false)
+
+    const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
+        const res = await exportLiabilities(start, end, selectedColumns, academicYear, mode)
+        if (res.success && res.csv) {
+            const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
+            const link = document.createElement('a')
+            const url = URL.createObjectURL(blob)
+            link.setAttribute('href', url)
+            link.setAttribute('download', res.filename || 'liability_ledger.csv')
+            link.style.visibility = 'hidden'
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            toast.success('Liability Ledger report downloaded')
+        } else {
+            toast.error(res.error || 'Failed to export')
+        }
+    }
+
+    const exportColumns = [
+        { id: 'fullName', label: 'Ambassador Name', defaultChecked: true },
+        { id: 'mobile', label: 'Mobile Number', defaultChecked: true },
+        { id: 'role', label: 'Role', defaultChecked: true },
+        { id: 'campus', label: 'Ambassador Campus', defaultChecked: true },
+        { id: 'referrals', label: 'Confirmed Referrals', defaultChecked: true },
+        { id: 'totalEarned', label: 'Total Earned', defaultChecked: true },
+        { id: 'totalSettled', label: 'Total Settled', defaultChecked: true },
+        { id: 'remaining', label: 'Outstanding', defaultChecked: true },
+        { id: 'slab', label: 'Slab Reward', defaultChecked: true },
+        { id: 'admission', label: 'Admission Share', defaultChecked: true },
+        { id: 'donation', label: 'Donation Share', defaultChecked: true },
+        { id: 'childName', label: 'Child Name', defaultChecked: mode === 'A' },
+        { id: 'erpNo', label: 'Child ERP No', defaultChecked: mode === 'A' },
+        { id: 'childGrade', label: 'Child Grade', defaultChecked: mode === 'A' },
+        { id: 'childFee', label: 'Child Fee', defaultChecked: mode === 'A' },
+        { id: 'group', label: 'Ledger Group', defaultChecked: true }
+    ]
     const router = useRouter()
     const [selectedIds, setSelectedIds] = useState<string[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
@@ -283,38 +325,14 @@ export function LiabilityLedgerTable({ data, mode }: LiabilityLedgerTableProps) 
                     </button>
                 )}
 
-                {mode === 'A' && (
-                    <button
-                        onClick={() => {
-                            const csvContent = [
-                                ['Ambassador Name', 'Mobile Number', 'Campus', 'Child Name', 'Child Grade', 'Child Fee', 'Waiver Amount', 'Status'],
-                                ...filteredData.map(row => [
-                                    row.fullName,
-                                    row.mobileNumber,
-                                    row.campusName || 'N/A',
-                                    row.childName || 'N/A',
-                                    row.childGrade || 'N/A',
-                                    row.childFee || 0,
-                                    row.remainingAmount,
-                                    'Accrued'
-                                ])
-                            ].map(e => e.join(",")).join("\n")
-
-                            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-                            const url = URL.createObjectURL(blob)
-                            const link = document.createElement("a")
-                            link.setAttribute("href", url)
-                            link.setAttribute("download", `Waiver_Report_${new Date().toISOString().split('T')[0]}.csv`)
-                            document.body.appendChild(link)
-                            link.click()
-                            document.body.removeChild(link)
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 bg-white text-purple-700 border border-purple-200 rounded-lg text-xs font-bold hover:bg-purple-50 transition-all shadow-sm"
-                    >
-                        <Download size={14} />
-                        Download Report
-                    </button>
-                )}
+                <button
+                    onClick={() => setShowExportModal(true)}
+                    suppressHydrationWarning={true}
+                    className="flex items-center gap-2 px-4 py-2 bg-white text-purple-700 border border-purple-200 rounded-lg text-xs font-bold hover:bg-purple-50 transition-all shadow-sm"
+                >
+                    <FileDown size={14} />
+                    Download Report
+                </button>
 
                 {selectedIds.length > 0 && mode === 'A' && (
                     <button
@@ -422,6 +440,15 @@ export function LiabilityLedgerTable({ data, mode }: LiabilityLedgerTableProps) 
                     )}
                 />
             </div>
+
+            <ExportDateRangeModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                onExport={handleServerExport}
+                title={`Export Liability Ledger (Group ${mode})`}
+                showStatusFilter={false}
+                columns={exportColumns}
+            />
 
             <div className="flex gap-4 p-4 bg-amber-50 rounded-xl border border-amber-100">
                 <AlertTriangle size={20} className="text-amber-600 shrink-0" />

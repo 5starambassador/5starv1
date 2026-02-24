@@ -1,4 +1,5 @@
-import { UserPlus, Download, CheckCircle, XCircle, Calendar, CreditCard, Smartphone, Hash, Building, Trash2, Key, Shield, Star, ArrowRight, ChevronDown, CheckSquare } from 'lucide-react'
+import { UserPlus, Download, CheckCircle, XCircle, Calendar, CreditCard, Smartphone, Hash, Building, Trash2, Key, Shield, Star, ArrowRight, ChevronDown, CheckSquare, Filter } from 'lucide-react'
+import { AcademicYearFilter } from '@/components/AcademicYearFilter'
 import Image from 'next/image'
 
 import { ActivityHistory } from './ActivityHistory'
@@ -10,7 +11,7 @@ import { Badge } from '@/components/ui/Badge'
 import { calculateStars } from '@/lib/gamification'
 import { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { bulkUserAction } from '@/app/bulk-actions'
 import { useClickOutside } from '@/hooks/use-click-outside'
 
@@ -51,6 +52,7 @@ export function UserTable({
     const [selectedUserForAudit, setSelectedUserForAudit] = useState<User | null>(null)
     const [selectedUserForDetail, setSelectedUserForDetail] = useState<User | null>(null)
     const router = useRouter()
+    const searchParams = useSearchParams()
 
     const [showCampusDropdown, setShowCampusDropdown] = useState(false)
     const campusDropdownRef = useRef<HTMLDivElement>(null)
@@ -363,6 +365,10 @@ export function UserTable({
                 }
             }
 
+            // 7. Academic Year Filter
+            const selectedYear = searchParams.get('year')
+            if (selectedYear && selectedYear !== 'All' && user.academicYear !== selectedYear) return false
+
             return true
         })
 
@@ -418,10 +424,30 @@ export function UserTable({
             if (selectedColumns.aadharNo) row.push(`="${user.aadharNo || ''}"`)
             if (selectedColumns.address) row.push(`"${(user.address || '').replace(/"/g, '""')}"`)
             if (selectedColumns.bankAccountDetails) row.push(`"${(user.bankAccountDetails || '').replace(/"/g, '""')}"`)
-            if (selectedColumns.accountNumber) row.push(`="${user.accountNumber || ''}"`)
-            if (selectedColumns.bankName) row.push(`"${user.bankName || ''}"`)
-            if (selectedColumns.ifscCode) row.push(`"${user.ifscCode || ''}"`)
-            if (selectedColumns.academicYear) row.push(`"${user.academicYear || ''}"`)
+            if (selectedColumns.accountNumber) {
+                let acc = user.accountNumber
+                if (!acc && user.bankAccountDetails) {
+                    const parts = user.bankAccountDetails.split('-')
+                    if (parts.length > 1) acc = parts[1]?.trim()
+                }
+                row.push(`="${acc || ''}"`)
+            }
+            if (selectedColumns.bankName) {
+                let bnk = user.bankName
+                if (!bnk && user.bankAccountDetails) {
+                    bnk = user.bankAccountDetails.split('-')[0]?.trim()
+                }
+                row.push(`="${bnk || ''}"`)
+            }
+            if (selectedColumns.ifscCode) {
+                let ifsc = user.ifscCode
+                if (!ifsc && user.bankAccountDetails) {
+                    const match = user.bankAccountDetails.match(/\((.*?)\)/)
+                    if (match) ifsc = match[1]
+                }
+                row.push(`="${ifsc || ''}"`)
+            }
+            if (selectedColumns.academicYear) row.push(`="${user.academicYear || ''}"`)
             if (selectedColumns.studentFee) row.push(user.studentFee || 0)
             if (selectedColumns.paymentAmount) row.push(user.paymentAmount || 0)
             if (selectedColumns.paymentStatus) row.push(`"${user.paymentStatus || ''}"`)
@@ -525,6 +551,8 @@ export function UserTable({
                     <Smartphone size={16} className="text-gray-400" />
                     <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Quick Filters:</span>
                 </div>
+
+                <AcademicYearFilter />
 
                 {/* Role Filter */}
                 <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100 items-center gap-1">

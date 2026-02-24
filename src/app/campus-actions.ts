@@ -287,7 +287,7 @@ export async function getCampusAnalytics(campusName: string) {
 
         // Basic counts
         const totalLeads = referrals.length
-        const confirmedLeads = referrals.filter(r => r.leadStatus === 'Confirmed').length
+        const confirmedLeads = referrals.filter(r => ['Confirmed', 'Admitted'].includes(r.leadStatus)).length
         const pendingLeads = totalLeads - confirmedLeads
         const conversionRate = totalLeads > 0 ? ((confirmedLeads / totalLeads) * 100).toFixed(1) : '0'
 
@@ -411,7 +411,7 @@ export async function confirmCampusReferral(leadId: number, campusName: string, 
         await prisma.referralLead.update({
             where: { leadId },
             data: {
-                leadStatus: 'Confirmed',
+                leadStatus: 'Admitted',
                 confirmedDate: new Date(),
                 admissionNumber: admissionNumber
             }
@@ -428,14 +428,14 @@ export async function confirmCampusReferral(leadId: number, campusName: string, 
         const currentYearCount = await prisma.referralLead.count({
             where: {
                 userId,
-                leadStatus: 'Confirmed',
+                leadStatus: { in: ['Confirmed', 'Admitted'] },
                 confirmedDate: { gte: currentYearStart }
             }
         })
 
         // 2. Lifetime Count
         const count = await prisma.referralLead.count({
-            where: { userId, leadStatus: 'Confirmed' }
+            where: { userId, leadStatus: { in: ['Confirmed', 'Admitted'] } }
         })
 
         // Track 1: Short-term slabs for new/regular users
