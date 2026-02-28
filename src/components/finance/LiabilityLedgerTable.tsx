@@ -46,9 +46,11 @@ interface LiabilityLedgerTableProps {
     data: Liability[]
     mode: 'A' | 'B'
     academicYear?: string
+    search?: string
+    onSearchChange?: (val: string) => void
 }
 
-export function LiabilityLedgerTable({ data, mode, academicYear }: LiabilityLedgerTableProps) {
+export function LiabilityLedgerTable({ data, mode, academicYear, search = '', onSearchChange }: LiabilityLedgerTableProps) {
     const [showExportModal, setShowExportModal] = useState(false)
 
     const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
@@ -70,11 +72,16 @@ export function LiabilityLedgerTable({ data, mode, academicYear }: LiabilityLedg
     }
 
     const exportColumns = [
+        { id: 'academicYear', label: 'Academic Year', defaultChecked: true },
         { id: 'fullName', label: 'Ambassador Name', defaultChecked: true },
         { id: 'mobile', label: 'Mobile Number', defaultChecked: true },
         { id: 'role', label: 'Role', defaultChecked: true },
+        { id: 'bankName', label: 'Bank Name', defaultChecked: true },
+        { id: 'accountNumber', label: 'Account Number', defaultChecked: true },
+        { id: 'ifscCode', label: 'IFSC Code', defaultChecked: true },
         { id: 'campus', label: 'Ambassador Campus', defaultChecked: true },
         { id: 'referrals', label: 'Confirmed Referrals', defaultChecked: true },
+        { id: 'referralDetails', label: 'Referral Details (Names)', defaultChecked: true },
         { id: 'totalEarned', label: 'Total Earned', defaultChecked: true },
         { id: 'totalSettled', label: 'Total Settled', defaultChecked: true },
         { id: 'remaining', label: 'Outstanding', defaultChecked: true },
@@ -138,19 +145,30 @@ export function LiabilityLedgerTable({ data, mode, academicYear }: LiabilityLedg
             header: 'Ambassador',
             accessorKey: 'fullName',
             sortable: true,
-            filterable: true,
             cell: (row: Liability) => (
                 <div className="w-[150px]">
                     <div className="font-bold text-gray-900 leading-tight">{row.fullName}</div>
                     <div className="text-[10px] text-gray-500 font-medium">{row.mobileNumber}</div>
                     {row.referralCode && <div className="text-[9px] text-gray-400 font-mono">{row.referralCode}</div>}
-                    <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600 font-bold uppercase tracking-wider">{row.role}</span>
-                        {row.campusName && row.campusName !== 'N/A' && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-700 font-bold uppercase tracking-wider">{row.campusName}</span>
-                        )}
-                    </div>
                 </div >
+            )
+        },
+        {
+            header: 'Role',
+            accessorKey: 'role',
+            filterable: true,
+            cell: (row: Liability) => (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600 font-bold uppercase tracking-wider border border-gray-200">{row.role}</span>
+            )
+        },
+        {
+            header: 'Campus',
+            accessorKey: 'campusName',
+            filterable: true,
+            cell: (row: Liability) => (
+                row.campusName && row.campusName !== 'N/A' ? (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-700 font-bold uppercase tracking-wider border border-purple-100">{row.campusName}</span>
+                ) : <span className="text-gray-300 text-[10px]">—</span>
             )
         },
         // Group A Specific Columns
@@ -386,8 +404,11 @@ export function LiabilityLedgerTable({ data, mode, academicYear }: LiabilityLedg
                     uniqueKey="ledgerId"
                     columns={columns as any}
                     data={filteredData}
-                    searchKey="fullName"
-                    searchPlaceholder="Search ambassador..."
+                    searchKey={["fullName", "mobileNumber", "referralCode", "campusName", "role"]}
+                    searchPlaceholder={`Search ${mode === 'A' ? 'Group A' : 'Group B'} (Name, Mobile, ID, Campus)...`}
+                    pageSize={10}
+                    searchValue={search}
+                    onSearchChange={onSearchChange}
                     enableMultiSelection={true}
                     onSelectionChange={(selected) => {
                         setSelectedIds(selected.map(s => s.ledgerId))

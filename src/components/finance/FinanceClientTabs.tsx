@@ -335,11 +335,11 @@ export function FinanceClientTabs({
                 ) : activeTab === 'refund_history' ? (
                     <RefundHistoryTable data={refundHistory} academicYear={selectedYear} />
                 ) : activeTab === 'liabilities_a' ? (
-                    <LiabilityLedgerTable key="ledger-a" data={liabilities} mode="A" academicYear={selectedYear} />
+                    <LiabilityLedgerTable key="ledger-a" data={liabilities} mode="A" academicYear={selectedYear} search={displaySearch} onSearchChange={handleSearchChange} />
                 ) : activeTab === 'waiver_history' ? (
                     <WaiverHistoryTable data={waiverHistoryData} academicYear={selectedYear} />
                 ) : (
-                    <LiabilityLedgerTable key="ledger-b" data={liabilities} mode="B" academicYear={selectedYear} />
+                    <LiabilityLedgerTable key="ledger-b" data={liabilities} mode="B" academicYear={selectedYear} search={displaySearch} onSearchChange={handleSearchChange} />
                 )}
             </div>
         </div>

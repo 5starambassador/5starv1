@@ -2,13 +2,15 @@ import { getCampusStudents } from '@/app/actions/campus-dashboard-actions'
 import { CampusStudentsClient } from './campus-students-client'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import { AcademicYearFilter } from '@/components/AcademicYearFilter'
 
 export const dynamic = 'force-dynamic'
 
-export default async function CampusStudents({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+export default async function CampusStudents({ searchParams }: { searchParams: Promise<{ q?: string, year?: string }> }) {
     const params = await searchParams
     const query = params.q || ''
-    const { success, data: students, error } = await getCampusStudents(query)
+    const year = params.year
+    const { success, data: students, error } = await getCampusStudents(query, year)
 
     if (error) {
         return <div className="p-8 text-center text-red-500">{error}</div>
@@ -21,9 +23,12 @@ export default async function CampusStudents({ searchParams }: { searchParams: P
                 <ArrowLeft size={16} /> Back to Home
             </Link>
 
-            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-maroon to-primary-gold">
-                My Students
-            </h1>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-maroon to-primary-gold">
+                    My Students
+                </h1>
+                <AcademicYearFilter />
+            </div>
 
             <CampusStudentsClient students={students || []} query={query} />
         </div>

@@ -485,7 +485,7 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
                 } as any
             }).then(l => l as any)
 
-            // 1.1 CREATE STUDENT RECORD (AUTOMATION)
+            // 1.1 CREATE OR UPDATE STUDENT RECORD (AUTOMATION)
             // Resolve Parent
             let actualParentId = null
             const existingParent = await tx.user.findUnique({
@@ -511,26 +511,41 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
                 actualParentId = newParent.userId
             }
 
-            // Create Student
-            await tx.student.create({
-                data: {
-                    fullName: lead.studentName || 'Unknown',
-                    parentId: actualParentId,
-                    campusId: finalCampusId || 0,
-                    grade: lead.gradeInterested || 'N/A',
-                    section: leadRecord.section || undefined,
-                    academicYear: lead.admittedYear || '2025-2026',
-                    referralLeadId: lead.leadId,
-                    admissionNumber: lead.admissionNumber,
-                    ambassadorId: lead.userId,
-                    selectedFeeType: lead.selectedFeeType,
-                    annualFee: lead.annualFee,
-                    baseFee: lead.annualFee || 0,
-                    admissionFeeCollected: admissionFee,
-                    donationFeeCollected: donationFee,
-                    status: 'Active'
-                } as any
+            // Check if student already exists
+            const existingStudent = await tx.student.findUnique({
+                where: { referralLeadId: lead.leadId }
             })
+
+            const studentData = {
+                fullName: lead.studentName || 'Unknown',
+                parentId: actualParentId,
+                campusId: finalCampusId || 0,
+                grade: lead.gradeInterested || 'N/A',
+                section: leadRecord.section || undefined,
+                academicYear: lead.admittedYear || '2025-2026',
+                admissionNumber: lead.admissionNumber,
+                ambassadorId: lead.userId,
+                selectedFeeType: lead.selectedFeeType,
+                annualFee: lead.annualFee,
+                baseFee: lead.annualFee || 0,
+                admissionFeeCollected: admissionFee,
+                donationFeeCollected: donationFee,
+                status: 'Active'
+            } as any;
+
+            if (existingStudent) {
+                await tx.student.update({
+                    where: { studentId: existingStudent.studentId },
+                    data: studentData
+                })
+            } else {
+                await tx.student.create({
+                    data: {
+                        ...studentData,
+                        referralLeadId: lead.leadId
+                    }
+                })
+            }
 
             // 1.2 SYNC PARENT DATA
             await tx.user.update({

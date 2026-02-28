@@ -6,6 +6,7 @@ import { Users, GraduationCap, TrendingUp, Search, Filter, MoreHorizontal, MapPi
 import { CampusReportsClient } from './campus-reports-client'
 import { DateRangeSelector } from './date-range-selector'
 import { CampusTargetModal } from './campus-target-modal'
+import { AcademicYearFilter } from '@/components/AcademicYearFilter'
 
 // Imports at top
 
@@ -14,7 +15,7 @@ import { CampusAnalyticsView } from '@/components/campus/CampusAnalyticsView'
 export const dynamic = 'force-dynamic'
 
 interface PageProps {
-    searchParams: Promise<{ view?: string, days?: string }>
+    searchParams: Promise<{ view?: string, days?: string, year?: string }>
 }
 
 export default async function CampusDashboard({ searchParams }: PageProps) {
@@ -26,8 +27,9 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
     const params = await searchParams
     const view = params?.view || 'home'
     const days = params?.days ? parseInt(params.days) : 30
+    const year = params?.year
 
-    const { success, stats, error } = await getCampusStats(days)
+    const { success, stats, error } = await getCampusStats(days, year)
     const targetsResult = await getCampusTargets()
     const target = targetsResult.success ? targetsResult.target : null
 
@@ -65,12 +67,12 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
 
     if (view === 'reports') {
         const [studentsResult, referralsResult, financeResult, ambassadorResult, deadResult, funnelResult] = await Promise.all([
-            getCampusStudents(),
-            getCampusReferrals(),
-            getCampusFinance(),
-            getCampusAmbassadorStats(),
-            getCampusDeadLeads(),
-            getCampusConversionStats()
+            getCampusStudents(undefined, year),
+            getCampusReferrals(year),
+            getCampusFinance(30, year),
+            getCampusAmbassadorStats(year),
+            getCampusDeadLeads(7, year),
+            getCampusConversionStats(year)
         ])
         const students = studentsResult.success ? studentsResult.data || [] : []
         const referrals = referralsResult.success ? referralsResult.data || [] : []
@@ -103,7 +105,7 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
     }
 
     if (view === 'finance') {
-        const financeResult = await getCampusFinance(days)
+        const financeResult = await getCampusFinance(days, year)
         const financeData = financeResult.success ? financeResult.data || [] : []
         const financeSummary = financeResult.success ? financeResult.summary || { totalConfirmed: 0, totalBenefits: 0 } : { totalConfirmed: 0, totalBenefits: 0 }
         return (
@@ -116,7 +118,10 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
                         <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-maroon to-primary-gold">Campus Finance</h1>
                         <p className="text-gray-500 mt-1">Earnings and incentive tracking</p>
                     </div>
-                    <DateRangeSelector currentDays={days} />
+                    <div className="flex items-center gap-3">
+                        <AcademicYearFilter />
+                        <DateRangeSelector currentDays={days} />
+                    </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-5 text-white">
@@ -183,6 +188,7 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
                             currentAdmissions={target?.admissionTarget}
                         />
                     )}
+                    <AcademicYearFilter />
                     <DateRangeSelector currentDays={days} />
                 </div>
             </div>
@@ -305,7 +311,7 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2">
-                    <RecentActivitySection />
+                    <RecentActivitySection year={year} />
                 </div>
 
                 {/* Quick Actions */}
@@ -356,8 +362,8 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
 // SUB-COMPONENTS (Refactored to Premium)
 // ----------------------------------------------------------------------
 
-async function RecentActivitySection() {
-    const { success, data: activities } = await getCampusRecentActivity()
+async function RecentActivitySection({ year }: { year?: string }) {
+    const { success, data: activities } = await getCampusRecentActivity(year)
 
     if (!success || !activities || activities.length === 0) {
         return (

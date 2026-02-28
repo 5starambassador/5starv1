@@ -3,6 +3,7 @@ import { getCampuses } from '@/app/campus-actions'
 import { CampusLeadsClient } from './campus-leads-client'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import { AcademicYearFilter } from '@/components/AcademicYearFilter'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,6 +25,7 @@ export default async function CampusReferrals({ searchParams }: PageProps) {
     const campus = getString(params.campus)
     const feeType = getString(params.feeType)
     const grade = getString(params.grade)
+    const year = getString(params.year)
 
     const from = getString(params.from)
     const to = getString(params.to)
@@ -38,6 +40,7 @@ export default async function CampusReferrals({ searchParams }: PageProps) {
             campus,
             feeType,
             grade,
+            academicYear: year,
             dateRange
         }),
         getCampuses()
@@ -49,15 +52,17 @@ export default async function CampusReferrals({ searchParams }: PageProps) {
 
     return (
         <div className="space-y-6">
-            {/* Back Link */}
-            <div className="flex justify-between items-center">
-                <Link href="/campus" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium">
-                    <ArrowLeft size={16} /> Back to Home
-                </Link>
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <Link href="/campus" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium mb-2">
+                        <ArrowLeft size={16} /> Back to Home
+                    </Link>
 
-                <h1 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-primary-maroon to-primary-gold uppercase tracking-tight">
-                    Campus Leads & Referrals
-                </h1>
+                    <h1 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-primary-maroon to-primary-gold uppercase tracking-tight">
+                        Campus Leads & Referrals
+                    </h1>
+                </div>
+                <AcademicYearFilter />
             </div>
 
             <CampusLeadsClient

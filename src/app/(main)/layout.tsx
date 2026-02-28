@@ -220,7 +220,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                     </div>
                 </div>
 
-                <div className={`flex-1 w-full max-w-[1400px] flex flex-col pt-16 xl:pt-0 ${isAmbassadorRole ? 'md:pt-0' : ''}`}>
+                <div className={`flex-1 w-full ${isSuperAdmin ? 'max-w-full' : 'max-w-[1400px]'} flex flex-col pt-16 xl:pt-0 ${isAmbassadorRole ? 'md:pt-0' : ''}`}>
                     {isAmbassadorRole && (
                         <NotificationTicker userName={user.fullName} referralCode={(user as any).referralCode || ''} />
                     )}

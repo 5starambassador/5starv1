@@ -3,6 +3,8 @@ import { REWARD_RATES } from './reward-constants'
 
 export interface ReferralData {
     id: number
+    studentName?: string
+    admissionNumber?: string
     campusId: number
     campusName?: string
     grade: string

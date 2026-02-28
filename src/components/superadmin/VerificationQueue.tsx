@@ -20,10 +20,14 @@ interface VerificationQueueProps {
 }
 
 export default function VerificationQueue({ initialData = [] }: VerificationQueueProps) {
+    const [mounted, setMounted] = useState(false)
     const [activeTab, setActiveTab] = useState<'pending' | 'verified'>('pending')
     const [pendingUsers, setPendingUsers] = useState<any[]>(initialData || [])
     const [verifiedUsers, setVerifiedUsers] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [page, setPage] = useState(1)
+    const [totalPages, setTotalPages] = useState(1)
+    const [totalRecords, setTotalRecords] = useState(0)
     const [processing, setProcessing] = useState<number | null>(null)
     const [isBulking, setIsBulking] = useState(false)
     const [editingId, setEditingId] = useState<number | null>(null)
@@ -32,11 +36,16 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
     const [searchTerm, setSearchTerm] = useState('')
     const [filterCampus, setFilterCampus] = useState('')
     const [filterRole, setFilterRole] = useState('')
+    const [filterGrade, setFilterGrade] = useState('')
     const [campuses, setCampuses] = useState<any[]>([])
     const [showBulkUpload, setShowBulkUpload] = useState(false)
     const [activeFilter, setActiveFilter] = useState<'campus' | 'grade' | 'role' | null>(null)
     const [verifiedCountToday, setVerifiedCountToday] = useState(0)
     const [serverPotentialMatches, setServerPotentialMatches] = useState(0)
+    const [totalPending, setTotalPending] = useState(0)
+    const [totalVerifiedOnServer, setTotalVerifiedOnServer] = useState(0)
+    const [staffCount, setStaffCount] = useState(0)
+    const [parentCount, setParentCount] = useState(0)
     const [visibleColumns, setVisibleColumns] = useState({
         user: true,
         child: true,
@@ -51,6 +60,10 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
     useClickOutside(campusFilterRef, () => activeFilter === 'campus' && setActiveFilter(null))
     useClickOutside(roleFilterRef, () => activeFilter === 'role' && setActiveFilter(null))
 
+    useEffect(() => {
+        setMounted(true)
+    }, [])
+
     // Edit Form State
     const [editForm, setEditForm] = useState({
         childEprNo: '',
@@ -61,20 +74,51 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
 
     const [selectedUserIdForReject, setSelectedUserIdForReject] = useState<number | null>(null)
 
-    const loadData = async () => {
+    const loadPendingData = async (
+        pageNum: number = page,
+        search: string = searchTerm,
+        campus: string = filterCampus,
+        role: string = filterRole,
+        grade: string = filterGrade
+    ) => {
         setLoading(true)
-        const resPending = await getPendingVerifications()
-        if (resPending.success) {
-            setPendingUsers(resPending.data || [])
-            setVerifiedCountToday(resPending.verifiedToday || 0)
-            setServerPotentialMatches(resPending.potentialMatches || 0)
-        }
-
-        const resVerified = await getVerifiedUsers()
-        if (resVerified.success) {
-            setVerifiedUsers(resVerified.data || [])
+        const res = await getPendingVerifications(pageNum, 50, search, campus, role, grade)
+        if (res.success) {
+            setPendingUsers(res.data || [])
+            setVerifiedCountToday(res.verifiedToday || 0)
+            setServerPotentialMatches(res.potentialMatches || 0)
+            setTotalPending(res.total || 0)
+            setTotalVerifiedOnServer(res.totalVerified || 0)
+            setStaffCount(res.staffCount || 0)
+            setParentCount(res.parentCount || 0)
+            setTotalPages(res.totalPages || 1)
+            setTotalRecords(res.total || 0)
         }
         setLoading(false)
+    }
+
+    const loadVerifiedData = async (
+        pageNum: number = page,
+        search: string = searchTerm,
+        campus: string = filterCampus,
+        role: string = filterRole,
+        grade: string = filterGrade
+    ) => {
+        setLoading(true)
+        const res = await getVerifiedUsers(pageNum, 50, search, campus, role, grade)
+        if (res.success) {
+            setVerifiedUsers(res.data || [])
+            setTotalPages(res.totalPages || 1)
+            setTotalRecords(res.total || 0)
+            setTotalVerifiedOnServer(res.total || 0)
+        }
+        setLoading(false)
+    }
+
+    const loadData = () => {
+        if (activeTab === 'pending') loadPendingData(1)
+        else loadVerifiedData(1)
+        setPage(1)
     }
 
     const loadCampuses = async () => {
@@ -83,7 +127,25 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
     }
 
     useEffect(() => {
-        loadData()
+        if (activeTab === 'pending') loadPendingData(page, searchTerm, filterCampus, filterRole, filterGrade)
+        else loadVerifiedData(page, searchTerm, filterCampus, filterRole, filterGrade)
+    }, [page, activeTab, filterCampus, filterRole, filterGrade])
+
+    const handleSearch = () => {
+        setPage(1)
+        if (activeTab === 'pending') loadPendingData(1, searchTerm, filterCampus, filterRole, filterGrade)
+        else loadVerifiedData(1, searchTerm, filterCampus, filterRole, filterGrade)
+    }
+
+    // Reset page on search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            handleSearch()
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [searchTerm])
+
+    useEffect(() => {
         loadCampuses()
     }, [])
 
@@ -145,10 +207,10 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
     const startEdit = (user: any) => {
         setEditingId(user.userId)
         setEditForm({
-            childEprNo: user.childEprNo || '',
-            grade: user.grade || '',
-            childCampusId: user.childCampusId ? user.childCampusId.toString() : '',
-            childName: user.childName || ''
+            childEprNo: user.childEprNo || user.matchSuggestion?.admissionNumber || '',
+            grade: user.grade || user.matchSuggestion?.grade || '',
+            childCampusId: user.childCampusId ? user.childCampusId.toString() : (user.matchSuggestion?.campusId?.toString() || ''),
+            childName: user.childName || user.matchSuggestion?.studentName || ''
         })
     }
 
@@ -162,25 +224,14 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
 
     // Derived Stats
     const stats = {
-        pending: pendingUsers.length,
-        verified: verifiedUsers.length,
-        staff: currentUsers.filter(u => u.role === 'Staff').length,
-        parents: currentUsers.filter(u => u.role === 'Parent').length,
-        matched: serverPotentialMatches || pendingUsers.filter(u => u.childEprNo && u.childEprNo.length > 3).length
+        pending: totalPending,
+        verified: totalVerifiedOnServer,
+        staff: staffCount,
+        parents: parentCount,
+        matched: serverPotentialMatches
     }
 
-    const filteredUsers = currentUsers.filter(user => {
-        const matchesSearch = (
-            user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.mobileNumber?.includes(searchTerm) ||
-            user.childEprNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.childName?.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-        const matchesCampus = filterCampus ? (user.assignedCampus === filterCampus || user.campusId?.toString() === filterCampus) : true
-        const matchesRole = filterRole ? user.role === filterRole : true
-
-        return matchesSearch && matchesCampus && matchesRole
-    })
+    const filteredUsers = currentUsers // Search/Filtering is now server-side for scale
 
     const uniqueCampuses = Array.from(new Set(currentUsers.map(u => u.assignedCampus).filter(Boolean)))
 
@@ -224,7 +275,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                     </div>
                     <div>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Verified Today</p>
-                        <h4 className="text-2xl font-black text-gray-900 leading-none" suppressHydrationWarning>{verifiedCountToday || '--'}</h4>
+                        <h4 className="text-2xl font-black text-gray-900 leading-none" suppressHydrationWarning>{verifiedCountToday}</h4>
                     </div>
                 </div>
             </div>
@@ -238,18 +289,20 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                         <button
                             onClick={() => setActiveTab('pending')}
                             className={`relative px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all z-10 ${activeTab === 'pending' ? "text-white shadow-md bg-amber-500" : "text-gray-500 hover:text-gray-700"}`}
+                            suppressHydrationWarning
                         >
                             Pending
-                            <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'pending' ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`}>
+                            <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'pending' ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`} suppressHydrationWarning>
                                 {stats.pending}
                             </span>
                         </button>
                         <button
                             onClick={() => setActiveTab('verified')}
                             className={`relative px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all z-10 ${activeTab === 'verified' ? "text-white shadow-md bg-emerald-500" : "text-gray-500 hover:text-gray-700"}`}
+                            suppressHydrationWarning
                         >
                             Verified
-                            <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'verified' ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`}>
+                            <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'verified' ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`} suppressHydrationWarning>
                                 {stats.verified}
                             </span>
                         </button>
@@ -259,10 +312,16 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                         <input
                             type="text"
-                            placeholder="Search name, ERP, or mobile..."
+                            placeholder="Search by name, Mobile Number or ERP..."
+                            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    setPage(1)
+                                    handleSearch()
+                                }
+                            }}
                             suppressHydrationWarning
                         />
                     </div>
@@ -280,14 +339,17 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                             <FilterDropdown
                                 label="Campus"
                                 activeValues={filterCampus ? [filterCampus] : []}
-                                options={uniqueCampuses as string[]}
-                                onApply={(vals) => setFilterCampus(vals[0] || '')}
+                                options={campuses.map(c => c.campusName)}
+                                onApply={(vals) => {
+                                    setPage(1)
+                                    setFilterCampus(vals[0] || '')
+                                }}
                                 onClose={() => setActiveFilter(null)}
                             />
                         )}
                     </div>
 
-                    <div className="relative" ref={roleFilterRef}>
+                    <div className="relative">
                         <button
                             onClick={() => setActiveFilter(activeFilter === 'role' ? null : 'role')}
                             className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${filterRole ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
@@ -301,11 +363,54 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                 label="Role"
                                 activeValues={filterRole ? [filterRole] : []}
                                 options={['Staff', 'Parent']}
-                                onApply={(vals) => setFilterRole(vals[0] || '')}
+                                onApply={(vals) => {
+                                    setPage(1)
+                                    setFilterRole(vals[0] || '')
+                                }}
                                 onClose={() => setActiveFilter(null)}
                             />
                         )}
                     </div>
+
+                    <div className="relative">
+                        <button
+                            onClick={() => setActiveFilter(activeFilter === 'grade' ? null : 'grade')}
+                            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${filterGrade ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                            suppressHydrationWarning
+                        >
+                            <GraduationCap size={14} />
+                            Grade {filterGrade && `(${filterGrade})`}
+                        </button>
+                        {activeFilter === 'grade' && (
+                            <FilterDropdown
+                                label="Grade"
+                                activeValues={filterGrade ? [filterGrade] : []}
+                                options={[...GRADES]}
+                                onApply={(vals) => {
+                                    setPage(1)
+                                    setFilterGrade(vals[0] || '')
+                                }}
+                                onClose={() => setActiveFilter(null)}
+                            />
+                        )}
+                    </div>
+
+                    {(searchTerm || filterCampus || filterRole || filterGrade) && (
+                        <button
+                            onClick={() => {
+                                setSearchTerm('')
+                                setFilterCampus('')
+                                setFilterRole('')
+                                setFilterGrade('')
+                                setPage(1)
+                            }}
+                            className="px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-xl transition-all flex items-center gap-1 active:scale-95"
+                            suppressHydrationWarning
+                        >
+                            <X size={14} />
+                            Clear
+                        </button>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -329,6 +434,37 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                     </button>
                 </div>
             </div>
+
+            {/* Active Filters Disclosure */}
+            {(searchTerm || filterCampus || filterRole || filterGrade) && (
+                <div className="flex flex-wrap items-center gap-2 mb-4 px-1">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-1">Active Filters:</span>
+                    {searchTerm && (
+                        <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-black flex items-center gap-1 border border-indigo-100">
+                            Search: "{searchTerm}"
+                            <X size={10} className="cursor-pointer" onClick={() => setSearchTerm('')} />
+                        </span>
+                    )}
+                    {filterCampus && (
+                        <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-black flex items-center gap-1 border border-indigo-100">
+                            Campus: {filterCampus}
+                            <X size={10} className="cursor-pointer" onClick={() => setFilterCampus('')} />
+                        </span>
+                    )}
+                    {filterRole && (
+                        <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-black flex items-center gap-1 border border-indigo-100">
+                            Role: {filterRole}
+                            <X size={10} className="cursor-pointer" onClick={() => setFilterRole('')} />
+                        </span>
+                    )}
+                    {filterGrade && (
+                        <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-black flex items-center gap-1 border border-indigo-100">
+                            Grade: {filterGrade}
+                            <X size={10} className="cursor-pointer" onClick={() => setFilterGrade('')} />
+                        </span>
+                    )}
+                </div>
+            )}
 
             {/* Verification List - Table View */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -367,7 +503,38 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                             {user.fullName.charAt(0)}
                                         </div>
                                         <div>
-                                            <div className="font-black text-gray-900 text-sm">{user.fullName}</div>
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="font-black text-gray-900 text-sm">{user.fullName}</div>
+                                                {(() => {
+                                                    const normalize = (name: string) => {
+                                                        return name
+                                                            .toLowerCase()
+                                                            .replace(/[^a-z0-9]/g, ' ') // Replace punctuation/special chars with space
+                                                            .split(/\s+/)              // Split into words
+                                                            .filter(w => w.length > 0)  // Remove empty strings
+                                                            .sort()                   // Sort words alphabetically
+                                                            .join('');                // Join into single string
+                                                    };
+
+                                                    const parentNorm = normalize(user.fullName);
+                                                    const studentNameStr = user.childName || user.matchSuggestion?.studentName || '';
+                                                    const studentNorm = normalize(studentNameStr);
+
+                                                    if (!studentNorm || parentNorm === '') return false;
+
+                                                    // Catch "R Aaradhana" vs "AARADHANA R" and "Lithisha . B" vs "LITHISHA B"
+                                                    return parentNorm === studentNorm ||
+                                                        (parentNorm.length > 3 && (parentNorm.includes(studentNorm) || studentNorm.includes(parentNorm)));
+                                                })() && (
+                                                        <div className="group/warn relative cursor-help">
+                                                            <AlertCircle size={14} className="text-amber-500 animate-pulse" />
+                                                            <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 w-48 p-2 bg-gray-900 text-white text-[9px] rounded-lg opacity-0 group-hover/warn:opacity-100 transition-opacity pointer-events-none z-[100] shadow-xl">
+                                                                <div className="font-black text-amber-400 mb-1">DATA ENTRY WARNING</div>
+                                                                Parent/Student names are identical or highly similar (Initial/Order variation).
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                            </div>
                                             <div className="flex items-center gap-2 mt-0.5">
                                                 <Badge variant={user.role === 'Staff' ? 'info' : 'purple'} className="rounded-md px-1.5 py-0 text-[9px]">
                                                     {user.role}
@@ -412,7 +579,12 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                     ) : (
                                         <div className="space-y-1">
                                             <div className="text-sm font-black text-gray-900 flex items-center gap-2">
-                                                {user.childName || 'N/A'}
+                                                {user.childName || (user.matchSuggestion ? (
+                                                    <span className="text-emerald-600 flex items-center gap-1">
+                                                        <Check size={14} />
+                                                        {user.matchSuggestion.studentName}
+                                                    </span>
+                                                ) : 'N/A')}
                                                 {user.childEprNo && (
                                                     <span className="text-[10px] font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 uppercase">
                                                         {user.childEprNo}
@@ -421,13 +593,18 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">
-                                                    {user.grade || 'No Grade'}
+                                                    {user.grade || user.matchSuggestion?.grade || 'No Grade'}
                                                 </span>
                                                 <span className="w-1 h-1 rounded-full bg-gray-300" />
                                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">
-                                                    {user.assignedCampus || 'No Campus'}
+                                                    {user.assignedCampus || user.matchSuggestion?.campus || 'No Campus'}
                                                 </span>
                                             </div>
+                                            {!user.childName && user.matchSuggestion && (
+                                                <p className="text-[9px] text-emerald-500 font-bold uppercase tracking-tighter flex items-center gap-0.5">
+                                                    <Database size={10} /> Smart Suggestion (Found in ERP)
+                                                </p>
+                                            )}
                                         </div>
                                     )}
                                 </td>
@@ -498,6 +675,50 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                         ))}
                     </tbody>
                 </table>
+
+                {/* Pagination UI */}
+                {totalPages > 1 && (
+                    <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
+                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                            Showing {((page - 1) * 50) + 1}-{Math.min(page * 50, totalRecords)} of {totalRecords}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1 || loading}
+                                className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all"
+                            >
+                                Previous
+                            </button>
+                            <div className="flex items-center gap-1">
+                                {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                                    let pageNum = page
+                                    if (totalPages <= 5) pageNum = i + 1
+                                    else if (page <= 3) pageNum = i + 1
+                                    else if (page >= totalPages - 2) pageNum = totalPages - 4 + i
+                                    else pageNum = page - 2 + i
+
+                                    return (
+                                        <button
+                                            key={pageNum}
+                                            onClick={() => setPage(pageNum)}
+                                            className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${page === pageNum ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'text-gray-500 hover:bg-gray-100'}`}
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                            <button
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                disabled={page === totalPages || loading}
+                                className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <ConfirmDialog

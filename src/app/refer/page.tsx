@@ -174,7 +174,7 @@ function ReferralFormContent() {
     }
 
     return (
-        <div className="relative w-full text-white font-[family-name:var(--font-outfit)] flex flex-col">
+        <div className="relative min-h-screen w-full bg-[#0f172a] text-white font-[family-name:var(--font-outfit)] flex flex-col dark">
             {/* Ambient Background Effects */}
             <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
                 <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[var(--radiant-indigo)]/10 rounded-full blur-[120px]" />
@@ -190,10 +190,12 @@ function ReferralFormContent() {
                     <ChevronLeft className="w-5 h-5 flex-shrink-0 group-hover:-translate-x-0.5 transition-transform" strokeWidth={2.5} />
                 </button>
                 <div className="flex flex-col items-center">
-                    <span className="text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] mb-1">
-                        {ambassadorName ? 'Public Referral Link' : 'Internal Action'}
+                    <span className="text-[10px] font-black text-amber-400/80 uppercase tracking-[0.2em] mb-1">
+                        {ambassadorName ? 'Public Referral Link' : 'Self-Entry Referral'}
                     </span>
-                    <h1 className="text-lg font-bold tracking-tight">Make a Referral</h1>
+                    <h1 className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white to-white/70">
+                        {ambassadorName ? 'Join the Program' : 'Make a Referral'}
+                    </h1>
                 </div>
                 <div className="w-10" />
             </header>
@@ -258,13 +260,16 @@ function ReferralFormContent() {
 
                         {/* Steps Indicator */}
                         <div className="flex flex-col items-center mb-10">
-                            <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-200 to-[var(--radiant-gold)] mb-4 drop-shadow-sm">
-                                {step}<span className="text-lg text-white/20 font-medium">/3</span>
-                            </h2>
+                            <div className="flex items-baseline gap-1 mb-4">
+                                <span className="text-xs font-black text-amber-400/60 uppercase tracking-widest">Step</span>
+                                <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-200 to-[var(--radiant-gold)] drop-shadow-sm">
+                                    {step}<span className="text-sm text-white/20 font-medium">/3</span>
+                                </h2>
+                            </div>
                             <div className="flex gap-2">
-                                <div className={`h-1.5 w-8 rounded-full transition-all ${step >= 1 ? 'bg-[var(--radiant-gold)] shadow-[0_0_10px_rgba(251,191,36,0.3)]' : 'bg-white/10'}`} />
-                                <div className={`h-1.5 w-8 rounded-full transition-all ${step >= 2 ? 'bg-[var(--radiant-gold)] shadow-[0_0_10px_rgba(251,191,36,0.3)]' : 'bg-white/10'}`} />
-                                <div className={`h-1.5 w-8 rounded-full transition-all ${step >= 3 ? 'bg-[var(--radiant-gold)] shadow-[0_0_10px_rgba(251,191,36,0.3)]' : 'bg-white/10'}`} />
+                                <div className={`h-2 w-12 rounded-full transition-all duration-500 ${step >= 1 ? 'bg-gradient-to-r from-amber-400 to-amber-600 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'bg-white/5'}`} />
+                                <div className={`h-2 w-12 rounded-full transition-all duration-500 ${step >= 2 ? 'bg-gradient-to-r from-amber-400 to-amber-600 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'bg-white/5'}`} />
+                                <div className={`h-2 w-12 rounded-full transition-all duration-500 ${step >= 3 ? 'bg-gradient-to-r from-amber-400 to-amber-600 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'bg-white/5'}`} />
                             </div>
                         </div>
 
@@ -279,11 +284,11 @@ function ReferralFormContent() {
                                     className="space-y-6"
                                 >
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-white/60 uppercase tracking-widest pl-1">Parent Mobile Number</label>
+                                        <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] pl-1">Parent Mobile Number</label>
                                         <div className="relative group">
-                                            <div className="absolute inset-0 bg-pink-500/20 rounded-2xl blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-500"></div>
-                                            <div className={`relative flex items-center bg-black/20 border rounded-2xl h-16 px-4 transition-all group-focus-within:bg-black/40 ${error ? 'border-rose-500/50' : 'border-white/10 group-focus-within:border-pink-500/50'}`}>
-                                                <Smartphone className="text-white/40 group-focus-within:text-pink-400 transition-colors mr-3" />
+                                            <div className="absolute inset-0 bg-indigo-500/20 rounded-2xl blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500"></div>
+                                            <div className={`relative flex items-center bg-slate-950/40 backdrop-blur-xl border-2 rounded-2xl h-16 px-4 transition-all group-focus-within:bg-slate-900/60 ${error ? 'border-rose-500/50' : 'border-white/10 group-focus-within:border-amber-500/50'}`}>
+                                                <Smartphone className="text-white/30 group-focus-within:text-[var(--radiant-gold)] transition-colors mr-3" />
                                                 <input
                                                     type="tel"
                                                     value={formData.parentMobile}
@@ -292,7 +297,7 @@ function ReferralFormContent() {
                                                         updateFormData('parentMobile', value);
                                                     }}
                                                     placeholder="98765 43210"
-                                                    className="w-full h-full bg-transparent border-none outline-none text-xl font-bold text-white placeholder-white/20"
+                                                    className="w-full h-full bg-transparent border-none outline-none text-xl font-bold text-white placeholder-white/10"
                                                 />
                                             </div>
                                         </div>
@@ -301,8 +306,11 @@ function ReferralFormContent() {
                                     <button
                                         onClick={isOffline ? () => setStep(3) : handleSendOtp}
                                         disabled={loading}
-                                        className="w-full h-16 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-black font-black text-sm uppercase tracking-widest shadow-lg shadow-amber-500/40 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-amber-300/30"
+                                        className="relative overflow-hidden group w-full h-16 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-black font-black text-sm uppercase tracking-widest shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-amber-300/30"
                                     >
+                                        {/* Shimmer Effect */}
+                                        <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none"></div>
+
                                         {loading ? (
                                             <div className="w-6 h-6 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                                         ) : (
@@ -355,7 +363,7 @@ function ReferralFormContent() {
 
                                     <div className="flex justify-center">
                                         <div className="relative group w-full max-w-[200px]">
-                                            <div className="absolute inset-0 bg-pink-500/20 rounded-2xl blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-500"></div>
+                                            <div className="absolute inset-0 bg-indigo-500/20 rounded-2xl blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500"></div>
                                             <input
                                                 type="text"
                                                 value={otp}
@@ -368,7 +376,7 @@ function ReferralFormContent() {
                                                 autoComplete="one-time-code"
                                                 inputMode="numeric"
                                                 pattern="[0-9]*"
-                                                className="relative w-full h-16 bg-black/20 border border-white/10 rounded-2xl text-center text-3xl font-bold tracking-[0.5em] text-white outline-none focus:border-pink-500/50 focus:bg-black/40 transition-all placeholder-white/10"
+                                                className="relative w-full h-16 bg-slate-950/40 border-2 border-white/10 rounded-2xl text-center text-3xl font-bold tracking-[0.5em] text-white outline-none focus:border-amber-500/50 focus:bg-slate-900/60 transition-all placeholder-white/10 shadow-inner"
                                             />
                                         </div>
                                     </div>
@@ -377,8 +385,11 @@ function ReferralFormContent() {
                                         <button
                                             onClick={handleVerifyOtp}
                                             disabled={loading}
-                                            className="w-full h-16 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-600 text-black font-black text-sm uppercase tracking-widest shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                                            className="relative overflow-hidden group w-full h-16 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-600 text-black font-black text-sm uppercase tracking-widest shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50"
                                         >
+                                            {/* Shimmer Effect */}
+                                            <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none"></div>
+
                                             {loading ? (
                                                 <div className="w-6 h-6 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                                             ) : (
@@ -472,8 +483,11 @@ function ReferralFormContent() {
                                     <button
                                         onClick={handleSubmit}
                                         disabled={loading}
-                                        className="w-full h-16 rounded-2xl bg-gradient-to-r from-emerald-400 to-emerald-600 text-black font-black text-sm uppercase tracking-widest shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all mt-2"
+                                        className="relative overflow-hidden group w-full h-16 rounded-2xl bg-gradient-to-r from-emerald-400 to-emerald-600 text-black font-black text-sm uppercase tracking-widest shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] transition-all mt-2"
                                     >
+                                        {/* Shimmer Effect */}
+                                        <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none"></div>
+
                                         {loading ? (
                                             <div className="w-6 h-6 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                                         ) : (
@@ -495,10 +509,8 @@ function ReferralFormContent() {
                             <ShieldCheck size={14} />
                             <span>100% Secure & Encrypted</span>
                         </div>
-                        <p className="text-[10px] text-center max-w-xs leading-relaxed">
-                            Your referral data is processed securely. Beneifts are credited upon successful admission.
-                        </p>
                     </div>
+
                 </PageAnimate>
             </div>
         </div>
@@ -508,15 +520,15 @@ function ReferralFormContent() {
 function InputGroup({ icon, label, placeholder, value, onChange }: { icon: any, label: string, placeholder: string, value: string, onChange: (e: any) => void }) {
     return (
         <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest pl-1">{label}</label>
+            <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] pl-1">{label}</label>
             <div className="relative group">
-                <div className="absolute inset-0 bg-pink-500/10 rounded-xl blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-500"></div>
-                <div className="relative flex items-center bg-black/20 border border-white/10 rounded-xl h-12 px-4 transition-all group-focus-within:border-pink-500/50 group-focus-within:bg-black/40">
-                    <div className="text-white/40 group-focus-within:text-pink-400 transition-colors mr-3 [&>svg]:w-5 [&>svg]:h-5">
+                <div className="absolute inset-0 bg-indigo-500/10 rounded-xl blur-lg opacity-0 group-focus-within:opacity-100 transition-opacity duration-500"></div>
+                <div className="relative flex items-center bg-slate-950/40 backdrop-blur-xl border-2 border-white/10 rounded-xl h-14 px-4 transition-all group-focus-within:border-emerald-500/50 group-focus-within:bg-slate-900/60">
+                    <div className="text-white/30 group-focus-within:text-emerald-400 transition-colors mr-3 [&>svg]:w-5 [&>svg]:h-5">
                         {icon}
                     </div>
                     <input
-                        className="w-full h-full bg-transparent border-none outline-none text-sm font-medium text-white placeholder-white/20"
+                        className="w-full h-full bg-transparent border-none outline-none text-base font-medium text-white placeholder-white/10"
                         placeholder={placeholder}
                         value={value}
                         onChange={onChange}

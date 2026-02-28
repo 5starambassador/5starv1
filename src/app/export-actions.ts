@@ -52,13 +52,14 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
             'bankName': {
                 header: 'Bank Name',
                 accessor: (u) => {
-                    if (u.bankName) return u.bankName
-                    // Fallback to parsing legacy blob if needed, but for now just use structured fields
-                    if (u.bankAccountDetails) {
-                        const val = decrypt(u.bankAccountDetails) || ''
-                        return val.split('-')[0]?.trim() || val
+                    let val = 'N/A'
+                    if (u.bankName) val = u.bankName
+                    else if (u.bankAccountDetails) {
+                        const decrypted = decrypt(u.bankAccountDetails) || ''
+                        val = decrypted.split('-')[0]?.trim() || decrypted
                     }
-                    return 'N/A'
+                    if (!val || val === 'N/A') return 'N/A'
+                    return /^\d+$/.test(val) ? `="${val}"` : val
                 }
             },
             'accountNumber': {
@@ -114,8 +115,6 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
         const csvRows = users.map(user => {
             return columnsToExport.map(k => {
                 const val = colDefs[k].accessor(user)
-                // If it looks like a formula (starts with =), leave it alone, else escape
-                if (typeof val === 'string' && val.startsWith('=')) return val
                 return safeString(val as string)
             }).join(',')
         })
@@ -560,10 +559,50 @@ export async function exportLiabilities(startDate: Date, endDate: Date, selected
         const safeString = (str: string | null | undefined) => `"${(String(str || '')).replace(/"/g, '""')}"`
 
         const colDefs: Record<string, { header: string, accessor: (l: any) => string | number | null }> = {
+            'academicYear': { header: 'Academic Year', accessor: (l) => l.user?.academicYear || academicYear || 'N/A' },
             'fullName': { header: 'Ambassador Name', accessor: (l) => l.fullName },
             'mobile': { header: 'Mobile Number', accessor: (l) => `="${l.mobileNumber}"` },
             'role': { header: 'Role', accessor: (l) => l.role },
             'campus': { header: 'Ambassador Campus', accessor: (l) => l.campusName || 'N/A' },
+            'bankName': {
+                header: 'Bank Name',
+                accessor: (l) => {
+                    let val = 'N/A'
+                    if (l.user?.bankName) val = l.user.bankName
+                    else if (l.user?.bankAccountDetails) {
+                        const decrypted = decrypt(l.user.bankAccountDetails) || ''
+                        val = decrypted.split('-')[0]?.trim() || decrypted
+                    }
+                    if (!val || val === 'N/A') return 'N/A'
+                    // If it looks purely numeric, wrap it to avoid Excel scientific notation
+                    return /^\d+$/.test(val) ? `="${val}"` : val
+                }
+            },
+            'accountNumber': {
+                header: 'Account Number',
+                accessor: (l) => {
+                    if (l.user?.accountNumber) return `="${l.user.accountNumber}"`
+                    if (l.user?.bankAccountDetails) {
+                        const val = decrypt(l.user.bankAccountDetails) || ''
+                        const parts = val.split('-')
+                        if (parts.length > 1) return `="${parts[1]?.trim()}"`
+                    }
+                    return 'N/A'
+                }
+            },
+            'ifscCode': {
+                header: 'IFSC Code',
+                accessor: (l) => {
+                    let val = 'N/A'
+                    if (l.user?.ifscCode) val = l.user.ifscCode
+                    else if (l.user?.bankAccountDetails) {
+                        const decrypted = decrypt(l.user.bankAccountDetails) || ''
+                        const match = decrypted.match(/\((.*?)\)/)
+                        val = match ? match[1] : 'N/A'
+                    }
+                    return val === 'N/A' ? val : `="${val}"`
+                }
+            },
             'referrals': { header: 'Confirmed Referrals', accessor: (l) => l.confirmedReferralCount },
             'totalEarned': { header: 'Total Earned', accessor: (l) => l.totalEarned },
             'totalSettled': { header: 'Total Settled', accessor: (l) => l.totalSettled },
@@ -572,21 +611,58 @@ export async function exportLiabilities(startDate: Date, endDate: Date, selected
             'admission': { header: 'Admission Share', accessor: (l) => l.admissionShare || 0 },
             'donation': { header: 'Donation Share', accessor: (l) => l.donationShare || 0 },
             'childName': { header: 'Child Name', accessor: (l) => l.childName || 'N/A' },
-            'erpNo': { header: 'Child ERP No', accessor: (l) => l.childEprNo || 'N/A' },
+            'erpNo': { header: 'Child ERP No', accessor: (l) => l.childEprNo ? `="${l.childEprNo}"` : 'N/A' },
             'childGrade': { header: 'Child Grade', accessor: (l) => l.childGrade || 'N/A' },
             'childFee': { header: 'Child Fee', accessor: (l) => l.childFee || 0 },
             'group': { header: 'Ledger Group', accessor: (l) => l.group }
         }
 
-        const columnsToExport = selectedColumns && selectedColumns.length > 0
-            ? selectedColumns.filter(k => colDefs[k])
-            : Object.keys(colDefs)
+        const maxReferrals = Math.max(...liabilities.map((l: any) => (l.referrals || []).length), 1)
+
+        let columnsToExport: string[] = []
+        if (selectedColumns && selectedColumns.length > 0) {
+            selectedColumns.forEach(k => {
+                if (k === 'referralDetails') {
+                    for (let i = 0; i < maxReferrals; i++) {
+                        const refKey = `referral_col_${i}`
+                        colDefs[refKey] = {
+                            header: `Referral ${i + 1}: Name - ERP No - Grade - Campus - Status`,
+                            accessor: (l: any) => {
+                                const r = (l.referrals || [])[i]
+                                if (!r) return ''
+                                return `${r.studentName || 'Unknown'} - ${r.admissionNumber || 'N/A'} - ${r.gradeInterested || 'N/A'} - ${r.campus || 'N/A'} - ${r.payoutStatus || 'PENDING'}`
+                            }
+                        }
+                        columnsToExport.push(refKey)
+                    }
+                } else if (colDefs[k]) {
+                    columnsToExport.push(k)
+                }
+            })
+        } else {
+            // Default logic
+            Object.keys(colDefs).forEach(k => {
+                columnsToExport.push(k)
+            })
+            // If referralDetails was intended to be default, we add it here too
+            for (let i = 0; i < maxReferrals; i++) {
+                const refKey = `referral_col_${i}`
+                colDefs[refKey] = {
+                    header: `Referral ${i + 1}: Name - ERP No - Grade - Campus - Status`,
+                    accessor: (l: any) => {
+                        const r = (l.referrals || [])[i]
+                        if (!r) return ''
+                        return `${r.studentName || 'Unknown'} - ${r.admissionNumber || 'N/A'} - ${r.gradeInterested || 'N/A'} - ${r.campus || 'N/A'} - ${r.payoutStatus || 'PENDING'}`
+                    }
+                }
+                columnsToExport.push(refKey)
+            }
+        }
 
         const csvHeaders = columnsToExport.map(k => colDefs[k].header).join(',')
         const csvRows = liabilities.map(lib => {
             return columnsToExport.map(k => {
                 const val = colDefs[k].accessor(lib)
-                if (typeof val === 'string' && val.startsWith('=')) return val
                 return safeString(val as string)
             }).join(',')
         })

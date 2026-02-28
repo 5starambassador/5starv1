@@ -40,12 +40,17 @@ async function verifyCampusAccess() {
 }
 
 // --- Stats ---
-export async function getCampusStats(days: number = 30) {
+export async function getCampusStats(days: number = 30, academicYear?: string) {
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
-    const whereClause = access.isSuperAdmin ? {} : { campusId: access.campusId }
-    const referralWhere = access.isSuperAdmin ? {} : { campusId: access.campusId }
+    const whereClause: any = access.isSuperAdmin ? {} : { campusId: access.campusId }
+    const referralWhere: any = access.isSuperAdmin ? {} : { campusId: access.campusId }
+
+    if (academicYear && academicYear !== 'All') {
+        whereClause.academicYear = academicYear
+        referralWhere.admittedYear = academicYear
+    }
 
     // Calculate date filter
     const dateFilter = days === 0
@@ -201,11 +206,15 @@ export async function updateCampusTargets(leadTarget: number, admissionTarget: n
 }
 
 // --- Students ---
-export async function getCampusStudents(query?: string) {
+export async function getCampusStudents(query?: string, academicYear?: string) {
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
     const whereClause: any = access.isSuperAdmin ? {} : { campusId: access.campusId }
+
+    if (academicYear && academicYear !== 'All') {
+        whereClause.academicYear = academicYear
+    }
 
     if (query) {
         whereClause.OR = [
@@ -231,11 +240,11 @@ export async function getCampusStudents(query?: string) {
 }
 
 // --- Referrals ---
-export async function getCampusReferrals() {
+export async function getCampusReferrals(academicYear?: string) {
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
-    const whereClause = access.isSuperAdmin
+    const whereClause: any = access.isSuperAdmin
         ? {}
         : {
             OR: [
@@ -243,6 +252,10 @@ export async function getCampusReferrals() {
                 { campus: { contains: access.campusName || '', mode: 'insensitive' as const } }
             ]
         }
+
+    if (academicYear && academicYear !== 'All') {
+        whereClause.admittedYear = academicYear
+    }
 
     try {
         const referrals = await prisma.referralLead.findMany({
@@ -258,11 +271,11 @@ export async function getCampusReferrals() {
 }
 
 // --- Recent Activity Feed ---
-export async function getCampusRecentActivity() {
+export async function getCampusRecentActivity(academicYear?: string) {
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
-    const whereClause = access.isSuperAdmin
+    const whereClause: any = access.isSuperAdmin
         ? {}
         : {
             OR: [
@@ -270,6 +283,10 @@ export async function getCampusRecentActivity() {
                 { campus: { contains: access.campusName || '', mode: 'insensitive' as const } }
             ]
         }
+
+    if (academicYear && academicYear !== 'All') {
+        whereClause.admittedYear = academicYear
+    }
 
     try {
         // Get recent referrals (last 10)
@@ -352,7 +369,7 @@ export async function getCampusUsers(query?: string) {
 }
 
 // --- Campus Finance Report Data ---
-export async function getCampusFinance(days: number = 30) {
+export async function getCampusFinance(days: number = 30, academicYear?: string) {
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
@@ -361,14 +378,18 @@ export async function getCampusFinance(days: number = 30) {
         ? undefined
         : { gte: new Date(Date.now() - (days * 24 * 60 * 60 * 1000)) }
 
+    const yearFilter = academicYear && academicYear !== 'All' ? { admittedYear: academicYear } : {}
+
     // For campus-specific filtering, check both campusId and campus name string
-    const whereClause = access.isSuperAdmin
+    const whereClause: any = access.isSuperAdmin
         ? {
             leadStatus: LeadStatus.Confirmed,
+            ...yearFilter,
             ...(dateFilter ? { confirmedDate: dateFilter } : { confirmedDate: { not: null } })
         }
         : {
             leadStatus: LeadStatus.Confirmed,
+            ...yearFilter,
             ...(dateFilter ? { confirmedDate: dateFilter } : { confirmedDate: { not: null } }),
             OR: [
                 { campusId: access.campusId },
@@ -590,11 +611,15 @@ export async function updateCampusLeadDetails(
 }
 
 // --- Ambassador Performance Report ---
-export async function getCampusAmbassadorStats() {
+export async function getCampusAmbassadorStats(academicYear?: string) {
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
-    const whereClause = access.isSuperAdmin ? {} : { campusId: access.campusId }
+    const whereClause: any = access.isSuperAdmin ? {} : { campusId: access.campusId }
+
+    if (academicYear && academicYear !== 'All') {
+        whereClause.admittedYear = academicYear
+    }
 
     try {
         // Fetch all referrals for this campus to aggregate
@@ -650,11 +675,15 @@ export async function getCampusAmbassadorStats() {
 }
 
 // --- Dead Leads Report (Action Required) ---
-export async function getCampusDeadLeads(days: number = 7) {
+export async function getCampusDeadLeads(days: number = 7, academicYear?: string) {
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
-    const whereClause = access.isSuperAdmin ? {} : { campusId: access.campusId }
+    const whereClause: any = access.isSuperAdmin ? {} : { campusId: access.campusId }
+
+    if (academicYear && academicYear !== 'All') {
+        whereClause.admittedYear = academicYear
+    }
 
     // Dead Lead Definition: Status is NOT 'Confirmed' or 'Closed' or 'Rejected'
     // AND createdAt is older than X days (Schema doesn't have updatedAt for ReferralLead yet)
@@ -682,11 +711,15 @@ export async function getCampusDeadLeads(days: number = 7) {
 }
 
 // --- Conversion Funnel Report ---
-export async function getCampusConversionStats() {
+export async function getCampusConversionStats(academicYear?: string) {
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
-    const whereClause = access.isSuperAdmin ? {} : { campusId: access.campusId }
+    const whereClause: any = access.isSuperAdmin ? {} : { campusId: access.campusId }
+
+    if (academicYear && academicYear !== 'All') {
+        whereClause.admittedYear = academicYear
+    }
 
     try {
         // Group by Status

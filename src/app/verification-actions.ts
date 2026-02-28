@@ -10,33 +10,71 @@ import { notifyVerificationApproved, notifyVerificationRejected } from '@/lib/no
 
 
 // Fetch Verified Users (Active Benefit Status)
-export async function getVerifiedUsers() {
+export async function getVerifiedUsers(
+    page: number = 1,
+    limit: number = 50,
+    search: string = '',
+    campus?: string,
+    role?: string,
+    grade?: string
+) {
     const user = await getCurrentUser()
     if (!user || user.role !== 'Super Admin') return { success: false, error: 'Unauthorized' }
 
     try {
-        const verifiedUsers = await prisma.user.findMany({
-            where: {
-                benefitStatus: 'Active' as any as AccountStatus
-            },
-            select: {
-                userId: true,
-                fullName: true,
-                mobileNumber: true,
-                childName: true,
-                childEprNo: true,
-                grade: true,
-                campusId: true,
-                childCampusId: true,
-                role: true,
-                assignedCampus: true,
-                confirmedReferralCount: true, // Bonus info for verified tab
-                benefitStatus: true
-            },
-            orderBy: { createdAt: 'desc' }
-        })
+        const skip = (page - 1) * limit
 
-        return { success: true, data: verifiedUsers }
+        const andConditions: any[] = [
+            { benefitStatus: 'Active' as any as AccountStatus }
+        ]
+
+        if (search) {
+            andConditions.push({
+                OR: [
+                    { fullName: { contains: search, mode: 'insensitive' } },
+                    { mobileNumber: { contains: search } },
+                    { childEprNo: { contains: search, mode: 'insensitive' } },
+                    { childName: { contains: search, mode: 'insensitive' } }
+                ]
+            })
+        }
+
+        if (campus) andConditions.push({ assignedCampus: campus })
+        if (role) andConditions.push({ role: role as any })
+        if (grade) andConditions.push({ grade: grade })
+
+        const where: any = { AND: andConditions }
+
+        const [verifiedUsers, total] = await Promise.all([
+            prisma.user.findMany({
+                where,
+                select: {
+                    userId: true,
+                    fullName: true,
+                    mobileNumber: true,
+                    childName: true,
+                    childEprNo: true,
+                    grade: true,
+                    campusId: true,
+                    childCampusId: true,
+                    role: true,
+                    assignedCampus: true,
+                    confirmedReferralCount: true,
+                    benefitStatus: true
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit
+            }),
+            prisma.user.count({ where })
+        ])
+
+        return {
+            success: true,
+            data: verifiedUsers,
+            total,
+            totalPages: Math.ceil(total / limit)
+        }
     } catch (error) {
         console.error('Error fetching verified users:', error)
         return { success: false, error: 'Failed to fetch data' }
@@ -44,29 +82,25 @@ export async function getVerifiedUsers() {
 }
 
 // Fetch Pending Verifications
-export async function getPendingVerifications() {
+export async function getPendingVerifications(
+    page: number = 1,
+    limit: number = 50,
+    search: string = '',
+    campus?: string,
+    role?: string,
+    grade?: string
+) {
     const user = await getCurrentUser()
     if (!user || user.role !== 'Super Admin') return { success: false, error: 'Unauthorized' }
 
     try {
-        // 1. Fetch potential matches (Student Records)
-        const allStudents = await prisma.student.findMany({
-            where: { status: 'Active' },
-            select: { admissionNumber: true, parent: { select: { mobileNumber: true } } }
-        })
-        const studentErps = new Set(allStudents.map(s => s.admissionNumber).filter(Boolean))
-        const parentMobiles = new Set(allStudents.map(s => s.parent.mobileNumber).filter(Boolean))
+        const skip = (page - 1) * limit
 
-        // 2. Fetch users with PendingVerification OR (Pending + Match)
-        // We want to show:
-        // A) Anyone explicitly asking for verification (PendingVerification)
-        // B) Anyone who is Pending but WE found a match (Smart Suggestion)
-        const pendingUsers = await prisma.user.findMany({
-            where: {
+        const andConditions: any[] = [
+            {
                 OR: [
                     {
                         benefitStatus: 'PendingVerification' as any as AccountStatus,
-                        // FILTER: Exclude Staff who don't have a child in Achariya
                         NOT: {
                             AND: [
                                 { role: 'Staff' },
@@ -77,38 +111,116 @@ export async function getPendingVerifications() {
                     {
                         AND: [
                             { benefitStatus: 'Pending' as any as AccountStatus },
-                            { mobileNumber: { in: Array.from(parentMobiles) } }, // Only fetch Pending users if they MATCH a parent
-                            // FILTER: Exclude Staff who don't have a child in Achariya (redundant if Pending matches parents, but safe)
-                            {
-                                NOT: {
-                                    AND: [
-                                        { role: 'Staff' },
-                                        { childInAchariya: false }
-                                    ]
-                                }
-                            }
+                            { childInAchariya: true }
                         ]
                     }
                 ]
+            }
+        ]
+
+        if (search) {
+            andConditions.push({
+                OR: [
+                    { fullName: { contains: search, mode: 'insensitive' } },
+                    { mobileNumber: { contains: search } },
+                    { childEprNo: { contains: search, mode: 'insensitive' } },
+                    { childName: { contains: search, mode: 'insensitive' } }
+                ]
+            })
+        }
+
+        if (campus) andConditions.push({ assignedCampus: campus })
+        if (role) andConditions.push({ role: role as any })
+        if (grade) andConditions.push({ grade: grade })
+
+        const baseWhere: any = { AND: andConditions }
+
+        // 1. Fetch pending users with pagination
+        const [pendingUsers, total, totalVerified, staffCount, parentCount] = await Promise.all([
+            prisma.user.findMany({
+                where: baseWhere,
+                select: {
+                    userId: true,
+                    fullName: true,
+                    mobileNumber: true,
+                    childName: true,
+                    childEprNo: true,
+                    grade: true,
+                    campusId: true,
+                    childCampusId: true,
+                    role: true,
+                    assignedCampus: true,
+                    createdAt: true,
+                    benefitStatus: true
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit
+            }),
+            prisma.user.count({ where: baseWhere }),
+            prisma.user.count({ where: { benefitStatus: 'Active' as any as AccountStatus } }),
+            prisma.user.count({
+                where: {
+                    ...baseWhere,
+                    role: 'Staff'
+                }
+            }),
+            prisma.user.count({
+                where: {
+                    ...baseWhere,
+                    role: 'Parent'
+                }
+            })
+        ])
+
+        // 2. TARGETED matching (Only for the fetched batch)
+        const relevantMobileNumbers = pendingUsers.map(u => u.mobileNumber).filter((m): m is string => !!m)
+        const relevantEprNumbers = pendingUsers.map(u => u.childEprNo).filter((e): e is string => !!e)
+
+        const matchingStudents = await prisma.student.findMany({
+            where: {
+                OR: [
+                    { admissionNumber: { in: relevantEprNumbers } },
+                    { parent: { mobileNumber: { in: relevantMobileNumbers } } }
+                ],
+                status: 'Active'
             },
-            select: {
-                userId: true,
-                fullName: true,
-                mobileNumber: true,
-                childName: true,
-                childEprNo: true,
-                grade: true,
-                campusId: true,
-                childCampusId: true,
-                role: true,
-                assignedCampus: true,
-                createdAt: true,
-                benefitStatus: true // Needed to show UI distinction if needed
-            },
-            orderBy: { createdAt: 'desc' }
+            include: {
+                parent: { select: { mobileNumber: true } },
+                campus: { select: { campusName: true } }
+            }
         })
 
-        // 3. Fetch "Verified Today" count from ActivityLog
+        // Use proper typing and explicit population for the Maps
+        const studentErps = new Map<string, typeof matchingStudents[0]>()
+        const parentMobiles = new Map<string, typeof matchingStudents[0]>()
+
+        matchingStudents.forEach(s => {
+            if (s.admissionNumber) studentErps.set(s.admissionNumber, s)
+            if (s.parent?.mobileNumber) parentMobiles.set(s.parent.mobileNumber, s)
+        })
+
+        // Attach match suggestions to users
+        const usersWithMatches = pendingUsers.map(u => {
+            const match = (u.childEprNo && studentErps.get(u.childEprNo)) ||
+                (u.mobileNumber && parentMobiles.get(u.mobileNumber))
+
+            if (match) {
+                return {
+                    ...u,
+                    matchSuggestion: {
+                        studentName: match.fullName,
+                        grade: match.grade,
+                        campus: match.campus.campusName,
+                        campusId: match.campusId,
+                        admissionNumber: match.admissionNumber
+                    }
+                }
+            }
+            return { ...u, matchSuggestion: null }
+        })
+
+        // 3. Status retrieval (Efficient counts)
         const startOfDay = new Date()
         startOfDay.setHours(0, 0, 0, 0)
 
@@ -118,10 +230,7 @@ export async function getPendingVerifications() {
                 action: { in: ['UPDATE', 'BULK_ACTION'] },
                 createdAt: { gte: startOfDay }
             },
-            select: {
-                action: true,
-                metadata: true
-            }
+            select: { action: true, metadata: true }
         })
 
         const verifiedToday = verifiedLogs.reduce((acc, log) => {
@@ -132,17 +241,27 @@ export async function getPendingVerifications() {
             return acc
         }, 0)
 
-        // 4. Potential Match Calculation
-        const potentialMatches = pendingUsers.filter(u =>
-            (u.childEprNo && studentErps.has(u.childEprNo)) ||
-            (u.mobileNumber && parentMobiles.has(u.mobileNumber))
-        ).length
+        // Total potential matches
+        const totalMatches = await prisma.user.count({
+            where: {
+                benefitStatus: { in: ['Pending', 'PendingVerification'] as any[] },
+                OR: [
+                    { childEprNo: { not: null } },
+                    { mobileNumber: { not: '' } }
+                ]
+            }
+        })
 
         return {
             success: true,
-            data: pendingUsers,
+            data: usersWithMatches,
+            total,
+            totalVerified,
+            staffCount,
+            parentCount,
+            totalPages: Math.ceil(total / limit),
             verifiedToday,
-            potentialMatches
+            potentialMatches: totalMatches
         }
     } catch (error) {
         console.error('Error fetching pending verifications:', error)

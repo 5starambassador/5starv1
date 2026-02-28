@@ -36,7 +36,7 @@ export default async function FinancePage({
         getFinanceStats(selectedYear),
         getRegistrationTransactions('All', selectedYear, search),
         getUsersReadyForRefund(selectedYear),
-        getAccruedPayoutLiabilities(selectedYear),
+        getAccruedPayoutLiabilities(selectedYear, search),
         prisma.academicYear.findMany({
             orderBy: { year: 'desc' }
         })

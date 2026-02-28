@@ -45,9 +45,14 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
         }
 
 
-        // Project-wide Year Filter
+        // Project-wide Year Filter (RELAXED to show active referrers from previous cycles)
         if (academicYear && academicYear !== 'All') {
-            baseWhere.academicYear = academicYear
+            baseWhere.AND.push({
+                OR: [
+                    { academicYear: academicYear },
+                    { referrals: { some: { admittedYear: academicYear } } }
+                ]
+            });
         }
 
         // Campus Head restriction
@@ -358,12 +363,21 @@ export async function getFinanceStats(academicYear?: string) {
 
     try {
         const whereUserRevenue: any = {
-            OR: [
-                { paymentStatus: 'Completed' },
-                { paymentStatus: 'Success' },
-                { transactionId: { not: null } }
-            ],
-            ...(academicYear && academicYear !== 'All' ? { academicYear } : {})
+            AND: [
+                {
+                    OR: [
+                        { paymentStatus: 'Completed' },
+                        { paymentStatus: 'Success' },
+                        { transactionId: { not: null } }
+                    ]
+                },
+                ...(academicYear && academicYear !== 'All' ? [{
+                    OR: [
+                        { academicYear },
+                        { referrals: { some: { admittedYear: academicYear } } }
+                    ]
+                }] : [])
+            ]
         }
 
         // Activity-Anchored User Filter for counting active participants
@@ -1076,7 +1090,7 @@ export async function syncPastRefunds(records: {
  * Identifies ambassadors with earned benefits that have not yet been settled.
  * Distinguishes between Group A (Waiver) and Group B (Payout).
  */
-export async function getAccruedPayoutLiabilities(academicYear?: string) {
+export async function getAccruedPayoutLiabilities(academicYear?: string, query?: string) {
     try {
         const user = await getCurrentUser()
         if (!user || !await hasPermission('settlements')) {
@@ -1084,6 +1098,15 @@ export async function getAccruedPayoutLiabilities(academicYear?: string) {
         }
 
         const yearFilter = academicYear || '2026-2027'
+
+        // 0. Build search filter
+        const searchFilter = query ? {
+            OR: [
+                { fullName: { contains: query, mode: 'insensitive' as any } },
+                { mobileNumber: { contains: query, mode: 'insensitive' as any } },
+                { referralCode: { contains: query, mode: 'insensitive' as any } }
+            ]
+        } : {}
 
         // 1. Fetch AcademicYear record for date boundaries
         let dateRangeFilter: any = {}
@@ -1114,27 +1137,37 @@ export async function getAccruedPayoutLiabilities(academicYear?: string) {
         const [users, slabs, gradeFees] = await Promise.all([
             prisma.user.findMany({
                 where: {
-                    referrals: {
-                        some: {
-                            leadStatus: { in: ['Confirmed', 'Admitted'] },
-                            ...referralYearFilter
+                    AND: [
+                        ...(query ? [searchFilter] : []),
+                        {
+                            referrals: {
+                                some: {
+                                    leadStatus: { in: ['Confirmed', 'Admitted'] },
+                                    ...referralYearFilter
+                                }
+                            }
                         }
-                    }
+                    ]
                 },
                 include: {
                     settlements: true,
                     students: {
                         where: { status: 'Active' },
-                        select: { fullName: true, grade: true, annualFee: true, campus: { select: { campusName: true } } }
+                        select: { studentId: true, fullName: true, grade: true, annualFee: true, campus: { select: { campusName: true } } }
                     },
                     referredStudents: {
                         where: { status: 'Active' },
-                        select: { fullName: true, grade: true, annualFee: true, campus: { select: { campusName: true } } }
+                        select: { studentId: true, fullName: true, grade: true, annualFee: true, campus: { select: { campusName: true } } }
                     },
                     referrals: {
                         where: {
                             leadStatus: { in: ['Confirmed', 'Admitted'] },
                             ...referralYearFilter
+                        },
+                        include: {
+                            student: {
+                                select: { studentId: true }
+                            }
                         }
                     }
                 }
@@ -1144,7 +1177,8 @@ export async function getAccruedPayoutLiabilities(academicYear?: string) {
             }),
             prisma.gradeFee.findMany({
                 where: {
-                    grade: { in: ['Grade - 1', 'Grade-1', 'Grade 1'] },
+                    // BROADENED SEARCH: Match Grade-1 or Mont-1 or specific variants to ensure payout baseline exists
+                    grade: { in: ['Grade - 1', 'Grade-1', 'Grade 1', 'Mont - 1', 'Mont-1', 'Mont 1', 'Montessori - 1'] },
                     ...(yearFilter !== 'All' ? { academicYear: yearFilter } : {})
                 }
             })
@@ -1171,30 +1205,21 @@ export async function getAccruedPayoutLiabilities(academicYear?: string) {
 
         gradeFees.forEach(gf => {
             // Priority: WOTP > OTP > 60000 fallback
-            grade1FeeMap.set(gf.campusId, gf.annualFee_wotp || gf.annualFee_otp || 0)
+            const fee = gf.annualFee_wotp || gf.annualFee_otp || 0
+            const currentBest = grade1FeeMap.get(gf.campusId)
+
+            // If we have multiple matching grades (e.g. Grade-1 AND Mont-1), 
+            // the logic below ensures we pick a non-zero fee if available.
+            if (!currentBest || fee > 0) {
+                grade1FeeMap.set(gf.campusId, fee)
+            }
         })
 
         const liabilities: any[] = []
 
         for (const u of (users as any[])) {
-            // Map ReferralLeads to ReferralData for the calculator
-            const currentReferrals: (ReferralData & { feeDataMissing?: boolean })[] = u.referrals.map((r: any) => {
-                const g1FeeFromTable = grade1FeeMap.get(r.campusId)  // Campus Grade-1 fee (policy source of truth)
-                return {
-                    id: r.leadId,
-                    campusId: r.campusId || 0,
-                    campusName: r.campus || undefined,
-                    grade: r.gradeInterested || 'Grade-1',
-                    actualFee: r.annualFee || 0,
-                    campusGrade1Fee: g1FeeFromTable,  // undefined when GradeFee table has no entry → calculator yields 0 → UI shows N/A
-                    admissionFeeCollected: r.admissionFeeCollected || 0,
-                    donationFeeCollected: r.donationFeeCollected || 0,
-                    specialBonusRate: getSpecialBonusRate(r.campus),
-                    feeDataMissing: !g1FeeFromTable && !r.specialBonusRate // true only when campus Grade-1 fee is not seeded
-                }
-            })
-
-            // INTEL LOGIC: For Group A, fetch the actual student fee from linked records
+            // 1. INTEL LOGIC: Identify Ambassador's own child first 
+            // (Used for Group A fee source AND as a guard to exclude self-referrals)
             let actualChildFee = u.studentFee || 0 // Used for benefit calculation
             let displayChildFee: number | undefined = undefined // Used for UI display
             let childName = undefined
@@ -1221,6 +1246,15 @@ export async function getAccruedPayoutLiabilities(academicYear?: string) {
                     }
                 }
 
+                // Priority 4: Fuzzy Name Match (Fallback for split-accounts/mislinked parents)
+                if (!linkedStudent && u.childName) {
+                    const normalizedTarget = u.childName.trim().toUpperCase()
+                    // Search in the global list of active students
+                    linkedStudent = allStudents.find(s =>
+                        s.fullName.trim().toUpperCase() === normalizedTarget
+                    )
+                }
+
                 if (linkedStudent) {
                     actualChildFee = linkedStudent.annualFee || actualChildFee
                     displayChildFee = linkedStudent.annualFee || actualChildFee
@@ -1229,6 +1263,50 @@ export async function getAccruedPayoutLiabilities(academicYear?: string) {
                     childCampus = (linkedStudent.campus as any)?.campusName || undefined
                 }
             }
+
+            // 2. Self-Referral Guard: Identify student IDs and names already linked to this ambassador
+            const ownStudentIds = (u.students || []).map((s: any) => s.studentId)
+            if (linkedStudent) ownStudentIds.push(linkedStudent.studentId)
+
+            const normalizedOwnChild = childName?.trim().toUpperCase() || u.childName?.trim().toUpperCase()
+
+            // 3. Map ReferralLeads to ReferralData for the calculator
+            const currentReferrals: (ReferralData & { feeDataMissing?: boolean })[] = u.referrals
+                .filter((r: any) => {
+                    // 🚨 SENIOR AUDIT GUARD: Exclude Self-Referrals (Own Children)
+                    // Policy: Own children not allowed as referrals.
+
+                    // 1. Check if parent mobile in referral matches ambassador's mobile
+                    if (r.parentMobile === u.mobileNumber) return false
+
+                    // 2. Check if the referred student is already linked to the ambassador (Database relation or identify logic)
+                    if (r.student?.studentId && ownStudentIds.includes(r.student.studentId)) return false
+
+                    // 3. Check if referred student name matches one of ambassador's children (Fuzzy)
+                    if (normalizedOwnChild && r.studentName?.trim().toUpperCase() === normalizedOwnChild) return false
+
+                    // 4. Check if ERP/Admission number matches ambassador's own child EPR
+                    if (r.admissionNumber && u.childEprNo && r.admissionNumber.trim().toUpperCase() === u.childEprNo.trim().toUpperCase()) return false
+
+                    return true
+                })
+                .map((r: any) => {
+                    const g1FeeFromTable = grade1FeeMap.get(r.campusId)  // Campus Grade-1 fee (policy source of truth)
+                    return {
+                        id: r.leadId,
+                        studentName: r.studentName,
+                        admissionNumber: r.admissionNumber,
+                        campusId: r.campusId || 0,
+                        campusName: r.campus || undefined,
+                        grade: r.gradeInterested || 'Grade-1',
+                        actualFee: r.annualFee || 0,
+                        campusGrade1Fee: g1FeeFromTable,  // undefined when GradeFee table has no entry → calculator yields 0 → UI shows N/A
+                        admissionFeeCollected: r.admissionFeeCollected || 0,
+                        donationFeeCollected: r.donationFeeCollected || 0,
+                        specialBonusRate: getSpecialBonusRate(r.campus),
+                        feeDataMissing: !g1FeeFromTable && !r.specialBonusRate // true only when campus Grade-1 fee is not seeded
+                    }
+                })
 
             const calcResult = calculateTotalBenefit(currentReferrals, {
                 role: u.role as any,

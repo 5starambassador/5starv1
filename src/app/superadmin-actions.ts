@@ -946,9 +946,16 @@ export async function updateUser(userId: number, data: {
         revalidatePath('/admin')
         revalidatePath('/dashboard')
         return { success: true, user: updatedUser }
-    } catch (error) {
+    } catch (error: any) {
         console.error('Update user error:', error)
-        return { success: false, error: 'Failed to update user' }
+        if (error.code === 'P2002') {
+            const keys = error.meta?.target as string[] || []
+            if (keys.includes('mobileNumber')) return { success: false, error: 'This mobile number is already registered to another user.' }
+            if (keys.includes('empId')) return { success: false, error: 'This Employee ID is already registered.' }
+            if (keys.includes('referralCode')) return { success: false, error: 'This Referral Code is already in use.' }
+            return { success: false, error: 'A user with this information already exists.' }
+        }
+        return { success: false, error: error?.message || 'Failed to update user' }
     }
 }
 
@@ -968,7 +975,7 @@ export async function getAllProgramLeads() {
     const leads = await prisma.programLead.findMany({
         include: {
             program: { select: { title: true, slug: true } },
-            referrer: { select: { fullName: true, referralCode: true, mobileNumber: true } }
+            referrer: { select: { fullName: true, referralCode: true, mobileNumber: true, assignedCampus: true } }
         },
         orderBy: { clickedAt: 'desc' }
     })
