@@ -38,7 +38,11 @@ export function CampaignManager() {
             type: 'AMBASSADORS',
             role: 'All',
             campus: 'All',
-            activityStatus: 'All'
+            activityStatus: 'All',
+            accountHealth: 'Active',
+            referralMilestone: 'All',
+            leadFunnelStatus: 'All',
+            missingInfo: 'None'
         },
         channels: ['EMAIL']
     })
@@ -84,12 +88,30 @@ export function CampaignManager() {
         setLoading(false)
     }
 
+    // Silent refresh — no loading spinner (used by polling)
+    const silentRefresh = async () => {
+        const res = await getCampaigns()
+        if (res.success) setCampaigns(res.campaigns || [])
+    }
+
     useEffect(() => {
         loadCampaigns()
         getCampuses().then(res => {
             if (res.success) setCampuses(res.campuses || [])
         })
     }, [])
+
+    // Auto-poll every 4s while any campaign is PROCESSING
+    useEffect(() => {
+        const hasProcessing = campaigns.some(
+            c => c.status === 'SCHEDULED' || c.logs?.[0]?.status === 'PROCESSING'
+        )
+        if (!hasProcessing) return
+        const interval = setInterval(() => {
+            silentRefresh()  // ← no loading flash
+        }, 4000)
+        return () => clearInterval(interval)
+    }, [campaigns])
 
     const handleSubmit = async () => {
         if (!form.name || !form.subject || !form.templateBody) {
@@ -125,7 +147,7 @@ export function CampaignManager() {
                 name: '',
                 subject: '',
                 templateBody: '',
-                targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All' },
+                targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', missingInfo: 'None' },
                 channels: ['EMAIL']
             })
             loadCampaigns()
@@ -204,7 +226,7 @@ export function CampaignManager() {
             name: c.name,
             subject: c.subject,
             templateBody: c.templateBody,
-            targetAudience: c.targetAudience || { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All' },
+            targetAudience: c.targetAudience || { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', missingInfo: 'None' },
             channels: c.channels || ['EMAIL']
         })
         setShowModal(true)
@@ -244,10 +266,20 @@ export function CampaignManager() {
         if (!audience) return 'Global Audience'
         const parts = []
         if (audience.type && audience.type !== 'AMBASSADORS') parts.push(audience.type.replace('_', ' '))
-        if (audience.role !== 'All' && (audience.type === 'AMBASSADORS' || !audience.type)) parts.push(audience.role)
-        if (audience.campus !== 'All') parts.push(audience.campus)
-        if (audience.activityStatus !== 'All') parts.push(audience.activityStatus)
-        return parts.length > 0 ? parts.join(' • ') : 'Global Audience'
+        if (audience.role && audience.role !== 'All' && (audience.type === 'AMBASSADORS' || !audience.type)) parts.push(audience.role)
+        if (audience.campus && audience.campus !== 'All') parts.push(audience.campus)
+        if (audience.accountHealth && audience.accountHealth !== 'Active') parts.push(audience.accountHealth)
+        if (audience.referralMilestone && audience.referralMilestone !== 'All') parts.push(`${audience.referralMilestone} Referrals`)
+        if (audience.missingInfo && audience.missingInfo !== 'None') parts.push(`Missing ${audience.missingInfo}`)
+        if (audience.leadFunnelStatus && audience.leadFunnelStatus !== 'All') {
+            const funnelLabels: Record<string, string> = {
+                hasPendingLeads: 'Pending Leads',
+                hasVisitedLeads: 'Contacted Leads',
+                hasNotConvertedLeads: 'Not Admitted'
+            }
+            parts.push(funnelLabels[audience.leadFunnelStatus] || audience.leadFunnelStatus)
+        }
+        return parts.length > 0 ? parts.join(' • ') : 'All Active Ambassadors'
     }
 
     return (
@@ -286,7 +318,7 @@ export function CampaignManager() {
                                 name: '',
                                 subject: '',
                                 templateBody: '',
-                                targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All' },
+                                targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', missingInfo: 'None' },
                                 channels: ['EMAIL']
                             })
                             setShowModal(true)
@@ -470,24 +502,23 @@ export function CampaignManager() {
                                     exit={{ opacity: 0, scale: 0.95, y: 30 }}
                                     className="bg-white/95 backdrop-blur-xl border border-white/20 rounded-[40px] w-full max-w-3xl shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
                                 >
-                                    {/* Modal Header */}
-                                    <div className="bg-blue-600 p-6 text-white relative">
-                                        <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/20 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
-                                        <div className="flex justify-between items-center relative z-10">
+                                    {/* Modal Header - Light */}
+                                    <div className="bg-white border-b border-gray-100 px-6 py-5">
+                                        <div className="flex justify-between items-center">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 backdrop-blur-md">
-                                                    {editingCampaign ? <Edit size={20} /> : <Sparkles size={20} />}
+                                                <div className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center">
+                                                    {editingCampaign ? <Edit size={18} className="text-gray-600" /> : <Sparkles size={18} className="text-gray-600" />}
                                                 </div>
                                                 <div>
-                                                    <h2 className="text-lg font-black uppercase tracking-tight italic">{editingCampaign ? 'Config Workflow' : 'Ignite Workflow'}</h2>
-                                                    <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] font-mono">Precision Marketing Automation</p>
+                                                    <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">{editingCampaign ? 'Edit Campaign' : 'Ignite Workflow'}</h2>
+                                                    <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-[0.15em]">Precision Marketing Automation</p>
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => setShowModal(false)}
-                                                className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-colors"
+                                                className="p-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
                                             >
-                                                <X size={24} />
+                                                <X size={18} className="text-gray-500" />
                                             </button>
                                         </div>
                                     </div>
@@ -567,40 +598,41 @@ export function CampaignManager() {
                                         </div>
 
                                         {/* Advanced Audience Partitioning */}
-                                        <div className="bg-indigo-50/50 border border-indigo-100/50 rounded-[32px] p-6 space-y-6">
+                                        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-5">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
-                                                    <Target size={16} className="text-blue-600" />
-                                                    <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-widest">Audience Segmentation</h4>
+                                                    <Target size={14} className="text-gray-500" />
+                                                    <h4 className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Audience Segmentation</h4>
                                                 </div>
-                                                <div className="flex items-center gap-2 bg-blue-600 px-3 py-1 rounded-full shadow-lg shadow-blue-100">
-                                                    <span className="text-[9px] font-black text-white/60 uppercase tracking-widest">Est. Impact:</span>
-                                                    <span className="text-[10px] font-black text-white uppercase tracking-widest">{estimatedReach !== null ? `${estimatedReach} Profiles` : '...'}</span>
+                                                <div className="flex items-center gap-1.5 bg-white border border-gray-200 px-3 py-1 rounded-full shadow-sm">
+                                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Est. Impact:</span>
+                                                    <span className="text-[10px] font-black text-gray-800 uppercase tracking-widest">{estimatedReach !== null ? `${estimatedReach} Profiles` : '...'}</span>
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 {(form.targetAudience.type === 'AMBASSADORS' || !form.targetAudience.type) && (
                                                     <div className="space-y-1.5">
-                                                        <label className="block text-[9px] font-black text-blue-400 uppercase tracking-[0.2em] px-1">Structural Role</label>
+                                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Structural Role</label>
                                                         <select
                                                             value={form.targetAudience.role}
                                                             onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, role: e.target.value } })}
-                                                            className="w-full bg-white border border-blue-100 rounded-xl px-4 py-2 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                                                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 transition-all"
                                                         >
                                                             <option value="All">Global (All Roles)</option>
                                                             <option value="Staff">Internal Staff</option>
                                                             <option value="Parent">Parent Network</option>
                                                             <option value="Alumni">Alumni Circle</option>
+                                                            <option value="Others">Others</option>
                                                         </select>
                                                     </div>
                                                 )}
                                                 <div className="space-y-1.5">
-                                                    <label className="block text-[9px] font-black text-blue-400 uppercase tracking-[0.2em] px-1">Institutional Node</label>
+                                                    <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Institutional Node</label>
                                                     <select
                                                         value={form.targetAudience.campus}
                                                         onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, campus: e.target.value } })}
-                                                        className="w-full bg-white border border-blue-100 rounded-xl px-4 py-2 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                                                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 transition-all"
                                                     >
                                                         <option value="All">Global (All Nodes)</option>
                                                         {campuses.map((c: any) => (
@@ -608,33 +640,110 @@ export function CampaignManager() {
                                                         ))}
                                                     </select>
                                                 </div>
-                                                <div className="space-y-1.5">
-                                                    <label className="block text-[9px] font-black text-blue-400 uppercase tracking-[0.2em] px-1">Vitals Status</label>
-                                                    <select
-                                                        value={form.targetAudience.activityStatus}
-                                                        onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, activityStatus: e.target.value } })}
-                                                        className="w-full bg-white border border-blue-100 rounded-xl px-4 py-2 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                                                    >
-                                                        <option value="All">Full Population</option>
-                                                        <option value="Active">Pulse Observed (Active)</option>
-                                                        <option value="Dormant">Dormant (14+ days)</option>
-                                                    </select>
-                                                </div>
                                             </div>
+
+                                            {/* ── Row 2: Enterprise Filters (AMBASSADORS only) ─── */}
+                                            {(form.targetAudience.type === 'AMBASSADORS' || !form.targetAudience.type) && (
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-gray-200">
+                                                    <div className="space-y-1.5">
+                                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Account Health</label>
+                                                        <select
+                                                            value={(form.targetAudience as any).accountHealth || 'Active'}
+                                                            onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, accountHealth: e.target.value } as any })}
+                                                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 transition-all"
+                                                        >
+                                                            <option value="Active">Active Only (Default)</option>
+                                                            <option value="Inactive">Inactive / Unverified</option>
+                                                            <option value="All">All Accounts</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Referral Milestone</label>
+                                                        <select
+                                                            value={(form.targetAudience as any).referralMilestone || 'All'}
+                                                            onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, referralMilestone: e.target.value } as any })}
+                                                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 transition-all"
+                                                        >
+                                                            <option value="All">All Referral Counts</option>
+                                                            <option value="0">0 Referrals (No activity)</option>
+                                                            <option value="1">Exactly 1 Referral</option>
+                                                            <option value="2">Exactly 2 Referrals</option>
+                                                            <option value="3">Exactly 3 Referrals</option>
+                                                            <option value="4">Exactly 4 Referrals</option>
+                                                            <option value="5+">5+ Referrals (VIPs)</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Missing Info</label>
+                                                        <select
+                                                            value={(form.targetAudience as any).missingInfo || 'None'}
+                                                            onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, missingInfo: e.target.value } as any })}
+                                                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 transition-all"
+                                                        >
+                                                            <option value="None">No Filter</option>
+                                                            <option value="bankDetails">Missing Bank Details</option>
+                                                            <option value="childDetails">Missing Child Details</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Lead Funnel Stage</label>
+                                                        <select
+                                                            value={(form.targetAudience as any).leadFunnelStatus || 'All'}
+                                                            onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, leadFunnelStatus: e.target.value } as any })}
+                                                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 transition-all"
+                                                        >
+                                                            <option value="All">All Lead Stages</option>
+                                                            <option value="hasNoLeads">No Leads Added Yet (Dormant)</option>
+                                                            <option value="hasSubmittedNotConfirmed">Submitted Leads — Not Yet Confirmed</option>
+                                                            <option value="hasPendingLeads">Has New / Pending Leads</option>
+                                                            <option value="hasVisitedLeads">Has Contacted Leads</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="space-y-2">
                                             <div className="flex justify-between px-1">
                                                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Payload Content</label>
-                                                <div className="flex flex-wrap gap-x-4 gap-y-2 justify-end">
-                                                    {[
-                                                        { tag: '{userName}', label: 'Name' },
-                                                        { tag: '{referralCode}', label: 'Code' },
-                                                        { tag: '{campus}', label: 'Campus' },
-                                                        { tag: '{role}', label: 'Role' },
-                                                        { tag: '{referralCount}', label: 'Count' },
-                                                        { tag: '{mobile}', label: 'Mobile' }
-                                                    ].map(item => (
+                                                <div className="flex flex-wrap gap-x-3 gap-y-2 justify-end">
+                                                    {((): { tag: string; label: string }[] => {
+                                                        const type = form.targetAudience.type || 'AMBASSADORS'
+                                                        const varMap: Record<string, { tag: string; label: string }[]> = {
+                                                            AMBASSADORS: [
+                                                                { tag: '{userName}', label: 'Name' },
+                                                                { tag: '{referralCode}', label: 'Code' },
+                                                                { tag: '{campus}', label: 'Campus' },
+                                                                { tag: '{role}', label: 'Role' },
+                                                                { tag: '{referralCount}', label: 'Confirmed' },
+                                                                { tag: '{pendingReferrals}', label: 'Pending' },
+                                                                { tag: '{mobile}', label: 'Mobile' }
+                                                            ],
+                                                            STUDENTS: [
+                                                                { tag: '{studentName}', label: 'Name' },
+                                                                { tag: '{campus}', label: 'Campus' },
+                                                                { tag: '{grade}', label: 'Grade' },
+                                                                { tag: '{mobile}', label: 'Mobile' },
+                                                                { tag: '{admissionDate}', label: 'Admission Date' }
+                                                            ],
+                                                            REFERRALS: [
+                                                                { tag: '{parentName}', label: 'Parent Name' },
+                                                                { tag: '{parentMobile}', label: 'Mobile' },
+                                                                { tag: '{campus}', label: 'Campus' },
+                                                                { tag: '{grade}', label: 'Grade' },
+                                                                { tag: '{leadStatus}', label: 'Lead Status' },
+                                                                { tag: '{ambassadorName}', label: 'Ambassador' }
+                                                            ],
+                                                            PROGRAM_LEADS: [
+                                                                { tag: '{leadName}', label: 'Lead Name' },
+                                                                { tag: '{mobile}', label: 'Mobile' },
+                                                                { tag: '{campus}', label: 'Campus' },
+                                                                { tag: '{source}', label: 'Source' },
+                                                                { tag: '{enquiryDate}', label: 'Enquiry Date' }
+                                                            ]
+                                                        }
+                                                        return varMap[type] || varMap['AMBASSADORS']
+                                                    })().map(item => (
                                                         <button
                                                             key={item.tag}
                                                             onClick={() => {
@@ -653,7 +762,7 @@ export function CampaignManager() {
                                                                     }, 0);
                                                                 }
                                                             }}
-                                                            className="text-[9px] font-black text-blue-400 hover:text-blue-600 uppercase tracking-widest font-mono transition-colors"
+                                                            className="text-[9px] font-black text-gray-400 hover:text-gray-700 uppercase tracking-widest font-mono transition-colors px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 rounded"
                                                         >
                                                             {item.tag}
                                                         </button>
@@ -682,17 +791,17 @@ export function CampaignManager() {
                                     </div>
 
                                     {/* Modal Footer */}
-                                    <div className="p-8 bg-gray-50 flex gap-3 border-t border-gray-100">
+                                    <div className="px-6 py-4 bg-white border-t border-gray-100 flex gap-3">
                                         <button
                                             onClick={() => setShowModal(false)}
-                                            className="flex-1 py-4 bg-white border border-gray-200 text-gray-400 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-100 transition-all"
+                                            className="flex-1 py-3 bg-gray-100 border border-gray-200 text-gray-500 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-200 transition-all"
                                         >
                                             Dismiss
                                         </button>
                                         <button
                                             onClick={handleSubmit}
                                             disabled={isProcessing}
-                                            className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                            className="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                                         >
                                             {isProcessing ? (
                                                 <Loader2 size={16} className="animate-spin" />

@@ -242,12 +242,11 @@ function ConfigCard({ config, onSave, isSaving }: {
                 <div className="space-y-1">
                     <label className="text-xs font-semibold text-slate-400 ml-1">MSG91 Template Name</label>
                     <div className="relative">
-                        <input
-                            type="text"
+                        <textarea
                             value={template}
                             onChange={(e) => setTemplate(e.target.value)}
-                            className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all text-slate-700"
-                            placeholder="e.g. welcome_v1"
+                            className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all text-slate-700 min-h-[80px] resize-y"
+                            placeholder="e.g. welcome_v1 or message content"
                         />
                         {hasChanges && (
                             <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">

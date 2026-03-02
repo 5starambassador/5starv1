@@ -100,6 +100,9 @@ export async function seedDefaultConfigs() {
         { eventKey: 'ADMIN_DAILY_DIGEST', templateName: 'admin_daily_digest', requiredVariablesCount: 3, description: 'Daily performance summary for Superadmins.' },
         { eventKey: 'FIVE_STAR_ACHIEVEMENT', templateName: 'five_star_achievement', requiredVariablesCount: 1, description: 'Celebration alert for 5-star status.' },
         { eventKey: 'TICKET_RESPONSE', templateName: 'ticket_response', requiredVariablesCount: 2, description: 'Alert when a support ticket is answered.' },
+        // New Immediate Referral Triggers
+        { eventKey: 'REFERRAL_SUBMITTED_AMBASSADOR', templateName: 'referral_added_ambassdor', requiredVariablesCount: 3, description: 'Alert ambassador that their referral was submitted.' },
+        { eventKey: 'REFERRAL_SUBMITTED_PARENT', templateName: 'referral_message_to_referralparent', requiredVariablesCount: 3, description: 'Welcome message to the referred parent.' },
     ]
 
     try {

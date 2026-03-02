@@ -48,18 +48,12 @@ export async function markAsRead(notificationId: number) {
         })
 
         // 2. Check for Campaign Tracking Metadata
-        // Cast to any to avoid TS error until prisma client regenerates
-        const notificationWithMeta = notification as any
-        const metadata = notificationWithMeta.metadata
-
+        const metadata = (notification as any).metadata
         if (metadata && metadata.campaignId) {
-            const campaignId = parseInt(metadata.campaignId)
+            const campaignId = typeof metadata.campaignId === 'string' ? parseInt(metadata.campaignId) : metadata.campaignId
             const mobile = notification.user?.mobileNumber
 
             if (campaignId && mobile) {
-                // Update Campaign Recipient Status to READ
-                // We use updateMany because 'mobile' isn't unique globally, but (campaignId, mobile) should be unique-ish.
-                // updateMany is safer if multiple entries exist (rare).
                 await (prisma as any).campaignRecipient.updateMany({
                     where: {
                         campaignId: campaignId,
@@ -70,7 +64,7 @@ export async function markAsRead(notificationId: number) {
                         status: 'READ',
                         readAt: new Date()
                     }
-                }).catch((err: any) => console.error('Failed to track In-App Read:', err))
+                }).catch((err: any) => console.error('[NotificationActions] Failed to track In-App Read:', err))
             }
         }
 
@@ -94,13 +88,38 @@ export async function markAllAsRead() {
             where.userId = session.userId
         }
 
+        // Fetch unread notifications to check for campaign tracking before marking all as read
+        const unreadNotifications = await prisma.notification.findMany({
+            where,
+            select: { id: true, metadata: true, user: { select: { mobileNumber: true } } }
+        })
+
+        // Atomic update for UI speed
         await prisma.notification.updateMany({
             where,
             data: { isRead: true }
         })
+
+        // Background tracking (Not awaited for immediate response)
+        const campaignReads = unreadNotifications.filter(n => (n.metadata as any)?.campaignId)
+        if (campaignReads.length > 0) {
+            Promise.all(campaignReads.map(async (n) => {
+                const meta = n.metadata as any
+                const campaignId = typeof meta.campaignId === 'string' ? parseInt(meta.campaignId) : meta.campaignId
+                const mobile = n.user?.mobileNumber
+                if (campaignId && mobile) {
+                    return (prisma as any).campaignRecipient.updateMany({
+                        where: { campaignId, mobile, channel: 'IN_APP' },
+                        data: { status: 'READ', readAt: new Date() }
+                    })
+                }
+            })).catch(err => console.error('[NotificationActions] Bulk track failed:', err))
+        }
+
         revalidatePath('/')
         return { success: true }
     } catch (error) {
+        console.error('markAllAsRead error:', error)
         return { success: false, error: 'Failed to mark all as read' }
     }
 }

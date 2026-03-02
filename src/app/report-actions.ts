@@ -1004,14 +1004,35 @@ export async function generateAuditTrailReport(filters?: { startDate?: string, e
 
         const logs = await prisma.activityLog.findMany({
             where: whereClause,
-            orderBy: { createdAt: 'desc' },
-            take: 1000 // Limit for safety
+            orderBy: { createdAt: 'desc' }
+            // No limit — full export
         })
 
-        let csv = 'Timestamp,Actor ID,Action,Module,Target ID,Description,IP Address\n'
+        // Enrich with actor names
+        const adminIds = [...new Set(logs.map(l => l.adminId).filter(Boolean))] as number[]
+        const userIds = [...new Set(logs.map(l => l.userId).filter(Boolean))] as number[]
+
+        const [admins, users] = await Promise.all([
+            prisma.admin.findMany({ where: { adminId: { in: adminIds } }, select: { adminId: true, adminName: true, role: true } }),
+            prisma.user.findMany({ where: { userId: { in: userIds } }, select: { userId: true, fullName: true, role: true } })
+        ])
+
+        const adminMap = Object.fromEntries(admins.map(a => [a.adminId, a]))
+        const userMap = Object.fromEntries(users.map(u => [u.userId, u]))
+
+        let csv = 'Timestamp,Actor Type,Actor ID,Actor Name,Actor Role,Action,Module,Target ID,Description,IP Address\n'
         logs.forEach((log: any) => {
-            const actor = log.adminId ? `Admin:${log.adminId}` : log.userId ? `User:${log.userId}` : 'System'
-            csv += `${new Date(log.createdAt).toLocaleString()},${actor},"${log.action}","${log.module}","${log.targetId || ''}","${log.description.replace(/"/g, '""')}","${log.ipAddress || ''}"\n`
+            let actorType = 'System', actorId = '-', actorName = 'System', actorRole = '-'
+            if (log.adminId && adminMap[log.adminId]) {
+                actorType = 'Admin'; actorId = String(log.adminId)
+                actorName = adminMap[log.adminId].adminName
+                actorRole = adminMap[log.adminId].role
+            } else if (log.userId && userMap[log.userId]) {
+                actorType = 'Ambassador'; actorId = String(log.userId)
+                actorName = userMap[log.userId].fullName
+                actorRole = userMap[log.userId].role
+            }
+            csv += `${new Date(log.createdAt).toLocaleString()},${actorType},${actorId},"${actorName}","${actorRole}","${log.action}","${log.module}","${log.targetId || ''}","${(log.description || '').replace(/"/g, '""')}","${log.ipAddress || ''}"\n`
         })
 
         return { success: true, csv, filename: `audit-trail-${new Date().toISOString().split('T')[0]}.csv` }
@@ -1020,6 +1041,43 @@ export async function generateAuditTrailReport(filters?: { startDate?: string, e
         return { success: false, error: 'Failed' }
     }
 }
+
+// ===================== REPORT #16: WHATSAPP ACTIVITY LOG =====================
+export async function generateWhatsAppLogReport(filters?: { startDate?: string, endDate?: string, status?: string }) {
+    const admin = await getCurrentUser()
+    if (!admin || !admin.role.includes('Super Admin')) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        const whereClause: any = {}
+        if (filters?.startDate || filters?.endDate) {
+            whereClause.createdAt = {}
+            if (filters.startDate) whereClause.createdAt.gte = new Date(filters.startDate)
+            if (filters.endDate) whereClause.createdAt.lte = new Date(filters.endDate)
+        }
+        if (filters?.status && filters.status !== 'All') {
+            whereClause.status = filters.status
+        }
+
+        const logs = await prisma.whatsAppLog.findMany({
+            where: whereClause,
+            orderBy: { createdAt: 'desc' }
+        })
+
+        let csv = 'Timestamp,Mobile,Template,Type,Status,Reference ID,Content (Preview)\n'
+        logs.forEach((log: any) => {
+            const preview = (log.content || '').replace(/"/g, '""').substring(0, 80)
+            csv += `${new Date(log.createdAt).toLocaleString()},"${log.mobile}","${log.template || ''}","${log.type}","${log.status}","${log.refId || ''}","${preview}"\n`
+        })
+
+        return { success: true, csv, filename: `whatsapp-log-${new Date().toISOString().split('T')[0]}.csv` }
+    } catch (error) {
+        console.error('WhatsApp Log Report Error:', error)
+        return { success: false, error: 'Failed' }
+    }
+}
+
 
 // ===================== REPORT #13: SETTLEMENT INTEGRITY =====================
 export async function generateSettlementIntegrityReport() {

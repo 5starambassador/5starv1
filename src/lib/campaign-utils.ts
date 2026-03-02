@@ -1,10 +1,13 @@
-import { Prisma } from '@prisma/client'
+import { Prisma, LeadStatus, AccountStatus } from '@prisma/client'
 
 /**
  * Common Logic for Audience Query Construction
  * Used by:
- * - campaign-actions.ts (Counting)
- * - campaign-dispatcher.ts (Sending)
+ * - campaign-actions.ts (Counting & Sending)
+ * - campaign-dispatcher.ts (Batched Dispatch)
+ *
+ * DESIGN: Uses AND array so filters never clobber each other's OR/fields.
+ * All new fields are optional and default to "All" behavior.
  */
 
 export type AudienceFilter = {
@@ -12,38 +15,130 @@ export type AudienceFilter = {
     role: string
     campus: string
     activityStatus: string // 'All' | 'Active' | 'Dormant'
+
+    // ─── ENTERPRISE FILTERS ────────────────────────────────────────────────────
+    accountHealth?: string      // 'Active' | 'Inactive' | 'All'
+    referralMilestone?: string  // '0' | '1' | '2' | '3' | '4' | '5+' | 'All'
+    missingInfo?: string        // 'bankDetails' | 'childDetails' | 'None'
+    leadFunnelStatus?: string   // 'hasPendingLeads' | 'hasVisitedLeads' | 'hasSubmittedNotConfirmed' | 'hasNoLeads' | 'All'
 }
 
-export const getAmbassadorQuery = (audience: AudienceFilter) => {
-    const where: Prisma.UserWhereInput = { status: 'Active' }
+export const getAmbassadorQuery = (audience: AudienceFilter): Prisma.UserWhereInput => {
+    // Use AND array so filters never clobber each other's OR/field assignments
+    const andClauses: Prisma.UserWhereInput[] = []
 
-    if (audience.role !== 'All') where.role = (audience.role as any)
-    if (audience.campus !== 'All') where.assignedCampus = audience.campus
+    // ── Account Health ─────────────────────────────────────────────────────────
+    const health = audience.accountHealth || 'Active'
+    if (health === 'Active') {
+        andClauses.push({ status: AccountStatus.Active })
+    } else if (health === 'Inactive') {
+        andClauses.push({ status: { not: AccountStatus.Active } })
+    }
+    // 'All' = no filter
 
-    if (audience.activityStatus !== 'All') {
+    // ── Role ───────────────────────────────────────────────────────────────────
+    if (audience.role && audience.role !== 'All') {
+        andClauses.push({ role: audience.role as any })
+    }
+
+    // ── Campus ─────────────────────────────────────────────────────────────────
+    if (audience.campus && audience.campus !== 'All') {
+        andClauses.push({ assignedCampus: audience.campus })
+    }
+
+    // ── Activity Status (14-day engagement check) ─────────────────────────────
+    if (audience.activityStatus && audience.activityStatus !== 'All') {
         const fourteenDaysAgo = new Date()
         fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14)
 
         if (audience.activityStatus === 'Active') {
-            // Active: Either created recently OR has a recent referral
-            where.OR = [
-                { createdAt: { gte: fourteenDaysAgo } },
-                { referrals: { some: { createdAt: { gte: fourteenDaysAgo } } } }
-            ]
+            andClauses.push({
+                OR: [
+                    { createdAt: { gte: fourteenDaysAgo } },
+                    { referrals: { some: { createdAt: { gte: fourteenDaysAgo } } } }
+                ]
+            })
         } else if (audience.activityStatus === 'Dormant') {
-            // Dormant: Created more than 14 days ago AND has no recent referrals
-            where.createdAt = { lt: fourteenDaysAgo }
-            where.referrals = {
-                none: { createdAt: { gte: fourteenDaysAgo } }
-            }
+            andClauses.push({ createdAt: { lt: fourteenDaysAgo } })
+            andClauses.push({ referrals: { none: { createdAt: { gte: fourteenDaysAgo } } } })
         }
     }
 
-    return where
+    // ── Referral Milestones ────────────────────────────────────────────────────
+    const milestone = audience.referralMilestone
+    if (milestone && milestone !== 'All') {
+        if (milestone === '0') {
+            andClauses.push({ confirmedReferralCount: 0 })
+        } else if (milestone === '1') {
+            andClauses.push({ confirmedReferralCount: 1 })
+        } else if (milestone === '2') {
+            andClauses.push({ confirmedReferralCount: 2 })
+        } else if (milestone === '3') {
+            andClauses.push({ confirmedReferralCount: 3 })
+        } else if (milestone === '4') {
+            andClauses.push({ confirmedReferralCount: 4 })
+        } else if (milestone === '5+') {
+            andClauses.push({ confirmedReferralCount: { gte: 5 } })
+        }
+    }
+
+    // ── Missing Info ───────────────────────────────────────────────────────────
+    // UI sends 'None' as default (not undefined), so check both
+    const missing = audience.missingInfo
+    if (missing && missing !== 'None' && missing !== 'All') {
+        if (missing === 'bankDetails') {
+            andClauses.push({
+                OR: [
+                    { accountNumber: null },
+                    { accountNumber: '' },
+                    { ifscCode: null },
+                    { ifscCode: '' }
+                ]
+            })
+        } else if (missing === 'childDetails') {
+            andClauses.push({ role: 'Parent' })
+            andClauses.push({ students: { none: {} } })
+        }
+    }
+
+    // ── Lead Funnel Status ─────────────────────────────────────────────────────
+    const funnel = audience.leadFunnelStatus
+    if (funnel && funnel !== 'All') {
+        if (funnel === 'hasSubmittedNotConfirmed') {
+            // Has referral leads but NONE confirmed/admitted → perfect for follow-up
+            andClauses.push({
+                referrals: {
+                    some: {},
+                    none: { leadStatus: { in: [LeadStatus.Confirmed, LeadStatus.Admitted] } }
+                }
+            })
+        } else if (funnel === 'hasPendingLeads') {
+            andClauses.push({
+                referrals: {
+                    some: {
+                        leadStatus: { in: [LeadStatus.New, LeadStatus.Interested, LeadStatus.Follow_up, LeadStatus.Contacted] }
+                    }
+                }
+            })
+        } else if (funnel === 'hasVisitedLeads') {
+            andClauses.push({
+                referrals: { some: { leadStatus: LeadStatus.Contacted } }
+            })
+        } else if (funnel === 'hasNoLeads') {
+            andClauses.push({ referrals: { none: {} } })
+        }
+    }
+
+    return andClauses.length > 0 ? { AND: andClauses } : {}
 }
 
-export const getStudentQuery = (audience: AudienceFilter) => {
-    const where: Prisma.StudentWhereInput = { status: 'Active' }
-    if (audience.campus !== 'All') where.campus = { campusName: audience.campus }
+export const getStudentQuery = (audience: AudienceFilter): Prisma.StudentWhereInput => {
+    const where: Prisma.StudentWhereInput = {
+        status: 'Active',
+        referralLeadId: { not: null } // Only referral-converted students (not ERP imports)
+    }
+    if (audience.campus && audience.campus !== 'All') {
+        where.campus = { campusName: audience.campus }
+    }
     return where
 }

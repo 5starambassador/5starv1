@@ -74,6 +74,8 @@ class WhatsAppService {
             config = { templateName: 'referral_otp', isEnabled: true, requiredVariablesCount: 1 }
         }
 
+
+
         if (!config) {
             console.warn(`[WhatsApp] No config found for event: ${eventKey}`)
             return { success: false, error: `Event ${eventKey} not configured` }

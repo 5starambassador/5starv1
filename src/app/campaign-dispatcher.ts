@@ -65,15 +65,44 @@ export async function dispatchCampaignBatch(campaignId: number) {
         console.error('Failed to create initial log', e)
     }
 
-    // Helper to Alias Tokens
-    const aliasTokens = (text: string, user: any) => {
+    // Helper to Alias Tokens — audience-aware variable replacement
+    const aliasTokens = (text: string, user: any, audienceType?: string) => {
         if (!text) return ''
+        const type = audienceType || audience.type || 'AMBASSADORS'
+
+        if (type === 'STUDENTS') {
+            return text
+                .replace(/{studentName}/gi, user.fullName || 'Student')
+                .replace(/{campus}/gi, user.assignedCampus || 'Global')
+                .replace(/{grade}/gi, user.grade || '')
+                .replace(/{mobile}/gi, user.mobileNumber || '')
+                .replace(/{admissionDate}/gi, user.admissionDate || '')
+        }
+        if (type === 'REFERRALS') {
+            return text
+                .replace(/{parentName}/gi, user.fullName || 'Parent')
+                .replace(/{parentMobile}/gi, user.mobileNumber || '')
+                .replace(/{campus}/gi, user.assignedCampus || 'Global')
+                .replace(/{grade}/gi, user.grade || '')
+                .replace(/{leadStatus}/gi, user.leadStatus || '')
+                .replace(/{ambassadorName}/gi, user.ambassadorName || '')
+        }
+        if (type === 'PROGRAM_LEADS') {
+            return text
+                .replace(/{leadName}/gi, user.fullName || 'Friend')
+                .replace(/{mobile}/gi, user.mobileNumber || '')
+                .replace(/{campus}/gi, user.assignedCampus || '')
+                .replace(/{source}/gi, user.source || '')
+                .replace(/{enquiryDate}/gi, user.enquiryDate || '')
+        }
+        // Default: AMBASSADORS
         return text
             .replace(/{userName}|{Ambassador}/gi, user.fullName || 'User')
             .replace(/{referralCode}|{code}/gi, user.referralCode || '')
             .replace(/{campus}/gi, user.assignedCampus || 'Global')
             .replace(/{role}/gi, user.role)
             .replace(/{referralCount}/gi, (user.confirmedReferralCount || 0).toString())
+            .replace(/{pendingReferrals}/gi, (user.pendingReferralCount || 0).toString())
             .replace(/{mobile}/gi, user.mobileNumber || '')
     }
 
@@ -96,35 +125,67 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     select: {
                         userId: true, fullName: true, email: true, mobileNumber: true,
                         referralCode: true, assignedCampus: true, role: true, confirmedReferralCount: true,
-                        DeviceToken: { select: { token: true } }
+                        DeviceToken: { select: { token: true } },
+                        _count: { select: { referrals: true } }
                     },
                     skip: skip,
                     take: BATCH_SIZE
                 })
-                users = batchUsers
+                users = batchUsers.map(u => ({
+                    ...u,
+                    pendingReferralCount: Math.max(0, (u._count?.referrals || 0) - (u.confirmedReferralCount || 0))
+                }))
             }
             else if (audience.type === 'PROGRAM_LEADS') {
+                const leadWhere: any = {}
+                if (audience.campus && audience.campus !== 'All') {
+                    leadWhere.referrer = { assignedCampus: audience.campus }
+                }
+
                 const leads = await prisma.programLead.findMany({
+                    where: leadWhere,
                     orderBy: { id: 'asc' },
-                    select: { visitorName: true, visitorMobile: true },
+                    select: {
+                        visitorName: true,
+                        visitorMobile: true,
+                        clickedAt: true,
+                        referrer: { select: { assignedCampus: true, fullName: true } }
+                    },
                     skip: skip,
                     take: BATCH_SIZE
                 })
                 users = leads.map(l => ({
-                    userId: 0, fullName: l.visitorName || 'Friend', email: '', mobileNumber: l.visitorMobile,
-                    referralCode: '', assignedCampus: '', role: 'Lead', confirmedReferralCount: 0, DeviceToken: []
+                    userId: 0,
+                    fullName: l.visitorName || 'Friend',
+                    email: '',
+                    mobileNumber: l.visitorMobile,
+                    assignedCampus: l.referrer?.assignedCampus || '',
+                    source: l.referrer?.fullName || 'Program',
+                    enquiryDate: l.clickedAt ? new Date(l.clickedAt).toLocaleDateString('en-IN') : '',
+                    role: 'Lead', confirmedReferralCount: 0, DeviceToken: []
                 }))
             }
             else if (audience.type === 'REFERRALS') {
                 const referrals = await prisma.referralLead.findMany({
                     orderBy: { leadId: 'asc' },
-                    select: { parentName: true, parentMobile: true, campus: true },
+                    select: {
+                        parentName: true, parentMobile: true, campus: true,
+                        gradeInterested: true, leadStatus: true,
+                        user: { select: { fullName: true } }
+                    },
                     skip: skip,
                     take: BATCH_SIZE
                 })
                 users = referrals.map(r => ({
-                    userId: 0, fullName: r.parentName || 'Parent', email: '', mobileNumber: r.parentMobile,
-                    referralCode: '', assignedCampus: r.campus || '', role: 'Referral', confirmedReferralCount: 0, DeviceToken: []
+                    userId: 0,
+                    fullName: r.parentName || 'Parent',
+                    email: '',
+                    mobileNumber: r.parentMobile,
+                    assignedCampus: r.campus || '',
+                    grade: r.gradeInterested || '',
+                    leadStatus: r.leadStatus || '',
+                    ambassadorName: r.user?.fullName || '',
+                    role: 'Referral', confirmedReferralCount: 0, DeviceToken: []
                 }))
             }
             else if (audience.type === 'STUDENTS') {
@@ -134,6 +195,8 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     where: whereStudent,
                     orderBy: { studentId: 'asc' },
                     select: {
+                        grade: true,
+                        createdAt: true,
                         campus: { select: { campusName: true } },
                         parent: {
                             select: { fullName: true, mobileNumber: true, email: true, DeviceToken: { select: { token: true } } }
@@ -143,8 +206,14 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     take: BATCH_SIZE
                 })
                 users = students.map(s => ({
-                    userId: 0, fullName: s.parent.fullName || 'Parent', email: s.parent.email, mobileNumber: s.parent.mobileNumber,
-                    referralCode: '', assignedCampus: s.campus.campusName, role: 'Parent', confirmedReferralCount: 0, DeviceToken: s.parent.DeviceToken
+                    userId: 0,
+                    fullName: s.parent.fullName || 'Parent',
+                    email: s.parent.email,
+                    mobileNumber: s.parent.mobileNumber,
+                    assignedCampus: s.campus.campusName,
+                    grade: s.grade || '',
+                    admissionDate: s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-IN') : '',
+                    role: 'Parent', confirmedReferralCount: 0, DeviceToken: s.parent.DeviceToken
                 }))
             }
 
@@ -246,19 +315,9 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     recipientsToCreate.push({ ...baseRecipient, channel: 'WHATSAPP' })
                 }
 
-                // Email
+                // Email — store mobile as the identifier (all Users have mobileNumber @unique)
                 if (isEmail && user.email) {
-                    recipientsToCreate.push({ ...baseRecipient, channel: 'EMAIL', mobile: user.email }) // Reuse mobile field for ID or keep empty? Layout says "Mobile". Let's store mobile if avail, else email? 
-                    // Wait, schema says `mobile` is String.
-                    // If I put email in mobile field, it might be confusing. 
-                    // But `CampaignRecipient` has `mobile`. It does NOT have `email`.
-                    // Quick fix: Store identifier in mobile, or just store mobile if they have it.
-                    // If a user has NO mobile but HAS email, `mobile` field is required?
-                    // Let's check schema. `mobile String`.
-                    // I will store the user's mobile if available, otherwise "N/A" or their Email if it fits?
-                    // Better: Store Mobile if present. If not, store Email in mobile field? No, that breaks strict typing if used for matching.
-                    // For now, I will store actual mobile. If they don't have mobile, they likely won't be in this system as `User` requires mobile usually.
-                    // Actually, `User` model: `mobileNumber String @unique`. So every user HAS a mobile. Safe.
+                    recipientsToCreate.push({ ...baseRecipient, channel: 'EMAIL' })
                 }
 
                 // Push
@@ -345,8 +404,14 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     recipientCount: stats.total,
                     errorLog: JSON.stringify({ error: error.message })
                 } as any
-            })
+            }).catch(e => console.error('Failed to update error log', e))
         }
+
+        // IMPORTANT: Reset Campaign Status so it doesn't get stuck in "SCHEDULED"
+        await prisma.campaign.update({
+            where: { id: campaignId },
+            data: { status: 'ACTIVE' }
+        }).catch(err => console.error('Failed to reset stuck status', err))
 
         return { success: false, error: 'Campaign dispatch failed mid-process' }
     }

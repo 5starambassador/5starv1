@@ -6,8 +6,10 @@ import { toast } from 'sonner'
 import { Check, X, Loader2, Download, RefreshCcw, Search } from 'lucide-react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { approveManualPayment, rejectManualPayment, approveBulkManualPayments, rejectBulkManualPayments } from '@/app/payment-approval-actions'
+import { bulkActivateUsers } from '@/app/bulk-payment-actions'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PromptDialog } from '@/components/ui/PromptDialog'
+import { Upload } from 'lucide-react'
 
 
 interface CheckboxProps {
@@ -91,6 +93,7 @@ export function PaymentApprovalTable({ initialPayments, page, totalPages, totalC
     // Dialog States
     const [showBulkApproveConfirm, setShowBulkApproveConfirm] = useState(false)
     const [showBulkRejectPrompt, setShowBulkRejectPrompt] = useState(false)
+    const [isImporting, setIsImporting] = useState(false)
 
     const handleSelectAll = () => {
         if (selectedIds.length === payments.length && payments.length > 0) {
@@ -233,6 +236,37 @@ export function PaymentApprovalTable({ initialPayments, page, totalPages, totalC
         }
     }
 
+    // Bulk Import Logic
+    const handleBulkImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        const reader = new FileReader()
+        reader.onload = async (event) => {
+            const csvText = event.target?.result as string
+            if (!csvText) return
+
+            setIsImporting(true)
+            const toastId = toast.loading("Processing bulk activation...")
+
+            try {
+                const res = await bulkActivateUsers(csvText)
+                if (res.success && res.summary) {
+                    toast.success(`Bulk activation complete! Activated: ${res.summary.activated}, Already Active: ${res.summary.alreadyActive}`, { id: toastId, duration: 5000 })
+                    router.refresh()
+                } else {
+                    toast.error(res.error || "Bulk import failed", { id: toastId })
+                }
+            } catch (err) {
+                toast.error("An error occurred during import", { id: toastId })
+            } finally {
+                setIsImporting(false)
+                e.target.value = '' // Reset input
+            }
+        }
+        reader.readAsText(file)
+    }
+
     return (
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden relative">
             <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-gray-50/30">
@@ -267,6 +301,20 @@ export function PaymentApprovalTable({ initialPayments, page, totalPages, totalC
                     >
                         {exportLoading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Export All
                     </button>
+
+                    <div className="h-6 w-px bg-gray-200 mx-1 hidden sm:block"></div>
+
+                    <label className={`flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors cursor-pointer ${isImporting ? 'opacity-50 pointer-events-none' : ''}`}>
+                        {isImporting ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                        <span>Bulk UTR Import</span>
+                        <input
+                            type="file"
+                            accept=".csv"
+                            className="hidden"
+                            onChange={handleBulkImport}
+                            disabled={isImporting}
+                        />
+                    </label>
                 </div>
             </div>
 

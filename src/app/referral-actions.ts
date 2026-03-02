@@ -338,6 +338,39 @@ export async function submitReferral(formData: {
             console.error('Lead notification error:', emailError)
         }
 
+        // --- WhatsApp Notifications (Immediate Triggers) ---
+        try {
+            const settings = await getNotificationSettings()
+            if (settings?.whatsappNotifications) {
+                // 1. Notify Ambassador (Your referral has been submitted...)
+                const ambassadorData = await prisma.user.findUnique({
+                    where: { userId: referringUserId },
+                    select: { fullName: true, mobileNumber: true }
+                })
+
+                if (ambassadorData?.mobileNumber) {
+                    await whatsappService.sendByEvent(
+                        ambassadorData.mobileNumber,
+                        'REFERRAL_SUBMITTED_AMBASSADOR',
+                        [ambassadorData.fullName, parentName, campus || 'our'],
+                        'SYSTEM',
+                        newLead.leadId.toString()
+                    )
+                }
+
+                // 2. Notify Parent (You have been referred...)
+                await whatsappService.sendByEvent(
+                    parentMobile,
+                    'REFERRAL_SUBMITTED_PARENT',
+                    [parentName, ambassadorData?.fullName || 'An Achariya Ambassador', campus || 'our'],
+                    'SYSTEM',
+                    newLead.leadId.toString()
+                )
+            }
+        } catch (waError) {
+            console.error('⚠️ [Referral] Immediate WhatsApp notification failed:', waError)
+        }
+
         revalidatePath('/dashboard')
         revalidatePath('/referrals')
         revalidatePath('/superadmin')

@@ -34,7 +34,8 @@ import {
     generateAuditTrailReport,
     generateSettlementIntegrityReport,
     generateMasterPipelineExport,
-    generateMasterReferralReport
+    generateMasterReferralReport,
+    generateWhatsAppLogReport
 } from '@/app/report-actions'
 
 interface ReportsPanelProps {
@@ -253,6 +254,19 @@ export function ReportsPanel({
             text: 'text-blue-900',
             border: 'border-blue-200',
             action: generateMasterReferralReport,
+            canEmail: false
+        },
+        {
+            id: 'whatsapp-log',
+            title: 'WhatsApp Activity Log',
+            count: 'Full Message History',
+            desc: 'Complete log of all WhatsApp messages sent — including template, status, delivery, and reference IDs.',
+            icon: Mail,
+            color: 'from-green-600 to-green-700',
+            bg: 'bg-green-50',
+            text: 'text-green-700',
+            border: 'border-green-200',
+            action: generateWhatsAppLogReport,
             canEmail: false
         }
     ]

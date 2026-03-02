@@ -114,11 +114,36 @@ export async function deleteCampaign(id: number) {
     }
 }
 
-export async function getAudienceCount(audience: { type?: string, role: string, campus: string, activityStatus: string }) {
+export async function getAudienceCount(audience: { type?: string, role: string, campus: string, activityStatus: string, [key: string]: any }) {
     try {
         await checkCampaignAccess()
-        const users = await getFilteredUsers(audience)
-        return { success: true, count: users.length }
+
+        // Use efficient count queries instead of fetching all rows
+        if (audience.type === 'PROGRAM_LEADS') {
+            const where: any = {}
+            if (audience.campus && audience.campus !== 'All') where.assignedCampus = audience.campus
+            const count = await prisma.programLead.count({ where })
+            return { success: true, count }
+        }
+
+        if (audience.type === 'REFERRALS') {
+            const where: any = {}
+            if (audience.campus && audience.campus !== 'All') where.campus = audience.campus
+            const count = await prisma.referralLead.count({ where })
+            return { success: true, count }
+        }
+
+        if (audience.type === 'STUDENTS') {
+            const where = getStudentQuery(audience as any)
+            const count = await prisma.student.count({ where })
+            return { success: true, count }
+        }
+
+        // AMBASSADORS (default)
+        const where = getAmbassadorQuery(audience as any)
+        const count = await prisma.user.count({ where })
+        return { success: true, count }
+
     } catch (error) {
         return { success: false, error: 'Failed to count audience' }
     }
@@ -137,9 +162,9 @@ interface AudienceMember {
     referrals?: any[]
 }
 
-async function getFilteredUsers(audience: { type?: string, role: string, campus: string, activityStatus: string }): Promise<AudienceMember[]> {
+async function getFilteredUsers(audience: { type?: string, role: string, campus: string, activityStatus: string, [key: string]: any }): Promise<AudienceMember[]> {
 
-    // 1. PROGRAM LEADS
+    // 1. PROGRAM LEADS — no campus filter in schema, fetch all
     if (audience.type === 'PROGRAM_LEADS') {
         const leads = await prisma.programLead.findMany({
             select: { visitorMobile: true, visitorName: true }
@@ -152,9 +177,12 @@ async function getFilteredUsers(audience: { type?: string, role: string, campus:
         }))
     }
 
-    // 2. REFERRALS (General Admissions)
+    // 2. REFERRALS — respects campus filter
     if (audience.type === 'REFERRALS') {
+        const where: any = {}
+        if (audience.campus && audience.campus !== 'All') where.campus = audience.campus
         const referrals = await prisma.referralLead.findMany({
+            where,
             select: { parentMobile: true, parentName: true, campus: true }
         })
         return referrals.map(r => ({
@@ -166,17 +194,14 @@ async function getFilteredUsers(audience: { type?: string, role: string, campus:
         }))
     }
 
-    // 3. STUDENTS (Parents)
+    // 3. STUDENTS (contact via parent) — uses campus filter
     if (audience.type === 'STUDENTS') {
         const whereStudent = getStudentQuery(audience as any)
-
         const students = await prisma.student.findMany({
             where: whereStudent,
             select: {
                 campus: { select: { campusName: true } },
-                parent: {
-                    select: { mobileNumber: true, fullName: true, email: true }
-                }
+                parent: { select: { mobileNumber: true, fullName: true, email: true } }
             }
         })
         return students.map(s => ({
@@ -189,22 +214,14 @@ async function getFilteredUsers(audience: { type?: string, role: string, campus:
         }))
     }
 
-    // 4. AMBASSADORS (Default / Existing Logic)
-    let filtered: any[] = []
+    // 4. AMBASSADORS (default) — full filter support
+    const where = getAmbassadorQuery(audience as any)
+    const users = await prisma.user.findMany({
+        where,
+        orderBy: { createdAt: 'desc' }
+    })
 
-    if (!audience.type || audience.type === 'AMBASSADORS') {
-        const where = getAmbassadorQuery(audience as any)
-
-        const users = await prisma.user.findMany({
-            where,
-            orderBy: { createdAt: 'desc' }
-        })
-        filtered = users
-    }
-
-
-    // Map existing User to AudienceMember
-    return filtered.map((u: any) => ({
+    return users.map((u: any) => ({
         fullName: u.fullName,
         email: u.email,
         mobileNumber: u.mobileNumber,
@@ -216,6 +233,7 @@ async function getFilteredUsers(audience: { type?: string, role: string, campus:
         referrals: u.referrals
     }))
 }
+
 
 export async function runCampaign(id: number) {
     try {
@@ -241,7 +259,32 @@ export async function runCampaign(id: number) {
             return { success: false, error: 'This campaign is already scheduled or in progress.' }
         }
 
-        // 3. Create Background Job
+        // 3. PRE-FLIGHT: Count audience before queuing — prevents stuck state on 0 audience
+        const audience = (campaign.targetAudience as any) || {}
+        const preCount = await getAudienceCount(audience)
+        if (preCount.success && (preCount.count ?? 0) === 0) {
+            // Log immediately as completed with 0 recipients
+            await prisma.campaignLog.create({
+                data: {
+                    campaignId: id,
+                    status: 'COMPLETED',
+                    recipientCount: 0,
+                    sentCount: 0,
+                    failedCount: 0,
+                    runAt: new Date(),
+                    errorLog: 'No recipients matched the audience filters'
+                } as any
+            })
+            await prisma.campaign.update({ where: { id }, data: { status: 'ACTIVE', lastRunAt: new Date() } })
+
+            // Log this action for audit
+            await logAction('Trigger Campaign', 'Marketing', `Campaign completed instantly (0 Recipients): ${campaign.name}`, undefined)
+
+            revalidatePath('/superadmin')
+            return { success: true, message: 'Campaign completed instantly: No recipients matched your audience filters.' }
+        }
+
+        // 4. Create Background Job
         await (prisma as any).job.create({
             data: {
                 type: 'CAMPAIGN_BATCH',
@@ -250,17 +293,17 @@ export async function runCampaign(id: number) {
             }
         })
 
-        // 4. Mark Campaign as Scheduled
+        // 5. Mark Campaign as Scheduled
         await prisma.campaign.update({
             where: { id },
             data: { status: 'SCHEDULED' }
         })
 
-        // 5. Trigger Worker (Fire-and-forget)
+        // 6. Trigger Worker (Fire-and-forget)
         try {
             let baseUrl = process.env.NEXT_PUBLIC_APP_URL
             if (!baseUrl && process.env.NODE_ENV === 'development') {
-                baseUrl = 'http://localhost:3001' // Default to our dev port
+                baseUrl = 'http://localhost:3001'
             } else if (!baseUrl) {
                 baseUrl = 'http://localhost:3000'
             }
@@ -278,6 +321,7 @@ export async function runCampaign(id: number) {
         return { success: false, error: 'Failed to schedule campaign' }
     }
 }
+
 
 export async function resetStuckCampaign(id: number) {
     try {
@@ -396,21 +440,33 @@ export async function getCampaignAnalytics() {
         const thirtyDaysAgo = new Date()
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-        const rawTrends = await prisma.campaignLog.findMany({
-            where: {
-                runAt: { gte: thirtyDaysAgo }
-            },
-            orderBy: { runAt: 'asc' },
-            select: {
-                runAt: true,
-                sentCount: true,
-                whatsappDelivered: true,
-                whatsappRead: true
-            }
-        })
+        const [rawTrends, inAppReads] = await Promise.all([
+            prisma.campaignLog.findMany({
+                where: { runAt: { gte: thirtyDaysAgo } },
+                orderBy: { runAt: 'asc' },
+                select: {
+                    runAt: true,
+                    sentCount: true,
+                    whatsappDelivered: true,
+                    whatsappRead: true,
+                    inAppSent: true
+                }
+            }),
+            (prisma as any).campaignRecipient.groupBy({
+                by: ['readAt'],
+                where: {
+                    channel: 'IN_APP',
+                    status: 'READ',
+                    readAt: { gte: thirtyDaysAgo }
+                },
+                _count: { _all: true }
+            })
+        ])
 
         // Group trends by Day
         const trendsMap = new Map<string, any>()
+
+        // 1. Process Campaign Logs (Sent & WhatsApp Reads)
         rawTrends.forEach((log: any) => {
             const date = new Date(log.runAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             if (!trendsMap.has(date)) {
@@ -420,6 +476,16 @@ export async function getCampaignAnalytics() {
             entry.sent += log.sentCount
             entry.delivered += log.whatsappDelivered || 0
             entry.read += log.whatsappRead || 0
+        })
+
+        // 2. Add In-App Reads to Trends
+        inAppReads.forEach((group: any) => {
+            if (!group.readAt) return
+            const date = new Date(group.readAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            if (trendsMap.has(date)) {
+                const entry = trendsMap.get(date)
+                entry.read += group._count._all
+            }
         })
 
         const trends = Array.from(trendsMap.values())
@@ -443,6 +509,17 @@ export async function getCampaignAnalytics() {
             }
         })
 
+        // 4. Stuck Job Detection (Last 24h)
+        const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+        const stuckJobs = await prisma.job.findMany({
+            where: {
+                status: 'PROCESSING',
+                updatedAt: { lte: new Date(Date.now() - 30 * 60 * 1000) }, // Stuck for > 30 mins
+                createdAt: { gte: dayAgo }
+            },
+            select: { id: true, type: true, createdAt: true }
+        })
+
         return {
             success: true,
             data: {
@@ -451,7 +528,8 @@ export async function getCampaignAnalytics() {
                 recentActivity: recentActivity.map((a: any) => ({
                     ...a,
                     readAt: a.readAt ? new Date(a.readAt).toISOString() : null
-                }))
+                })),
+                stuckJobs
             }
         }
     } catch (error) {

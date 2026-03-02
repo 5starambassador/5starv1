@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
-import { Loader2, TrendingUp, Users, MessageSquare, CheckCircle2, Eye, Mail, Smartphone, Bell, RefreshCcw } from 'lucide-react'
-import { getCampaignAnalytics } from '@/app/campaign-actions'
+import { Loader2, TrendingUp, Users, MessageSquare, CheckCircle2, Eye, Mail, Smartphone, Bell, RefreshCcw, AlertTriangle } from 'lucide-react'
+import { getCampaignAnalytics, resetStuckCampaign } from '@/app/campaign-actions'
 import { toast } from 'sonner'
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6']
@@ -27,6 +27,18 @@ export function CampaignAnalytics() {
     useEffect(() => {
         fetchAnalytics()
     }, [])
+
+    const handleResetJob = async (id: number) => {
+        const loadingToast = toast.loading('Reseting job...')
+        const res = await resetStuckCampaign(id)
+        toast.dismiss(loadingToast)
+        if (res.success) {
+            toast.success('Job reset successfully')
+            fetchAnalytics()
+        } else {
+            toast.error('Failed to reset job')
+        }
+    }
 
     if (loading) {
         return (
@@ -51,6 +63,31 @@ export function CampaignAnalytics() {
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Stuck Job Alert */}
+            {data.stuckJobs?.length > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between gap-4"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center text-amber-600">
+                            <AlertTriangle size={20} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-amber-900">Infrastructure Alert</p>
+                            <p className="text-xs text-amber-700">{data.stuckJobs.length} Background Dispatch Job(s) appear stalled. This may affect real-time progress updates.</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => handleResetJob(data.stuckJobs[0].id)}
+                        className="px-4 py-2 bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-amber-700 transition-colors shadow-sm"
+                    >
+                        Force Recovery
+                    </button>
+                </motion.div>
+            )}
+
             {/* Header Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <StatCard title="Total Engaged" value={channelData.reduce((a: any, b: any) => a + b.value, 0)} icon={Users} color="blue" />
@@ -147,8 +184,8 @@ export function CampaignAnalytics() {
                             <div key={i} className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
                                 <div className="flex items-center gap-4">
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activity.channel === 'WHATSAPP' ? 'bg-emerald-50 text-emerald-600' :
-                                            activity.channel === 'EMAIL' ? 'bg-blue-50 text-blue-600' :
-                                                'bg-violet-50 text-violet-600'
+                                        activity.channel === 'EMAIL' ? 'bg-blue-50 text-blue-600' :
+                                            'bg-violet-50 text-violet-600'
                                         }`}>
                                         {activity.channel === 'WHATSAPP' ? <MessageSquare size={18} /> :
                                             activity.channel === 'EMAIL' ? <Mail size={18} /> : <Bell size={18} />}
