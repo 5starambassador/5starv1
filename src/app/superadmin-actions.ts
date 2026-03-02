@@ -117,8 +117,8 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
         } : {})
     };
 
-    const { filter: scopeFilterUsers } = await getScopeFilter('userManagement')
-    const { filter: scopeFilterLeads } = await getScopeFilter('analytics')
+    const { filter: scopeFilterUsers } = await getScopeFilter('userManagement', { campusNameField: 'assignedCampus' })
+    const { filter: scopeFilterLeads } = await getScopeFilter('analytics', { campusNameField: 'campus' })
 
     if (!scopeFilterUsers || !scopeFilterLeads) {
         throw new Error('Unauthorized')
@@ -601,7 +601,7 @@ export async function getAllUsers(academicYear?: string): Promise<User[]> {
     const user = await getCurrentUser()
     if (!user) throw new Error('Unauthorized')
 
-    const { filter: scopeFilter } = await getScopeFilter('userManagement')
+    const { filter: scopeFilter } = await getScopeFilter('userManagement', { campusNameField: 'assignedCampus' })
 
     const yearFilter = academicYear && academicYear !== 'All' ? { academicYear } : {}
 
@@ -680,7 +680,7 @@ export async function getAllAdmins() {
     const user = await getCurrentUser()
     if (!user) throw new Error('Unauthorized')
 
-    const { filter: scopeFilter } = await getScopeFilter('adminManagement')
+    const { filter: scopeFilter } = await getScopeFilter('adminManagement', { campusNameField: 'assignedCampus' })
 
     return await prisma.admin.findMany({
         where: scopeFilter || { adminId: -1 },

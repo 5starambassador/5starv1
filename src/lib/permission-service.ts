@@ -64,6 +64,7 @@ export async function getScopeFilter(
     module: keyof RolePermissions,
     options: {
         campusField?: string  // Field name for campus filtering (default: 'campusId')
+        campusNameField?: string // Optional: Field name for campus name string filtering
         userField?: string    // Field name for user filtering (default: 'userId')
         useCampusName?: boolean // Use campus name string instead of ID
     } = {}
@@ -72,39 +73,43 @@ export async function getScopeFilter(
     if (!user) return { filter: null, isReadOnly: true }
 
     const scope = await getPermissionScope(module)
-    const { campusField = 'campusId', userField = 'userId', useCampusName = false } = options
+    const { campusField = 'campusId', campusNameField = null, userField = 'userId', useCampusName = false } = options
 
     switch (scope) {
         case 'all':
             return { filter: {}, isReadOnly: false } // No filter - see everything
 
         case 'campus':
+        case 'campus-view':
             // Filter to assigned campus
+            const isReadOnly = scope === 'campus-view'
             const campusId = (user as any).campusId
+
             if (!user.assignedCampus && !campusId) {
                 return { filter: null, isReadOnly: true } // No campus assigned
             }
-            if (useCampusName && user.assignedCampus) {
-                return {
-                    filter: { [campusField]: { contains: user.assignedCampus, mode: 'insensitive' } },
-                    isReadOnly: false
-                }
-            }
-            return { filter: { [campusField]: campusId }, isReadOnly: false }
 
-        case 'campus-view':
-            // Filter to assigned campus (Read Only)
-            const cvId = (user as any).campusId
-            if (!user.assignedCampus && !cvId) {
-                return { filter: null, isReadOnly: true }
+            // If we have both, and both fields are provided in options, use OR for robustness
+            if (campusId && user.assignedCampus && campusNameField) {
+                return {
+                    filter: {
+                        OR: [
+                            { [campusField]: campusId },
+                            { [campusNameField]: { contains: user.assignedCampus, mode: 'insensitive' } }
+                        ]
+                    },
+                    isReadOnly
+                }
             }
+
+            // Fallback to single field
             if (useCampusName && user.assignedCampus) {
                 return {
                     filter: { [campusField]: { contains: user.assignedCampus, mode: 'insensitive' } },
-                    isReadOnly: true // Force TRUE
+                    isReadOnly
                 }
             }
-            return { filter: { [campusField]: cvId }, isReadOnly: true } // Force TRUE
+            return { filter: { [campusField]: campusId }, isReadOnly }
 
         case 'self':
             // Filter to own data only (userId exists on User, adminId on Admin)

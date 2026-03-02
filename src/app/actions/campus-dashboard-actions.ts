@@ -45,7 +45,14 @@ export async function getCampusStats(days: number = 30, academicYear?: string) {
     if (access.error) return { error: access.error }
 
     const whereClause: any = access.isSuperAdmin ? {} : { campusId: access.campusId }
-    const referralWhere: any = access.isSuperAdmin ? {} : { campusId: access.campusId }
+    const referralWhere: any = access.isSuperAdmin
+        ? {}
+        : {
+            OR: [
+                { campusId: access.campusId },
+                { campus: { contains: access.campusName || '', mode: 'insensitive' as const } }
+            ]
+        }
 
     if (academicYear && academicYear !== 'All') {
         whereClause.academicYear = academicYear
@@ -229,8 +236,7 @@ export async function getCampusStudents(query?: string, academicYear?: string) {
             include: {
                 parent: { select: { fullName: true, mobileNumber: true } }
             },
-            orderBy: { createdAt: 'desc' },
-            take: 100 // Increased from 50 to show more history
+            orderBy: { createdAt: 'desc' }
         })
         return { success: true, data: students }
     } catch (error) {
@@ -336,11 +342,15 @@ export async function getCampusUsers(query?: string) {
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
-    // User model uses 'assignedCampus' string.
-    // If Super Admin, fetch all. If Campus Admin, fetch where assignedCampus == campusName
+    // User model uses 'assignedCampus' string and 'campusId' Int.
     const whereClause: any = access.isSuperAdmin
         ? {}
-        : { assignedCampus: access.campusName }
+        : {
+            OR: [
+                { campusId: access.campusId },
+                { assignedCampus: { contains: access.campusName || '', mode: 'insensitive' as const } }
+            ]
+        }
 
     // Ensure we don't fetch users with no assigned campus if we are strictly looking for campus users,
     // although for Super Admin it's fine.
@@ -358,8 +368,7 @@ export async function getCampusUsers(query?: string) {
     try {
         const users = await prisma.user.findMany({
             where: whereClause,
-            orderBy: { createdAt: 'desc' },
-            take: 1000 // Increased from 50 to ensure diverse roles (Staff, etc.) are included
+            orderBy: { createdAt: 'desc' }
         })
         return { success: true, data: users }
     } catch (error) {
@@ -615,7 +624,14 @@ export async function getCampusAmbassadorStats(academicYear?: string) {
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
-    const whereClause: any = access.isSuperAdmin ? {} : { campusId: access.campusId }
+    const whereClause: any = access.isSuperAdmin
+        ? {}
+        : {
+            OR: [
+                { campusId: access.campusId },
+                { campus: { contains: access.campusName || '', mode: 'insensitive' as const } }
+            ]
+        }
 
     if (academicYear && academicYear !== 'All') {
         whereClause.admittedYear = academicYear
@@ -679,7 +695,14 @@ export async function getCampusDeadLeads(days: number = 7, academicYear?: string
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
-    const whereClause: any = access.isSuperAdmin ? {} : { campusId: access.campusId }
+    const whereClause: any = access.isSuperAdmin
+        ? {}
+        : {
+            OR: [
+                { campusId: access.campusId },
+                { campus: { contains: access.campusName || '', mode: 'insensitive' as const } }
+            ]
+        }
 
     if (academicYear && academicYear !== 'All') {
         whereClause.admittedYear = academicYear
@@ -715,7 +738,14 @@ export async function getCampusConversionStats(academicYear?: string) {
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
-    const whereClause: any = access.isSuperAdmin ? {} : { campusId: access.campusId }
+    const whereClause: any = access.isSuperAdmin
+        ? {}
+        : {
+            OR: [
+                { campusId: access.campusId },
+                { campus: { contains: access.campusName || '', mode: 'insensitive' as const } }
+            ]
+        }
 
     if (academicYear && academicYear !== 'All') {
         whereClause.admittedYear = academicYear

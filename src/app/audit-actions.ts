@@ -67,8 +67,7 @@ export async function getAuditLogs(params: {
 
         const logs = await prisma.activityLog.findMany({
             where,
-            orderBy: { createdAt: 'desc' },
-            take: 100
+            orderBy: { createdAt: 'desc' }
         })
 
         // Manually populate actor details since no direct relation exists in schema
@@ -154,8 +153,7 @@ export async function getAuditStats() {
         // Or fetch specific Top Actor
         const actorCounts: Record<string, number> = {}
         const _logsDetails = await prisma.activityLog.findMany({
-            where: { createdAt: { gte: startOfDay } },
-            take: 500
+            where: { createdAt: { gte: startOfDay } }
         })
         _logsDetails.forEach(l => {
             const key = l.adminId ? `admin:${l.adminId}` : l.userId ? `user:${l.userId}` : 'system'
@@ -215,8 +213,7 @@ export async function getUserAuditLogs(userId: number) {
             },
             orderBy: {
                 createdAt: 'desc'
-            },
-            take: 100 // Limit to last 100 logs
+            }
         })
 
         return { success: true, logs }

@@ -274,6 +274,47 @@ export function UserDetailPanel({ user, onClose, onEdit, onResetPassword, onView
                                     </div>
                                 </section>
 
+                                {/* Settlement Bank Details */}
+                                <section>
+                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Settlement Bank Details</h3>
+                                    <div className="space-y-4">
+                                        {(user.bankName || user.accountNumber || user.ifscCode) ? (
+                                            <div className="p-5 rounded-2xl bg-indigo-50/50 border border-indigo-100/50 shadow-inner">
+                                                <div className="flex items-center gap-3 mb-4">
+                                                    <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                                                        <Building size={16} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Institution</p>
+                                                        <p className="text-sm font-black text-indigo-900">{user.bankName || 'Not Specified'}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="bg-white/60 p-3 rounded-xl border border-indigo-100/30">
+                                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Account Number</p>
+                                                        <p className="text-xs font-black text-gray-900 font-mono tracking-wider">{user.accountNumber || 'N/A'}</p>
+                                                    </div>
+                                                    <div className="bg-white/60 p-3 rounded-xl border border-indigo-100/30">
+                                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">IFSC Code</p>
+                                                        <p className="text-xs font-black text-gray-900 font-mono">{user.ifscCode || 'N/A'}</p>
+                                                    </div>
+                                                </div>
+                                                {user.bankAccountDetails && user.bankAccountDetails !== 'N/A' && !user.bankName && (
+                                                    <div className="mt-4 p-3 bg-white/40 rounded-xl border border-dashed border-indigo-200">
+                                                        <p className="text-[9px] font-bold text-indigo-400 uppercase mb-1">Legacy Note</p>
+                                                        <p className="text-[10px] text-gray-500 italic leading-relaxed">{user.bankAccountDetails}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                                <CreditCard size={24} className="mx-auto text-gray-300 mb-2" />
+                                                <p className="text-xs font-bold text-gray-400 italic">No bank details updated by user yet.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </section>
+
                                 {/* Recent Activity */}
                                 <section className="pb-8">
                                     <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Activity Timeline</h3>
@@ -379,7 +420,7 @@ export function UserDetailPanel({ user, onClose, onEdit, onResetPassword, onView
 
                                                 <div className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm flex items-start gap-4 hover:border-red-100 transition-all">
                                                     <div className={`mt-1 p-2 rounded-lg shrink-0 ${item.direction === 'IN' ? 'bg-emerald-50 text-emerald-600' :
-                                                            item.type === 'WAIVER' ? 'bg-purple-50 text-purple-600' : 'bg-red-50 text-red-600'
+                                                        item.type === 'WAIVER' ? 'bg-purple-50 text-purple-600' : 'bg-red-50 text-red-600'
                                                         }`}>
                                                         {item.direction === 'IN' ? <IndianRupee size={16} /> : <FileText size={16} />}
                                                     </div>

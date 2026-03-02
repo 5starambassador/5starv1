@@ -6,6 +6,7 @@ import { format } from 'date-fns'
 import { decrypt } from '@/lib/encryption'
 import { logAction } from '@/lib/audit-logger'
 import { getAccruedPayoutLiabilities, getUsersReadyForRefund } from './finance-actions'
+import { getScopeFilter } from '@/lib/permission-service'
 
 export async function exportRegistrations(startDate: Date, endDate: Date, selectedColumns?: string[], academicYear?: string) {
     const admin = await getCurrentUser()
@@ -15,8 +16,12 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
         const end = new Date(endDate)
         end.setHours(23, 59, 59, 999)
 
+        const { filter: scopeFilter } = await getScopeFilter('userManagement', { campusNameField: 'assignedCampus' })
+        if (!scopeFilter) return { success: false, error: 'Access Denied: You do not have permission to export user data.' }
+
         const users = await prisma.user.findMany({
             where: {
+                ...scopeFilter,
                 createdAt: {
                     gte: startDate,
                     lte: end
@@ -25,6 +30,11 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
             },
             include: {
                 students: true,
+                settlements: {
+                    where: { amount: 25, status: 'Processed' },
+                    take: 1,
+                    orderBy: { createdAt: 'desc' }
+                },
                 // @ts-ignore: Payment relation exists in schema but IDE is stale
                 payments: {
                     where: { paymentStatus: 'SUCCESS' },
@@ -100,9 +110,23 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
             'paymentMethod': { header: 'Payment Method', accessor: (u) => u.payments?.[0]?.paymentMethod || 'N/A' },
             'bankRef': { header: 'Bank Reference (UTR)', accessor: (u) => u.payments?.[0]?.bankReference || 'N/A' },
             'paidAt': { header: 'Payment Date', accessor: (u) => u.payments?.[0]?.paidAt ? format(new Date(u.payments[0].paidAt), 'yyyy-MM-dd HH:mm') : 'N/A' },
-            'settlementDate': { header: 'Settlement Date', accessor: (u) => u.payments?.[0]?.settlementDate ? format(new Date(u.payments[0].settlementDate), 'yyyy-MM-dd') : 'Pending' },
             'status': { header: 'Account Status', accessor: (u) => u.status },
-            'benefitStatus': { header: 'Benefit Status', accessor: (u) => u.benefitStatus }
+            'benefitStatus': { header: 'Benefit Status', accessor: (u) => u.benefitStatus },
+            'settlementDate': {
+                header: 'Settlement Date',
+                accessor: (u) => {
+                    // Priority 1: Processed 25-rupee refund date from Settlement Table
+                    const refundSettlement = u.settlements?.[0]
+                    if (refundSettlement && refundSettlement.payoutDate) {
+                        return format(new Date(refundSettlement.payoutDate), 'yyyy-MM-dd')
+                    }
+                    // Priority 2: Legacy settlementDate from Payment Table
+                    if (u.payments?.[0]?.settlementDate) {
+                        return format(new Date(u.payments[0].settlementDate), 'yyyy-MM-dd')
+                    }
+                    return 'Pending'
+                }
+            }
         }
 
         // Determine columns to include
@@ -162,8 +186,12 @@ export async function exportPayouts(startDate: Date, endDate: Date, status?: str
             }
         }
 
+        const { filter: scopeFilter } = await getScopeFilter('settlements', { campusNameField: 'assignedCampus' })
+        if (!scopeFilter) return { success: false, error: 'Access Denied: You do not have permission to export payouts.' }
+
         const whereClause: any = {
-            createdAt: { gte: finalStart, lte: finalEnd }
+            createdAt: { gte: finalStart, lte: finalEnd },
+            user: scopeFilter
         }
 
         if (status && status !== 'All') {
@@ -372,8 +400,12 @@ export async function exportRefunds(startDate: Date, endDate: Date, selectedColu
                 })
             }
         } else {
+            const { filter: scopeFilter } = await getScopeFilter('settlements', { campusNameField: 'assignedCampus' })
+            if (!scopeFilter) return { success: false, error: 'Access Denied' }
+
             users = await prisma.user.findMany({
                 where: {
+                    ...scopeFilter,
                     paymentAmount: { gt: 0 },
                     createdAt: { gte: start, lte: end },
                     ...(academicYear && academicYear !== 'All' ? { academicYear } : {}),
@@ -469,8 +501,12 @@ export async function exportWaivers(startDate: Date, endDate: Date, selectedColu
             }
         }
 
+        const { filter: scopeFilter } = await getScopeFilter('settlements', { campusNameField: 'assignedCampus' })
+        if (!scopeFilter) return { success: false, error: 'Access Denied' }
+
         const settlements = await prisma.settlement.findMany({
             where: {
+                user: scopeFilter as any,
                 status: 'Processed',
                 remarks: { contains: 'waiver', mode: 'insensitive' },
                 createdAt: { gte: finalStart, lte: finalEnd }

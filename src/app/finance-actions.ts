@@ -8,9 +8,10 @@ import { revalidatePath } from 'next/cache'
 import cashfree from '@/lib/cashfree'
 import { decrypt } from '@/lib/encryption'
 import { notifyRefundProcessed } from '@/lib/notification-helper'
-import { hasPermission } from '@/lib/permission-service'
+import { hasPermission, getScopeFilter } from '@/lib/permission-service'
 import { calculateTotalBenefit, ReferralData } from '@/lib/benefit-calculator'
 import { getSpecialBonusRate } from '@/lib/reward-constants'
+import { syncUserStats } from "./sync-actions"
 
 // --- Registration Transactions ---
 
@@ -230,6 +231,9 @@ export async function syncMissingPayments(force: boolean = false) {
                         }
                     })
 
+                    // 5. Sync benefits and status (Ensures status moves to 'Active' and counts update)
+                    await syncUserStats(payment.userId)
+
                     updatedCount++
                 }
 
@@ -320,8 +324,7 @@ export async function getSettlements(status: string = 'Pending', academicYear?: 
                     }
                 }
             },
-            orderBy: { createdAt: 'desc' },
-            take: 1000 // Safety limit
+            orderBy: { createdAt: 'desc' }
         })
 
         // Decrypt bank details before returning
@@ -840,8 +843,7 @@ export async function getUsersReadyForRefund(academicYear?: string) {
                     take: 1
                 }
             },
-            orderBy: { createdAt: 'desc' },
-            take: 1000
+            orderBy: { createdAt: 'desc' }
         })
 
         // Filter out users who already have a settlement
@@ -1093,7 +1095,8 @@ export async function syncPastRefunds(records: {
 export async function getAccruedPayoutLiabilities(academicYear?: string, query?: string) {
     try {
         const user = await getCurrentUser()
-        if (!user || !await hasPermission('settlements')) {
+        const { filter: scopeFilter } = await getScopeFilter('settlements', { campusNameField: 'assignedCampus' })
+        if (!user || !scopeFilter) {
             return { success: false, error: 'Unauthorized' }
         }
 
@@ -1138,6 +1141,7 @@ export async function getAccruedPayoutLiabilities(academicYear?: string, query?:
             prisma.user.findMany({
                 where: {
                     AND: [
+                        scopeFilter,
                         ...(query ? [searchFilter] : []),
                         {
                             referrals: {
