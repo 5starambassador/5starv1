@@ -245,7 +245,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     // Pass campaignId as refId (CRQID) for analytics
                     promises.push(waService.sendTemplateMessage(
                         user.mobileNumber,
-                        'marketing_broadcast_v1',
+                        campaign.waTemplateName || 'welcome_message',
                         [messageBody],
                         'CAMPAIGN',
                         campaignId.toString()

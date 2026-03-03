@@ -7,7 +7,7 @@ import { UserRole, Prisma } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 import { logAction } from "@/lib/audit-logger"
 import { syncUserStats, revalidateDashboard } from "./sync-actions"
-import { toUserRole } from "@/lib/enum-utils"
+import { toUserRole, toLeadStatus } from "@/lib/enum-utils"
 
 // --- Helper: Simple CSV Parser ---
 // --- Helper: Simple CSV Parser ---
@@ -645,10 +645,11 @@ export async function importReferrals(csvData: string) {
             const admissionNumber = row.admissionnumber || row.admissionNumber || row['erp no'] || row['admission number'] || null
 
             // Auto-Admit if ERP number is present, otherwise default to status column or 'Confirmed'
-            let status = row.status || row['status'] || 'Confirmed'
+            let rawStatus = row.status || row['status'] || 'Confirmed'
             if (admissionNumber && !row.status) {
-                status = 'Admitted'
+                rawStatus = 'Admitted'
             }
+            const status = toLeadStatus(rawStatus)
 
             if (!parentName || !parentMobile || !grade || !campusName) {
                 const missing = []

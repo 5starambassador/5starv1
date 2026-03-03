@@ -187,7 +187,7 @@ export async function getAdminAnalytics(academicYear?: string, studentSource: 'r
                 orderBy: { _count: { userId: 'desc' } },
                 take: 5
             }),
-            prisma.referralLead.count({ where: { leadStatus: 'Confirmed', student: { is: null } } })
+            prisma.referralLead.count({ where: { leadStatus: { in: ['Confirmed', 'Admitted'] }, student: { is: null } } })
         ])
 
         const pendingLeads = totalLeads - confirmedLeads
@@ -1279,7 +1279,7 @@ export async function bulkConvertLeadsToStudents(leadIds: number[]) {
             where: {
                 leadId: { in: leadIds },
                 student: { is: null }, // Not already converted
-                leadStatus: 'Confirmed' // Standard flow: must be confirmed
+                leadStatus: { in: ['Confirmed', 'Admitted'] } // Standard flow: must be confirmed or already admitted (sync)
             },
             include: { user: true }
         })
@@ -1412,7 +1412,7 @@ export async function syncLegacyConfirmedLeads() {
     try {
         const missingLeads = await prisma.referralLead.findMany({
             where: {
-                leadStatus: 'Confirmed',
+                leadStatus: { in: ['Confirmed', 'Admitted'] },
                 student: { is: null }
             },
             select: { leadId: true }

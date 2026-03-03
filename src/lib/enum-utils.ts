@@ -52,41 +52,45 @@ export function mapLeadStatus(status: LeadStatus): string {
 }
 
 export function toUserRole(role: string): UserRole {
-    if (role === 'Parent') return UserRole.Parent
-    if (role === 'Staff') return UserRole.Staff
-    if (role === 'Alumni') return UserRole.Alumni
+    const normalized = role?.toString().trim().toLowerCase()
+    if (normalized === 'parent') return UserRole.Parent
+    if (normalized === 'staff') return UserRole.Staff
+    if (normalized === 'alumni') return UserRole.Alumni
     return UserRole.Others
 }
 
 export function toAdminRole(role: string): AdminRole {
-    const normalized = role?.trim()
-    if (normalized === 'Super Admin' || normalized === 'Super_Admin') return AdminRole.Super_Admin
-    if (normalized === 'Finance Admin' || normalized === 'Finance_Admin') return AdminRole.Finance_Admin
-    if (normalized === 'Campus Head' || normalized === 'Campus_Head' || normalized === 'CampusHead') return AdminRole.Campus_Head
-    if (normalized === 'Campus Admin' || normalized === 'Campus_Admin' || normalized === 'CampusAdmin') return AdminRole.Campus_Admin
+    const normalized = role?.toString().trim().toLowerCase().replace(/[\s_-]/g, '')
+    if (normalized === 'superadmin') return AdminRole.Super_Admin
+    if (normalized === 'financeadmin') return AdminRole.Finance_Admin
+    if (normalized === 'campushead') return AdminRole.Campus_Head
+    if (normalized === 'campusadmin') return AdminRole.Campus_Admin
+    if (normalized === 'admissionadmin') return AdminRole.Admission_Admin
     return AdminRole.Admission_Admin // Default to Admission_Admin for others
 }
 
 export function toLeadStatus(status: string): LeadStatus {
-    switch (status) {
-        case 'New': return LeadStatus.New
-        case 'Interested': return LeadStatus.Interested
-        case 'Contacted': return LeadStatus.Contacted
-        case 'Follow-up': return LeadStatus.Follow_up
-        case 'Confirmed': return LeadStatus.Confirmed
-        case 'Admitted': return LeadStatus.Admitted
-        case 'Closed': return LeadStatus.Closed
-        case 'Rejected': return LeadStatus.Rejected
+    const normalized = status?.toString().trim().toLowerCase().replace(/[\s-]/g, '')
+    switch (normalized) {
+        case 'new': return LeadStatus.New
+        case 'interested': return LeadStatus.Interested
+        case 'contacted': return LeadStatus.Contacted
+        case 'followup': return LeadStatus.Follow_up
+        case 'confirmed': return LeadStatus.Confirmed
+        case 'admitted': return LeadStatus.Admitted
+        case 'closed': return LeadStatus.Closed
+        case 'rejected': return LeadStatus.Rejected
         default: return LeadStatus.New
     }
 }
 
 export function toAccountStatus(status: string): AccountStatus {
-    switch (status) {
-        case 'Active': return AccountStatus.Active
-        case 'Inactive': return AccountStatus.Inactive
-        case 'Pending': return AccountStatus.Pending
-        case 'Suspended': return AccountStatus.Suspended
+    const normalized = status?.toString().trim().toLowerCase()
+    switch (normalized) {
+        case 'active': return AccountStatus.Active
+        case 'inactive': return AccountStatus.Inactive
+        case 'pending': return AccountStatus.Pending
+        case 'suspended': return AccountStatus.Suspended
         default: return AccountStatus.Active
     }
 }

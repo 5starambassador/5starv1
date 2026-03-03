@@ -6,10 +6,12 @@ interface WhatsAppResponse {
     error?: string
 }
 
-const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY || ""
+const MSG91_AUTH_KEY = process.env.MSG91_WHATSAPP_AUTH_KEY || process.env.MSG91_AUTH_KEY || ""
 const MSG91_WHATSAPP_NUMBER = process.env.MSG91_WHATSAPP_NUMBER || ""
 const MSG91_API_URL = process.env.MSG91_API_URL || "https://api.msg91.com/api/v5"
 const WHATSAPP_PROVIDER = process.env.WHATSAPP_PROVIDER || 'mock'
+
+const MSG91_WHATSAPP_NAMESPACE = process.env.MSG91_WHATSAPP_NAMESPACE || "a4fe4058_eaa9_45d8_91d6_df10d082de80"
 
 /**
  * WhatsApp Service using MSG91 WhatsApp API
@@ -117,31 +119,37 @@ class WhatsAppService {
 
         try {
             const sanitizedMobile = this.sanitizeMobile(mobile)
-            const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/`
+            const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/bulk/`
+
+            const components: any = {}
+            variables.forEach((v, i) => {
+                components[`body_${i + 1}`] = {
+                    type: "text",
+                    value: v
+                }
+            })
 
             const payload: any = {
-                integrated_number: MSG91_WHATSAPP_NUMBER,
+                integrated_number: this.sanitizeMobile(MSG91_WHATSAPP_NUMBER),
                 content_type: "template",
                 payload: {
+                    messaging_product: "whatsapp",
                     type: "template",
                     template: {
                         name: templateName,
+                        namespace: MSG91_WHATSAPP_NAMESPACE,
                         language: {
                             code: "en",
                             policy: "deterministic"
                         },
-                        components: [
+                        to_and_components: [
                             {
-                                type: "body",
-                                parameters: variables.map(v => ({
-                                    type: "text",
-                                    text: v
-                                }))
+                                to: [sanitizedMobile],
+                                components
                             }
                         ]
                     }
-                },
-                to: sanitizedMobile
+                }
             }
 
             if (refId) {
@@ -213,13 +221,14 @@ class WhatsAppService {
             const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/`
 
             const payload: any = {
-                integrated_number: MSG91_WHATSAPP_NUMBER,
+                integrated_number: this.sanitizeMobile(MSG91_WHATSAPP_NUMBER),
                 content_type: "text",
                 payload: {
+                    messaging_product: "whatsapp",
+                    to: sanitizedMobile,
                     type: "text",
                     text: text
-                },
-                to: sanitizedMobile
+                }
             }
 
             const response = await fetch(url, {

@@ -469,6 +469,7 @@ model Campaign {
   type           String              @default("EMAIL")
   status         String              @default("DRAFT")
   targetAudience Json?
+  waTemplateName String?
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
   lastRunAt      DateTime?

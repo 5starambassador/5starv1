@@ -12,68 +12,60 @@ import prisma from '@/lib/prisma'
 export async function POST(request: Request) {
     try {
         const body = await request.json()
-
-        // Expected payload structure from MSG91 is usually an array of objects
-        // or a single object wrapped in an array.
-        // E.g. [ { requestId: "...", status: "DELIVERED", custom_ref: "...", ... } ]
+        console.log('[MSG91 Webhook] Received Payload:', JSON.stringify(body, null, 2))
 
         const events = Array.isArray(body) ? body : [body]
 
-        // We process events in bulk if possible, or loop.
-        // Since we need to update potentially different rows, a loop is fine for now.
-
         for (const event of events) {
-            // Extract the custom reference ID we sent (CRQID)
-            // It might be in 'CRQID', 'custom_ref', or similar depending on exact API version.
-            // We used 'CRQID' in the payload.
             const campaignIdStr = event.CRQID || event.custom_ref || event.ref_id
+            const status = event.status ? event.status.toUpperCase() : ''
+            const mobile = event.mobile || event.customerNumber
 
-            if (!campaignIdStr) continue
+            if (!campaignIdStr) {
+                console.warn('[MSG91 Webhook] No CRQID found in event:', event.requestId || 'unknown')
+                continue
+            }
 
             const campaignId = parseInt(campaignIdStr)
-            if (isNaN(campaignId)) continue
+            if (isNaN(campaignId)) {
+                console.error('[MSG91 Webhook] Invalid campaignId:', campaignIdStr)
+                continue
+            }
 
-            const status = event.status ? event.status.toUpperCase() : ''
+            console.log(`[MSG91 Webhook] Processing ${status} for Campaign #${campaignId} (Mobile: ${mobile})`)
 
-            // Map status to our counters
-            if (status === 'DELIVERED') {
-                // Update Delivered Count
-                // We need to find the specific CampaignLog. 
-                // Issue: We passed 'campaignId' as ref. 
-                // So we should find the LATEST run for this campaign? 
-                // Or, did we pass 'CampaignLog.id'? 
-                // In campaign-dispatcher, we passed 'campaignId: number'. 
-                // So we are updating the CampaignLog associated with that campaign.
-                // Ideally we should have passed CampaignLog.id, but let's stick to CampaignId for now
-                // and update the *latest* log or aggregate?
-
-                // Better approach: Update the aggregate on the CampaignLog. 
-                // Let's assume we update the *latest* active log or just finding one by campaignId.
-                // Use findFirst with orderBy.
-
+            if (status === 'DELIVERED' || status === 'READ') {
                 const latestLog = await prisma.campaignLog.findFirst({
                     where: { campaignId: campaignId },
                     orderBy: { runAt: 'desc' }
                 })
 
                 if (latestLog) {
-                    await prisma.campaignLog.update({
-                        where: { id: latestLog.id },
-                        data: { whatsappDelivered: { increment: 1 } }
-                    })
-                }
-            } else if (status === 'READ') {
-                // Update Read Count
-                const latestLog = await prisma.campaignLog.findFirst({
-                    where: { campaignId: campaignId },
-                    orderBy: { runAt: 'desc' }
-                })
+                    const updateData: any = {}
+                    if (status === 'DELIVERED') updateData.whatsappDelivered = { increment: 1 }
+                    if (status === 'READ') updateData.whatsappRead = { increment: 1 }
 
-                if (latestLog) {
                     await prisma.campaignLog.update({
                         where: { id: latestLog.id },
-                        data: { whatsappRead: { increment: 1 } }
+                        data: updateData
                     })
+
+                    // Also update the specific recipient status if available
+                    if (mobile) {
+                        await (prisma as any).campaignRecipient.updateMany({
+                            where: {
+                                campaignId: campaignId,
+                                mobile: mobile,
+                                channel: 'WHATSAPP'
+                            },
+                            data: {
+                                status: status,
+                                [status === 'DELIVERED' ? 'deliveredAt' : 'readAt']: new Date()
+                            }
+                        }).catch((e: any) => console.error('[MSG91 Webhook] Failed to update recipient status:', e.message))
+                    }
+                } else {
+                    console.warn(`[MSG91 Webhook] No CampaignLog found for Campaign #${campaignId}`)
                 }
             }
         }
@@ -81,7 +73,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true })
 
     } catch (error: any) {
-        console.error('MSG91 Webhook Error:', error)
+        console.error('MSG91 Webhook Exception:', error)
         return NextResponse.json({ success: false, error: 'Webhook processing failed' }, { status: 500 })
     }
 }

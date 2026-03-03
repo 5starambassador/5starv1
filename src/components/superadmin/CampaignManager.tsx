@@ -44,7 +44,8 @@ export function CampaignManager() {
             leadFunnelStatus: 'All',
             missingInfo: 'None'
         },
-        channels: ['EMAIL']
+        channels: ['EMAIL'],
+        waTemplateName: ''
     })
 
     // Helper to toggle channels
@@ -126,7 +127,8 @@ export function CampaignManager() {
                 subject: form.subject,
                 templateBody: form.templateBody,
                 targetAudience: form.targetAudience,
-                channels: form.channels
+                channels: form.channels,
+                waTemplateName: form.waTemplateName
             })
         } else {
             res = await createCampaign({
@@ -134,7 +136,8 @@ export function CampaignManager() {
                 subject: form.subject,
                 templateBody: form.templateBody,
                 targetAudience: form.targetAudience,
-                channels: form.channels
+                channels: form.channels,
+                waTemplateName: form.waTemplateName
             })
         }
         setIsProcessing(false)
@@ -148,7 +151,8 @@ export function CampaignManager() {
                 subject: '',
                 templateBody: '',
                 targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', missingInfo: 'None' },
-                channels: ['EMAIL']
+                channels: ['EMAIL'],
+                waTemplateName: ''
             })
             loadCampaigns()
         } else {
@@ -227,7 +231,8 @@ export function CampaignManager() {
             subject: c.subject,
             templateBody: c.templateBody,
             targetAudience: c.targetAudience || { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', missingInfo: 'None' },
-            channels: c.channels || ['EMAIL']
+            channels: c.channels || ['EMAIL'],
+            waTemplateName: c.waTemplateName || ''
         })
         setShowModal(true)
     }
@@ -319,7 +324,8 @@ export function CampaignManager() {
                                 subject: '',
                                 templateBody: '',
                                 targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', missingInfo: 'None' },
-                                channels: ['EMAIL']
+                                channels: ['EMAIL'],
+                                waTemplateName: ''
                             })
                             setShowModal(true)
                         }}
@@ -437,12 +443,12 @@ export function CampaignManager() {
                                                                                 <span className="text-[10px] font-black text-green-800">{log.whatsappSent}</span>
                                                                             </div>
                                                                             <div className="grid grid-cols-2 gap-2 text-[9px] font-medium text-green-600/80">
-                                                                                <div className="flex items-center justify-between bg-white/50 px-1.5 py-0.5 rounded">
-                                                                                    <span>Delivered</span>
+                                                                                <div className="flex items-center justify-between gap-2 bg-white/50 px-1.5 py-0.5 rounded">
+                                                                                    <span>Delivered&nbsp;</span>
                                                                                     <span className="font-bold">{log.whatsappDelivered || 0}</span>
                                                                                 </div>
-                                                                                <div className="flex items-center justify-between bg-white/50 px-1.5 py-0.5 rounded">
-                                                                                    <span>Read</span>
+                                                                                <div className="flex items-center justify-between gap-2 bg-white/50 px-1.5 py-0.5 rounded">
+                                                                                    <span>Read&nbsp;</span>
                                                                                     <span className="font-bold text-green-700">{log.whatsappRead || 0}</span>
                                                                                 </div>
                                                                             </div>
@@ -595,6 +601,25 @@ export function CampaignManager() {
                                                     </button>
                                                 </div>
                                             </div>
+
+                                            {form.channels.includes('WHATSAPP') && (
+                                                <div className="space-y-2 col-span-2 animate-in slide-in-from-top-2 duration-300">
+                                                    <label className="block text-[10px] font-black text-green-600 uppercase tracking-widest px-1 flex items-center gap-2">
+                                                        <Smartphone size={12} /> WhatsApp Template ID (from MSG91)
+                                                    </label>
+                                                    <div className="relative">
+                                                        <input
+                                                            className="w-full bg-green-50/30 border border-green-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-green-50 focus:border-green-200 transition-all placeholder:text-green-200"
+                                                            placeholder="e.g. welcome_message"
+                                                            value={form.waTemplateName}
+                                                            onChange={e => setForm({ ...form, waTemplateName: e.target.value })}
+                                                        />
+                                                        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                                                            <CheckCircle2 size={16} className={form.waTemplateName ? 'text-green-500' : 'text-gray-300'} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Advanced Audience Partitioning */}

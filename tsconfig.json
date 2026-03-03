@@ -40,7 +40,16 @@
     "node_modules",
     "scripts",
     "src/scripts",
+    "check_*.ts",
+    "test_*.ts",
+    "send_wa_*.ts",
+    "audit-*.ts",
     "debug-*.ts",
-    "*.debug.ts"
+    "*.debug.ts",
+    "check-*.ts",
+    "verify-*.ts",
+    "list-*.ts",
+    "manual-*.ts",
+    "check_export.ts"
   ]
 }
