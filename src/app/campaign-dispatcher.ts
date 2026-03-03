@@ -229,6 +229,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
             const promises: Promise<void>[] = []
             const pushTokens: string[] = []
             const notificationsToCreate: any[] = []
+            const whatsappRecipients: { mobile: string, variables: string[] }[] = []
 
             for (const user of users) {
                 // Email
@@ -242,16 +243,10 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 // WhatsApp
                 if (isWhatsapp && waService && user.mobileNumber) {
                     const messageBody = aliasTokens(campaign.templateBody, user)
-                    // Pass campaignId as refId (CRQID) for analytics
-                    promises.push(waService.sendTemplateMessage(
-                        user.mobileNumber,
-                        campaign.waTemplateName || 'welcome_message',
-                        [messageBody],
-                        'CAMPAIGN',
-                        campaignId.toString()
-                    )
-                        .then((res) => { if (res.success) stats.whatsappSent++; else stats.whatsappFailed++ })
-                        .catch(() => { stats.whatsappFailed++ }))
+                    whatsappRecipients.push({
+                        mobile: user.mobileNumber,
+                        variables: [messageBody]
+                    })
                 }
 
                 // Push
@@ -272,8 +267,23 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 }
             }
 
-            // Execute Async (Email/WhatsApp)
+            // Execute Async (Email)
             await Promise.all(promises)
+
+            // Execute WhatsApp (Batched)
+            if (whatsappRecipients.length > 0 && waService) {
+                const waRes = await waService.sendBulkTemplateMessage(
+                    whatsappRecipients,
+                    campaign.waTemplateName || 'welcome_message',
+                    'CAMPAIGN',
+                    campaignId.toString()
+                )
+                if (waRes.success) {
+                    stats.whatsappSent += whatsappRecipients.length
+                } else {
+                    stats.whatsappFailed += whatsappRecipients.length
+                }
+            }
 
             // Execute Push (Mock/Real)
             if (isPush && adminFn && pushTokens.length > 0) {

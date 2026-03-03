@@ -172,14 +172,101 @@ class WhatsAppService {
                 await this.logMessage(mobile, templateName, variables.join(', '), type, 'SENT', messageId, undefined, refId)
                 return { success: true, messageId }
             } else {
-                const errorMsg = data.message || 'WhatsApp API Error'
+                const errorMsg = data.message || JSON.stringify(data) || 'WhatsApp API Error'
                 await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, errorMsg, refId)
-                console.error('WhatsApp API Error:', data)
+                console.error('WhatsApp API Error detailed:', JSON.stringify(data, null, 2))
                 return { success: false, error: errorMsg }
             }
         } catch (error: any) {
             await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, error.message, refId)
             console.error('WhatsApp Service Exception:', error)
+            return { success: false, error: error.message }
+        }
+    }
+
+    /**
+     * Sends a template-based WhatsApp message to multiple recipients in a single API call
+     */
+    async sendBulkTemplateMessage(
+        recipients: { mobile: string, variables: string[] }[],
+        templateName: string,
+        type: string = 'SYSTEM',
+        refId?: string
+    ): Promise<WhatsAppResponse> {
+        if (!MSG91_AUTH_KEY || WHATSAPP_PROVIDER === 'mock') {
+            const results = await Promise.all(recipients.map(r => this.sendMock(r.mobile, templateName, r.variables, type)))
+            return results[0] // Return first success for consistent API
+        }
+
+        try {
+            const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/bulk/`
+            const to_and_components = recipients.map(r => {
+                const components: any = {}
+                r.variables.forEach((v, i) => {
+                    components[`body_${i + 1}`] = {
+                        type: "text",
+                        value: v
+                    }
+                })
+                return {
+                    to: [this.sanitizeMobile(r.mobile)],
+                    components
+                }
+            })
+
+            const payload: any = {
+                integrated_number: this.sanitizeMobile(MSG91_WHATSAPP_NUMBER),
+                content_type: "template",
+                payload: {
+                    messaging_product: "whatsapp",
+                    type: "template",
+                    template: {
+                        name: templateName,
+                        namespace: MSG91_WHATSAPP_NAMESPACE,
+                        language: {
+                            code: "en",
+                            policy: "deterministic"
+                        },
+                        to_and_components
+                    }
+                }
+            }
+
+            if (refId) {
+                payload.CRQID = refId
+            }
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'authkey': MSG91_AUTH_KEY
+                },
+                body: JSON.stringify(payload)
+            })
+
+            const data = await response.json()
+
+            if (response.ok && data.status === 'success') {
+                const messageId = data.message_id || data.request_id
+                // Log all recipients as sent
+                await Promise.all(recipients.map(r =>
+                    this.logMessage(r.mobile, templateName, r.variables.join(', '), type, 'SENT', messageId, undefined, refId)
+                ))
+                return { success: true, messageId }
+            } else {
+                const errorMsg = data.message || JSON.stringify(data) || 'WhatsApp API Error'
+                await Promise.all(recipients.map(r =>
+                    this.logMessage(r.mobile, templateName, r.variables.join(', '), type, 'FAILED', undefined, errorMsg, refId)
+                ))
+                console.error('WhatsApp Bulk API Error detailed:', JSON.stringify(data, null, 2))
+                return { success: false, error: errorMsg }
+            }
+        } catch (error: any) {
+            await Promise.all(recipients.map(r =>
+                this.logMessage(r.mobile, templateName, r.variables.join(', '), type, 'FAILED', undefined, error.message, refId)
+            ))
+            console.error('WhatsApp Bulk Service Exception:', error)
             return { success: false, error: error.message }
         }
     }
