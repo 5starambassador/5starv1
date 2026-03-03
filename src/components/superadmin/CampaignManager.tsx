@@ -384,7 +384,7 @@ export function CampaignManager() {
                                                         const res = await syncCampaignMetrics(c.id);
                                                         if (res.success) {
                                                             toast.success('Metrics Synced Perfectly');
-                                                            fetchCampaigns();
+                                                            loadCampaigns();
                                                         } else {
                                                             toast.error(res.error || 'Sync Failed');
                                                         }
