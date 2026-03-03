@@ -123,9 +123,11 @@ class WhatsAppService {
 
             const components: any = {}
             variables.forEach((v, i) => {
+                // MSG91 API does not support newlines in variables (\n)
+                const sanitizedValue = v.replace(/\n/g, ' ')
                 components[`body_${i + 1}`] = {
                     type: "text",
-                    value: v
+                    value: sanitizedValue
                 }
             })
 
@@ -203,9 +205,11 @@ class WhatsAppService {
             const to_and_components = recipients.map(r => {
                 const components: any = {}
                 r.variables.forEach((v, i) => {
+                    // MSG91 Bulk API does not support newlines in variables (\n)
+                    const sanitizedValue = v.replace(/\n/g, ' ')
                     components[`body_${i + 1}`] = {
                         type: "text",
-                        value: v
+                        value: sanitizedValue
                     }
                 })
                 return {
