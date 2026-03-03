@@ -274,7 +274,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
             if (whatsappRecipients.length > 0 && waService) {
                 const waRes = await waService.sendBulkTemplateMessage(
                     whatsappRecipients,
-                    campaign.waTemplateName || 'welcome_message',
+                    (campaign as any).waTemplateName || 'welcome_message',
                     'CAMPAIGN',
                     campaignId.toString()
                 )
@@ -288,23 +288,36 @@ export async function dispatchCampaignBatch(campaignId: number) {
             // Execute Push (Mock/Real)
             if (isPush && adminFn && pushTokens.length > 0) {
                 // Process in chunks of 500 for FCM
+                const chunks = []
                 for (let i = 0; i < pushTokens.length; i += 500) {
-                    const chunk = pushTokens.slice(i, i + 500)
-                    try {
-                        const response = await adminFn.messaging().sendEachForMulticast({
-                            tokens: chunk,
-                            notification: { title: campaign.subject, body: 'Tap to view details' }
-                        })
-                        stats.pushSent += response.successCount
-                        stats.pushFailed += response.failureCount
-                    } catch (e) { stats.pushFailed += chunk.length }
+                    chunks.push(pushTokens.slice(i, i + 500))
                 }
+                await Promise.all(chunks.map(chunk =>
+                    adminFn!.messaging().sendEachForMulticast({
+                        tokens: chunk,
+                        notification: {
+                            title: campaign.subject,
+                            body: campaign.templateBody,
+                        },
+                    })
+                ))
+                stats.pushSent += pushTokens.length
             }
 
-            // Execute In-App (Bulk Insert)
+            // Create in-app notifications
             if (isInApp && notificationsToCreate.length > 0) {
                 await prisma.notification.createMany({ data: notificationsToCreate })
                 stats.inAppSent += notificationsToCreate.length
+            }
+
+            // Update processed count & rate limit safety
+            processedCount += users.length
+
+            // THROTTLING: Add a small delay between batches to avoid Meta Spam Rate Limits (131048)
+            // 10 seconds between batches of 200 is a safer "warming" pace for 3000+ messages
+            if (users.length === BATCH_SIZE) {
+                console.log(`[CampaignDispatcher] Batch complete. Cooling down for 10s... (Processed: ${processedCount})`)
+                await new Promise(resolve => setTimeout(resolve, 10000))
             }
 
             // Log Recipients for Analytics (All Channels)
