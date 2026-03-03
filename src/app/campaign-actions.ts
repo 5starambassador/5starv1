@@ -540,3 +540,59 @@ export async function getCampaignAnalytics() {
         return { success: false, error: 'Failed to fetch analytics' }
     }
 }
+
+/**
+ * Re-calculates and synchronizes campaign metrics from recipient records.
+ * Acts as a failsafe if real-time webhook updates miss any events.
+ */
+export async function syncCampaignMetrics(campaignId: number) {
+    try {
+        await checkCampaignAccess()
+
+        // 1. Get counts from recipients
+        const counts = await (prisma as any).campaignRecipient.groupBy({
+            by: ['status'],
+            where: {
+                campaignId: campaignId,
+                channel: 'WHATSAPP'
+            },
+            _count: { _all: true }
+        })
+
+        const stats = {
+            delivered: 0,
+            read: 0
+        }
+
+        counts.forEach((c: any) => {
+            if (c.status === 'DELIVERED') stats.delivered = c._count._all
+            if (c.status === 'READ') stats.read = c._count._all
+        })
+
+        // 2. Find the latest log for this campaign
+        const latestLog = await prisma.campaignLog.findFirst({
+            where: { campaignId },
+            orderBy: { runAt: 'desc' }
+        })
+
+        if (!latestLog) {
+            return { success: false, error: 'No campaign logs found to update' }
+        }
+
+        // 3. Update the log with accurate counts
+        await prisma.campaignLog.update({
+            where: { id: latestLog.id },
+            data: {
+                whatsappDelivered: stats.delivered,
+                whatsappRead: stats.read
+            }
+        })
+
+        revalidatePath('/superadmin')
+        return { success: true, stats }
+
+    } catch (error: any) {
+        console.error('syncCampaignMetrics error:', error)
+        return { success: false, error: error.message || 'Failed to sync metrics' }
+    }
+}

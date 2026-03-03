@@ -326,7 +326,8 @@ export async function dispatchCampaignBatch(campaignId: number) {
             users.forEach((user: any) => {
                 const baseRecipient = {
                     campaignId: campaignId,
-                    mobile: user.mobileNumber || '', // Might be empty for pure email users
+                    // Store normalized mobile (just digits) for better matching
+                    mobile: user.mobileNumber ? user.mobileNumber.toString().replace(/\D/g, '') : '',
                     name: user.fullName || 'User',
                     role: user.role,
                     campus: user.assignedCampus,

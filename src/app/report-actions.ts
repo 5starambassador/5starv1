@@ -65,7 +65,7 @@ export async function generateReferralPerformanceReport(filters?: { startDate?: 
         })
 
         // Format CSV
-        let csv = 'Ambassador Name,Role,Campus,Total Referrals,Confirmed,Pending,Conversion Rate,Benefit Tier,Benefit Status,Child Code,Year Fee Benefit,Long Term Benefit,Status,Joined Date\n'
+        let csv = 'Ambassador Name,Role,Campus,Mobile,Total Referrals,Confirmed,Pending,Conversion Rate,Benefit Tier,Benefit Status,Aadhar No,Address,Academic Year,Child Code,Year Fee Benefit,Long Term Benefit,Status,Joined Date\n'
 
         users.forEach((user: any) => {
             const totalReferrals = user.referrals.length
@@ -74,7 +74,7 @@ export async function generateReferralPerformanceReport(filters?: { startDate?: 
             const conversionRate = totalReferrals > 0 ? ((confirmed / totalReferrals) * 100).toFixed(1) : '0'
             const benefitTier = confirmed >= 5 ? '5 Stars' : confirmed >= 4 ? '4 Stars' : confirmed >= 3 ? '3 Stars' : confirmed >= 2 ? '2 Stars' : confirmed >= 1 ? '1 Star' : 'None'
 
-            csv += `"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",${totalReferrals},${confirmed},${pending},${conversionRate}%,${benefitTier},${user.benefitStatus || 'Active'},"${user.childEprNo || ''}",${user.yearFeeBenefitPercent}%,${user.longTermBenefitPercent}%,${user.status},${new Date(user.createdAt).toLocaleDateString()}\n`
+            csv += `"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",="${user.mobileNumber}",${totalReferrals},${confirmed},${pending},${conversionRate}%,${benefitTier},${user.benefitStatus || 'Active'},="${user.aadharNo || ''}","${(user.address || '').replace(/"/g, '""')}","${user.academicYear || ''}","${user.childEprNo || ''}",${user.yearFeeBenefitPercent}%,${user.longTermBenefitPercent}%,${user.status},${new Date(user.createdAt).toLocaleDateString()}\n`
         })
 
         return { success: true, csv, filename: `referral-performance-${new Date().toISOString().split('T')[0]}.csv` }
@@ -232,11 +232,11 @@ export async function generateInactiveUsersReport(filters?: { campus?: string })
             orderBy: { createdAt: 'desc' }
         })
 
-        let csv = 'Ambassador Name,Role,Campus,Mobile,Total Referrals,Last Referral Date,Registered Date,Status\n'
+        let csv = 'Ambassador Name,Role,Campus,Mobile,Aadhar No,Address,Academic Year,Total Referrals,Last Referral Date,Registered Date,Status\n'
 
         inactiveUsers.forEach((user: any) => {
             const lastReferralDate = user.referrals[0] ? new Date(user.referrals[0].createdAt).toLocaleDateString() : 'Never'
-            csv += `"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",${user.mobileNumber},${user.confirmedReferralCount},${lastReferralDate},${new Date(user.createdAt).toLocaleDateString()},${user.status}\n`
+            csv += `"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",="${user.mobileNumber}",="${user.aadharNo || ''}","${(user.address || '').replace(/"/g, '""')}","${user.academicYear || ''}",${user.confirmedReferralCount},${lastReferralDate},${new Date(user.createdAt).toLocaleDateString()},${user.status}\n`
         })
 
         return { success: true, csv, filename: `inactive-users-${new Date().toISOString().split('T')[0]}.csv` }
@@ -410,10 +410,10 @@ export async function generateNewRegistrationsReport(filters?: { startDate?: str
             orderBy: { createdAt: 'desc' }
         })
 
-        let csv = 'Registration Date,Ambassador Name,Role,Campus,Mobile,Referrals,Benefit Status,Child Code,Status\n'
+        let csv = 'Registration Date,Ambassador Name,Role,Campus,Mobile,Aadhar No,Address,Academic Year,Referrals,Benefit Status,Child Code,Status,Transaction ID,Payment Amount\n'
 
         newUsers.forEach((user: any) => {
-            csv += `${new Date(user.createdAt).toLocaleDateString()},"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",${user.mobileNumber},${user.confirmedReferralCount},${user.benefitStatus || 'Active'},"${user.childEprNo || ''}",${user.status}\n`
+            csv += `${new Date(user.createdAt).toLocaleDateString()},"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",="${user.mobileNumber}",="${user.aadharNo || ''}","${(user.address || '').replace(/"/g, '""')}","${user.academicYear || ''}",${user.confirmedReferralCount},${user.benefitStatus || 'Active'},"${user.childEprNo || ''}",${user.status},="${user.transactionId || ''}",${user.paymentAmount || 0}\n`
         })
 
         return { success: true, csv, filename: `new-registrations-${new Date().toISOString().split('T')[0]}.csv` }
@@ -1206,7 +1206,7 @@ export async function generateMasterReferralReport(filters?: { startDate?: strin
         const headers = [
             'Lead ID', 'Lead Name', 'Lead Mobile', 'Lead Campus', 'Lead Grade', 'Lead Status', 'Lead Created Date', 'Lead Confirmed Date',
             'Annual Fee', 'Admission Fee Collected', 'Donation Fee Collected',
-            'Ambassador ID', 'Ambassador Name', 'Ambassador Mobile', 'Ambassador Role', 'Ambassador Campus', 'Ambassador Referral Code', 'Ambassador Joined Date'
+            'Ambassador ID', 'Ambassador Name', 'Ambassador Mobile', 'Ambassador Role', 'Ambassador Campus', 'Ambassador Referral Code', 'Ambassador Aadhar', 'Ambassador Address', 'Ambassador Academic Year', 'Ambassador Joined Date'
         ]
 
         let csv = headers.join(',') + '\n'
@@ -1230,6 +1230,9 @@ export async function generateMasterReferralReport(filters?: { startDate?: strin
                 `"${lead.user?.role || ''}"`,
                 `"${(lead.user?.assignedCampus || 'Global').replace(/"/g, '""')}"`,
                 `"${lead.user?.referralCode || ''}"`,
+                `="${lead.user?.aadharNo || ''}"`,
+                `"${(lead.user?.address || '').replace(/"/g, '""')}"`,
+                `"${lead.user?.academicYear || ''}"`,
                 lead.user?.createdAt ? new Date(lead.user.createdAt).toLocaleDateString() : '-'
             ]
             csv += row.join(',') + '\n'

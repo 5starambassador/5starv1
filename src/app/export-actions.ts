@@ -98,6 +98,10 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
                     return 'N/A'
                 }
             },
+            'aadharNo': { header: 'Aadhar Number', accessor: (u) => u.aadharNo ? `="${u.aadharNo}"` : 'N/A' },
+            'address': { header: 'Address', accessor: (u) => u.address },
+            'academicYear': { header: 'Academic Year', accessor: (u) => u.academicYear },
+            'registrationSource': { header: 'Source', accessor: (u) => u.registrationSource || 'Direct' },
             'referralCode': { header: 'Referral Code', accessor: (u) => u.referralCode },
             'campus': { header: 'Campus', accessor: (u) => u.campusId ? campusMap.get(u.campusId) || 'N/A' : 'N/A' },
             'childName': { header: 'Child Name', accessor: (u) => u.childName },
@@ -212,7 +216,10 @@ export async function exportPayouts(startDate: Date, endDate: Date, status?: str
                         ifscCode: true,
                         email: true,
                         campusId: true,
-                        assignedCampus: true
+                        assignedCampus: true,
+                        aadharNo: true,
+                        address: true,
+                        academicYear: true
                     }
                 }
             },
@@ -264,6 +271,9 @@ export async function exportPayouts(startDate: Date, endDate: Date, status?: str
                     return 'N/A'
                 }
             },
+            'aadharNo': { header: 'Aadhar No', accessor: (s) => `="${s.user.aadharNo || ''}"` },
+            'address': { header: 'Address', accessor: (s) => (s.user.address || '').replace(/"/g, '""') },
+            'academicYear': { header: 'Academic Year', accessor: (s) => s.user.academicYear || 'N/A' },
             'campus': { header: 'Campus', accessor: (s) => s.user.assignedCampus || 'N/A' },
             'remarks': { header: 'Remarks', accessor: (s) => s.remarks }
         }
@@ -334,13 +344,13 @@ export async function exportRejectedPayments(search?: string) {
             where,
             include: {
                 user: {
-                    select: { fullName: true, mobileNumber: true, email: true, role: true }
+                    select: { fullName: true, mobileNumber: true, email: true, role: true, aadharNo: true, address: true, academicYear: true }
                 }
             },
             orderBy: { updatedAt: 'desc' }
         })
 
-        const csvHeaders = 'Rejection Date,Full Name,Mobile,Role,Email,UTR / Ref,Amount,Rejection Reason'
+        const csvHeaders = 'Rejection Date,Full Name,Mobile,Role,Email,Aadhar No,Address,Academic Year,UTR / Ref,Amount,Rejection Reason'
         const safeString = (str: string | null | undefined) => `"${(String(str || '')).replace(/"/g, '""')}"`
 
         const csvRows = payments.map(p => {
@@ -350,6 +360,9 @@ export async function exportRejectedPayments(search?: string) {
                 `="${p.user.mobileNumber}"`,
                 safeString(p.user.role),
                 safeString(p.user.email),
+                `="${p.user.aadharNo || ''}"`,
+                safeString(p.user.address),
+                safeString(p.user.academicYear),
                 `="${p.transactionId || 'N/A'}"`,
                 p.orderAmount,
                 safeString(p.adminRemarks)
@@ -516,7 +529,10 @@ export async function exportWaivers(startDate: Date, endDate: Date, selectedColu
                     select: {
                         fullName: true,
                         mobileNumber: true,
-                        role: true
+                        role: true,
+                        aadharNo: true,
+                        address: true,
+                        academicYear: true
                     }
                 }
             },
@@ -528,6 +544,9 @@ export async function exportWaivers(startDate: Date, endDate: Date, selectedColu
         const colDefs: Record<string, { header: string, accessor: (s: any) => string | number | null }> = {
             'fullName': { header: 'Ambassador Name', accessor: (s) => s.user.fullName },
             'mobile': { header: 'Mobile Number', accessor: (s) => `="${s.user.mobileNumber}"` },
+            'aadharNo': { header: 'Aadhar No', accessor: (s) => `="${s.user.aadharNo || ''}"` },
+            'address': { header: 'Address', accessor: (s) => (s.user.address || '').replace(/"/g, '""') },
+            'academicYear': { header: 'Academic Year', accessor: (s) => s.user.academicYear || 'N/A' },
             'childName': {
                 header: 'Child Name',
                 accessor: (s) => {
@@ -599,6 +618,8 @@ export async function exportLiabilities(startDate: Date, endDate: Date, selected
             'fullName': { header: 'Ambassador Name', accessor: (l) => l.fullName },
             'mobile': { header: 'Mobile Number', accessor: (l) => `="${l.mobileNumber}"` },
             'role': { header: 'Role', accessor: (l) => l.role },
+            'aadharNo': { header: 'Aadhar No', accessor: (l) => `="${l.user?.aadharNo || ''}"` },
+            'address': { header: 'Address', accessor: (l) => (l.user?.address || '').replace(/"/g, '""') },
             'campus': { header: 'Ambassador Campus', accessor: (l) => l.campusName || 'N/A' },
             'bankName': {
                 header: 'Bank Name',

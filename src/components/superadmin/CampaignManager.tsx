@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getAudienceCount, exportCampaignData, runCampaign, resetStuckCampaign } from '@/app/campaign-actions'
+import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getAudienceCount, exportCampaignData, runCampaign, resetStuckCampaign, syncCampaignMetrics } from '@/app/campaign-actions'
 import { dispatchCampaignBatch } from '@/app/campaign-dispatcher'
 import { getCampuses } from '@/app/campus-actions'
 import { toast } from 'sonner'
-import { Plus, Play, Edit, Trash2, Mail, Clock, CheckCircle2, AlertTriangle, Loader2, Users, Building2, Eye, Filter, Sparkles, Send, Target, ChevronRight, Activity, X, Save, Smartphone, Bell, Download } from 'lucide-react'
+import { Plus, Play, Edit, Trash2, Mail, Clock, CheckCircle2, AlertTriangle, Loader2, Users, Building2, Eye, Filter, Sparkles, Send, Target, ChevronRight, Activity, X, Save, Smartphone, Bell, Download, Database, RefreshCw } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CampaignAnalytics } from './CampaignAnalytics'
@@ -377,6 +377,23 @@ export function CampaignManager() {
                                             <button onClick={() => openEdit(c)} className="p-2.5 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-indigo-600 hover:shadow-sm transition-all" title="Edit Logic"><Edit size={16} /></button>
                                             {(c.status === 'SCHEDULED' || c.logs?.[0]?.status === 'PROCESSING') && (
                                                 <button onClick={() => handleReset(c.id, c.name)} className="p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-amber-500 hover:bg-amber-100 hover:shadow-sm transition-all" title="Reset Stuck State"><AlertTriangle size={16} /></button>
+                                            )}
+                                            {c.channels?.includes('WHATSAPP') && c.logs?.[0] && (
+                                                <button
+                                                    onClick={async () => {
+                                                        const res = await syncCampaignMetrics(c.id);
+                                                        if (res.success) {
+                                                            toast.success('Metrics Synced Perfectly');
+                                                            fetchCampaigns();
+                                                        } else {
+                                                            toast.error(res.error || 'Sync Failed');
+                                                        }
+                                                    }}
+                                                    className="p-2.5 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-400 hover:bg-indigo-600 hover:text-white hover:shadow-sm transition-all"
+                                                    title="Sync Live Metrics"
+                                                >
+                                                    <Database size={16} />
+                                                </button>
                                             )}
                                             <button onClick={() => handleDelete(c.id)} className="p-2.5 bg-rose-50 border border-rose-100 rounded-xl text-rose-400 hover:bg-rose-600 hover:text-white hover:shadow-sm transition-all" title="Purge Artifact"><Trash2 size={16} /></button>
                                         </div>

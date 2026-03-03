@@ -20,13 +20,28 @@ export async function syncUserStats(userId: number) {
 
         if (!user) return { success: false, error: 'User not found' }
 
-        // --- 1. ACTIVATION (Standard Compliance) ---
         // AS SENIOR EXPERT RULE: Account Status is strictly driven by Payment Status
-        // Accepted Paid Statuses: 'Success' or 'Completed'
-        const normalizedPaymentStatus = (user.paymentStatus || '').toLowerCase()
-        const hasPaid = normalizedPaymentStatus === 'success' || normalizedPaymentStatus === 'completed'
-        const currentStatus = user.status
+        // We proactively check the Payment table to ensure the User record is in sync with reality.
+        const successPayment = await prisma.payment.findFirst({
+            where: { userId, paymentStatus: { in: ['Success', 'SUCCESS'] } },
+            orderBy: { createdAt: 'desc' }
+        })
+
+        const normalizedUserPaymentStatus = (user.paymentStatus || '').toLowerCase()
+        let hasPaid = normalizedUserPaymentStatus === 'success' || normalizedUserPaymentStatus === 'completed'
+
         let updatedUserDetails: any = {}
+
+        if (successPayment) {
+            hasPaid = true
+            updatedUserDetails.paymentStatus = 'Success'
+            updatedUserDetails.paymentAmount = successPayment.orderAmount
+            if (successPayment.transactionId) {
+                updatedUserDetails.transactionId = successPayment.transactionId
+            }
+        }
+
+        const currentStatus = user.status
 
         if (!hasPaid) {
             // Force status to Pending if payment is not Success
@@ -102,6 +117,8 @@ export async function syncUserStats(userId: number) {
             // ELITE UPGRADE: Auto-flag as 5-Star Member upon reaching milestone
             isFiveStarMember: user.isFiveStarMember || nonSpecialConfirmedCount >= 5
         }
+
+        // Check for Elite Upgrade Milestones
 
         // Apply Updates
         const updatedUser = await prisma.user.update({

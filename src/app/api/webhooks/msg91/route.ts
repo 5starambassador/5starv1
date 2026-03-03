@@ -12,29 +12,36 @@ import prisma from '@/lib/prisma'
 export async function POST(request: Request) {
     try {
         const body = await request.json()
-        console.log('[MSG91 Webhook] Received Payload:', JSON.stringify(body, null, 2))
+        console.log('[MSG91 Webhook] Full Payload:', JSON.stringify(body, null, 2))
 
         const events = Array.isArray(body) ? body : [body]
 
         for (const event of events) {
-            const campaignIdStr = event.CRQID || event.custom_ref || event.ref_id
+            // MSG91 sends varied field names for references
+            const rawId = event.CRQID || event.custom_ref || event.ref_id || event.externalId
             const status = event.status ? event.status.toUpperCase() : ''
-            const mobile = event.mobile || event.customerNumber
+            const rawMobile = event.mobile || event.customerNumber || event.destination
 
-            if (!campaignIdStr) {
-                console.warn('[MSG91 Webhook] No CRQID found in event:', event.requestId || 'unknown')
+            // Normalize mobile: remove +, remove 91 prefix if it exists
+            const mobile = rawMobile ? rawMobile.toString().replace(/^\+/, '').replace(/^91/, '') : ''
+
+            console.log(`[MSG91 Webhook] Extracted: ID=${rawId}, Status=${status}, Mobile=${mobile}`)
+
+            if (!rawId) {
+                console.warn('[MSG91 Webhook] Missing Campaign Reference ID. Event:', JSON.stringify(event))
                 continue
             }
 
-            const campaignId = parseInt(campaignIdStr)
+            const campaignId = parseInt(rawId.toString())
             if (isNaN(campaignId)) {
-                console.error('[MSG91 Webhook] Invalid campaignId:', campaignIdStr)
+                console.error('[MSG91 Webhook] Invalid numeric ID:', rawId)
                 continue
             }
 
-            console.log(`[MSG91 Webhook] Processing ${status} for Campaign #${campaignId} (Mobile: ${mobile})`)
+            // Status Map for normalization
+            const normalizedStatus = status === 'DELIVERED' || status === 'DELIVERY' ? 'DELIVERED' : status
 
-            if (status === 'DELIVERED' || status === 'READ') {
+            if (normalizedStatus === 'DELIVERED' || normalizedStatus === 'READ') {
                 const latestLog = await prisma.campaignLog.findFirst({
                     where: { campaignId: campaignId },
                     orderBy: { runAt: 'desc' }
@@ -42,30 +49,31 @@ export async function POST(request: Request) {
 
                 if (latestLog) {
                     const updateData: any = {}
-                    if (status === 'DELIVERED') updateData.whatsappDelivered = { increment: 1 }
-                    if (status === 'READ') updateData.whatsappRead = { increment: 1 }
+                    if (normalizedStatus === 'DELIVERED') updateData.whatsappDelivered = { increment: 1 }
+                    if (normalizedStatus === 'READ') updateData.whatsappRead = { increment: 1 }
 
                     await prisma.campaignLog.update({
                         where: { id: latestLog.id },
                         data: updateData
                     })
 
-                    // Also update the specific recipient status if available
+                    // Update recipient status with normalized mobile matching
                     if (mobile) {
+                        // We check for both exactly mobile and mobile with prefix in DB
                         await (prisma as any).campaignRecipient.updateMany({
                             where: {
                                 campaignId: campaignId,
-                                mobile: mobile,
+                                mobile: { contains: mobile }, // More flexible matching
                                 channel: 'WHATSAPP'
                             },
                             data: {
-                                status: status,
-                                [status === 'DELIVERED' ? 'deliveredAt' : 'readAt']: new Date()
+                                status: normalizedStatus,
+                                [normalizedStatus === 'DELIVERED' ? 'deliveredAt' : 'readAt']: new Date()
                             }
-                        }).catch((e: any) => console.error('[MSG91 Webhook] Failed to update recipient status:', e.message))
+                        }).catch((e: any) => console.error('[MSG91 Webhook] Recipient update error:', e.message))
                     }
                 } else {
-                    console.warn(`[MSG91 Webhook] No CampaignLog found for Campaign #${campaignId}`)
+                    console.warn(`[MSG91 Webhook] CampaignLog not found for ID: ${campaignId}`)
                 }
             }
         }
