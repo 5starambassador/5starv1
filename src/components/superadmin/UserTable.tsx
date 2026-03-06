@@ -222,7 +222,7 @@ export function UserTable({
                             {user.status}
                         </Badge>
                         <span className="text-[10px] font-bold text-gray-400 whitespace-nowrap" suppressHydrationWarning>
-                            Joined {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                            Joined {new Date(user.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
                         </span>
                     </div>
                 )

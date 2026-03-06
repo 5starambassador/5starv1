@@ -71,13 +71,34 @@ export async function getMyEarningsStats(academicYear?: string): Promise<{
                 return date >= new Date('2025-01-01')
             })
 
-        // Fetch Settlements
+        // Fetch Settlements — using OR so granular payouts (with payoutDate) are matched
+        // by payoutDate, while legacy lump-sum settlements are matched by createdAt
         const settlementWhere: any = { userId: user.userId }
         if (academicYear !== 'All Time' && yearRecord) {
-            settlementWhere.createdAt = {
+            const dateRange = {
                 gte: yearRecord.startDate,
                 lte: yearRecord.endDate
             }
+            settlementWhere.OR = [
+                // 1. Legacy lump-sum settlements → filter by createdAt
+                { benefitType: null, createdAt: dateRange },
+                // 2. Granular settlements → filter by payoutDate (fall back to createdAt if null)
+                { benefitType: { not: null }, payoutDate: dateRange },
+                { benefitType: { not: null }, payoutDate: null, createdAt: dateRange },
+                // 3. IMPORTANT: Any settlement linked to a referral assigned to THIS cycle
+                // This ensures early payouts in Feb/Mar show up in the 2026-2027 view
+                {
+                    referralLead: {
+                        OR: [
+                            { academicYear: yearFilter },
+                            { admittedYear: yearFilter }
+                        ]
+                    }
+                },
+                // 4. Pending settlements always included (no payout date yet)
+                { status: 'Pending', userId: user.userId }
+            ]
+            delete settlementWhere.createdAt
         }
 
         const settlements = await prisma.settlement.findMany({

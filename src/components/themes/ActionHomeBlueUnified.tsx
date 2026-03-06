@@ -33,6 +33,8 @@ interface ActionHomeBlueUnifiedProps {
     monthStats?: any | null
     totalLeadsCount?: number
     overrideEarnedAmount?: number
+    overrideGrossAmount?: number
+    overrideSettledAmount?: number
     overrideEstimatedAmount?: number
     notifications?: any[]
     unreadCount?: number
@@ -94,6 +96,8 @@ export function ActionHomeBlueUnified({
     monthStats,
     totalLeadsCount = 0,
     overrideEarnedAmount,
+    overrideGrossAmount,
+    overrideSettledAmount,
     overrideEstimatedAmount,
     notifications = [],
     unreadCount = 0
@@ -381,6 +385,17 @@ export function ActionHomeBlueUnified({
                                             </div>
                                             <div className="text-[12px] font-black text-white bg-indigo-500/40 px-3 py-1 rounded-xl border border-white/20 backdrop-blur-md mb-2 shadow-xl">{benefitPercent}%</div>
                                         </div>
+                                        {overrideSettledAmount && overrideSettledAmount > 0 ? (
+                                            <div className="flex items-center gap-3 mt-2">
+                                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-300 uppercase tracking-widest">
+                                                    <CheckCircle size={10} />
+                                                    Paid: ₹{overrideSettledAmount.toLocaleString('en-IN')}
+                                                </div>
+                                                <div className="text-[10px] font-black text-white/30 uppercase tracking-widest">
+                                                    Total: ₹{(overrideGrossAmount || currentBenefitAmount).toLocaleString('en-IN')}
+                                                </div>
+                                            </div>
+                                        ) : null}
                                     </div>
 
                                     <Wallet className="absolute -bottom-16 -right-16 text-white/[0.03] rotate-[-20deg] group-hover/indigo:rotate-[-10deg] group-hover/indigo:scale-110 transition-all duration-1000 pointer-events-none blur-[1px]" size={240} />

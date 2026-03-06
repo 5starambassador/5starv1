@@ -9,7 +9,35 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { GlassCard } from '@/components/ui/GlassCard'
 import Link from 'next/link'
 
-// Shared Logic for Filtering (Mirrors server logic but runs on client)
+// Shared Logic for Filtering Settlements (Matches earnings-actions.ts)
+const filterSettlementsByYear = (settlements: any[], yearRecord: any, yearFilter: string) => {
+    if (!yearRecord) return settlements // "All Time" case
+
+    const startDate = new Date(yearRecord.startDate)
+    const endDate = new Date(yearRecord.endDate)
+
+    return settlements.filter((s: any) => {
+        const createdAt = new Date(s.createdAt)
+        const payoutDate = s.payoutDate ? new Date(s.payoutDate) : null
+
+        // 1. Legacy Check
+        if (!s.benefitType && createdAt >= startDate && createdAt <= endDate) return true
+
+        // 2. Granular Payout Check
+        if (s.benefitType && payoutDate && payoutDate >= startDate && payoutDate <= endDate) return true
+        if (s.benefitType && !payoutDate && createdAt >= startDate && createdAt <= endDate) return true
+
+        // 3. Referral-Link Check (New)
+        if (s.referralLead) {
+            const rYear = s.referralLead.academicYear || s.referralLead.admittedYear
+            if (rYear === yearFilter) return true
+        }
+
+        return false
+    })
+}
+
+// Shared Logic for Filtering Referrals (Mirrors server logic but runs on client)
 const filterReferralsByYear = (referrals: any[], yearRecord: any, CURRENT_ACADEMIC_YEAR: string, PREVIOUS_ACADEMIC_YEAR: string) => {
     if (!yearRecord) return referrals // "All Time" case
 
@@ -70,6 +98,7 @@ interface DashboardClientProps {
     user: ClientUser
     referrals: any[]
     activeYears: any[]
+    settlements: any[]
     campusFeeMap: Map<number, { otp: number, wotp: number }>
     slabs: BenefitSlabData[]
     // Pre-calculated context stuff
@@ -87,6 +116,7 @@ export function DashboardClient({
     user,
     referrals,
     activeYears,
+    settlements,
     campusFeeMap,
     slabs,
     dynamicStudentFee,
@@ -197,15 +227,27 @@ export function DashboardClient({
         const earnedBenefits = calculateTotalBenefit(formatForCalculator(confirmedSet), userContext, slabs)
         const potentialBenefits = calculateTotalBenefit(formatForCalculator(allProspectsSet), userContext, slabs, true)
 
+        // 4. Calculate Settlements for this set
+        let filteredSettlements = settlements
+        if (selectedYearId !== 'all' && selectedYearRecord) {
+            filteredSettlements = filterSettlementsByYear(settlements, selectedYearRecord, selectedYearRecord.year)
+        }
+
+        const totalSettled = filteredSettlements
+            .filter((s: any) => s.status === 'Processed')
+            .reduce((acc: number, s: any) => acc + (s.amount || 0), 0)
+
         const benefitStats = {
-            earned: earnedBenefits.totalAmount,
+            earned: Math.max(0, earnedBenefits.totalAmount - totalSettled), // Net Balance
+            grossEarned: earnedBenefits.totalAmount,
+            totalSettled: totalSettled,
             potential: potentialBenefits.totalAmount,
             displayPercent: earnedBenefits.tierPercent,
             potentialPercent: potentialBenefits.tierPercent
         }
 
         return { filteredReferrals: currentSet, benefitStats }
-    }, [referrals, selectedYearId, activeYears, campusFeeMap, user, slabs, currentYear, prevYear])
+    }, [referrals, settlements, selectedYearId, activeYears, campusFeeMap, user, slabs, currentYear, prevYear])
 
     // Derived Display Data
     const realConfirmedCount = filteredReferrals.filter((r: any) => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted').length
@@ -329,6 +371,8 @@ export function DashboardClient({
                 monthStats={monthStats}
                 totalLeadsCount={pendingCount}
                 overrideEarnedAmount={benefitStats.earned}
+                overrideGrossAmount={benefitStats.grossEarned}
+                overrideSettledAmount={benefitStats.totalSettled}
                 overrideEstimatedAmount={benefitStats.potential}
                 notifications={notifications}
                 unreadCount={unreadCount}

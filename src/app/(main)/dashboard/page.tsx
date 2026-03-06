@@ -26,11 +26,15 @@ export default async function DashboardPage() {
     if (user.role.includes('Admin') && user.role !== 'Admission Admin') redirect('/admin')
 
     const userData = user as any
-    const [referrals, dynamicStudentFee, slabsResult, activeYears] = await Promise.all([
+    const [referrals, dynamicStudentFee, slabsResult, activeYears, settlements] = await Promise.all([
         getMyReferrals(),
         getDynamicFeeForUser(),
         getBenefitSlabs(),
-        prisma.academicYear.findMany({ where: { isActive: true } })
+        prisma.academicYear.findMany({ where: { isActive: true } }),
+        prisma.settlement.findMany({
+            where: { userId: userData.userId },
+            include: { referralLead: true }
+        })
     ])
 
     const currentYearRecord = activeYears.find(y => y.isCurrent) || activeYears[0]
@@ -151,6 +155,19 @@ export default async function DashboardPage() {
         updatedAt: y.updatedAt ? new Date(y.updatedAt).toISOString() : null
     }))
 
+    // Sanitize Settlements (Date -> String)
+    const serializedSettlements = settlements.map((s: any) => ({
+        ...s,
+        createdAt: s.createdAt ? new Date(s.createdAt).toISOString() : null,
+        payoutDate: s.payoutDate ? new Date(s.payoutDate).toISOString() : null,
+        updatedAt: s.updatedAt ? new Date(s.updatedAt).toISOString() : null,
+        referralLead: s.referralLead ? {
+            ...s.referralLead,
+            createdAt: s.referralLead.createdAt ? new Date(s.referralLead.createdAt).toISOString() : null,
+            confirmedDate: s.referralLead.confirmedDate ? new Date(s.referralLead.confirmedDate).toISOString() : null
+        } : null
+    }))
+
     // Fetch Notifications
     const { notifications, unreadCount } = await import('@/app/notification-actions').then(m => m.getNotifications(1, 10))
 
@@ -163,6 +180,7 @@ export default async function DashboardPage() {
             user={userForClient}
             referrals={serializedReferrals}
             activeYears={serializedActiveYears}
+            settlements={serializedSettlements}
             campusFeeMap={campusFeeMap as any}
             slabs={slabsResult.data || []}
             dynamicStudentFee={dynamicStudentFee || 60000}
