@@ -12,6 +12,7 @@ import { getMyPermissions } from '@/lib/permission-service'
 import { RolePermissions } from '@/lib/permissions'
 import { deleteSession } from '@/lib/session'
 import { LayoutOverlays } from '@/components/LayoutOverlays'
+import { CollapsibleSidebar } from '@/components/CollapsibleSidebar'
 
 async function logout() {
     'use server'
@@ -149,48 +150,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                 <div className={`absolute inset-0 ${themeGlassClass}`}></div>
             </div>
 
-            {/* Desktop Sidebar (Permanent) */}
-            <aside className="desktop-sidebar hidden xl:flex flex-col w-[280px] shrink-0 border-r border-white/10 p-4 fixed top-0 left-0 bottom-0 z-20 bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#1e1b4b] shadow-[20px_0_80px_rgba(0,0,0,0.8)]">
-                {/* Royal Border Highlight */}
-                <div className="absolute top-0 right-0 w-[1px] h-full bg-gradient-to-b from-transparent via-white/20 to-transparent" />
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
-
-                <div className="flex flex-col items-center pt-6 pb-6 px-2">
-                    <div className="relative group cursor-pointer hover:scale-105 transition-transform duration-500 mb-5">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-amber-500 to-red-500 rounded-2xl blur opacity-25 group-hover:opacity-60 transition duration-1000 group-hover:duration-200"></div>
-                        <img
-                            src="/achariya_25_logo.jpg"
-                            alt="Achariya 25th Year"
-                            className="relative object-contain shadow-2xl h-[90px] w-auto max-w-[200px]"
-                        />
-                    </div>
-
-                    <div className="text-center">
-                        <h2 className="text-white text-base font-black tracking-tight drop-shadow-lg uppercase leading-tight" style={{ letterSpacing: '0.05em' }}>
-                            Achariya
-                        </h2>
-                        <p className="text-[11px] text-indigo-200/70 font-bold uppercase tracking-widest mb-1.5">
-                            Partnership Program
-                        </p>
-                        <p className="text-[10px] uppercase tracking-[0.3em] font-black !text-amber-400 drop-shadow-md">
-                            25<sup className="text-[0.6em]">th</sup> Year Celebration
-                        </p>
-                    </div>
-                </div>
-
-                {/* Premium Divider - Sharpened */}
-                <div className="px-6 mb-10">
-                    <div className="h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/30 to-transparent blur-md"></div>
-                    </div>
-                </div>
-                <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none">
-                    <MobileMenu navItems={navItems} user={{ fullName: user.fullName, role: user.role }} logoutAction={logout} />
-                </div>
-            </aside>
-
-            {/* Desktop Sidebar Spacer */}
-            <div className="hidden xl:block w-[280px] shrink-0" />
+            {/* Desktop Collapsible Sidebar (client component — handles expand/collapse) */}
+            <CollapsibleSidebar navItems={navItems} user={{ fullName: user.fullName, role: user.role }} logoutAction={logout} />
 
             {/* Main Content Wrapper */}
             <div className="flex-1 flex flex-col w-full min-w-0 items-center relative">
@@ -220,12 +181,12 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                     </div>
                 </div>
 
-                <div className={`flex-1 w-full ${isSuperAdmin ? 'max-w-full' : 'max-w-[1400px]'} flex flex-col pt-16 xl:pt-0 ${isAmbassadorRole ? 'md:pt-0' : ''}`}>
+                <div className={`flex-1 w-full ${isAmbassadorRole ? 'max-w-[1400px]' : 'max-w-full'} flex flex-col pt-16 xl:pt-0 ${isAmbassadorRole ? 'md:pt-0' : ''}`}>
                     {isAmbassadorRole && (
                         <NotificationTicker userName={user.fullName} referralCode={(user as any).referralCode || ''} />
                     )}
 
-                    <main className={`flex-1 w-full px-4 py-4 xl:p-8 ${isAmbassadorRole ? 'pt-16' : 'pt-4'} xl:pt-8 pb-20 xl:pb-8 relative z-10`}>
+                    <main className={`flex-1 w-full px-4 py-4 ${isAmbassadorRole ? 'xl:px-8 xl:py-8' : 'xl:px-4 xl:py-5'} ${isAmbassadorRole ? 'pt-16' : 'pt-4'} xl:pt-5 pb-20 xl:pb-6 relative z-10`}>
                         <header className="hidden xl:flex justify-end mb-4 absolute top-4 right-8 z-20">
                             <div className="bg-white/80 backdrop-blur-md p-1.5 rounded-full shadow-sm border border-white/50">
                                 <NotificationDropdown userName={user.fullName} referralCode={(user as any).referralCode || ''} />

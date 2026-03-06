@@ -229,7 +229,7 @@ export function UserTable({
             },
         },
         {
-            header: 'Actions',
+            header: <span className="flex justify-end w-full pr-1">Actions</span>,
             accessorKey: (user: User) => user.userId,
             cell: (user: User) => (
                 <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
@@ -725,7 +725,7 @@ export function UserTable({
                 </div>
             )}
 
-            <div className="w-full xl:max-w-[calc(100vw-340px)] mx-auto overflow-hidden">
+            <div className="w-full overflow-hidden">
                 <div className="overflow-x-auto pb-4 custom-scrollbar">
                     <DataTable
                         data={users.filter(u => {
