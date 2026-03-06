@@ -62,14 +62,6 @@ export function ActionHomePurple({ user, recentReferrals, whatsappUrl, monthStat
 
     return (
         <PageAnimate className="space-y-6 md:space-y-8 pb-10 font-[family-name:var(--font-outfit)]">
-            <link rel="preconnect" href="https://fonts.googleapis.com" />
-            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-            <style dangerouslySetInnerHTML={{
-                __html: `
-                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
-                :root { --font-outfit: 'Outfit', sans-serif; }
-            `}} />
-
             {/* Option 1: Blue + Teal - Premium Quality */}
             <PageItem
                 className="bg-gradient-to-br from-purple-700 via-violet-600 to-purple-800 rounded-[32px] md:rounded-[40px] p-6 md:p-10 text-white relative overflow-hidden shadow-[0_30px_60px_-15px_rgba(29,78,216,0.3)] min-h-[480px] md:min-h-[420px] flex flex-col justify-between"

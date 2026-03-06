@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Outfit } from "next/font/google";
+import { outfit } from "@/lib/fonts";
 import "./fonts.css";
 import "./globals.css";
 import { Toaster } from "sonner";
@@ -8,11 +8,7 @@ import { SWRegistration } from "@/components/SWRegistration";
 import { OfflineSync } from "@/components/OfflineSync";
 import { VersionStability } from "@/components/VersionStability";
 
-const outfit = Outfit({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-outfit",
-});
+// Font imported from @/lib/fonts
 
 import type { Viewport } from 'next'
 
