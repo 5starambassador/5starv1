@@ -452,7 +452,7 @@ export function UserTable({
             if (selectedColumns.paymentAmount) row.push(user.paymentAmount || 0)
             if (selectedColumns.paymentStatus) row.push(`"${user.paymentStatus || ''}"`)
             if (selectedColumns.transactionId) row.push(`="${user.transactionId || ''}"`)
-            if (selectedColumns.referralCode) row.push(`"${user.referralCode || ''}"`)
+            if (selectedColumns.referralCode) row.push(`="${user.referralCode || ''}"`)
             if (selectedColumns.confirmedReferrals) row.push(user.confirmedReferralCount || 0)
             if (selectedColumns.yearBenefit) row.push(user.yearFeeBenefitPercent || 0)
             if (selectedColumns.longTermBenefit) row.push(user.longTermBenefitPercent || 0)

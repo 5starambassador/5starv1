@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { DataTable } from '@/components/ui/DataTable'
 import { CheckCircle, Info, Send, AlertTriangle, Download, Search } from 'lucide-react'
-import { bulkInitiateSettlements, bulkRecordWaiverAdjustments } from '@/app/finance-actions'
+import { bulkInitiateSettlements, bulkRecordWaiverAdjustments, releaseGranularBenefit } from '@/app/finance-actions'
 import { toast } from 'sonner'
 import { FileDown } from 'lucide-react'
 import { ExportDateRangeModal } from './ExportDateRangeModal'
@@ -439,13 +439,132 @@ export function LiabilityLedgerTable({ data, mode, academicYear, search = '', on
                                                     {ref.payoutStatus}
                                                 </span>
                                             </div>
-                                            <div className="flex justify-between items-end border-t border-gray-50 pt-2 mt-auto">
-                                                <div className="text-[9px] text-gray-400 font-mono">
-                                                    Ref ID: {ref.leadId}
+                                            <div className="flex flex-col gap-2 mt-3 border-t border-gray-50 pt-3">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[10px] font-bold text-blue-600">Admission Share (80%)</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-mono font-bold">₹{ref.admShareValue?.toLocaleString()}</span>
+                                                        {ref.isAdmissionSettled ? (
+                                                            <span className="text-[8px] bg-emerald-50 text-emerald-600 px-1 rounded border border-emerald-100 font-bold uppercase">Paid</span>
+                                                        ) : ref.isAdmissionPending ? (
+                                                            <span className="text-[8px] bg-amber-50 text-amber-600 px-1 rounded border border-amber-200 font-bold uppercase">Pending</span>
+                                                        ) : ref.isAdmissionReady ? (
+                                                            <button
+                                                                onClick={async () => {
+                                                                    if (!confirm(`Release Admission Share of ₹${ref.admShareValue.toLocaleString()} for ${ref.studentName || ref.fullName}?`)) return
+                                                                    setIsProcessing(true)
+                                                                    const res = await releaseGranularBenefit({
+                                                                        userId: row.userId,
+                                                                        amount: ref.admShareValue,
+                                                                        benefitType: 'ADMISSION_SHARE',
+                                                                        referralLeadId: ref.id,
+                                                                        remarks: `Admission Share for ${ref.studentName || ref.fullName}`
+                                                                    })
+                                                                    if (res.success) {
+                                                                        toast.success("Admission share payout initiated")
+                                                                        router.refresh()
+                                                                    } else {
+                                                                        toast.error(res.error)
+                                                                    }
+                                                                    setIsProcessing(false)
+                                                                }}
+                                                                disabled={isProcessing}
+                                                                className="text-[9px] bg-blue-600 text-white px-2 py-0.5 rounded shadow-sm hover:bg-blue-700 font-bold"
+                                                            >
+                                                                Release
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-[8px] text-gray-400 font-medium italic">Wait for Fee</span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                {ref.virtuallyPaidAmount && (
+
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[10px] font-bold text-orange-600">Donation Share (50%)</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-mono font-bold">₹{ref.donShareValue?.toLocaleString()}</span>
+                                                        {ref.isDonationSettled ? (
+                                                            <span className="text-[8px] bg-emerald-50 text-emerald-600 px-1 rounded border border-emerald-100 font-bold uppercase">Paid</span>
+                                                        ) : ref.isDonationPending ? (
+                                                            <span className="text-[8px] bg-amber-50 text-amber-600 px-1 rounded border border-amber-200 font-bold uppercase">Pending</span>
+                                                        ) : ref.isDonationReady ? (
+                                                            <button
+                                                                onClick={async () => {
+                                                                    if (!confirm(`Release Donation Share of ₹${ref.donShareValue.toLocaleString()} for ${ref.studentName || ref.fullName}?`)) return
+                                                                    setIsProcessing(true)
+                                                                    const res = await releaseGranularBenefit({
+                                                                        userId: row.userId,
+                                                                        amount: ref.donShareValue,
+                                                                        benefitType: 'DONATION_SHARE',
+                                                                        referralLeadId: ref.id,
+                                                                        remarks: `Donation Share for ${ref.studentName || ref.fullName}`
+                                                                    })
+                                                                    if (res.success) {
+                                                                        toast.success("Donation share payout initiated")
+                                                                        router.refresh()
+                                                                    } else {
+                                                                        toast.error(res.error)
+                                                                    }
+                                                                    setIsProcessing(false)
+                                                                }}
+                                                                disabled={isProcessing}
+                                                                className="text-[9px] bg-orange-600 text-white px-2 py-0.5 rounded shadow-sm hover:bg-orange-700 font-bold"
+                                                            >
+                                                                Release
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-[8px] text-gray-400 font-medium italic">Wait for Fee</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[10px] font-bold text-purple-600">Slab Reward ({ref.slabPercent ?? row.benefitPercent}%)</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-mono font-bold">₹{ref.referralSlabValue?.toLocaleString()}</span>
+                                                        {ref.isSlabSettled ? (
+                                                            <span className="text-[8px] bg-emerald-50 text-emerald-600 px-1 rounded border border-emerald-100 font-bold uppercase">Paid</span>
+                                                        ) : ref.isSlabPending ? (
+                                                            <span className="text-[8px] bg-amber-50 text-amber-600 px-1 rounded border border-amber-200 font-bold uppercase">Pending</span>
+                                                        ) : ref.isSlabReady ? (
+                                                            <button
+                                                                onClick={async () => {
+                                                                    if (!confirm(`Release Slab Reward of ₹${ref.referralSlabValue.toLocaleString()} for ${ref.studentName || ref.fullName}?`)) return
+                                                                    setIsProcessing(true)
+                                                                    const res = await releaseGranularBenefit({
+                                                                        userId: row.userId,
+                                                                        amount: ref.referralSlabValue,
+                                                                        benefitType: 'SLAB_SHARE',
+                                                                        referralLeadId: ref.id,
+                                                                        remarks: `Slab Reward for ${ref.studentName || ref.fullName}`
+                                                                    })
+                                                                    if (res.success) {
+                                                                        toast.success("Slab reward payout initiated")
+                                                                        router.refresh()
+                                                                    } else {
+                                                                        toast.error(res.error)
+                                                                    }
+                                                                    setIsProcessing(false)
+                                                                }}
+                                                                disabled={isProcessing}
+                                                                className="text-[9px] bg-purple-600 text-white px-2 py-0.5 rounded shadow-sm hover:bg-purple-700 font-bold"
+                                                            >
+                                                                {row.group === 'Group A' ? 'Apply Waiver' : 'Release'}
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-[8px] text-gray-400 font-medium italic">Wait for Fee</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-between items-end border-t border-gray-50 pt-2 mt-3 italic">
+                                                <div className="text-[9px] text-gray-400 font-mono">
+                                                    Lead Status: {ref.leadStatus} • ID: {ref.leadId}
+                                                </div>
+                                                {ref.virtuallyPaidAmount > 0 && (
                                                     <div className="text-[10px] font-black text-emerald-600">
-                                                        Settled: ₹{ref.virtuallyPaidAmount.toLocaleString()}
+                                                        Legacy Settled: ₹{ref.virtuallyPaidAmount.toLocaleString()}
                                                     </div>
                                                 )}
                                             </div>

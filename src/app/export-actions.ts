@@ -109,10 +109,10 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
             'childEpr': { header: 'Child EPR No', accessor: (u) => `="${u.childEprNo}"` },
             'empId': { header: 'Employee ID', accessor: (u) => `="${u.empId}"` },
             'paymentStatus': { header: 'Payment Status', accessor: (u) => u.paymentStatus },
-            'txnId': { header: 'Transaction ID', accessor: (u) => u.transactionId || u.payments?.[0]?.transactionId || 'N/A' },
+            'txnId': { header: 'Transaction ID', accessor: (u) => u.transactionId || u.payments?.[0]?.transactionId ? `="${u.transactionId || u.payments?.[0]?.transactionId}"` : 'N/A' },
             'amount': { header: 'Payment Amount', accessor: (u) => u.paymentAmount },
             'paymentMethod': { header: 'Payment Method', accessor: (u) => u.payments?.[0]?.paymentMethod || 'N/A' },
-            'bankRef': { header: 'Bank Reference (UTR)', accessor: (u) => u.payments?.[0]?.bankReference || 'N/A' },
+            'bankRef': { header: 'Bank Reference (UTR)', accessor: (u) => u.payments?.[0]?.bankReference ? `="${u.payments[0].bankReference}"` : 'N/A' },
             'paidAt': { header: 'Payment Date', accessor: (u) => u.payments?.[0]?.paidAt ? format(new Date(u.payments[0].paidAt), 'yyyy-MM-dd HH:mm') : 'N/A' },
             'status': { header: 'Account Status', accessor: (u) => u.status },
             'benefitStatus': { header: 'Benefit Status', accessor: (u) => u.benefitStatus },
@@ -143,6 +143,8 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
         const csvRows = users.map(user => {
             return columnsToExport.map(k => {
                 const val = colDefs[k].accessor(user)
+                // If it's already an Excel formula (="VAL"), return as is
+                if (typeof val === 'string' && val.startsWith('="')) return val
                 return safeString(val as string)
             }).join(',')
         })
@@ -235,7 +237,7 @@ export async function exportPayouts(startDate: Date, endDate: Date, status?: str
             'amount': { header: 'Amount', accessor: (s) => s.amount },
             'status': { header: 'Status', accessor: (s) => s.status },
             'payoutDate': { header: 'Payout Date', accessor: (s) => s.payoutDate ? format(new Date(s.payoutDate), 'yyyy-MM-dd HH:mm') : '' },
-            'bankRef': { header: 'Bank Reference', accessor: (s) => s.bankReference },
+            'bankRef': { header: 'Bank Reference', accessor: (s) => s.bankReference ? `="${s.bankReference}"` : 'N/A' },
             'bankName': {
                 header: 'Bank Name',
                 accessor: (s) => {
@@ -461,7 +463,7 @@ export async function exportRefunds(startDate: Date, endDate: Date, selectedColu
             'bankName': { header: 'Bank Name', accessor: (u) => u.bankName || 'N/A' },
             'accountNo': { header: 'Account Number', accessor: (u) => u.accountNumber ? `="${u.accountNumber}"` : 'N/A' },
             'ifsc': { header: 'IFSC Code', accessor: (u) => u.ifscCode || 'N/A' },
-            'bankRef': { header: 'Bank Ref (UTR)', accessor: (u) => u.settlements?.[0]?.bankReference || 'N/A' },
+            'bankRef': { header: 'Bank Ref (UTR)', accessor: (u) => u.settlements?.[0]?.bankReference ? `="${u.settlements[0].bankReference}"` : 'N/A' },
             'remarks': { header: 'Audit Remarks', accessor: (u) => u.settlements?.[0]?.remarks || u.payments?.[0]?.adminRemarks || '-' }
         }
 
@@ -563,7 +565,7 @@ export async function exportWaivers(startDate: Date, endDate: Date, selectedColu
             },
             'amount': { header: 'Waiver Amount', accessor: (s) => s.amount },
             'date': { header: 'Applied Date', accessor: (s) => s.payoutDate ? format(new Date(s.payoutDate), 'yyyy-MM-dd') : format(new Date(s.createdAt), 'yyyy-MM-dd') },
-            'bankRef': { header: 'Reference ID', accessor: (s) => s.bankReference || 'N/A' },
+            'bankRef': { header: 'Reference ID', accessor: (s) => s.bankReference ? `="${s.bankReference}"` : 'N/A' },
             'remarks': { header: 'Remarks', accessor: (s) => s.remarks || '-' }
         }
 
@@ -720,6 +722,7 @@ export async function exportLiabilities(startDate: Date, endDate: Date, selected
         const csvRows = liabilities.map(lib => {
             return columnsToExport.map(k => {
                 const val = colDefs[k].accessor(lib)
+                if (typeof val === 'string' && val.startsWith('="')) return val
                 return safeString(val as string)
             }).join(',')
         })

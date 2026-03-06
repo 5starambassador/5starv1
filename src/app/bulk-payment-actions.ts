@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { logAction } from '@/lib/audit-logger'
 import { syncUserStats } from './sync-actions'
 import { revalidatePath } from 'next/cache'
+import { normalizeScientificNotation } from '@/lib/utils'
 
 /**
  * Bulk Activate Users via CSV
@@ -27,8 +28,8 @@ export async function bulkActivateUsers(csvData: string) {
         const errors: string[] = []
 
         for (const row of rows) {
-            const mobileNumber = row.mobilenumber || row.mobileNumber || row['mobile number']
-            const transactionId = row.transactionid || row.transactionId || row['utr'] || row['utr number']
+            const mobileNumber = normalizeScientificNotation(row.mobilenumber || row.mobileNumber || row['mobile number'])
+            const transactionId = normalizeScientificNotation(row.transactionid || row.transactionId || row['utr'] || row['utr number'])
             const amount = parseFloat(row.amount || '25')
 
             if (!mobileNumber || !transactionId) {

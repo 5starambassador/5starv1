@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache"
 import { logAction } from "@/lib/audit-logger"
 import { syncUserStats, revalidateDashboard } from "./sync-actions"
 import { toUserRole, toLeadStatus } from "@/lib/enum-utils"
+import { normalizeScientificNotation } from "@/lib/utils"
 
 // --- Helper: Simple CSV Parser ---
 // --- Helper: Simple CSV Parser ---
@@ -287,15 +288,15 @@ export async function importStudents(csvData: string) {
         for (const [index, row] of rows.entries()) {
             try {
                 // Flexible Headers
-                const parentMobile = row.parentmobile || row['parent mobile']
+                const parentMobile = normalizeScientificNotation(row.parentmobile || row['parent mobile'])
                 const parentName = row.parentname || row['parent name']
                 const fullName = row.studentname || row.fullname || row['student name'] || row['full name']
                 const grade = row.grade || row['grade']
                 const campusName = row.campusname || row['campus name studying'] || row['campus name']
                 const section = row.section || row['section'] || null
-                const admissionNumber = row.admissionnumber || row.admissionNumber || row['erp number'] || row['erp no'] || row['erp no.'] || row['admission number'] || null
+                const admissionNumber = normalizeScientificNotation(row.admissionnumber || row.admissionNumber || row['erp number'] || row['erp no'] || row['erp no.'] || row['admission number'] || null)
                 const rollNumber = row.rollnumber || row['roll number'] || null
-                const ambassadorMobile = row.ambassadormobile || row['ambassador mobile'] || null
+                const ambassadorMobile = normalizeScientificNotation(row.ambassadormobile || row['ambassador mobile'] || null)
 
                 // Read Feeplan from CSV (support both 'feeplan' and 'feetype' columns)
                 const feeplanRaw = row.feeplan || row.Feeplan || row.feetype || row['fee type'] || row['fee plan'] || ''
@@ -636,13 +637,13 @@ export async function importReferrals(csvData: string) {
 
         for (const [index, row] of rows.entries()) {
             const parentName = row.parentname || row.parentName || row['parent name']
-            const parentMobile = row.parentmobile || row.parentMobile || row['parent mobile']
+            const parentMobile = normalizeScientificNotation(row.parentmobile || row.parentMobile || row['parent mobile'])
             const grade = row.grade || row['grade']
             const section = row.section || row['section'] || null
             const campusName = row.campusname || row.campusName || row['campus name'] || row['campus']
-            const ambassadorMobile = row.ambassadormobile || row.ambassadorMobile || row['ambassador mobile']
+            const ambassadorMobile = normalizeScientificNotation(row.ambassadormobile || row.ambassadorMobile || row['ambassador mobile'])
             const ambassadorName = row.ambassadorname || row.ambassadorName || row['ambassador name'] || null
-            const admissionNumber = row.admissionnumber || row.admissionNumber || row['erp no'] || row['admission number'] || null
+            const admissionNumber = normalizeScientificNotation(row.admissionnumber || row.admissionNumber || row['erp no'] || row['admission number'] || null)
 
             // Auto-Admit if ERP number is present, otherwise default to status column or 'Confirmed'
             let rawStatus = row.status || row['status'] || 'Confirmed'

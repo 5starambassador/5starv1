@@ -279,19 +279,31 @@ export async function getSettlements(status: string = 'Pending', academicYear?: 
         }
 
         // Apply Academic Year Filter via Date Range — only for Processed settlements
-        // Pending settlements are excluded from date-filtering so they always appear in the queue
+        // Pending settlements are always shown (active work items).
+        // Granular payout settlements (with benefitType) use payoutDate for filtering.
+        // Legacy lump-sum settlements use createdAt.
         if (academicYear && academicYear !== 'All' && status !== 'Pending') {
             const yearRecord = await prisma.academicYear.findUnique({
                 where: { year: academicYear }
             })
             if (yearRecord) {
-                // When fetching 'All' status, use OR to keep all Pending but date-filter Processed
                 if (status === 'All') {
                     whereClause.OR = [
                         { status: 'Pending' }, // Always show pending
                         {
+                            // Legacy lump-sum payouts: filter by createdAt
                             status: 'Processed',
+                            benefitType: null,
                             createdAt: { gte: yearRecord.startDate, lte: yearRecord.endDate }
+                        },
+                        {
+                            // Granular payouts (Admission/Donation/Slab): filter by payoutDate if set, else createdAt
+                            status: 'Processed',
+                            benefitType: { not: null },
+                            OR: [
+                                { payoutDate: { gte: yearRecord.startDate, lte: yearRecord.endDate } },
+                                { payoutDate: null, createdAt: { gte: yearRecord.startDate, lte: yearRecord.endDate } }
+                            ]
                         }
                     ]
                 }
@@ -1319,15 +1331,24 @@ export async function getAccruedPayoutLiabilities(academicYear?: string, query?:
                 isFiveStarLastYear: u.isFiveStarMember
             }, slabs as any)
 
-            // Exclude registration refunds AND non-Processed settlements from the settled amount.
-            // Pending = not yet paid; Rejected = cancelled. Only Processed = actually settled.
-            const totalSettled = u.settlements
-                .filter((s: any) => {
-                    if (s.status !== 'Processed') return false  // Only count actually paid settlements
-                    const remarks = (s.remarks || '').toLowerCase()
-                    const isRefund = remarks.includes('registration') || remarks.includes('refund') || s.amount === 25
-                    return !isRefund
-                })
+            // FIX (Audit P0-#2): Split settled amounts by settlement type
+            // Cash payouts (Admission + Donation) must NOT reduce the waiver balance and vice versa.
+            const validSettlements = u.settlements.filter((s: any) => {
+                if (s.status !== 'Processed') return false
+                const remarks = (s.remarks || '').toLowerCase()
+                const isRefund = remarks.includes('registration') || remarks.includes('refund') || s.amount === 25
+                return !isRefund
+            })
+
+            // Total for the main liability calc (used to derive payoutSettled vs waiverSettled)
+            const totalSettled = validSettlements.reduce((acc: number, s: any) => acc + (s.amount || 0), 0)
+            // Cash-only settled (Admission + Donation shares paid out as bank transfers)
+            const cashSettledAmount = validSettlements
+                .filter((s: any) => ['ADMISSION_SHARE', 'DONATION_SHARE'].includes(s.benefitType))
+                .reduce((acc: number, s: any) => acc + (s.amount || 0), 0)
+            // Waiver-only settled (Slab + Special applied as fee reduction)
+            const waiverSettledAmount = validSettlements
+                .filter((s: any) => ['SLAB_SHARE', 'SPECIAL_BONUS'].includes(s.benefitType))
                 .reduce((acc: number, s: any) => acc + (s.amount || 0), 0)
 
             // LOGIC:
@@ -1376,39 +1397,74 @@ export async function getAccruedPayoutLiabilities(academicYear?: string, query?:
             // 1. HANDLE GROUP B (Cash Payout)
             const payoutOutstanding = finalPayoutEarned - payoutSettled
 
-            // FIFO Logic: Map settlements to specific referrals
-            // Sort referrals by date (oldest first)
-            const sortedReferrals = [...u.referrals].sort((a: any, b: any) =>
+            // FIX (Audit P0-#3): Restore FIFO sort — process oldest referrals first
+            const sortedCurrentReferrals = [...currentReferrals].sort((a: any, b: any) =>
                 new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
             )
 
-            let runningSettled = payoutSettled
-            const referralsWithStatus = sortedReferrals.map((r: any) => {
-                // Calculate this referral's total value (Admission + Donation + Slab Share)
-                // For simplicity in V1, we use the average share per referral or the specific calculation if available
-                const specialBonus = getSpecialBonusRate(r.campus)
-                const referralTotal = specialBonus +
-                    (r.annualFee ? (r.annualFee * (calcResult as any).tierPercent / 100) : 0) +
-                    (r.admissionFeeCollected ? (r.admissionFeeCollected * 0.8) : 0) +
-                    (r.donationFeeCollected ? (r.donationFeeCollected * 0.5) : 0)
+            // Process each referral for granular status and values
+            const enrichedReferrals = sortedCurrentReferrals.map((r: any, idx: number) => {
+                const count = idx + 1
+                const admFee = r.admissionFeeCollected || 0
+                const donFee = r.donationFeeCollected || 0
 
-                let status = 'PENDING'
-                let paidAmount = 0
+                // Specific Settlement Checks
+                const isAdmissionSettled = u.settlements.some((s: any) =>
+                    s.referralLeadId === r.id && s.benefitType === 'ADMISSION_SHARE' && s.status === 'Processed'
+                )
+                const isDonationSettled = u.settlements.some((s: any) =>
+                    s.referralLeadId === r.id && s.benefitType === 'DONATION_SHARE' && s.status === 'Processed'
+                )
+                const isSlabSettled = u.settlements.some((s: any) =>
+                    s.referralLeadId === r.id && s.benefitType === 'SLAB_SHARE' && s.status === 'Processed'
+                )
+                // Detect Pending settlements — hide Release button, show amber badge
+                const isAdmissionPending = u.settlements.some((s: any) =>
+                    s.referralLeadId === r.id && s.benefitType === 'ADMISSION_SHARE' && s.status === 'Pending'
+                )
+                const isDonationPending = u.settlements.some((s: any) =>
+                    s.referralLeadId === r.id && s.benefitType === 'DONATION_SHARE' && s.status === 'Pending'
+                )
+                const isSlabPending = u.settlements.some((s: any) =>
+                    s.referralLeadId === r.id && s.benefitType === 'SLAB_SHARE' && s.status === 'Pending'
+                )
 
-                if (runningSettled >= referralTotal && referralTotal > 0) {
-                    status = 'PAID'
-                    paidAmount = referralTotal
-                    runningSettled -= referralTotal
-                } else if (runningSettled > 0) {
-                    status = 'PARTIAL'
-                    paidAmount = runningSettled
-                    runningSettled = 0
+                // Calculate incremental slab % for this specific student
+                let slabPercent = 0
+                let referralSlabValue = 0
+                if (u.isFiveStarMember) {
+                    slabPercent = 5
+                } else {
+                    const getSlabPercent = (c: number) => {
+                        const slab = slabs.find((s: any) => s.referralCount === Math.min(c, 5)) || slabs[slabs.length - 1]
+                        return slab?.yearFeeBenefitPercent || 0
+                    }
+                    const currentTotal = getSlabPercent(count)
+                    const prevTotal = count === 1 ? 0 : getSlabPercent(count - 1)
+                    slabPercent = Math.max(0, currentTotal - prevTotal)
                 }
+
+                // FIX (Audit P0-#1): isSlabReady must check the correct fee base per group
+                // FIX (Audit P1-#5): isAdmissionReady must not show ₹0 button (ACET exception removed)
+                const isGroupA = u.role === 'Parent' || (u.role === 'Staff' && u.childInAchariya)
+                const slabBase = isGroupA ? (actualChildFee || 0) : (r.campusGrade1Fee || 0)
+                referralSlabValue = (slabBase * slabPercent) / 100
 
                 return {
                     ...r,
-                    payoutStatus: status,
-                    virtuallyPaidAmount: paidAmount
+                    slabPercent,
+                    admShareValue: Math.round(admFee * 0.8),
+                    donShareValue: Math.round(donFee * 0.5),
+                    referralSlabValue: Math.round(referralSlabValue),
+                    isAdmissionReady: Math.round(admFee * 0.8) > 0 && !isAdmissionSettled && !isAdmissionPending,
+                    isDonationReady: Math.round(donFee * 0.5) > 0 && !isDonationSettled && !isDonationPending,
+                    isSlabReady: Math.round(referralSlabValue) > 0 && !isSlabSettled && !isSlabPending,
+                    isAdmissionSettled,
+                    isDonationSettled,
+                    isSlabSettled,
+                    isAdmissionPending,
+                    isDonationPending,
+                    isSlabPending
                 }
             })
 
@@ -1418,6 +1474,7 @@ export async function getAccruedPayoutLiabilities(academicYear?: string, query?:
             const missingFeeCampuses = Array.from(new Set(missingFeeReferrals.map((r: any) => r.campusName || `Campus ID ${r.campusId}`)))
 
             if (finalPayoutEarned > 0 && payoutOutstanding > 0) {
+                let runningPayoutSettled = payoutSettled
                 liabilities.push({
                     userId: u.userId,
                     ledgerId: `${u.userId}-B`,
@@ -1442,7 +1499,22 @@ export async function getAccruedPayoutLiabilities(academicYear?: string, query?:
                     childFee: displayChildFee,
 
                     breakdown: calcResult.breakdown, // Full breakdown reference
-                    referrals: referralsWithStatus, // Added granular tracking
+                    referrals: enrichedReferrals.map(r => {
+                        let status = 'PENDING'
+                        let paidAmount = 0
+                        const referralTotal = r.admShareValue + r.donShareValue + r.referralSlabValue + (r.specialBonusRate || 0)
+
+                        if (runningPayoutSettled >= referralTotal && referralTotal > 0) {
+                            status = 'PAID'
+                            paidAmount = referralTotal
+                            runningPayoutSettled -= referralTotal
+                        } else if (runningPayoutSettled > 0) {
+                            status = 'PARTIAL'
+                            paidAmount = runningPayoutSettled
+                            runningPayoutSettled = 0
+                        }
+                        return { ...r, payoutStatus: status, virtuallyPaidAmount: paidAmount }
+                    }),
 
                     // Payout Components Only
                     slabShare: (u.role === 'Parent' || (u.role === 'Staff' && u.childInAchariya)) ? 0 : slabRewards, // Parents get slab in A
@@ -1460,31 +1532,14 @@ export async function getAccruedPayoutLiabilities(academicYear?: string, query?:
                 })
             }
 
-            // 2. HANDLE GROUP A (Fee Waiver)
-            const waiverOutstanding = finalWaiverEarned - waiverSettled
+            // 2. HANDLE GROUP A (Fee Waiver — Slab only)
+            const waiverOutstanding = finalWaiverEarned - waiverSettledAmount
+            // FIX (Audit P1-#8): Use isGroupAEligible properly as required guard
             const isGroupAEligible = u.role === 'Parent' || (u.role === 'Staff' && u.childInAchariya)
 
             // FIFO for Group A Waivers
-            let runningWaiverSettled = waiverSettled
-            const waiversWithStatus = sortedReferrals.map((r: any) => {
-                const referralWaiverValue = (r.annualFee ? (r.annualFee * (calcResult as any).tierPercent / 100) : 0)
-
-                let status = 'PENDING'
-                if (runningWaiverSettled >= referralWaiverValue && referralWaiverValue > 0) {
-                    status = 'PAID'
-                    runningWaiverSettled -= referralWaiverValue
-                } else if (runningWaiverSettled > 0) {
-                    status = 'PARTIAL'
-                    runningWaiverSettled = 0
-                }
-
-                return {
-                    ...r,
-                    payoutStatus: status
-                }
-            })
-
-            if (isGroupAEligible) {
+            if (isGroupAEligible && finalWaiverEarned > 0 && waiverOutstanding > 0) {
+                let runningWaiverSettled = waiverSettledAmount
                 liabilities.push({
                     userId: u.userId,
                     ledgerId: `${u.userId}-A`,
@@ -1495,14 +1550,13 @@ export async function getAccruedPayoutLiabilities(academicYear?: string, query?:
                     role: u.role,
                     confirmedReferralCount: currentReferrals.length,
                     benefitPercent: (calcResult as any).tierPercent || 0,
-                    campusName: u.assignedCampus || 'N/A',
+                    campusName: (u as any).assignedCampus || 'N/A',
 
                     totalEarned: finalWaiverEarned,
                     totalSettled: waiverSettled,
                     outstanding: waiverOutstanding,
                     remainingAmount: waiverOutstanding,
 
-                    // Child Details (Critical for A)
                     childName,
                     childEprNo: (u as any).childEprNo || undefined,
                     childGrade,
@@ -1510,7 +1564,22 @@ export async function getAccruedPayoutLiabilities(academicYear?: string, query?:
                     childFee: displayChildFee,
 
                     breakdown: calcResult.breakdown,
-                    referrals: waiversWithStatus, // Added granular tracking
+                    referrals: enrichedReferrals.map(r => {
+                        let status = 'PENDING'
+                        let paidAmount = 0
+                        const referralTotal = r.admShareValue + r.donShareValue + r.referralSlabValue + (r.specialBonusRate || 0)
+
+                        if (runningWaiverSettled >= referralTotal && referralTotal > 0) {
+                            status = 'PAID'
+                            paidAmount = referralTotal
+                            runningWaiverSettled -= referralTotal
+                        } else if (runningWaiverSettled > 0) {
+                            status = 'PARTIAL'
+                            paidAmount = runningWaiverSettled
+                            runningWaiverSettled = 0
+                        }
+                        return { ...r, payoutStatus: status, virtuallyPaidAmount: paidAmount }
+                    }),
 
                     // Waiver Components Only — zero out if no verified child
                     slabShare: finalWaiverEarned > 0 ? slabRewards : 0,
@@ -1614,6 +1683,63 @@ export async function bulkRecordWaiverAdjustments(requests: { userId: number, am
         return { success: true, count: results.length }
     } catch (error: any) {
         console.error('Error in bulkRecordWaiverAdjustments:', error)
+        return { success: false, error: error.message }
+    }
+}
+
+/**
+ * NEW: Releases a specific granular benefit (Part Payout)
+ */
+export async function releaseGranularBenefit(data: {
+    userId: number,
+    amount: number,
+    benefitType: 'ADMISSION_SHARE' | 'DONATION_SHARE' | 'SLAB_SHARE' | 'SPECIAL_BONUS',
+    referralLeadId: number,
+    remarks?: string
+}) {
+    const admin = await getCurrentUser()
+    if (!admin || !await hasPermission('settlements')) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        // FIX (Audit P1-#7): Validate amount before creating settlement
+        if (!data.amount || data.amount <= 0) {
+            return { success: false, error: 'Invalid amount: must be greater than ₹0' }
+        }
+
+        // Guard: Prevent double-release — FIX (Audit P1-#6): include userId in filter
+        const existing = await (prisma.settlement as any).findFirst({
+            where: {
+                userId: data.userId,
+                referralLeadId: data.referralLeadId,
+                benefitType: data.benefitType,
+                status: { in: ['Pending', 'Processed'] }
+            }
+        })
+
+        if (existing) {
+            return { success: false, error: 'This specific benefit has already been initiated or processed.' }
+        }
+
+        // Create the settlement
+        const settlement = await (prisma.settlement as any).create({
+            data: {
+                userId: data.userId,
+                amount: data.amount,
+                status: 'Pending',
+                benefitType: data.benefitType,
+                referralLeadId: data.referralLeadId,
+                remarks: data.remarks || `${data.benefitType.replace('_', ' ')} for Student #${data.referralLeadId}`
+            }
+        })
+
+        await logAction('CREATE', 'finance', `Initiated part-payout: ${data.benefitType} (₹${data.amount}) for referral #${data.referralLeadId}`, String(settlement.id))
+
+        revalidatePath('/finance')
+        return { success: true, message: 'Part payout initiated successfully.' }
+    } catch (error: any) {
+        console.error('Error in releaseGranularBenefit:', error)
         return { success: false, error: error.message }
     }
 }

@@ -342,7 +342,9 @@ exports.Prisma.SettlementScalarFieldEnum = {
   processedBy: 'processedBy',
   remarks: 'remarks',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  benefitType: 'benefitType',
+  referralLeadId: 'referralLeadId'
 };
 
 exports.Prisma.ResourceScalarFieldEnum = {
@@ -577,6 +579,14 @@ exports.AdminRole = exports.$Enums.AdminRole = {
   Campus_Head: 'Campus_Head',
   Admission_Admin: 'Admission_Admin',
   Campus_Admin: 'Campus_Admin'
+};
+
+exports.BenefitType = exports.$Enums.BenefitType = {
+  ADMISSION_SHARE: 'ADMISSION_SHARE',
+  DONATION_SHARE: 'DONATION_SHARE',
+  SLAB_SHARE: 'SLAB_SHARE',
+  SPECIAL_BONUS: 'SPECIAL_BONUS',
+  OTHER: 'OTHER'
 };
 
 exports.Prisma.ModelName = {

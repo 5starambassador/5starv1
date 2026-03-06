@@ -228,7 +228,7 @@ export function RegistrationTable({ data, search = '', onSearchChange, academicY
             { header: 'Role', accessor: (r) => r.role },
             { header: 'Campus', accessor: (r) => r.assignedCampus || '-' },
             { header: 'Amount', accessor: (r) => r.paymentAmount },
-            { header: 'Transaction ID', accessor: (r) => `="${r.transactionId || 'N/A'}"` },
+            { header: 'Transaction ID', accessor: (r) => r.transactionId ? `="${r.transactionId}"` : 'N/A' },
             { header: 'Date', accessor: (r) => new Date(r.createdAt).toLocaleDateString() }
         ])
     }

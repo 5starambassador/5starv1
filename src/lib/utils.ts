@@ -37,3 +37,25 @@ export function formatCurrency(amount: number): string {
         maximumFractionDigits: 0
     }).format(amount)
 }
+/**
+ * Converts a string that might be in scientific notation (e.g. "6.02E+11")
+ * back to a plain numeric string. If the input is not in scientific notation
+ * or is not a valid number, it returns the original string.
+ * @param value - The string to normalize.
+ * @returns Normalized numeric string or original string.
+ */
+export function normalizeScientificNotation(value: string | null | undefined): string {
+    if (!value) return ''
+    const str = String(value).trim()
+
+    // Quick check for scientific notation: contains 'E+' or 'e+'
+    if (/[eE]\+/.test(str)) {
+        const num = Number(str)
+        if (!isNaN(num) && isFinite(num)) {
+            // Use Intl.NumberFormat to avoid scientific notation in the output
+            // and remove any fractional parts (UTRs/Mobiles are integers)
+            return num.toLocaleString('fullwide', { useGrouping: false, maximumFractionDigits: 0 })
+        }
+    }
+    return str
+}

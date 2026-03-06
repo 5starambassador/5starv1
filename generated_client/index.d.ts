@@ -202,6 +202,17 @@ export const AdminRole: {
 
 export type AdminRole = (typeof AdminRole)[keyof typeof AdminRole]
 
+
+export const BenefitType: {
+  ADMISSION_SHARE: 'ADMISSION_SHARE',
+  DONATION_SHARE: 'DONATION_SHARE',
+  SLAB_SHARE: 'SLAB_SHARE',
+  SPECIAL_BONUS: 'SPECIAL_BONUS',
+  OTHER: 'OTHER'
+};
+
+export type BenefitType = (typeof BenefitType)[keyof typeof BenefitType]
+
 }
 
 export type UserRole = $Enums.UserRole
@@ -223,6 +234,10 @@ export const LeadStatus: typeof $Enums.LeadStatus
 export type AdminRole = $Enums.AdminRole
 
 export const AdminRole: typeof $Enums.AdminRole
+
+export type BenefitType = $Enums.BenefitType
+
+export const BenefitType: typeof $Enums.BenefitType
 
 /**
  * ##  Prisma Client ʲˢ
@@ -3141,6 +3156,37 @@ export namespace Prisma {
    */
   export type UserCountOutputTypeCountSupportTicketsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: SupportTicketWhereInput
+  }
+
+
+  /**
+   * Count Type ReferralLeadCountOutputType
+   */
+
+  export type ReferralLeadCountOutputType = {
+    settlements: number
+  }
+
+  export type ReferralLeadCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    settlements?: boolean | ReferralLeadCountOutputTypeCountSettlementsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * ReferralLeadCountOutputType without action
+   */
+  export type ReferralLeadCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ReferralLeadCountOutputType
+     */
+    select?: ReferralLeadCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * ReferralLeadCountOutputType without action
+   */
+  export type ReferralLeadCountOutputTypeCountSettlementsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: SettlementWhereInput
   }
 
 
@@ -6243,6 +6289,8 @@ export namespace Prisma {
     annualFee?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
     student?: boolean | ReferralLead$studentArgs<ExtArgs>
+    settlements?: boolean | ReferralLead$settlementsArgs<ExtArgs>
+    _count?: boolean | ReferralLeadCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["referralLead"]>
 
   export type ReferralLeadSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -6287,6 +6335,8 @@ export namespace Prisma {
   export type ReferralLeadInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
     student?: boolean | ReferralLead$studentArgs<ExtArgs>
+    settlements?: boolean | ReferralLead$settlementsArgs<ExtArgs>
+    _count?: boolean | ReferralLeadCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type ReferralLeadIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -6297,6 +6347,7 @@ export namespace Prisma {
     objects: {
       user: Prisma.$UserPayload<ExtArgs>
       student: Prisma.$StudentPayload<ExtArgs> | null
+      settlements: Prisma.$SettlementPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       leadId: number
@@ -6681,6 +6732,7 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
     student<T extends ReferralLead$studentArgs<ExtArgs> = {}>(args?: Subset<T, ReferralLead$studentArgs<ExtArgs>>): Prisma__StudentClient<$Result.GetResult<Prisma.$StudentPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
+    settlements<T extends ReferralLead$settlementsArgs<ExtArgs> = {}>(args?: Subset<T, ReferralLead$settlementsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SettlementPayload<ExtArgs>, T, "findMany"> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -7056,6 +7108,26 @@ export namespace Prisma {
      */
     include?: StudentInclude<ExtArgs> | null
     where?: StudentWhereInput
+  }
+
+  /**
+   * ReferralLead.settlements
+   */
+  export type ReferralLead$settlementsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Settlement
+     */
+    select?: SettlementSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SettlementInclude<ExtArgs> | null
+    where?: SettlementWhereInput
+    orderBy?: SettlementOrderByWithRelationInput | SettlementOrderByWithRelationInput[]
+    cursor?: SettlementWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: SettlementScalarFieldEnum | SettlementScalarFieldEnum[]
   }
 
   /**
@@ -15348,6 +15420,7 @@ export namespace Prisma {
     userId: number | null
     amount: number | null
     processedBy: number | null
+    referralLeadId: number | null
   }
 
   export type SettlementSumAggregateOutputType = {
@@ -15355,6 +15428,7 @@ export namespace Prisma {
     userId: number | null
     amount: number | null
     processedBy: number | null
+    referralLeadId: number | null
   }
 
   export type SettlementMinAggregateOutputType = {
@@ -15369,6 +15443,8 @@ export namespace Prisma {
     remarks: string | null
     createdAt: Date | null
     updatedAt: Date | null
+    benefitType: $Enums.BenefitType | null
+    referralLeadId: number | null
   }
 
   export type SettlementMaxAggregateOutputType = {
@@ -15383,6 +15459,8 @@ export namespace Prisma {
     remarks: string | null
     createdAt: Date | null
     updatedAt: Date | null
+    benefitType: $Enums.BenefitType | null
+    referralLeadId: number | null
   }
 
   export type SettlementCountAggregateOutputType = {
@@ -15397,6 +15475,8 @@ export namespace Prisma {
     remarks: number
     createdAt: number
     updatedAt: number
+    benefitType: number
+    referralLeadId: number
     _all: number
   }
 
@@ -15406,6 +15486,7 @@ export namespace Prisma {
     userId?: true
     amount?: true
     processedBy?: true
+    referralLeadId?: true
   }
 
   export type SettlementSumAggregateInputType = {
@@ -15413,6 +15494,7 @@ export namespace Prisma {
     userId?: true
     amount?: true
     processedBy?: true
+    referralLeadId?: true
   }
 
   export type SettlementMinAggregateInputType = {
@@ -15427,6 +15509,8 @@ export namespace Prisma {
     remarks?: true
     createdAt?: true
     updatedAt?: true
+    benefitType?: true
+    referralLeadId?: true
   }
 
   export type SettlementMaxAggregateInputType = {
@@ -15441,6 +15525,8 @@ export namespace Prisma {
     remarks?: true
     createdAt?: true
     updatedAt?: true
+    benefitType?: true
+    referralLeadId?: true
   }
 
   export type SettlementCountAggregateInputType = {
@@ -15455,6 +15541,8 @@ export namespace Prisma {
     remarks?: true
     createdAt?: true
     updatedAt?: true
+    benefitType?: true
+    referralLeadId?: true
     _all?: true
   }
 
@@ -15556,6 +15644,8 @@ export namespace Prisma {
     remarks: string | null
     createdAt: Date
     updatedAt: Date
+    benefitType: $Enums.BenefitType | null
+    referralLeadId: number | null
     _count: SettlementCountAggregateOutputType | null
     _avg: SettlementAvgAggregateOutputType | null
     _sum: SettlementSumAggregateOutputType | null
@@ -15589,7 +15679,10 @@ export namespace Prisma {
     remarks?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    benefitType?: boolean
+    referralLeadId?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
+    referralLead?: boolean | Settlement$referralLeadArgs<ExtArgs>
   }, ExtArgs["result"]["settlement"]>
 
   export type SettlementSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -15604,7 +15697,10 @@ export namespace Prisma {
     remarks?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    benefitType?: boolean
+    referralLeadId?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
+    referralLead?: boolean | Settlement$referralLeadArgs<ExtArgs>
   }, ExtArgs["result"]["settlement"]>
 
   export type SettlementSelectScalar = {
@@ -15619,19 +15715,24 @@ export namespace Prisma {
     remarks?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    benefitType?: boolean
+    referralLeadId?: boolean
   }
 
   export type SettlementInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
+    referralLead?: boolean | Settlement$referralLeadArgs<ExtArgs>
   }
   export type SettlementIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
+    referralLead?: boolean | Settlement$referralLeadArgs<ExtArgs>
   }
 
   export type $SettlementPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Settlement"
     objects: {
       user: Prisma.$UserPayload<ExtArgs>
+      referralLead: Prisma.$ReferralLeadPayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
@@ -15645,6 +15746,8 @@ export namespace Prisma {
       remarks: string | null
       createdAt: Date
       updatedAt: Date
+      benefitType: $Enums.BenefitType | null
+      referralLeadId: number | null
     }, ExtArgs["result"]["settlement"]>
     composites: {}
   }
@@ -16010,6 +16113,7 @@ export namespace Prisma {
   export interface Prisma__SettlementClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    referralLead<T extends Settlement$referralLeadArgs<ExtArgs> = {}>(args?: Subset<T, Settlement$referralLeadArgs<ExtArgs>>): Prisma__ReferralLeadClient<$Result.GetResult<Prisma.$ReferralLeadPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -16050,6 +16154,8 @@ export namespace Prisma {
     readonly remarks: FieldRef<"Settlement", 'String'>
     readonly createdAt: FieldRef<"Settlement", 'DateTime'>
     readonly updatedAt: FieldRef<"Settlement", 'DateTime'>
+    readonly benefitType: FieldRef<"Settlement", 'BenefitType'>
+    readonly referralLeadId: FieldRef<"Settlement", 'Int'>
   }
     
 
@@ -16365,6 +16471,21 @@ export namespace Prisma {
      * Filter which Settlements to delete
      */
     where?: SettlementWhereInput
+  }
+
+  /**
+   * Settlement.referralLead
+   */
+  export type Settlement$referralLeadArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ReferralLead
+     */
+    select?: ReferralLeadSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ReferralLeadInclude<ExtArgs> | null
+    where?: ReferralLeadWhereInput
   }
 
   /**
@@ -30785,7 +30906,9 @@ export namespace Prisma {
     processedBy: 'processedBy',
     remarks: 'remarks',
     createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
+    updatedAt: 'updatedAt',
+    benefitType: 'benefitType',
+    referralLeadId: 'referralLeadId'
   };
 
   export type SettlementScalarFieldEnum = (typeof SettlementScalarFieldEnum)[keyof typeof SettlementScalarFieldEnum]
@@ -31182,6 +31305,20 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'BenefitType'
+   */
+  export type EnumBenefitTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BenefitType'>
+    
+
+
+  /**
+   * Reference to a field of type 'BenefitType[]'
+   */
+  export type ListEnumBenefitTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BenefitType[]'>
+    
+
+
+  /**
    * Reference to a field of type 'Json'
    */
   export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
@@ -31551,6 +31688,7 @@ export namespace Prisma {
     annualFee?: IntNullableFilter<"ReferralLead"> | number | null
     user?: XOR<UserRelationFilter, UserWhereInput>
     student?: XOR<StudentNullableRelationFilter, StudentWhereInput> | null
+    settlements?: SettlementListRelationFilter
   }
 
   export type ReferralLeadOrderByWithRelationInput = {
@@ -31572,6 +31710,7 @@ export namespace Prisma {
     annualFee?: SortOrderInput | SortOrder
     user?: UserOrderByWithRelationInput
     student?: StudentOrderByWithRelationInput
+    settlements?: SettlementOrderByRelationAggregateInput
   }
 
   export type ReferralLeadWhereUniqueInput = Prisma.AtLeast<{
@@ -31596,6 +31735,7 @@ export namespace Prisma {
     annualFee?: IntNullableFilter<"ReferralLead"> | number | null
     user?: XOR<UserRelationFilter, UserWhereInput>
     student?: XOR<StudentNullableRelationFilter, StudentWhereInput> | null
+    settlements?: SettlementListRelationFilter
   }, "leadId">
 
   export type ReferralLeadOrderByWithAggregationInput = {
@@ -32444,7 +32584,10 @@ export namespace Prisma {
     remarks?: StringNullableFilter<"Settlement"> | string | null
     createdAt?: DateTimeFilter<"Settlement"> | Date | string
     updatedAt?: DateTimeFilter<"Settlement"> | Date | string
+    benefitType?: EnumBenefitTypeNullableFilter<"Settlement"> | $Enums.BenefitType | null
+    referralLeadId?: IntNullableFilter<"Settlement"> | number | null
     user?: XOR<UserRelationFilter, UserWhereInput>
+    referralLead?: XOR<ReferralLeadNullableRelationFilter, ReferralLeadWhereInput> | null
   }
 
   export type SettlementOrderByWithRelationInput = {
@@ -32459,7 +32602,10 @@ export namespace Prisma {
     remarks?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    benefitType?: SortOrderInput | SortOrder
+    referralLeadId?: SortOrderInput | SortOrder
     user?: UserOrderByWithRelationInput
+    referralLead?: ReferralLeadOrderByWithRelationInput
   }
 
   export type SettlementWhereUniqueInput = Prisma.AtLeast<{
@@ -32477,7 +32623,10 @@ export namespace Prisma {
     remarks?: StringNullableFilter<"Settlement"> | string | null
     createdAt?: DateTimeFilter<"Settlement"> | Date | string
     updatedAt?: DateTimeFilter<"Settlement"> | Date | string
+    benefitType?: EnumBenefitTypeNullableFilter<"Settlement"> | $Enums.BenefitType | null
+    referralLeadId?: IntNullableFilter<"Settlement"> | number | null
     user?: XOR<UserRelationFilter, UserWhereInput>
+    referralLead?: XOR<ReferralLeadNullableRelationFilter, ReferralLeadWhereInput> | null
   }, "id">
 
   export type SettlementOrderByWithAggregationInput = {
@@ -32492,6 +32641,8 @@ export namespace Prisma {
     remarks?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    benefitType?: SortOrderInput | SortOrder
+    referralLeadId?: SortOrderInput | SortOrder
     _count?: SettlementCountOrderByAggregateInput
     _avg?: SettlementAvgOrderByAggregateInput
     _max?: SettlementMaxOrderByAggregateInput
@@ -32514,6 +32665,8 @@ export namespace Prisma {
     remarks?: StringNullableWithAggregatesFilter<"Settlement"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Settlement"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Settlement"> | Date | string
+    benefitType?: EnumBenefitTypeNullableWithAggregatesFilter<"Settlement"> | $Enums.BenefitType | null
+    referralLeadId?: IntNullableWithAggregatesFilter<"Settlement"> | number | null
   }
 
   export type ResourceWhereInput = {
@@ -34018,6 +34171,7 @@ export namespace Prisma {
     annualFee?: number | null
     user: UserCreateNestedOneWithoutReferralsInput
     student?: StudentCreateNestedOneWithoutReferralLeadInput
+    settlements?: SettlementCreateNestedManyWithoutReferralLeadInput
   }
 
   export type ReferralLeadUncheckedCreateInput = {
@@ -34038,6 +34192,7 @@ export namespace Prisma {
     selectedFeeType?: $Enums.FeeType | null
     annualFee?: number | null
     student?: StudentUncheckedCreateNestedOneWithoutReferralLeadInput
+    settlements?: SettlementUncheckedCreateNestedManyWithoutReferralLeadInput
   }
 
   export type ReferralLeadUpdateInput = {
@@ -34057,6 +34212,7 @@ export namespace Prisma {
     annualFee?: NullableIntFieldUpdateOperationsInput | number | null
     user?: UserUpdateOneRequiredWithoutReferralsNestedInput
     student?: StudentUpdateOneWithoutReferralLeadNestedInput
+    settlements?: SettlementUpdateManyWithoutReferralLeadNestedInput
   }
 
   export type ReferralLeadUncheckedUpdateInput = {
@@ -34077,6 +34233,7 @@ export namespace Prisma {
     selectedFeeType?: NullableEnumFeeTypeFieldUpdateOperationsInput | $Enums.FeeType | null
     annualFee?: NullableIntFieldUpdateOperationsInput | number | null
     student?: StudentUncheckedUpdateOneWithoutReferralLeadNestedInput
+    settlements?: SettlementUncheckedUpdateManyWithoutReferralLeadNestedInput
   }
 
   export type ReferralLeadCreateManyInput = {
@@ -35062,7 +35219,9 @@ export namespace Prisma {
     remarks?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    benefitType?: $Enums.BenefitType | null
     user: UserCreateNestedOneWithoutSettlementsInput
+    referralLead?: ReferralLeadCreateNestedOneWithoutSettlementsInput
   }
 
   export type SettlementUncheckedCreateInput = {
@@ -35077,6 +35236,8 @@ export namespace Prisma {
     remarks?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    benefitType?: $Enums.BenefitType | null
+    referralLeadId?: number | null
   }
 
   export type SettlementUpdateInput = {
@@ -35089,7 +35250,9 @@ export namespace Prisma {
     remarks?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    benefitType?: NullableEnumBenefitTypeFieldUpdateOperationsInput | $Enums.BenefitType | null
     user?: UserUpdateOneRequiredWithoutSettlementsNestedInput
+    referralLead?: ReferralLeadUpdateOneWithoutSettlementsNestedInput
   }
 
   export type SettlementUncheckedUpdateInput = {
@@ -35104,6 +35267,8 @@ export namespace Prisma {
     remarks?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    benefitType?: NullableEnumBenefitTypeFieldUpdateOperationsInput | $Enums.BenefitType | null
+    referralLeadId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type SettlementCreateManyInput = {
@@ -35118,6 +35283,8 @@ export namespace Prisma {
     remarks?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    benefitType?: $Enums.BenefitType | null
+    referralLeadId?: number | null
   }
 
   export type SettlementUpdateManyMutationInput = {
@@ -35130,6 +35297,7 @@ export namespace Prisma {
     remarks?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    benefitType?: NullableEnumBenefitTypeFieldUpdateOperationsInput | $Enums.BenefitType | null
   }
 
   export type SettlementUncheckedUpdateManyInput = {
@@ -35144,6 +35312,8 @@ export namespace Prisma {
     remarks?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    benefitType?: NullableEnumBenefitTypeFieldUpdateOperationsInput | $Enums.BenefitType | null
+    referralLeadId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type ResourceCreateInput = {
@@ -37453,6 +37623,13 @@ export namespace Prisma {
     id?: SortOrder
   }
 
+  export type EnumBenefitTypeNullableFilter<$PrismaModel = never> = {
+    equals?: $Enums.BenefitType | EnumBenefitTypeFieldRefInput<$PrismaModel> | null
+    in?: $Enums.BenefitType[] | ListEnumBenefitTypeFieldRefInput<$PrismaModel> | null
+    notIn?: $Enums.BenefitType[] | ListEnumBenefitTypeFieldRefInput<$PrismaModel> | null
+    not?: NestedEnumBenefitTypeNullableFilter<$PrismaModel> | $Enums.BenefitType | null
+  }
+
   export type SettlementCountOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
@@ -37465,6 +37642,8 @@ export namespace Prisma {
     remarks?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    benefitType?: SortOrder
+    referralLeadId?: SortOrder
   }
 
   export type SettlementAvgOrderByAggregateInput = {
@@ -37472,6 +37651,7 @@ export namespace Prisma {
     userId?: SortOrder
     amount?: SortOrder
     processedBy?: SortOrder
+    referralLeadId?: SortOrder
   }
 
   export type SettlementMaxOrderByAggregateInput = {
@@ -37486,6 +37666,8 @@ export namespace Prisma {
     remarks?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    benefitType?: SortOrder
+    referralLeadId?: SortOrder
   }
 
   export type SettlementMinOrderByAggregateInput = {
@@ -37500,6 +37682,8 @@ export namespace Prisma {
     remarks?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    benefitType?: SortOrder
+    referralLeadId?: SortOrder
   }
 
   export type SettlementSumOrderByAggregateInput = {
@@ -37507,6 +37691,17 @@ export namespace Prisma {
     userId?: SortOrder
     amount?: SortOrder
     processedBy?: SortOrder
+    referralLeadId?: SortOrder
+  }
+
+  export type EnumBenefitTypeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.BenefitType | EnumBenefitTypeFieldRefInput<$PrismaModel> | null
+    in?: $Enums.BenefitType[] | ListEnumBenefitTypeFieldRefInput<$PrismaModel> | null
+    notIn?: $Enums.BenefitType[] | ListEnumBenefitTypeFieldRefInput<$PrismaModel> | null
+    not?: NestedEnumBenefitTypeNullableWithAggregatesFilter<$PrismaModel> | $Enums.BenefitType | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedEnumBenefitTypeNullableFilter<$PrismaModel>
+    _max?: NestedEnumBenefitTypeNullableFilter<$PrismaModel>
   }
 
   export type ResourceCountOrderByAggregateInput = {
@@ -38674,10 +38869,24 @@ export namespace Prisma {
     connect?: StudentWhereUniqueInput
   }
 
+  export type SettlementCreateNestedManyWithoutReferralLeadInput = {
+    create?: XOR<SettlementCreateWithoutReferralLeadInput, SettlementUncheckedCreateWithoutReferralLeadInput> | SettlementCreateWithoutReferralLeadInput[] | SettlementUncheckedCreateWithoutReferralLeadInput[]
+    connectOrCreate?: SettlementCreateOrConnectWithoutReferralLeadInput | SettlementCreateOrConnectWithoutReferralLeadInput[]
+    createMany?: SettlementCreateManyReferralLeadInputEnvelope
+    connect?: SettlementWhereUniqueInput | SettlementWhereUniqueInput[]
+  }
+
   export type StudentUncheckedCreateNestedOneWithoutReferralLeadInput = {
     create?: XOR<StudentCreateWithoutReferralLeadInput, StudentUncheckedCreateWithoutReferralLeadInput>
     connectOrCreate?: StudentCreateOrConnectWithoutReferralLeadInput
     connect?: StudentWhereUniqueInput
+  }
+
+  export type SettlementUncheckedCreateNestedManyWithoutReferralLeadInput = {
+    create?: XOR<SettlementCreateWithoutReferralLeadInput, SettlementUncheckedCreateWithoutReferralLeadInput> | SettlementCreateWithoutReferralLeadInput[] | SettlementUncheckedCreateWithoutReferralLeadInput[]
+    connectOrCreate?: SettlementCreateOrConnectWithoutReferralLeadInput | SettlementCreateOrConnectWithoutReferralLeadInput[]
+    createMany?: SettlementCreateManyReferralLeadInputEnvelope
+    connect?: SettlementWhereUniqueInput | SettlementWhereUniqueInput[]
   }
 
   export type EnumLeadStatusFieldUpdateOperationsInput = {
@@ -38702,6 +38911,20 @@ export namespace Prisma {
     update?: XOR<XOR<StudentUpdateToOneWithWhereWithoutReferralLeadInput, StudentUpdateWithoutReferralLeadInput>, StudentUncheckedUpdateWithoutReferralLeadInput>
   }
 
+  export type SettlementUpdateManyWithoutReferralLeadNestedInput = {
+    create?: XOR<SettlementCreateWithoutReferralLeadInput, SettlementUncheckedCreateWithoutReferralLeadInput> | SettlementCreateWithoutReferralLeadInput[] | SettlementUncheckedCreateWithoutReferralLeadInput[]
+    connectOrCreate?: SettlementCreateOrConnectWithoutReferralLeadInput | SettlementCreateOrConnectWithoutReferralLeadInput[]
+    upsert?: SettlementUpsertWithWhereUniqueWithoutReferralLeadInput | SettlementUpsertWithWhereUniqueWithoutReferralLeadInput[]
+    createMany?: SettlementCreateManyReferralLeadInputEnvelope
+    set?: SettlementWhereUniqueInput | SettlementWhereUniqueInput[]
+    disconnect?: SettlementWhereUniqueInput | SettlementWhereUniqueInput[]
+    delete?: SettlementWhereUniqueInput | SettlementWhereUniqueInput[]
+    connect?: SettlementWhereUniqueInput | SettlementWhereUniqueInput[]
+    update?: SettlementUpdateWithWhereUniqueWithoutReferralLeadInput | SettlementUpdateWithWhereUniqueWithoutReferralLeadInput[]
+    updateMany?: SettlementUpdateManyWithWhereWithoutReferralLeadInput | SettlementUpdateManyWithWhereWithoutReferralLeadInput[]
+    deleteMany?: SettlementScalarWhereInput | SettlementScalarWhereInput[]
+  }
+
   export type StudentUncheckedUpdateOneWithoutReferralLeadNestedInput = {
     create?: XOR<StudentCreateWithoutReferralLeadInput, StudentUncheckedCreateWithoutReferralLeadInput>
     connectOrCreate?: StudentCreateOrConnectWithoutReferralLeadInput
@@ -38710,6 +38933,20 @@ export namespace Prisma {
     delete?: StudentWhereInput | boolean
     connect?: StudentWhereUniqueInput
     update?: XOR<XOR<StudentUpdateToOneWithWhereWithoutReferralLeadInput, StudentUpdateWithoutReferralLeadInput>, StudentUncheckedUpdateWithoutReferralLeadInput>
+  }
+
+  export type SettlementUncheckedUpdateManyWithoutReferralLeadNestedInput = {
+    create?: XOR<SettlementCreateWithoutReferralLeadInput, SettlementUncheckedCreateWithoutReferralLeadInput> | SettlementCreateWithoutReferralLeadInput[] | SettlementUncheckedCreateWithoutReferralLeadInput[]
+    connectOrCreate?: SettlementCreateOrConnectWithoutReferralLeadInput | SettlementCreateOrConnectWithoutReferralLeadInput[]
+    upsert?: SettlementUpsertWithWhereUniqueWithoutReferralLeadInput | SettlementUpsertWithWhereUniqueWithoutReferralLeadInput[]
+    createMany?: SettlementCreateManyReferralLeadInputEnvelope
+    set?: SettlementWhereUniqueInput | SettlementWhereUniqueInput[]
+    disconnect?: SettlementWhereUniqueInput | SettlementWhereUniqueInput[]
+    delete?: SettlementWhereUniqueInput | SettlementWhereUniqueInput[]
+    connect?: SettlementWhereUniqueInput | SettlementWhereUniqueInput[]
+    update?: SettlementUpdateWithWhereUniqueWithoutReferralLeadInput | SettlementUpdateWithWhereUniqueWithoutReferralLeadInput[]
+    updateMany?: SettlementUpdateManyWithWhereWithoutReferralLeadInput | SettlementUpdateManyWithWhereWithoutReferralLeadInput[]
+    deleteMany?: SettlementScalarWhereInput | SettlementScalarWhereInput[]
   }
 
   export type NotificationCreateNestedManyWithoutAdminInput = {
@@ -38764,12 +39001,32 @@ export namespace Prisma {
     connect?: UserWhereUniqueInput
   }
 
+  export type ReferralLeadCreateNestedOneWithoutSettlementsInput = {
+    create?: XOR<ReferralLeadCreateWithoutSettlementsInput, ReferralLeadUncheckedCreateWithoutSettlementsInput>
+    connectOrCreate?: ReferralLeadCreateOrConnectWithoutSettlementsInput
+    connect?: ReferralLeadWhereUniqueInput
+  }
+
+  export type NullableEnumBenefitTypeFieldUpdateOperationsInput = {
+    set?: $Enums.BenefitType | null
+  }
+
   export type UserUpdateOneRequiredWithoutSettlementsNestedInput = {
     create?: XOR<UserCreateWithoutSettlementsInput, UserUncheckedCreateWithoutSettlementsInput>
     connectOrCreate?: UserCreateOrConnectWithoutSettlementsInput
     upsert?: UserUpsertWithoutSettlementsInput
     connect?: UserWhereUniqueInput
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutSettlementsInput, UserUpdateWithoutSettlementsInput>, UserUncheckedUpdateWithoutSettlementsInput>
+  }
+
+  export type ReferralLeadUpdateOneWithoutSettlementsNestedInput = {
+    create?: XOR<ReferralLeadCreateWithoutSettlementsInput, ReferralLeadUncheckedCreateWithoutSettlementsInput>
+    connectOrCreate?: ReferralLeadCreateOrConnectWithoutSettlementsInput
+    upsert?: ReferralLeadUpsertWithoutSettlementsInput
+    disconnect?: ReferralLeadWhereInput | boolean
+    delete?: ReferralLeadWhereInput | boolean
+    connect?: ReferralLeadWhereUniqueInput
+    update?: XOR<XOR<ReferralLeadUpdateToOneWithWhereWithoutSettlementsInput, ReferralLeadUpdateWithoutSettlementsInput>, ReferralLeadUncheckedUpdateWithoutSettlementsInput>
   }
 
   export type UserCreateNestedOneWithoutSupportTicketsInput = {
@@ -39385,6 +39642,23 @@ export namespace Prisma {
     _min?: NestedEnumAdminRoleFilter<$PrismaModel>
     _max?: NestedEnumAdminRoleFilter<$PrismaModel>
   }
+
+  export type NestedEnumBenefitTypeNullableFilter<$PrismaModel = never> = {
+    equals?: $Enums.BenefitType | EnumBenefitTypeFieldRefInput<$PrismaModel> | null
+    in?: $Enums.BenefitType[] | ListEnumBenefitTypeFieldRefInput<$PrismaModel> | null
+    notIn?: $Enums.BenefitType[] | ListEnumBenefitTypeFieldRefInput<$PrismaModel> | null
+    not?: NestedEnumBenefitTypeNullableFilter<$PrismaModel> | $Enums.BenefitType | null
+  }
+
+  export type NestedEnumBenefitTypeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.BenefitType | EnumBenefitTypeFieldRefInput<$PrismaModel> | null
+    in?: $Enums.BenefitType[] | ListEnumBenefitTypeFieldRefInput<$PrismaModel> | null
+    notIn?: $Enums.BenefitType[] | ListEnumBenefitTypeFieldRefInput<$PrismaModel> | null
+    not?: NestedEnumBenefitTypeNullableWithAggregatesFilter<$PrismaModel> | $Enums.BenefitType | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedEnumBenefitTypeNullableFilter<$PrismaModel>
+    _max?: NestedEnumBenefitTypeNullableFilter<$PrismaModel>
+  }
   export type NestedJsonNullableFilter<$PrismaModel = never> = 
     | PatchUndefined<
         Either<Required<NestedJsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>,
@@ -39455,6 +39729,7 @@ export namespace Prisma {
     selectedFeeType?: $Enums.FeeType | null
     annualFee?: number | null
     student?: StudentCreateNestedOneWithoutReferralLeadInput
+    settlements?: SettlementCreateNestedManyWithoutReferralLeadInput
   }
 
   export type ReferralLeadUncheckedCreateWithoutUserInput = {
@@ -39474,6 +39749,7 @@ export namespace Prisma {
     selectedFeeType?: $Enums.FeeType | null
     annualFee?: number | null
     student?: StudentUncheckedCreateNestedOneWithoutReferralLeadInput
+    settlements?: SettlementUncheckedCreateNestedManyWithoutReferralLeadInput
   }
 
   export type ReferralLeadCreateOrConnectWithoutUserInput = {
@@ -39496,6 +39772,8 @@ export namespace Prisma {
     remarks?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    benefitType?: $Enums.BenefitType | null
+    referralLead?: ReferralLeadCreateNestedOneWithoutSettlementsInput
   }
 
   export type SettlementUncheckedCreateWithoutUserInput = {
@@ -39509,6 +39787,8 @@ export namespace Prisma {
     remarks?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    benefitType?: $Enums.BenefitType | null
+    referralLeadId?: number | null
   }
 
   export type SettlementCreateOrConnectWithoutUserInput = {
@@ -39762,6 +40042,8 @@ export namespace Prisma {
     remarks?: StringNullableFilter<"Settlement"> | string | null
     createdAt?: DateTimeFilter<"Settlement"> | Date | string
     updatedAt?: DateTimeFilter<"Settlement"> | Date | string
+    benefitType?: EnumBenefitTypeNullableFilter<"Settlement"> | $Enums.BenefitType | null
+    referralLeadId?: IntNullableFilter<"Settlement"> | number | null
   }
 
   export type StudentUpsertWithWhereUniqueWithoutAmbassadorInput = {
@@ -40082,6 +40364,7 @@ export namespace Prisma {
     selectedFeeType?: $Enums.FeeType | null
     annualFee?: number | null
     user: UserCreateNestedOneWithoutReferralsInput
+    settlements?: SettlementCreateNestedManyWithoutReferralLeadInput
   }
 
   export type ReferralLeadUncheckedCreateWithoutStudentInput = {
@@ -40101,6 +40384,7 @@ export namespace Prisma {
     section?: string | null
     selectedFeeType?: $Enums.FeeType | null
     annualFee?: number | null
+    settlements?: SettlementUncheckedCreateNestedManyWithoutReferralLeadInput
   }
 
   export type ReferralLeadCreateOrConnectWithoutStudentInput = {
@@ -40363,6 +40647,7 @@ export namespace Prisma {
     selectedFeeType?: NullableEnumFeeTypeFieldUpdateOperationsInput | $Enums.FeeType | null
     annualFee?: NullableIntFieldUpdateOperationsInput | number | null
     user?: UserUpdateOneRequiredWithoutReferralsNestedInput
+    settlements?: SettlementUpdateManyWithoutReferralLeadNestedInput
   }
 
   export type ReferralLeadUncheckedUpdateWithoutStudentInput = {
@@ -40382,6 +40667,7 @@ export namespace Prisma {
     section?: NullableStringFieldUpdateOperationsInput | string | null
     selectedFeeType?: NullableEnumFeeTypeFieldUpdateOperationsInput | $Enums.FeeType | null
     annualFee?: NullableIntFieldUpdateOperationsInput | number | null
+    settlements?: SettlementUncheckedUpdateManyWithoutReferralLeadNestedInput
   }
 
   export type UserCreateWithoutReferralsInput = {
@@ -40510,6 +40796,45 @@ export namespace Prisma {
   export type StudentCreateOrConnectWithoutReferralLeadInput = {
     where: StudentWhereUniqueInput
     create: XOR<StudentCreateWithoutReferralLeadInput, StudentUncheckedCreateWithoutReferralLeadInput>
+  }
+
+  export type SettlementCreateWithoutReferralLeadInput = {
+    amount: number
+    status?: string
+    paymentMethod?: string | null
+    bankReference?: string | null
+    payoutDate?: Date | string | null
+    processedBy?: number | null
+    remarks?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    benefitType?: $Enums.BenefitType | null
+    user: UserCreateNestedOneWithoutSettlementsInput
+  }
+
+  export type SettlementUncheckedCreateWithoutReferralLeadInput = {
+    id?: number
+    userId: number
+    amount: number
+    status?: string
+    paymentMethod?: string | null
+    bankReference?: string | null
+    payoutDate?: Date | string | null
+    processedBy?: number | null
+    remarks?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    benefitType?: $Enums.BenefitType | null
+  }
+
+  export type SettlementCreateOrConnectWithoutReferralLeadInput = {
+    where: SettlementWhereUniqueInput
+    create: XOR<SettlementCreateWithoutReferralLeadInput, SettlementUncheckedCreateWithoutReferralLeadInput>
+  }
+
+  export type SettlementCreateManyReferralLeadInputEnvelope = {
+    data: SettlementCreateManyReferralLeadInput | SettlementCreateManyReferralLeadInput[]
+    skipDuplicates?: boolean
   }
 
   export type UserUpsertWithoutReferralsInput = {
@@ -40652,6 +40977,22 @@ export namespace Prisma {
     annualFee?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
+  export type SettlementUpsertWithWhereUniqueWithoutReferralLeadInput = {
+    where: SettlementWhereUniqueInput
+    update: XOR<SettlementUpdateWithoutReferralLeadInput, SettlementUncheckedUpdateWithoutReferralLeadInput>
+    create: XOR<SettlementCreateWithoutReferralLeadInput, SettlementUncheckedCreateWithoutReferralLeadInput>
+  }
+
+  export type SettlementUpdateWithWhereUniqueWithoutReferralLeadInput = {
+    where: SettlementWhereUniqueInput
+    data: XOR<SettlementUpdateWithoutReferralLeadInput, SettlementUncheckedUpdateWithoutReferralLeadInput>
+  }
+
+  export type SettlementUpdateManyWithWhereWithoutReferralLeadInput = {
+    where: SettlementScalarWhereInput
+    data: XOR<SettlementUpdateManyMutationInput, SettlementUncheckedUpdateManyWithoutReferralLeadInput>
+  }
+
   export type NotificationCreateWithoutAdminInput = {
     title: string
     message: string
@@ -40783,6 +41124,50 @@ export namespace Prisma {
     create: XOR<UserCreateWithoutSettlementsInput, UserUncheckedCreateWithoutSettlementsInput>
   }
 
+  export type ReferralLeadCreateWithoutSettlementsInput = {
+    parentName: string
+    parentMobile: string
+    campusId?: number | null
+    campus?: string | null
+    gradeInterested?: string | null
+    admittedYear?: string | null
+    confirmedDate?: Date | string | null
+    createdAt?: Date | string
+    studentName?: string | null
+    leadStatus?: $Enums.LeadStatus
+    admissionNumber?: string | null
+    section?: string | null
+    selectedFeeType?: $Enums.FeeType | null
+    annualFee?: number | null
+    user: UserCreateNestedOneWithoutReferralsInput
+    student?: StudentCreateNestedOneWithoutReferralLeadInput
+  }
+
+  export type ReferralLeadUncheckedCreateWithoutSettlementsInput = {
+    leadId?: number
+    userId: number
+    parentName: string
+    parentMobile: string
+    campusId?: number | null
+    campus?: string | null
+    gradeInterested?: string | null
+    admittedYear?: string | null
+    confirmedDate?: Date | string | null
+    createdAt?: Date | string
+    studentName?: string | null
+    leadStatus?: $Enums.LeadStatus
+    admissionNumber?: string | null
+    section?: string | null
+    selectedFeeType?: $Enums.FeeType | null
+    annualFee?: number | null
+    student?: StudentUncheckedCreateNestedOneWithoutReferralLeadInput
+  }
+
+  export type ReferralLeadCreateOrConnectWithoutSettlementsInput = {
+    where: ReferralLeadWhereUniqueInput
+    create: XOR<ReferralLeadCreateWithoutSettlementsInput, ReferralLeadUncheckedCreateWithoutSettlementsInput>
+  }
+
   export type UserUpsertWithoutSettlementsInput = {
     update: XOR<UserUpdateWithoutSettlementsInput, UserUncheckedUpdateWithoutSettlementsInput>
     create: XOR<UserCreateWithoutSettlementsInput, UserUncheckedCreateWithoutSettlementsInput>
@@ -40871,6 +41256,56 @@ export namespace Prisma {
     referredStudents?: StudentUncheckedUpdateManyWithoutAmbassadorNestedInput
     students?: StudentUncheckedUpdateManyWithoutParentNestedInput
     supportTickets?: SupportTicketUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type ReferralLeadUpsertWithoutSettlementsInput = {
+    update: XOR<ReferralLeadUpdateWithoutSettlementsInput, ReferralLeadUncheckedUpdateWithoutSettlementsInput>
+    create: XOR<ReferralLeadCreateWithoutSettlementsInput, ReferralLeadUncheckedCreateWithoutSettlementsInput>
+    where?: ReferralLeadWhereInput
+  }
+
+  export type ReferralLeadUpdateToOneWithWhereWithoutSettlementsInput = {
+    where?: ReferralLeadWhereInput
+    data: XOR<ReferralLeadUpdateWithoutSettlementsInput, ReferralLeadUncheckedUpdateWithoutSettlementsInput>
+  }
+
+  export type ReferralLeadUpdateWithoutSettlementsInput = {
+    parentName?: StringFieldUpdateOperationsInput | string
+    parentMobile?: StringFieldUpdateOperationsInput | string
+    campusId?: NullableIntFieldUpdateOperationsInput | number | null
+    campus?: NullableStringFieldUpdateOperationsInput | string | null
+    gradeInterested?: NullableStringFieldUpdateOperationsInput | string | null
+    admittedYear?: NullableStringFieldUpdateOperationsInput | string | null
+    confirmedDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    studentName?: NullableStringFieldUpdateOperationsInput | string | null
+    leadStatus?: EnumLeadStatusFieldUpdateOperationsInput | $Enums.LeadStatus
+    admissionNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    section?: NullableStringFieldUpdateOperationsInput | string | null
+    selectedFeeType?: NullableEnumFeeTypeFieldUpdateOperationsInput | $Enums.FeeType | null
+    annualFee?: NullableIntFieldUpdateOperationsInput | number | null
+    user?: UserUpdateOneRequiredWithoutReferralsNestedInput
+    student?: StudentUpdateOneWithoutReferralLeadNestedInput
+  }
+
+  export type ReferralLeadUncheckedUpdateWithoutSettlementsInput = {
+    leadId?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    parentName?: StringFieldUpdateOperationsInput | string
+    parentMobile?: StringFieldUpdateOperationsInput | string
+    campusId?: NullableIntFieldUpdateOperationsInput | number | null
+    campus?: NullableStringFieldUpdateOperationsInput | string | null
+    gradeInterested?: NullableStringFieldUpdateOperationsInput | string | null
+    admittedYear?: NullableStringFieldUpdateOperationsInput | string | null
+    confirmedDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    studentName?: NullableStringFieldUpdateOperationsInput | string | null
+    leadStatus?: EnumLeadStatusFieldUpdateOperationsInput | $Enums.LeadStatus
+    admissionNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    section?: NullableStringFieldUpdateOperationsInput | string | null
+    selectedFeeType?: NullableEnumFeeTypeFieldUpdateOperationsInput | $Enums.FeeType | null
+    annualFee?: NullableIntFieldUpdateOperationsInput | number | null
+    student?: StudentUncheckedUpdateOneWithoutReferralLeadNestedInput
   }
 
   export type UserCreateWithoutSupportTicketsInput = {
@@ -41952,6 +42387,8 @@ export namespace Prisma {
     remarks?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    benefitType?: $Enums.BenefitType | null
+    referralLeadId?: number | null
   }
 
   export type StudentCreateManyAmbassadorInput = {
@@ -42058,6 +42495,7 @@ export namespace Prisma {
     selectedFeeType?: NullableEnumFeeTypeFieldUpdateOperationsInput | $Enums.FeeType | null
     annualFee?: NullableIntFieldUpdateOperationsInput | number | null
     student?: StudentUpdateOneWithoutReferralLeadNestedInput
+    settlements?: SettlementUpdateManyWithoutReferralLeadNestedInput
   }
 
   export type ReferralLeadUncheckedUpdateWithoutUserInput = {
@@ -42077,6 +42515,7 @@ export namespace Prisma {
     selectedFeeType?: NullableEnumFeeTypeFieldUpdateOperationsInput | $Enums.FeeType | null
     annualFee?: NullableIntFieldUpdateOperationsInput | number | null
     student?: StudentUncheckedUpdateOneWithoutReferralLeadNestedInput
+    settlements?: SettlementUncheckedUpdateManyWithoutReferralLeadNestedInput
   }
 
   export type ReferralLeadUncheckedUpdateManyWithoutUserInput = {
@@ -42107,6 +42546,8 @@ export namespace Prisma {
     remarks?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    benefitType?: NullableEnumBenefitTypeFieldUpdateOperationsInput | $Enums.BenefitType | null
+    referralLead?: ReferralLeadUpdateOneWithoutSettlementsNestedInput
   }
 
   export type SettlementUncheckedUpdateWithoutUserInput = {
@@ -42120,6 +42561,8 @@ export namespace Prisma {
     remarks?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    benefitType?: NullableEnumBenefitTypeFieldUpdateOperationsInput | $Enums.BenefitType | null
+    referralLeadId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type SettlementUncheckedUpdateManyWithoutUserInput = {
@@ -42133,6 +42576,8 @@ export namespace Prisma {
     remarks?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    benefitType?: NullableEnumBenefitTypeFieldUpdateOperationsInput | $Enums.BenefitType | null
+    referralLeadId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type StudentUpdateWithoutAmbassadorInput = {
@@ -42300,6 +42745,65 @@ export namespace Prisma {
     resolvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     escalationLevel?: IntFieldUpdateOperationsInput | number
     lastEscalatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type SettlementCreateManyReferralLeadInput = {
+    id?: number
+    userId: number
+    amount: number
+    status?: string
+    paymentMethod?: string | null
+    bankReference?: string | null
+    payoutDate?: Date | string | null
+    processedBy?: number | null
+    remarks?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    benefitType?: $Enums.BenefitType | null
+  }
+
+  export type SettlementUpdateWithoutReferralLeadInput = {
+    amount?: FloatFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    paymentMethod?: NullableStringFieldUpdateOperationsInput | string | null
+    bankReference?: NullableStringFieldUpdateOperationsInput | string | null
+    payoutDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    processedBy?: NullableIntFieldUpdateOperationsInput | number | null
+    remarks?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    benefitType?: NullableEnumBenefitTypeFieldUpdateOperationsInput | $Enums.BenefitType | null
+    user?: UserUpdateOneRequiredWithoutSettlementsNestedInput
+  }
+
+  export type SettlementUncheckedUpdateWithoutReferralLeadInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    amount?: FloatFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    paymentMethod?: NullableStringFieldUpdateOperationsInput | string | null
+    bankReference?: NullableStringFieldUpdateOperationsInput | string | null
+    payoutDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    processedBy?: NullableIntFieldUpdateOperationsInput | number | null
+    remarks?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    benefitType?: NullableEnumBenefitTypeFieldUpdateOperationsInput | $Enums.BenefitType | null
+  }
+
+  export type SettlementUncheckedUpdateManyWithoutReferralLeadInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    amount?: FloatFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    paymentMethod?: NullableStringFieldUpdateOperationsInput | string | null
+    bankReference?: NullableStringFieldUpdateOperationsInput | string | null
+    payoutDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    processedBy?: NullableIntFieldUpdateOperationsInput | number | null
+    remarks?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    benefitType?: NullableEnumBenefitTypeFieldUpdateOperationsInput | $Enums.BenefitType | null
   }
 
   export type NotificationCreateManyAdminInput = {
@@ -42573,6 +43077,10 @@ export namespace Prisma {
      * @deprecated Use UserCountOutputTypeDefaultArgs instead
      */
     export type UserCountOutputTypeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = UserCountOutputTypeDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use ReferralLeadCountOutputTypeDefaultArgs instead
+     */
+    export type ReferralLeadCountOutputTypeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = ReferralLeadCountOutputTypeDefaultArgs<ExtArgs>
     /**
      * @deprecated Use AdminCountOutputTypeDefaultArgs instead
      */

@@ -1,8 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Filter, Download, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Filter, Download, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { syncProgramLeads } from '@/app/program-actions'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 interface ProgramLead {
     id: number
@@ -31,6 +34,8 @@ export function ProgramLeadsTable({ leads }: ProgramLeadsTableProps) {
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage, setItemsPerPage] = useState(20)
+    const [isSyncing, setIsSyncing] = useState(false)
+    const router = useRouter()
 
     useState(() => {
         setMounted(true)
@@ -99,6 +104,31 @@ export function ProgramLeadsTable({ leads }: ProgramLeadsTableProps) {
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-black text-slate-800">External Program Leads</h2>
                 <div className="flex gap-2">
+                    <button
+                        onClick={async () => {
+                            setIsSyncing(true)
+                            const tid = toast.loading('Syncing external leads...')
+                            try {
+                                const res = await syncProgramLeads()
+                                if (res.success) {
+                                    const totalSynced = res.results?.reduce((acc: number, r: any) => acc + (r.synced || 0), 0) || 0
+                                    toast.success(`Sync complete! ${totalSynced} leads updated across ${res.results?.length || 0} programs.`, { id: tid })
+                                    router.refresh()
+                                } else {
+                                    toast.error(res.error || 'Sync failed', { id: tid })
+                                }
+                            } catch (error) {
+                                toast.error('An unexpected error occurred', { id: tid })
+                            } finally {
+                                setIsSyncing(false)
+                            }
+                        }}
+                        disabled={isSyncing}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                        <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+                        {isSyncing ? 'Syncing...' : 'Sync Leads'}
+                    </button>
                     <button
                         onClick={downloadCSV}
                         suppressHydrationWarning

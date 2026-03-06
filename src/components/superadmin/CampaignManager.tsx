@@ -635,6 +635,10 @@ export function CampaignManager() {
                                                             <CheckCircle2 size={16} className={form.waTemplateName ? 'text-green-500' : 'text-gray-300'} />
                                                         </div>
                                                     </div>
+                                                    <p className="text-[10px] font-bold text-gray-400 px-1 italic">
+                                                        ⚠️ The entire "Payload Content" text above will be sent as Variable 1 (&#123;&#123;1&#125;&#125;) to this template.
+                                                        To avoid duplication, use a "Pass-through" template in MSG91 that consists only of &#123;&#123;1&#125;&#125;.
+                                                    </p>
                                                 </div>
                                             )}
                                         </div>

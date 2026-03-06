@@ -348,13 +348,18 @@ export async function syncProgramLeads() {
                     }
                 })
 
-                // Create a map for quick access
-                const leadMap = new Map(potentialLeads.map(l => [l.visitorMobile, l]))
+                // Create a map for quick access (Multiple leads per mobile)
+                const leadMap = new Map<string, typeof potentialLeads>()
+                potentialLeads.forEach(l => {
+                    const existing = leadMap.get(l.visitorMobile) || []
+                    leadMap.set(l.visitorMobile, [...existing, l])
+                })
 
                 // Perform updates
-                const updates = leadsToUpdate.map(async (leadData) => {
-                    const existingLead = leadMap.get(leadData.mobile)
-                    if (existingLead) {
+                const updates = leadsToUpdate.flatMap((leadData) => {
+                    const matchingLeads = leadMap.get(leadData.mobile) || []
+
+                    return matchingLeads.map(async (existingLead) => {
                         try {
                             // Determine internal status based on sheets payment status
                             let newInternalStatus = existingLead.status
@@ -378,8 +383,7 @@ export async function syncProgramLeads() {
                         } catch (e) {
                             return 0
                         }
-                    }
-                    return 0
+                    })
                 })
 
                 const resultsArray = await Promise.all(updates)

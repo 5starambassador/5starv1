@@ -17,6 +17,7 @@ import { UserRole, AccountStatus, LeadStatus } from '@prisma/client'
 import { mapUserRole, mapAdminRole, mapAccountStatus } from '@/lib/enum-utils'
 import { logAction } from '@/lib/audit-logger'
 import { transactionIdSchema } from '@/lib/validators'
+import { normalizeScientificNotation } from '@/lib/utils'
 
 export async function checkSession() {
     const user = await getCurrentUser()
@@ -374,7 +375,8 @@ export async function getRegistrationCampuses() {
 }
 
 export async function registerUser(formData: any) {
-    const { fullName, mobileNumber, password, role, childInAchariya, childName, bankAccountDetails, campusId, grade, transactionId, childEprNo, empId, aadharNo, email, childCampusId } = formData
+    const { fullName, mobileNumber, password, role, childInAchariya, childName, bankAccountDetails, campusId, grade, childEprNo, empId, aadharNo, email, childCampusId } = formData
+    const transactionId = normalizeScientificNotation(formData.transactionId)
 
     // Secure Password Policy Check
     const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.*[A-Z])[a-zA-Z0-9!@#$%^&*]{8,}$/;
@@ -734,7 +736,7 @@ export async function simulatePayment(userId: number) {
 
 export async function submitManualPayment(formData: FormData) {
     const rawUtr = formData.get('utr') as string
-    const utr = rawUtr?.trim().toUpperCase()
+    const utr = normalizeScientificNotation(rawUtr?.trim().toUpperCase())
     const amount = parseFloat(formData.get('amount') as string)
     const userId = parseInt(formData.get('userId') as string)
 
