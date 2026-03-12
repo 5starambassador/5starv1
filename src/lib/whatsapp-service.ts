@@ -123,10 +123,11 @@ class WhatsAppService {
 
             const components: any = {}
             variables.forEach((v, i) => {
-                // Preserve newlines - JSON.stringify will handle them correctly for the API
+                // MSG91 does NOT allow newlines in variable values — strip them
+                const cleanValue = (v || '').replace(/[\r\n]+/g, ' ').trim()
                 components[`body_${i + 1}`] = {
                     type: "text",
-                    value: v
+                    value: cleanValue
                 }
             })
 
@@ -210,10 +211,11 @@ class WhatsAppService {
             const to_and_components = recipients.map(r => {
                 const components: any = {}
                 r.variables.forEach((v, i) => {
-                    // Preserve newlines - JSON.stringify will handle them correctly for the API
+                    // MSG91 does NOT allow newlines in variable values — strip them
+                    const cleanValue = (v || '').replace(/[\r\n]+/g, ' ').trim()
                     components[`body_${i + 1}`] = {
                         type: "text",
-                        value: v
+                        value: cleanValue
                     }
                 })
                 return {
