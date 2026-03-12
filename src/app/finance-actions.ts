@@ -1085,6 +1085,17 @@ export async function syncPastRefunds(records: {
                         if (isNaN(payoutDate.getTime())) payoutDate = new Date()
                     }
 
+                    // Global UTR Safeguard: Ensure this UTR isn't already used for someone else
+                    const existingWithUtr = await prisma.settlement.findFirst({
+                        where: { bankReference: utr },
+                        select: { userId: true, amount: true, id: true }
+                    })
+
+                    if (existingWithUtr && existingWithUtr.userId !== user.userId) {
+                        results.results.push({ mobile, amount, transactionId: utr, status: 'Failed', message: 'Duplicate UTR: This reference is already used for another user' })
+                        continue
+                    }
+
                     // High Precision Match: Look for pending first, then processed by type and amount
                     // We prioritize records that EXACTLY match the type and amount if possible
                     const pendingMatch = user.settlements.find(s => 
@@ -1094,7 +1105,7 @@ export async function syncPastRefunds(records: {
                     )
                     
                     const processedMatch = user.settlements.find(s => 
-                        s.status === 'Processed' && 
+                        (s.status === 'Processed' || s.bankReference === utr) && 
                         Math.abs(s.amount - amount) < 1 && 
                         (s.benefitType === detectedType || (!s.benefitType && detectedType === 'OTHER'))
                     )
