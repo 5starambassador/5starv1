@@ -2,7 +2,7 @@
 
 import prisma from '@/lib/prisma'
 import { cookies } from 'next/headers'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, unstable_cache } from 'next/cache'
 
 import { getCurrentUser } from '@/lib/auth-service'
 
@@ -32,6 +32,27 @@ export async function getCampuses() {
     }
     return { success: false, error: 'Unknown error' }
 }
+
+/**
+ * Lightweight version of getCampuses that only returns essential fields.
+ * Cached to improve performance on frequently visited pages.
+ */
+export const getCampusNames = unstable_cache(
+    async () => {
+        try {
+            const campuses = await prisma.campus.findMany({
+                select: { id: true, campusName: true },
+                orderBy: { campusName: 'asc' }
+            })
+            return { success: true, campuses }
+        } catch (error) {
+            console.error('Error in getCampusNames:', error)
+            return { success: false, error: 'Failed' }
+        }
+    },
+    ['campus-names-list'],
+    { revalidate: 3600, tags: ['campuses'] }
+)
 
 export async function addCampus(data: {
     campusName: string

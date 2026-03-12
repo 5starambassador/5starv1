@@ -271,6 +271,15 @@ export function UserDetailPanel({ user, onClose, onEdit, onResetPassword, onView
                                                 <p className="text-sm font-bold text-gray-900 pl-5">{user.grade || 'N/A'}</p>
                                             </div>
                                         </div>
+                                        {user.aadharNo && (
+                                            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Hash size={14} className="text-gray-400" />
+                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Aadhar Number</p>
+                                                </div>
+                                                <p className="text-sm font-bold text-gray-900 pl-5 font-mono tracking-wider">{user.aadharNo}</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </section>
 

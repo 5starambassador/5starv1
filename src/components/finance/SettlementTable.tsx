@@ -53,7 +53,8 @@ export function SettlementTable({ data }: SettlementTableProps) {
         bankName?: string,
         accountNumber?: string,
         ifscCode?: string,
-        date?: string
+        date?: string,
+        remarks?: string
     }[]>([])
     const [pastPayoutsToSync, setPastPayoutsToSync] = useState<{
         mobile: string,
@@ -176,9 +177,13 @@ export function SettlementTable({ data }: SettlementTableProps) {
     }
 
     const handleDownloadTemplate = () => {
-        const headers = ['Beneficiary Name', 'Role', 'Mobile', 'Bank Name', 'Account Number', 'IFSC Code', 'Amount', 'Date', 'Remarks']
-        const sampleRow = ['John Doe', 'Staff', "'9876543210", 'Bank Name', "'123456789", 'ABCD0001234', '25', '2026-01-19', 'Registration Fee Refund']
-        const csvContent = "\uFEFF" + headers.join(',') + "\n" + sampleRow.join(',')
+        const headers = ['Beneficiary Name', 'Role', 'Mobile', 'Bank Name', 'Account Number', 'IFSC Code', 'Amount', 'Date', 'Academic Year', 'Bank Transaction ID', 'Remarks']
+        const sampleRows = [
+            ['John Doe', 'Staff', "'9876543210", 'HDFC Bank', "'1234567890", 'HDFC0001234', '8000', '19-01-2026', '2026-2027', 'UTR123456789', 'Admission fee share'],
+            ['John Doe', 'Staff', "'9876543210", 'HDFC Bank', "'1234567890", 'HDFC0001234', '5000', '19-01-2026', '2026-2027', 'UTR987654321', 'Donation fee Share'],
+            ['Jane Doe', 'Parent', "'9888877777", 'SBI', "'9999888877", 'SBIN0001111', '25', '19-01-2026', '2026-2027', 'TXN555444333', 'Registration Fee Refund']
+        ]
+        const csvContent = "\uFEFF" + headers.join(',') + "\n" + sampleRows.map(r => r.join(',')).join('\n')
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
         const url = URL.createObjectURL(blob)
@@ -248,7 +253,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
                     if (cols.length < 2) continue
 
                     let mobile = ''
-                    let bankName = '', accountNumber = '', ifscCode = '', utr = '', dateStr = '', amountStr = ''
+                    let bankName = '', accountNumber = '', ifscCode = '', utr = '', dateStr = '', amountStr = '', remarks = ''
 
                     const getBestUTR = (candidates: string[]) => {
                         const skipTerms = ['refund', 'fee', 'registration', 'remarks', 'payout', 'payment']
@@ -267,23 +272,29 @@ export function SettlementTable({ data }: SettlementTableProps) {
                         return candidates[0] || ''
                     }
 
-                    if (cols.length >= 10) {
-                        mobile = cleanVal(cols[2]) // Mobile is at index 2 in the new format with Role
-                        bankName = cleanVal(cols[4]) // Shifted due to Role col if exists
-                        accountNumber = cleanVal(cols[5])
-                        ifscCode = cleanVal(cols[6])
-                        amountStr = cleanVal(cols[7])
-                        dateStr = cleanVal(cols[8])
-                        utr = getBestUTR([cleanVal(cols[9]), cleanVal(cols[10]), cleanVal(cols[cols.length - 1])])
-                    } else if (cols.length === 9) {
-                        // New Standard Export Order: 0:Name, 1:Role, 2:Mobile, 3:Bank, 4:Acc, 5:IFSC, 6:Amount, 7:Date, 8:Remarks
+                    if (cols.length >= 11) {
+                        // User's Approved Template: 11 Columns
+                        // 0:Name, 1:Role, 2:Mobile, 3:Bank, 4:Acc, 5:IFSC, 6:Amount, 7:Date, 8:AcademicYear, 9:UTR, 10:Remarks
                         mobile = cleanVal(cols[2])
                         bankName = cleanVal(cols[3])
                         accountNumber = cleanVal(cols[4])
                         ifscCode = cleanVal(cols[5])
                         amountStr = cleanVal(cols[6])
                         dateStr = cleanVal(cols[7])
-                        utr = getBestUTR([cleanVal(cols[8])])
+                        // Academic Year is at index 8 (skipped here as it's not needed for the payout match call but recorded in remarks)
+                        utr = cleanVal(cols[9])
+                        const csvRemarks = cleanVal(cols[10])
+                        remarks = csvRemarks
+                    } else if (cols.length >= 9) {
+                        // Standard Export Support
+                        mobile = cleanVal(cols[2])
+                        bankName = cleanVal(cols[3])
+                        accountNumber = cleanVal(cols[4])
+                        ifscCode = cleanVal(cols[5])
+                        amountStr = cleanVal(cols[6])
+                        dateStr = cleanVal(cols[7])
+                        utr = getBestUTR([cleanVal(cols[8]), cleanVal(cols[cols.length - 1])])
+                        remarks = cleanVal(cols[cols.length - 1])
                     } else if (cols.length === 8) {
                         // Legacy Export Order: 0:Name, 1:Mobile, 2:Bank, 3:Acc, 4:IFSC, 5:Amount, 6:Date, 7:Remarks
                         mobile = cleanVal(cols[1])
@@ -313,7 +324,8 @@ export function SettlementTable({ data }: SettlementTableProps) {
                         accountNumber,
                         ifscCode,
                         date: dateStr,
-                        amount: parseFloat(amountStr) || 0
+                        amount: parseFloat(amountStr) || 0,
+                        remarks
                     })
                 }
 
@@ -341,7 +353,8 @@ export function SettlementTable({ data }: SettlementTableProps) {
                         bankName: r.bankName,
                         accountNumber: r.accountNumber,
                         ifscCode: r.ifscCode,
-                        date: r.date
+                        date: r.date,
+                        remarks: r.remarks
                     }))
 
                     if (toProcess.length === 0) {

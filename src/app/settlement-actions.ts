@@ -2,7 +2,7 @@
 
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
-import { logAction } from '@/lib/audit-logger'
+import { logAction, logSecurityAlert } from '@/lib/audit-logger'
 import { revalidatePath } from 'next/cache'
 import { transactionIdSchema } from '@/lib/validators'
 
@@ -26,8 +26,22 @@ export async function getSettlements() {
             orderBy: { createdAt: 'desc' }
         })
 
-        await logAction('READ', 'settlement', 'Bulk read of all settlement records (with bank details)')
-        return { success: true, settlements }
+        // Mask sensitive bank details
+        const maskedSettlements = settlements.map(s => ({
+            ...s,
+            user: s.user ? {
+                ...s.user,
+                bankAccountDetails: s.user.bankAccountDetails ? '***MASKED***' : null
+            } : null
+        }))
+
+        // Anomaly Detection: Bulk read alert
+        if (settlements.length > 500) {
+            await logSecurityAlert(`Large bulk settlement read: ${settlements.length} records`, { count: settlements.length })
+        }
+
+        await logAction('READ', 'settlement', `Bulk read of ${settlements.length} settlement records (PII masked)`, null, null, { count: settlements.length })
+        return { success: true, settlements: maskedSettlements }
     } catch (error) {
         console.error('getSettlements error:', error)
         return { success: false, error: 'Failed to fetch settlements' }

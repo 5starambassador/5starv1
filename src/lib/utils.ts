@@ -46,9 +46,18 @@ export function formatCurrency(amount: number): string {
  */
 export function normalizeScientificNotation(value: string | null | undefined): string {
     if (!value) return ''
-    const str = String(value).trim()
+    let str = String(value).trim()
 
-    // Quick check for scientific notation: contains 'E+' or 'e+'
+    // 1. Remove Excel formula artifacts if present (e.g. ="\t8227..." or ="8227...")
+    if (str.startsWith('="') && str.endsWith('"')) {
+        str = str.slice(2, -1)
+    }
+
+    // 2. Remove any remaining tabs or non-digit characters that might be used for formatting
+    // But keep 'e' or 'E' and '+' and '.' if it's potentially scientific notation
+    str = str.replace(/\t/g, '')
+
+    // 3. Check for scientific notation: contains 'E+' or 'e+'
     if (/[eE]\+/.test(str)) {
         const num = Number(str)
         if (!isNaN(num) && isFinite(num)) {
@@ -57,5 +66,16 @@ export function normalizeScientificNotation(value: string | null | undefined): s
             return num.toLocaleString('fullwide', { useGrouping: false, maximumFractionDigits: 0 })
         }
     }
+
+    // For plain numbers, also ensure we don't have scientific-looking strings that are actually valid but long
+    // If it STILL looks like scientific notation but didn't have E+ (unlikely but safe check)
+    if (str.includes('.') && !isNaN(Number(str))) {
+        // If it's a whole number disguised as float (e.g. 123.0), clean it
+        const num = Number(str)
+        if (Number.isInteger(num)) {
+            return num.toFixed(0)
+        }
+    }
+
     return str
 }

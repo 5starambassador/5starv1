@@ -108,12 +108,33 @@ export const RegistrationBasic = ({ formData, setFormData, onNext, onBack }: Reg
                                 {showRegisterPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
                         </div>
-                        {/* Password Strength Indicators */}
-                        <div className="flex gap-1 mt-2 px-1">
-                            <div className={`h-1 flex-1 rounded-full transition-colors ${formData.password.length >= 8 ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-white/10'}`}></div>
-                            <div className={`h-1 flex-1 rounded-full transition-colors ${/[A-Z]/.test(formData.password) ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-white/10'}`}></div>
-                            <div className={`h-1 flex-1 rounded-full transition-colors ${/[0-9]/.test(formData.password) ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-white/10'}`}></div>
-                            <div className={`h-1 flex-1 rounded-full transition-colors ${/[!@#$%^&*]/.test(formData.password) ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-white/10'}`}></div>
+                        {/* Password Strength Indicators & Requirements Checklist */}
+                        <div className="mt-3 space-y-2 px-1">
+                            <div className="flex gap-1.5 mb-3">
+                                <div className={`h-1 flex-1 rounded-full transition-all duration-300 ${formData.password.length >= 8 ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]' : 'bg-white/10'}`}></div>
+                                <div className={`h-1 flex-1 rounded-full transition-all duration-300 ${/[A-Z]/.test(formData.password) ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]' : 'bg-white/10'}`}></div>
+                                <div className={`h-1 flex-1 rounded-full transition-all duration-300 ${/[0-9]/.test(formData.password) ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]' : 'bg-white/10'}`}></div>
+                                <div className={`h-1 flex-1 rounded-full transition-all duration-300 ${/[!@#$%^&*]/.test(formData.password) ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]' : 'bg-white/10'}`}></div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                <div className={`flex items-center gap-2 transition-all ${formData.password.length >= 8 ? 'text-emerald-400' : 'text-white/30'}`}>
+                                    <div className={`w-1 h-1 rounded-full ${formData.password.length >= 8 ? 'bg-emerald-400' : 'bg-white/20'}`}></div>
+                                    <span className="text-[9px] font-bold uppercase tracking-wider">8+ Characters</span>
+                                </div>
+                                <div className={`flex items-center gap-2 transition-all ${/[A-Z]/.test(formData.password) ? 'text-emerald-400' : 'text-white/30'}`}>
+                                    <div className={`w-1 h-1 rounded-full ${/[A-Z]/.test(formData.password) ? 'bg-emerald-400' : 'bg-white/20'}`}></div>
+                                    <span className="text-[9px] font-bold uppercase tracking-wider">1 Uppercase</span>
+                                </div>
+                                <div className={`flex items-center gap-2 transition-all ${/[0-9]/.test(formData.password) ? 'text-emerald-400' : 'text-white/30'}`}>
+                                    <div className={`w-1 h-1 rounded-full ${/[0-9]/.test(formData.password) ? 'bg-emerald-400' : 'bg-white/20'}`}></div>
+                                    <span className="text-[9px] font-bold uppercase tracking-wider">1 Number</span>
+                                </div>
+                                <div className={`flex items-center gap-2 transition-all ${/[!@#$%^&*]/.test(formData.password) ? 'text-emerald-400' : 'text-white/30'}`}>
+                                    <div className={`w-1 h-1 rounded-full ${/[!@#$%^&*]/.test(formData.password) ? 'bg-emerald-400' : 'bg-white/20'}`}></div>
+                                    <span className="text-[9px] font-bold uppercase tracking-wider">1 Special</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div>

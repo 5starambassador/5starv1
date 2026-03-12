@@ -17,8 +17,15 @@ import { useClickOutside } from '@/hooks/use-click-outside'
 
 interface UserTableProps {
     users: User[]
+    pagination?: {
+        page: number
+        pageSize: number
+        totalCount: number
+        totalPages: number
+    } | null
     searchTerm: string
     onSearchChange: (value: string) => void
+    onPageChange?: (page: number) => void
     onAddUser: () => void
     onBulkAdd: () => void
     onDelete: (userId: number, name: string) => void
@@ -28,23 +35,43 @@ interface UserTableProps {
     onEdit?: (user: User) => void
     onPurge?: (userId: number, name: string) => void
     campuses?: { id: number; campusName: string }[]
+    statusFilterValue: string[]
+    onStatusFilterChange: (status: string[] | ((prev: string[]) => string[])) => void
+    roleFilterValue: string[]
+    onRoleFilterChange: (role: string[] | ((prev: string[]) => string[])) => void
+    sourceFilterValue: string[]
+    onSourceFilterChange: (source: string[] | ((prev: string[]) => string[])) => void
+    campusFilterValue: string[]
+    onCampusFilterChange: (campus: string[] | ((prev: string[]) => string[])) => void
+    onClearAllFilters: () => void
 }
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 export function UserTable({
     users,
+    pagination,
     onAddUser,
     onBulkAdd,
     onDelete,
     onToggleStatus,
     searchTerm,
     onSearchChange,
+    onPageChange,
     onViewReferrals,
     onResetPassword,
     onEdit,
     onPurge,
-    campuses = []
+    campuses = [],
+    statusFilterValue,
+    onStatusFilterChange,
+    roleFilterValue,
+    onRoleFilterChange,
+    sourceFilterValue,
+    onSourceFilterChange,
+    campusFilterValue,
+    onCampusFilterChange,
+    onClearAllFilters
 }: UserTableProps) {
     const [selectedUsers, setSelectedUsers] = useState<User[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
@@ -277,10 +304,7 @@ export function UserTable({
 
 
     // Export State
-    const [roleFilter, setRoleFilter] = useState<string[]>([])
-    const [campusFilter, setCampusFilter] = useState<string[]>([])
-    const [statusFilter, setStatusFilter] = useState<string[]>([])
-    const [sourceFilter, setSourceFilter] = useState<string[]>([]) // ['manual', 'system']
+    // REMOVED: roleFilter, campusFilter, sourceFilter - these are now props
 
     const [showExportModal, setShowExportModal] = useState(false)
     const [exportDateRange, setExportDateRange] = useState({
@@ -333,20 +357,20 @@ export function UserTable({
             if (!matchesSearch) return false
 
             // 2. Role Filter
-            if (roleFilter.length > 0 && !roleFilter.includes(user.role)) return false
+            if (roleFilterValue.length > 0 && !roleFilterValue.includes(user.role)) return false
 
             // 3. Campus Filter
-            if (campusFilter.length > 0 && !campusFilter.includes(user.assignedCampus || 'Global')) return false
+            if (campusFilterValue.length > 0 && !campusFilterValue.includes(user.assignedCampus || 'Global')) return false
 
-            // 4. Status Filter
-            if (statusFilter.length > 0 && !statusFilter.includes(user.status)) return false
+            // 4. Status Filter (using statusFilterValue from props for server-side filtering)
+            if (statusFilterValue.length > 0 && !statusFilterValue.includes(user.status)) return false
 
             // 5. Source Filter
-            if (sourceFilter.length > 0) {
+            if (sourceFilterValue.length > 0) {
                 const source = (user as any).registrationSource || 'System'
                 const isManual = source === 'Manual' || source === 'Admin Created'
                 const userSource = isManual ? 'manual' : 'system'
-                if (!sourceFilter.includes(userSource)) return false
+                if (!sourceFilterValue.includes(userSource)) return false
             }
 
             // 6. Date Range Filter
@@ -560,9 +584,9 @@ export function UserTable({
                         <button
                             key={role}
                             onClick={() => {
-                                setRoleFilter(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role])
+                                onRoleFilterChange(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role])
                             }}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${roleFilter.includes(role) ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${roleFilterValue.includes(role) ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
                             suppressHydrationWarning
                         >
                             {role}
@@ -576,9 +600,9 @@ export function UserTable({
                         <button
                             key={status}
                             onClick={() => {
-                                setStatusFilter(prev => prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status])
+                                onStatusFilterChange((prev: string[]) => prev.includes(status) ? prev.filter((s: string) => s !== status) : [...prev, status])
                             }}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${statusFilter.includes(status) ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${statusFilterValue.includes(status) ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
                             suppressHydrationWarning
                         >
                             {status}
@@ -595,9 +619,9 @@ export function UserTable({
                         <button
                             key={source.value}
                             onClick={() => {
-                                setSourceFilter(prev => prev.includes(source.value) ? prev.filter(s => s !== source.value) : [...prev, source.value])
+                                onSourceFilterChange(prev => prev.includes(source.value) ? prev.filter(s => s !== source.value) : [...prev, source.value])
                             }}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${sourceFilter.includes(source.value) ? 'bg-amber-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${sourceFilterValue.includes(source.value) ? 'bg-amber-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
                             suppressHydrationWarning
                         >
                             {source.label}
@@ -609,11 +633,11 @@ export function UserTable({
                 <div className="relative" ref={campusDropdownRef}>
                     <button
                         onClick={() => setShowCampusDropdown(!showCampusDropdown)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${showCampusDropdown || campusFilter.length > 0 ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' : 'bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100'}`}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${showCampusDropdown || campusFilterValue.length > 0 ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' : 'bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100'}`}
                         suppressHydrationWarning
                     >
                         <Building size={12} />
-                        Filter Campus {campusFilter.length > 0 && `(${campusFilter.length})`}
+                        Filter Campus {campusFilterValue.length > 0 && `(${campusFilterValue.length})`}
                         <ChevronDown size={12} className={`ml-1 transition-transform ${showCampusDropdown ? 'rotate-180' : ''}`} />
                     </button>
 
@@ -622,25 +646,25 @@ export function UserTable({
                             <div className="max-h-60 overflow-y-auto space-y-1 custom-scrollbar">
                                 <button
                                     onClick={() => {
-                                        setCampusFilter(prev => prev.includes('Global') ? prev.filter(c => c !== 'Global') : [...prev, 'Global'])
+                                        onCampusFilterChange(prev => prev.includes('Global') ? prev.filter(c => c !== 'Global') : [...prev, 'Global'])
                                     }}
-                                    className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-between ${campusFilter.includes('Global') ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                    className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-between ${campusFilterValue.includes('Global') ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
                                     suppressHydrationWarning
                                 >
                                     Global / Unknown
-                                    {campusFilter.includes('Global') && <CheckSquare size={12} />}
+                                    {campusFilterValue.includes('Global') && <CheckSquare size={12} />}
                                 </button>
                                 {campuses.map(c => (
                                     <button
                                         key={c.id}
                                         onClick={() => {
-                                            setCampusFilter(prev => prev.includes(c.campusName) ? prev.filter(cn => cn !== c.campusName) : [...prev, c.campusName])
+                                            onCampusFilterChange(prev => prev.includes(c.campusName) ? prev.filter(cn => cn !== c.campusName) : [...prev, c.campusName])
                                         }}
-                                        className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-between ${campusFilter.includes(c.campusName) ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                        className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-between ${campusFilterValue.includes(c.campusName) ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
                                         suppressHydrationWarning
                                     >
                                         {c.campusName}
-                                        {campusFilter.includes(c.campusName) && <CheckSquare size={12} />}
+                                        {campusFilterValue.includes(c.campusName) && <CheckSquare size={12} />}
                                     </button>
                                 ))}
                             </div>
@@ -649,14 +673,9 @@ export function UserTable({
                 </div>
 
                 {/* Clear All Filters */}
-                {(roleFilter.length > 0 || campusFilter.length > 0 || statusFilter.length > 0 || sourceFilter.length > 0) && (
+                {(roleFilterValue.length > 0 || campusFilterValue.length > 0 || statusFilterValue.length > 0 || sourceFilterValue.length > 0) && (
                     <button
-                        onClick={() => {
-                            setRoleFilter([]);
-                            setCampusFilter([]);
-                            setStatusFilter([]);
-                            setSourceFilter([]);
-                        }}
+                        onClick={onClearAllFilters}
                         className="text-[10px] font-black uppercase text-red-500 hover:text-red-700 tracking-widest pl-2"
                         suppressHydrationWarning
                     >
@@ -665,18 +684,7 @@ export function UserTable({
                 )}
 
                 <div className="ml-auto text-[10px] font-black text-gray-300 uppercase tracking-widest">
-                    Showing {users.filter(u => {
-                        if (roleFilter.length > 0 && !roleFilter.includes(u.role)) return false
-                        if (campusFilter.length > 0 && !campusFilter.includes(u.assignedCampus || 'Global')) return false
-                        if (statusFilter.length > 0 && !statusFilter.includes(u.status)) return false
-                        if (sourceFilter.length > 0) {
-                            const source = (u as any).registrationSource || 'System'
-                            const isManual = source === 'Manual' || source === 'Admin Created'
-                            const userSource = isManual ? 'manual' : 'system'
-                            if (!sourceFilter.includes(userSource)) return false
-                        }
-                        return true
-                    }).length} results
+                    Showing {users.length} results
                 </div>
             </div>
 
@@ -728,20 +736,13 @@ export function UserTable({
             <div className="w-full overflow-hidden">
                 <div className="overflow-x-auto pb-4 custom-scrollbar">
                     <DataTable
-                        data={users.filter(u => {
-                            // Apply dynamic filters to table view as well
-                            if (roleFilter.length > 0 && !roleFilter.includes(u.role)) return false
-                            if (campusFilter.length > 0 && !campusFilter.includes(u.assignedCampus || 'Global')) return false
-                            if (statusFilter.length > 0 && !statusFilter.includes(u.status)) return false
-                            if (sourceFilter.length > 0) {
-                                const source = u.registrationSource || 'System'
-                                const isManual = source === 'Manual' || source === 'Admin Created'
-                                const userSource = isManual ? 'manual' : 'system'
-                                if (!sourceFilter.includes(userSource)) return false
-                            }
-                            return true
-                        })}
+                        data={users}
                         columns={columns as any}
+                        manualPagination={!!pagination}
+                        pageCount={pagination?.totalPages}
+                        rowCount={pagination?.totalCount}
+                        currentPage={pagination?.page}
+                        onPageChange={onPageChange}
                         searchKey={['fullName', 'referralCode', 'mobileNumber']}
                         searchValue={searchTerm}
                         onSearchChange={onSearchChange}

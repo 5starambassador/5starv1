@@ -8,12 +8,18 @@ export async function getAuditLogs(params: {
     module?: string
     startDate?: string
     endDate?: string
+    page?: number
+    pageSize?: number
 }) {
     try {
         const user = await getCurrentUser()
         if (!user || user.role !== 'Super Admin') {
             return { error: 'Unauthorized' }
         }
+
+        const page = params.page || 1
+        const pageSize = params.pageSize || 50
+        const skip = (page - 1) * pageSize
 
         const where: any = {}
 
@@ -65,10 +71,15 @@ export async function getAuditLogs(params: {
             }
         }
 
-        const logs = await prisma.activityLog.findMany({
-            where,
-            orderBy: { createdAt: 'desc' }
-        })
+        const [logs, total] = await Promise.all([
+            prisma.activityLog.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: pageSize
+            }),
+            prisma.activityLog.count({ where })
+        ])
 
         // Manually populate actor details since no direct relation exists in schema
         const adminIds = logs.map(l => l.adminId).filter(Boolean) as number[]
@@ -90,7 +101,16 @@ export async function getAuditLogs(params: {
             user: log.userId ? users.find(u => u.userId === log.userId) : null
         }))
 
-        return { success: true, logs: enrichedLogs }
+        return {
+            success: true,
+            logs: enrichedLogs,
+            pagination: {
+                total,
+                page,
+                pageSize,
+                totalPages: Math.ceil(total / pageSize)
+            }
+        }
     } catch (error) {
         console.error('getAuditLogs error:', error)
         return { error: 'Failed' }

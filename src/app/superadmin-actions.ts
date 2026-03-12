@@ -1,9 +1,9 @@
 'use server'
 
-import prisma from "@/lib/prisma"
+import prisma, { withRetry } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth-service"
 import { EmailService } from "@/lib/email-service"
-import { logAction } from "@/lib/audit-logger"
+import { logAction, logSecurityAlert } from '@/lib/audit-logger'
 import { registerSchema, mobileSchema } from "@/lib/validators"
 import { z } from "zod"
 import bcrypt from "bcryptjs"
@@ -56,6 +56,27 @@ interface CampusComparison {
     othersCount?: number
     systemWideBenefits?: number
     prevBenefits?: number
+}
+
+
+/**
+ * Redacts sensitive fields from user records to prevent bulk PII exposure.
+ */
+function maskPII(user: any) {
+    if (!user) return user
+    return {
+        ...user,
+        // Mask Aadhar: First 8 digits as *, last 4 visible
+        aadharNo: user.aadharNo ? '********' + user.aadharNo.slice(-4) : null,
+        // Mask Account Number: Show only last 4
+        accountNumber: user.accountNumber ? '********' + user.accountNumber.slice(-4) : null,
+        // Mask IFSC: Show only last 3
+        ifscCode: user.ifscCode ? '*****' + user.ifscCode.slice(-3) : null,
+        // Mask Bank Details string (legacy field)
+        bankAccountDetails: user.bankAccountDetails ? '***MASKED***' : null,
+        // Password hash should NEVER be sent to client
+        password: '***PROTECTED***'
+    }
 }
 
 interface UserRecord {
@@ -124,7 +145,7 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
         throw new Error('Unauthorized')
     }
 
-    try {
+    return withRetry(async () => {
         const [
             totalAmbassadors,
             totalLeads,
@@ -247,26 +268,7 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
                 { stage: 'Confirmed', count: totalConfirmed }
             ]
         }
-    } catch (err: any) {
-        console.error('SYSTEM ANALYTICS ERROR (Possible Quota Limit):', err?.message || err, err?.stack || '')
-        return {
-            totalAmbassadors: 0,
-            totalLeads: 0,
-            totalConfirmed: 0,
-            globalConversionRate: 0,
-            totalCampuses: 0,
-            systemWideBenefits: 0,
-            totalStudents: 0,
-            staffCount: 0,
-            parentCount: 0,
-            alumniCount: 0,
-            othersCount: 0,
-            userRoleDistribution: [],
-            avgLeadsPerAmbassador: 0,
-            totalEstimatedRevenue: 0,
-            conversionFunnel: []
-        }
-    }
+    })
 }
 
 /**
@@ -288,7 +290,7 @@ export async function getUserGrowthTrend(timeRange: '7d' | '30d' | 'all' = '30d'
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
 
-    const users = await prisma.user.findMany({
+    const users = await withRetry(() => prisma.user.findMany({
         where: {
             createdAt: {
                 gte: startDate
@@ -297,7 +299,7 @@ export async function getUserGrowthTrend(timeRange: '7d' | '30d' | 'all' = '30d'
         select: {
             createdAt: true
         }
-    })
+    }))
 
     // Group by date
     const trendMap = new Map<string, number>()
@@ -388,216 +390,229 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
 
     // Optimized Aggregation: Fetch all stats in parallel grouping queries
     // Batch 1: Core Campus and Lead Stats (Fastest)
-    const [
-        allCampuses,
-        totalLeadsData,
-        confirmedData,
-        pendingData,
-        ambassadorData,
-        prevLeadsData,
-        prevConfirmedData
-    ] = await Promise.all([
-        prisma.campus.findMany({
-            where: { isActive: true },
-            select: { campusName: true, id: true }
-        }),
-        prisma.referralLead.groupBy({
-            by: ['campus'],
-            where: { campus: { not: null }, ...dateFilter, ...yearLeadFilter },
-            _count: { _all: true }
-        }),
-        prisma.referralLead.groupBy({
-            by: ['campus'],
-            where: { campus: { not: null }, leadStatus: { in: ['Confirmed', 'Admitted'] }, ...dateFilter, ...yearLeadFilter },
-            _count: { _all: true }
-        }),
-        prisma.referralLead.groupBy({
-            by: ['campus'],
-            where: { campus: { not: null }, leadStatus: { in: [LeadStatus.New, LeadStatus.Follow_up] }, ...dateFilter, ...yearLeadFilter },
-            _count: { _all: true }
-        }),
-        prisma.referralLead.findMany({
-            where: { campus: { not: null }, ...yearLeadFilter },
-            select: { campus: true, userId: true },
-            distinct: ['campus', 'userId']
-        }),
-        prevDateFilter ? prisma.referralLead.groupBy({
-            by: ['campus'],
-            where: { campus: { not: null }, ...prevDateFilter, ...yearLeadFilter },
-            _count: { _all: true }
-        }) : Promise.resolve([]),
-        prevDateFilter ? prisma.referralLead.groupBy({
-            by: ['campus'],
-            where: { campus: { not: null }, leadStatus: { in: ['Confirmed', 'Admitted'] }, ...prevDateFilter, ...yearLeadFilter },
-            _count: { _all: true }
-        }) : Promise.resolve([])
-    ]);
+    return withRetry(async () => {
+        const [
+            allCampuses,
+            totalLeadsData,
+            confirmedData,
+            pendingData,
+            ambassadorData,
+            prevLeadsData,
+            prevConfirmedData
+        ] = await Promise.all([
+            prisma.campus.findMany({
+                where: { isActive: true },
+                select: { campusName: true, id: true }
+            }),
+            prisma.referralLead.groupBy({
+                by: ['campus'],
+                where: { campus: { not: null }, ...dateFilter, ...yearLeadFilter },
+                _count: { _all: true }
+            }),
+            prisma.referralLead.groupBy({
+                by: ['campus'],
+                where: { campus: { not: null }, leadStatus: { in: ['Confirmed', 'Admitted'] }, ...dateFilter, ...yearLeadFilter },
+                _count: { _all: true }
+            }),
+            prisma.referralLead.groupBy({
+                by: ['campus'],
+                where: { campus: { not: null }, leadStatus: { in: [LeadStatus.New, LeadStatus.Follow_up] }, ...dateFilter, ...yearLeadFilter },
+                _count: { _all: true }
+            }),
+            prisma.referralLead.findMany({
+                where: { campus: { not: null }, ...yearLeadFilter },
+                select: { campus: true, userId: true },
+                distinct: ['campus', 'userId']
+            }),
+            prevDateFilter ? prisma.referralLead.groupBy({
+                by: ['campus'],
+                where: { campus: { not: null }, ...prevDateFilter, ...yearLeadFilter },
+                _count: { _all: true }
+            }) : Promise.resolve([]),
+            prevDateFilter ? prisma.referralLead.groupBy({
+                by: ['campus'],
+                where: { campus: { not: null }, leadStatus: { in: ['Confirmed', 'Admitted'] }, ...prevDateFilter, ...yearLeadFilter },
+                _count: { _all: true }
+            }) : Promise.resolve([])
+        ]);
 
-    // Batch 2: Distribution and Financial Data (Heavy)
-    const [
-        roleDistributionData,
-        campusStudentsData,
-        campusUsersData,
-        currentBenefitsData,
-        prevBenefitsData
-    ] = await Promise.all([
-        prisma.referralLead.findMany({
-            where: { campus: { not: null }, ...dateFilter, ...yearLeadFilter },
-            select: {
-                campus: true,
-                user: { select: { role: true } }
-            }
-        }),
-        prisma.student.groupBy({
-            by: ['campusId'],
-            where: yearStudentFilter,
-            _count: { _all: true }
-        }),
-        prisma.user.groupBy({
-            by: ['assignedCampus', 'role'],
-            where: { assignedCampus: { not: null }, ...yearActivityFilter },
-            _count: { _all: true }
-        }),
-        prisma.user.findMany({
-            where: {
-                assignedCampus: { not: null },
-                ...dateFilter,
-                ...yearActivityFilter,
-                referrals: { some: { leadStatus: { in: ['Confirmed', 'Admitted'] }, ...yearLeadFilter } }
-            },
-            select: {
-                assignedCampus: true,
-                studentFee: true,
-                yearFeeBenefitPercent: true,
-                confirmedReferralCount: true
-            }
-        }),
-        prevDateFilter ? prisma.user.findMany({
-            where: {
-                assignedCampus: { not: null },
-                ...prevDateFilter,
-                ...yearActivityFilter,
-                referrals: { some: { leadStatus: { in: ['Confirmed', 'Admitted'] }, ...yearLeadFilter } }
-            },
-            select: {
-                assignedCampus: true,
-                studentFee: true,
-                yearFeeBenefitPercent: true,
-                confirmedReferralCount: true
-            }
-        }) : Promise.resolve([])
-    ]);
-
-    const campusMap = new Map<string, CampusComparison>();
-    const getEntry = (campus: string) => {
-        if (!campusMap.has(campus)) {
-            campusMap.set(campus, {
-                campus,
-                totalLeads: 0,
-                confirmed: 0,
-                pending: 0,
-                conversionRate: 0,
-                ambassadors: 0,
-                prevLeads: 0,
-                prevConfirmed: 0,
-                roleDistribution: [],
-                totalStudents: 0,
-                staffCount: 0,
-                parentCount: 0,
-                systemWideBenefits: 0,
-                prevBenefits: 0
-            });
-        }
-        return campusMap.get(campus)!;
-    };
-
-    allCampuses.forEach(c => getEntry(c.campusName));
-
-    totalLeadsData.forEach(item => { if (item.campus) getEntry(item.campus).totalLeads = item._count._all; });
-    confirmedData.forEach(item => { if (item.campus) getEntry(item.campus).confirmed = item._count._all; });
-    pendingData.forEach(item => { if (item.campus) getEntry(item.campus).pending = item._count._all; });
-    prevLeadsData.forEach(item => { if (item.campus) getEntry(item.campus).prevLeads = item._count._all; });
-    prevConfirmedData.forEach(item => { if (item.campus) getEntry(item.campus).prevConfirmed = item._count._all; });
-
-    // Previously this counted users with leads. Switching to count all Staff/Parents as ambassadors 
-    // to match top-level card logic and show "live" imported data correctly.
-    campusUsersData.forEach(u => {
-        if (u.assignedCampus) {
-            const entry = getEntry(u.assignedCampus);
-            entry.ambassadors += u._count._all;
-        }
-    });
-
-    const roleStats = new Map<string, Map<string, number>>();
-    roleDistributionData.forEach(item => {
-        if (item.campus && item.user?.role) {
-            if (!roleStats.has(item.campus)) roleStats.set(item.campus, new Map());
-            const m = roleStats.get(item.campus)!;
-            m.set(item.user.role, (m.get(item.user.role) || 0) + 1);
-        }
-    });
-
-    roleStats.forEach((roles, campus) => {
-        const entry = getEntry(campus);
-        entry.roleDistribution = Array.from(roles.entries()).map(([name, value]) => ({ name, value }));
-    });
-
-    const idToName = new Map(allCampuses.map(c => [c.id, c.campusName]));
-    campusStudentsData.forEach(item => {
-        const name = idToName.get(item.campusId);
-        if (name) getEntry(name).totalStudents = item._count._all;
-    });
-
-    campusUsersData.forEach(u => {
-        if (u.assignedCampus) {
-            const entry = getEntry(u.assignedCampus);
-            if (u.role === 'Staff') entry.staffCount = (entry.staffCount || 0) + u._count._all;
-            else if (u.role === 'Parent') entry.parentCount = (entry.parentCount || 0) + u._count._all;
-            else if (u.role === 'Alumni') entry.alumniCount = (entry.alumniCount || 0) + u._count._all;
-            else entry.othersCount = (entry.othersCount || 0) + u._count._all;
-        }
-    });
-
-    currentBenefitsData.forEach(u => {
-        if (u.assignedCampus) {
-            const entry = getEntry(u.assignedCampus);
-
-            // Heuristic fallback: if we have NO leads in the table for this campus 
-            // but the user has confirmed counts, we trust the user counts.
-            // CRITICAL: Only apply if doing 'All' view. For specific years, trust the record list.
-            if (u.confirmedReferralCount > 0 && (!academicYear || academicYear === 'All')) {
-                // We add it to the entry if it's currently 0 to avoid double counting 
-                // but since the lead table is empty, this will ignite the 0s.
-                // If some leads exist, we take the MAX to be safe.
-                if (entry.confirmed < u.confirmedReferralCount) {
-                    const diff = u.confirmedReferralCount - entry.confirmed;
-                    entry.confirmed += diff;
-                    // Ensure total leads is at least equal to confirmed
-                    if (entry.totalLeads < entry.confirmed) entry.totalLeads = entry.confirmed;
+        // Batch 2: Distribution and Financial Data (Heavy)
+        const [
+            roleDistributionData,
+            campusStudentsData,
+            campusUsersData,
+            currentBenefitsData,
+            prevBenefitsData
+        ] = await Promise.all([
+            prisma.referralLead.findMany({
+                where: { campus: { not: null }, ...dateFilter, ...yearLeadFilter },
+                select: {
+                    campus: true,
+                    user: { select: { role: true } }
                 }
+            }),
+            prisma.student.groupBy({
+                by: ['campusId'],
+                where: yearStudentFilter,
+                _count: { _all: true }
+            }),
+            prisma.user.groupBy({
+                by: ['assignedCampus', 'role'],
+                where: { assignedCampus: { not: null }, ...yearActivityFilter },
+                _count: { _all: true }
+            }),
+            prisma.user.findMany({
+                where: {
+                    assignedCampus: { not: null },
+                    ...dateFilter,
+                    ...yearActivityFilter,
+                    referrals: { some: { leadStatus: { in: ['Confirmed', 'Admitted'] }, ...yearLeadFilter } }
+                },
+                select: {
+                    assignedCampus: true,
+                    studentFee: true,
+                    yearFeeBenefitPercent: true,
+                    confirmedReferralCount: true
+                }
+            }),
+            prevDateFilter ? prisma.user.findMany({
+                where: {
+                    assignedCampus: { not: null },
+                    ...prevDateFilter,
+                    ...yearActivityFilter,
+                    referrals: { some: { leadStatus: { in: ['Confirmed', 'Admitted'] }, ...yearLeadFilter } }
+                },
+                select: {
+                    assignedCampus: true,
+                    studentFee: true,
+                    yearFeeBenefitPercent: true,
+                    confirmedReferralCount: true
+                }
+            }) : Promise.resolve([])
+        ]);
+
+        const campusMap = new Map<string, CampusComparison>();
+        const getEntry = (campus: string) => {
+            if (!campusMap.has(campus)) {
+                campusMap.set(campus, {
+                    campus,
+                    totalLeads: 0,
+                    confirmed: 0,
+                    pending: 0,
+                    conversionRate: 0,
+                    ambassadors: 0,
+                    prevLeads: 0,
+                    prevConfirmed: 0,
+                    roleDistribution: [],
+                    totalStudents: 0,
+                    staffCount: 0,
+                    parentCount: 0,
+                    systemWideBenefits: 0,
+                    prevBenefits: 0
+                });
             }
+            return campusMap.get(campus)!;
+        };
 
-            entry.systemWideBenefits = (entry.systemWideBenefits || 0) + ((u.studentFee || 0) * (u.yearFeeBenefitPercent / 100) * u.confirmedReferralCount);
-        }
-    });
+        allCampuses.forEach(c => getEntry(c.campusName));
 
-    prevBenefitsData.forEach(u => {
-        if (u.assignedCampus) {
-            const entry = getEntry(u.assignedCampus);
-            entry.prevBenefits = (entry.prevBenefits || 0) + ((u.studentFee || 0) * (u.yearFeeBenefitPercent / 100) * u.confirmedReferralCount);
-        }
-    });
+        totalLeadsData.forEach(item => { if (item.campus) getEntry(item.campus).totalLeads = item._count._all; });
+        confirmedData.forEach(item => { if (item.campus) getEntry(item.campus).confirmed = item._count._all; });
+        pendingData.forEach(item => { if (item.campus) getEntry(item.campus).pending = item._count._all; });
+        prevLeadsData.forEach(item => { if (item.campus) getEntry(item.campus).prevLeads = item._count._all; });
+        prevConfirmedData.forEach(item => { if (item.campus) getEntry(item.campus).prevConfirmed = item._count._all; });
 
-    const comparison = Array.from(campusMap.values()).map(c => {
-        c.conversionRate = c.totalLeads > 0 ? Number(((c.confirmed / c.totalLeads) * 100).toFixed(2)) : 0;
-        return c;
-    });
+        // Previously this counted users with leads. Switching to count all Staff/Parents as ambassadors 
+        // to match top-level card logic and show "live" imported data correctly.
+        campusUsersData.forEach(u => {
+            if (u.assignedCampus) {
+                const entry = getEntry(u.assignedCampus);
+                entry.ambassadors += u._count._all;
+            }
+        });
 
-    return comparison.sort((a, b) => b.totalLeads - a.totalLeads);
+        const roleStats = new Map<string, Map<string, number>>();
+        roleDistributionData.forEach(item => {
+            if (item.campus && item.user?.role) {
+                if (!roleStats.has(item.campus)) roleStats.set(item.campus, new Map());
+                const m = roleStats.get(item.campus)!;
+                m.set(item.user.role, (m.get(item.user.role) || 0) + 1);
+            }
+        });
+
+        roleStats.forEach((roles, campus) => {
+            const entry = getEntry(campus);
+            entry.roleDistribution = Array.from(roles.entries()).map(([name, value]) => ({ name, value }));
+        });
+
+        const idToName = new Map(allCampuses.map(c => [c.id, c.campusName]));
+        campusStudentsData.forEach(item => {
+            const name = idToName.get(item.campusId);
+            if (name) getEntry(name).totalStudents = item._count._all;
+        });
+
+        campusUsersData.forEach(u => {
+            if (u.assignedCampus) {
+                const entry = getEntry(u.assignedCampus);
+                if (u.role === 'Staff') entry.staffCount = (entry.staffCount || 0) + u._count._all;
+                else if (u.role === 'Parent') entry.parentCount = (entry.parentCount || 0) + u._count._all;
+                else if (u.role === 'Alumni') entry.alumniCount = (entry.alumniCount || 0) + u._count._all;
+                else entry.othersCount = (entry.othersCount || 0) + u._count._all;
+            }
+        });
+
+        currentBenefitsData.forEach(u => {
+            if (u.assignedCampus) {
+                const entry = getEntry(u.assignedCampus);
+
+                // Heuristic fallback: if we have NO leads in the table for this campus 
+                // but the user has confirmed counts, we trust the user counts.
+                // CRITICAL: Only apply if doing 'All' view. For specific years, trust the record list.
+                if (u.confirmedReferralCount > 0 && (!academicYear || academicYear === 'All')) {
+                    // We add it to the entry if it's currently 0 to avoid double counting 
+                    // but since the lead table is empty, this will ignite the 0s.
+                    // If some leads exist, we take the MAX to be safe.
+                    if (entry.confirmed < u.confirmedReferralCount) {
+                        const diff = u.confirmedReferralCount - entry.confirmed;
+                        entry.confirmed += diff;
+                        // Ensure total leads is at least equal to confirmed
+                        if (entry.totalLeads < entry.confirmed) entry.totalLeads = entry.confirmed;
+                    }
+                }
+
+                entry.systemWideBenefits = (entry.systemWideBenefits || 0) + ((u.studentFee || 0) * (u.yearFeeBenefitPercent / 100) * u.confirmedReferralCount);
+            }
+        });
+
+        prevBenefitsData.forEach(u => {
+            if (u.assignedCampus) {
+                const entry = getEntry(u.assignedCampus);
+                entry.prevBenefits = (entry.prevBenefits || 0) + ((u.studentFee || 0) * (u.yearFeeBenefitPercent / 100) * u.confirmedReferralCount);
+            }
+        });
+
+        const comparison = Array.from(campusMap.values()).map(c => {
+            c.conversionRate = c.totalLeads > 0 ? Number(((c.confirmed / c.totalLeads) * 100).toFixed(2)) : 0;
+            return c;
+        });
+
+        return comparison.sort((a, b: any) => b.totalLeads - a.totalLeads);
+    })
 }
 
 // getCampusDetails removed (not used)
-export async function getAllUsers(academicYear?: string): Promise<User[]> {
+export async function getAllUsers(options: {
+    academicYear?: string,
+    page?: number,
+    pageSize?: number,
+    search?: string,
+    status?: string,
+    role?: string,
+    source?: string,
+    campusFilter?: string,
+    campuses?: { id: number; campusName: string }[]
+} = {}): Promise<User[] | { users: User[], pagination: any }> {
+    const { academicYear, page, pageSize, search, status, role, source, campusFilter, campuses: providedCampuses } = options
     const user = await getCurrentUser()
     if (!user) throw new Error('Unauthorized')
 
@@ -605,68 +620,187 @@ export async function getAllUsers(academicYear?: string): Promise<User[]> {
 
     const yearFilter = academicYear && academicYear !== 'All' ? { academicYear } : {}
 
-    try {
-        const users = await prisma.user.findMany({
-            where: {
-                ...scopeFilter,
-                ...yearFilter,
-                referralCode: { not: null }
-            },
-            select: {
-                userId: true,
-                fullName: true,
-                mobileNumber: true,
-                role: true,
-                assignedCampus: true,
-                campusId: true,
-                grade: true,
-                studentFee: true,
-                status: true,
-                confirmedReferralCount: true,
-                referralCode: true,
-                createdAt: true,
-                empId: true,
-                email: true,
-                isFiveStarMember: true,
-                transactionId: true,
-                paymentAmount: true,
-                paymentStatus: true,
-                childName: true,
-                childEprNo: true,
-                aadharNo: true,
-                address: true,
-                bankAccountDetails: true,
-                accountNumber: true,
-                bankName: true,
-                ifscCode: true,
-                academicYear: true,
-                childInAchariya: true,
-                benefitStatus: true,
-                password: true,
-                yearFeeBenefitPercent: true,
-                longTermBenefitPercent: true
-            },
-            orderBy: { createdAt: 'desc' }
-        })
+    const skip = page && pageSize ? (page - 1) * pageSize : undefined
+    const take = pageSize
 
-        // Fetch all campuses to map IDs to Names
-        const campuses = await prisma.campus.findMany({ select: { id: true, campusName: true } })
+    const andConditions: any[] = [
+        { referralCode: { not: null } }
+    ]
+
+    // 1. Add scope filter if present
+    if (scopeFilter && Object.keys(scopeFilter).length > 0) {
+        andConditions.push(scopeFilter)
+    }
+
+    // 2. Add year filter if present
+    if (Object.keys(yearFilter).length > 0) {
+        andConditions.push(yearFilter)
+    }
+
+    // 3. Add search filter if present
+    if (search) {
+        andConditions.push({
+            OR: [
+                { fullName: { contains: search, mode: 'insensitive' } },
+                { mobileNumber: { contains: search } },
+                { referralCode: { contains: search, mode: 'insensitive' } }
+            ]
+        })
+    }
+
+    // 4. Add role filter if present
+    if (role) {
+        const roles = role.split(',').filter(Boolean)
+        if (roles.length > 0) {
+            andConditions.push({ role: { in: roles } })
+        }
+    }
+
+    // 5. Add campus filter if present
+    if (campusFilter) {
+        const campuses = campusFilter.split(',').filter(Boolean)
+        if (campuses.length > 0) {
+            // Special handling for 'Global' if needed, but assuming assignedCampus stores the name
+            if (campuses.includes('Global')) {
+                const names = campuses.filter(c => c !== 'Global')
+                andConditions.push({
+                    OR: [
+                        { assignedCampus: { in: names } },
+                        { assignedCampus: null }
+                    ]
+                })
+            } else {
+                andConditions.push({ assignedCampus: { in: campuses } })
+            }
+        }
+    }
+
+    // 6. Add source filter if present
+    if (source) {
+        const sources = source.split(',').filter(Boolean)
+        if (sources.length > 0) {
+            const orConditions = []
+            if (sources.includes('manual')) {
+                orConditions.push({ registrationSource: { in: ['Manual', 'Admin Created', 'Manual_Import'] } })
+            }
+            if (sources.includes('system')) {
+                orConditions.push({
+                    OR: [
+                        { registrationSource: 'System' },
+                        { registrationSource: null }
+                    ]
+                })
+            }
+
+            if (orConditions.length > 0) {
+                andConditions.push({ OR: orConditions })
+            }
+        }
+    }
+
+    // 7. Add status filter if present
+    if (status) {
+        const statuses = status.split(',').filter(Boolean)
+        if (statuses.length > 0) {
+            andConditions.push({ status: { in: statuses } })
+        }
+    } else {
+        // Default: exclude Deleted users unless explicitly filtered
+        andConditions.push({ status: { not: 'Deleted' } })
+    }
+
+    const whereClause: any = {
+        AND: andConditions
+    }
+
+    try {
+        const [users, total] = await Promise.all([
+            prisma.user.findMany({
+                where: whereClause,
+                select: {
+                    userId: true,
+                    fullName: true,
+                    mobileNumber: true,
+                    role: true,
+                    assignedCampus: true,
+                    campusId: true,
+                    grade: true,
+                    studentFee: true,
+                    status: true,
+                    confirmedReferralCount: true,
+                    referralCode: true,
+                    createdAt: true,
+                    empId: true,
+                    email: true,
+                    isFiveStarMember: true,
+                    transactionId: true,
+                    paymentAmount: true,
+                    paymentStatus: true,
+                    childName: true,
+                    childEprNo: true,
+                    aadharNo: true,
+                    address: true,
+                    bankAccountDetails: true,
+                    accountNumber: true,
+                    bankName: true,
+                    ifscCode: true,
+                    academicYear: true,
+                    childInAchariya: true,
+                    benefitStatus: true,
+                    yearFeeBenefitPercent: true,
+                    longTermBenefitPercent: true
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take
+            }),
+            prisma.user.count({
+                where: whereClause
+            })
+        ])
+
+        // Use provided campuses or fetch lightweight list to map IDs to Names
+        const campuses = providedCampuses || await prisma.campus.findMany({ select: { id: true, campusName: true } })
         const campusMap = new Map(campuses.map(c => [c.id, c.campusName]))
 
-        // Audit: log sensitive bulk-read (includes Aadhar, bank details, password hash)
-        logAction('READ', 'security', `Accessed full user list (${users.length} records including PII)`, null, null, {
-            recordCount: users.length,
+        const processedUsers = users.map(u => maskPII({
+            ...u,
+            assignedCampus: campusMap.get(u.campusId || 0) || u.assignedCampus,
+            role: u.role as string,
+            referralCode: u.referralCode || '',
+            referralCount: u.confirmedReferralCount,
+            studentFee: u.studentFee || 0
+        }))
+
+        // Audit: log sensitive data access (includes info about masking)
+        const isPaginated = !!(page && pageSize)
+        // Anomaly Detection: Log security alert for large bulk reads
+        if (!page && users.length > 500) {
+            await logSecurityAlert(`Large bulk user read detected: ${users.length} records`, { count: users.length })
+        }
+
+        await logAction('READ', 'user',
+            `Accessed user list${page ? ` page ${page}` : ''} (${processedUsers.length} records, PII masked)`,
+            null, null, {
+            count: processedUsers.length,
+            totalCount: total,
+            isPaginated,
             scopeFilter: Object.keys(scopeFilter || {})
         })
 
-        return users.map(u => ({
-            ...u,
-            role: u.role as string,
-            referralCode: u.referralCode || '',
-            assignedCampus: u.assignedCampus || (u.campusId ? campusMap.get(u.campusId) || null : null),
-            referralCount: u.confirmedReferralCount,
-            studentFee: u.studentFee || 0
-        })) as User[]
+        if (isPaginated) {
+            return {
+                users: processedUsers as User[],
+                pagination: {
+                    total,
+                    page,
+                    pageSize: pageSize!,
+                    totalPages: Math.ceil(total / pageSize!)
+                }
+            }
+        }
+
+        return processedUsers as User[]
     } catch (error: any) {
         console.error('CRITICAL DATABASE ERROR [getAllUsers]:', {
             message: error?.message,
@@ -935,9 +1069,16 @@ export async function updateUser(userId: number, data: {
 
         const previousUser = await prisma.user.findUnique({ where: { userId } })
 
+        const filteredData = { ...data }
+        // CRITICAL: Prevent overwriting actual data with masked placeholder values (e.g. ********1234)
+        if (data.aadharNo && data.aadharNo.includes('*')) delete filteredData.aadharNo
+        if (data.accountNumber && data.accountNumber.includes('*')) delete filteredData.accountNumber
+        if (data.ifscCode && data.ifscCode.includes('*')) delete filteredData.ifscCode
+        if (data.bankAccountDetails === '***MASKED***') delete filteredData.bankAccountDetails
+
         const updatedUser = await prisma.user.update({
             where: { userId },
-            data
+            data: filteredData
         })
 
         await logAction('UPDATE', 'user', `Updated user ${userId}`, userId.toString(), null, { previous: previousUser, next: updatedUser })
@@ -1328,8 +1469,9 @@ export async function adminResetPassword(targetId: number, targetType: 'user' | 
         return { success: false, error: 'Unauthorized: Access denied' }
     }
 
-    if (!newPassword || newPassword.length < 6) {
-        return { success: false, error: 'Password must be at least 6 characters' }
+    const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.*[A-Z])[a-zA-Z0-9!@#$%^&*]{8,}$/;
+    if (!newPassword || !passwordRegex.test(newPassword)) {
+        return { success: false, error: 'Password must be at least 8 chars with 1 uppercase, 1 special char, and 1 number.' }
     }
 
     try {

@@ -205,6 +205,20 @@ export async function updateCampusTargets(leadTarget: number, admissionTarget: n
                 admissionTarget
             }
         })
+
+        // Audit Logging
+        const logUser = user as any
+        await prisma.activityLog.create({
+            data: {
+                adminId: logUser.adminId || (logUser.role.includes('Admin') ? logUser.userId : undefined),
+                userId: !logUser.role.includes('Super') ? logUser.userId : undefined,
+                action: 'UPDATE',
+                module: 'CAMPUS_TARGET',
+                targetId: String(access.campusId),
+                description: `Updated targets for Campus ${access.campusName || access.campusId}: Leads ${leadTarget}, Admissions ${admissionTarget}`
+            }
+        }).catch(err => console.error('Audit Log Error:', err))
+
         return { success: true }
     } catch (error) {
         console.error('updateCampusTargets error:', error)
@@ -532,6 +546,21 @@ export async function updateLeadStatus(
             data: updateData
         })
 
+        // Audit Logging
+        const activeUser = access.user as any
+        if (activeUser) {
+            await prisma.activityLog.create({
+                data: {
+                    adminId: activeUser.adminId || (activeUser.role.includes('Admin') ? activeUser.userId : undefined),
+                    userId: !activeUser.role.includes('Super') ? activeUser.userId : undefined,
+                    action: 'UPDATE_STATUS',
+                    module: 'REFERRAL_LEAD',
+                    targetId: String(leadId),
+                    description: `Updated lead ${leadId} status to ${newStatus}`
+                }
+            }).catch(err => console.error('Audit Log Error:', err))
+        }
+
         // If confirming, also update the ambassador's count and benefits
         if (statusEnum === LeadStatus.Confirmed) {
             const userId = lead.userId
@@ -725,7 +754,13 @@ export async function getCampusDeadLeads(days: number = 7, academicYear?: string
             orderBy: { createdAt: 'asc' } // Oldest first (most urgent)
         })
 
-        return { success: true, data: deadLeads }
+        return {
+            success: true,
+            data: deadLeads.map(l => ({
+                ...l,
+                updatedAt: l.createdAt // Fallback since schema doesn't have updatedAt
+            }))
+        }
 
     } catch (error) {
         console.error('getCampusDeadLeads Error:', error)

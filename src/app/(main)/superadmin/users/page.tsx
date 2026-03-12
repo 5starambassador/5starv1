@@ -4,7 +4,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { hasPermission } from '@/lib/permission-service'
 import { redirect } from 'next/navigation'
 import { getAllUsers } from '@/app/superadmin-actions'
-import { getCampuses } from '@/app/campus-actions'
+import { getCampusNames } from '@/app/campus-actions'
 import UsersPageClient from './users-page-client'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
@@ -40,19 +40,41 @@ export default async function SuperAdminUsersPage({ searchParams }: PageProps) {
         redirect('/dashboard')
     }
     const year = Array.isArray(params.year) ? params.year[0] : params.year
+    const page = Number(Array.isArray(params.page) ? params.page[0] : params.page) || 1
+    const pageSize = Number(Array.isArray(params.pageSize) ? params.pageSize[0] : params.pageSize) || 10
+    const search = Array.isArray(params.search) ? params.search[0] : params.search
+    const status = Array.isArray(params.status) ? params.status[0] : params.status
+    const role = Array.isArray(params.role) ? params.role[0] : params.role
+    const source = Array.isArray(params.source) ? params.source[0] : params.source
+    const campusFilter = Array.isArray(params.campus) ? params.campus[0] : params.campus
 
-    // Parallel Fetching
-    const [users, campusesData] = await Promise.all([
-        getAllUsers(year),
-        getCampuses()
-    ])
+    // Parallel Fetching: Using lightweight getCampusNames
+    const campusesResponse = await getCampusNames()
+    const campuses = campusesResponse.success ? campusesResponse.campuses || [] : []
+
+    const usersResponse = await getAllUsers({
+        academicYear: year as string,
+        page,
+        pageSize,
+        search: search as string,
+        status: status as string,
+        role: role as string,
+        source: source as string,
+        campusFilter: campusFilter as string,
+        campuses: campuses as any
+    })
+
+    const { users, pagination } = typeof usersResponse === 'object' && 'users' in usersResponse
+        ? usersResponse
+        : { users: usersResponse, pagination: null }
 
     return (
         <ErrorBoundary>
             <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading User Database...</div>}>
                 <UsersPageClient
                     users={serializeData(users) as any}
-                    campuses={serializeData(campusesData.campuses || []) as any}
+                    pagination={serializeData(pagination)}
+                    campuses={serializeData(campuses) as any}
                     currentUserRole={user?.role || 'Campus Admin'}
                 />
             </Suspense>

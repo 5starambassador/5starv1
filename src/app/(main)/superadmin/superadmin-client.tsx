@@ -121,7 +121,6 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     // Analytics State
     const [analyticsData, setAnalyticsData] = useState(analytics)
     const [trendData, setTrendData] = useState(growthTrend)
-    const [automationStats, setAutomationStats] = useState<WhatsAppAnalytics | null>(null)
     const [campusCompData, setCampusCompData] = useState(campusComparison)
     const [showCalcModal, setShowCalcModal] = useState(false)
     const [resetConfirm, setResetConfirm] = useState<{ isOpen: boolean, role: string | null }>({ isOpen: false, role: null })
@@ -157,18 +156,6 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                 }
             }
             loadLeads()
-        }
-
-        if (selectedView === 'analytics' || selectedView === 'home') {
-            const loadAutomation = async () => {
-                try {
-                    const stats = await getWhatsAppAnalytics(7)
-                    setAutomationStats(stats)
-                } catch (err) {
-                    console.error('Failed to load automation stats')
-                }
-            }
-            loadAutomation()
         }
     }, [selectedView])
 
@@ -348,11 +335,6 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                             campusCompData={campusCompData}
                             deepTrends={deepTrends}
                         />
-
-                        <div className="space-y-4">
-                            <h2 className="text-2xl font-black italic text-gray-900 tracking-tight uppercase px-2">Automation Insights</h2>
-                            {automationStats && <AutomationInsights data={automationStats} />}
-                        </div>
                     </div>
                 )}
 

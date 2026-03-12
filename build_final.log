@@ -1,0 +1,282 @@
+
+> achariya-ambassador@0.1.0 build
+> prisma generate && next build
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+Γ£ö Generated Prisma Client (v5.22.0) to .\node_modules\@prisma\client in 339ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Want real-time updates to your database without manual polling? Discover how with Pulse: https://pris.ly/tip-0-pulse
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+   Γû▓ Next.js 16.0.10 (Turbopack)
+   - Environments: .env.local, .env.production, .env
+   - Experiments (use with caution):
+     ┬╖ serverActions
+
+ ΓÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+   Creating an optimized production build ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ Γ£ô Compiled successfully in 16.0s
+   Running TypeScript ...
+   Collecting page data using 15 workers ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+   Generating static pages using 15 workers (0/29) ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+   Generating static pages using 15 workers (7/29) 
+getSystemSettings: settings fetch failed, using fallback. 
+Invalid `prisma.systemSettings.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: academicYear fetch failed, using fallback. 
+Invalid `prisma.academicYear.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: settings fetch failed, using fallback. 
+Invalid `prisma.systemSettings.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: academicYear fetch failed, using fallback. 
+Invalid `prisma.academicYear.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: settings fetch failed, using fallback. 
+Invalid `prisma.systemSettings.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: academicYear fetch failed, using fallback. 
+Invalid `prisma.academicYear.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: settings fetch failed, using fallback. 
+Invalid `prisma.systemSettings.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: academicYear fetch failed, using fallback. 
+Invalid `prisma.academicYear.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: settings fetch failed, using fallback. 
+Invalid `prisma.systemSettings.findFirst()` invocation:
+[SETTINGS] Active Gateway: CASHFREE (DB: undefined, Env: CASHFREE)
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+[SETTINGS] Active Gateway: CASHFREE (DB: undefined, Env: CASHFREE)
+[SETTINGS] Active Gateway: CASHFREE (DB: undefined, Env: CASHFREE)
+[SETTINGS] Active Gateway: CASHFREE (DB: undefined, Env: CASHFREE)
+[SETTINGS] Active Gateway: CASHFREE (DB: undefined, Env: CASHFREE)
+[SETTINGS] Active Gateway: CASHFREE (DB: undefined, Env: CASHFREE)
+getSystemSettings: academicYear fetch failed, using fallback. 
+Invalid `prisma.academicYear.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: settings fetch failed, using fallback. 
+Invalid `prisma.systemSettings.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: academicYear fetch failed, using fallback. 
+Invalid `prisma.academicYear.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: settings fetch failed, using fallback. 
+Invalid `prisma.systemSettings.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: academicYear fetch failed, using fallback. 
+Invalid `prisma.academicYear.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+[SETTINGS] Active Gateway: CASHFREE (DB: undefined, Env: CASHFREE)
+   Generating static pages using 15 workers (14/29) 
+   Generating static pages using 15 workers (21/29) 
+getSystemSettings: settings fetch failed, using fallback. 
+Invalid `prisma.systemSettings.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: academicYear fetch failed, using fallback. 
+Invalid `prisma.academicYear.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: settings fetch failed, using fallback. 
+Invalid `prisma.systemSettings.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: academicYear fetch failed, using fallback. 
+Invalid `prisma.academicYear.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: settings fetch failed, using fallback. 
+Invalid `prisma.systemSettings.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: academicYear fetch failed, using fallback. 
+Invalid `prisma.academicYear.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+getSystemSettings: settings fetch failed, using fallback. 
+Invalid `prisma.systemSettings.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+[SETTINGS] Active Gateway: CASHFREE (DB: undefined, Env: CASHFREE)
+[SETTINGS] Active Gateway: CASHFREE (DB: undefined, Env: CASHFREE)
+[SETTINGS] Active Gateway: CASHFREE (DB: undefined, Env: CASHFREE)
+[SETTINGS] Active Gateway: CASHFREE (DB: undefined, Env: CASHFREE)
+getSystemSettings: academicYear fetch failed, using fallback. 
+Invalid `prisma.academicYear.findFirst()` invocation:
+
+
+Can't reach database server at `host:5432`
+
+Please make sure your database server is running at `host:5432`.
+ Γ£ô Generating static pages using 15 workers (29/29) in 6.5s
+   Finalizing page optimization ...
+
+Route (app)
+Γöî ╞Æ /
+Γö£ ╞Æ /_not-found
+Γö£ ╞Æ /admin
+Γö£ ╞Æ /analytics
+Γö£ ╞Æ /analytics/design
+Γö£ ╞Æ /api/analytics/vitals
+Γö£ ╞Æ /api/cron/cleanup-audit-logs
+Γö£ ╞Æ /api/cron/process-jobs
+Γö£ ╞Æ /api/cron/reminders
+Γö£ ╞Æ /api/cron/sync-leads
+Γö£ ╞Æ /api/debug-campuses
+Γö£ ╞Æ /api/payment/create-order
+Γö£ ╞Æ /api/payment/grayquest/create-session
+Γö£ ╞Æ /api/payment/grayquest/verify
+Γö£ ╞Æ /api/payment/grayquest/webhook
+Γö£ ╞Æ /api/payment/verify
+Γö£ ╞Æ /api/payment/webhook
+Γö£ ╞Æ /api/profile/update
+Γö£ ╞Æ /api/profile/upload
+Γö£ ╞Æ /api/webhooks/msg91
+Γö£ ╞Æ /api/webhooks/whatsapp
+Γö£ ╞Æ /auth/verify-2fa
+Γö£ ╞Æ /campus
+Γö£ ╞Æ /campus/referrals
+Γö£ ╞Æ /campus/students
+Γö£ ╞Æ /campus/users
+Γö£ ╞Æ /complete-payment
+Γö£ ╞Æ /dashboard
+Γö£ ╞Æ /earnings
+Γö£ ╞Æ /finance
+Γö£ Γùï /icon.jpg
+Γö£ Γùï /manifest.webmanifest
+Γö£ ╞Æ /marketing
+Γö£ ╞Æ /notifications
+Γö£ ╞Æ /offer/[slug]
+Γö£ ╞Æ /policies/contact
+Γö£ ╞Æ /policies/refund
+Γö£ ╞Æ /policies/terms
+Γö£ ╞Æ /profile
+Γö£ ╞Æ /program-leads
+Γö£ ╞Æ /r/[code]
+Γö£ ╞Æ /refer
+Γö£ ╞Æ /referrals
+Γö£ Γùï /robots.txt
+Γö£ ╞Æ /rules
+Γö£ Γùï /sitemap.xml
+Γö£ ╞Æ /superadmin
+Γö£ ╞Æ /superadmin/approvals
+Γö£ ╞Æ /superadmin/approvals/history
+Γö£ ╞Æ /superadmin/benefits
+Γö£ ╞Æ /superadmin/campuses
+Γö£ ╞Æ /superadmin/referrals
+Γö£ ╞Æ /superadmin/students
+Γö£ ╞Æ /superadmin/users
+Γö£ ╞Æ /superadmin/verification
+Γö£ ╞Æ /support
+Γö£ ╞Æ /test-icons
+Γö£ ╞Æ /test-sms
+Γö£ ╞Æ /tickets
+Γöö ╞Æ /unauthorized-ip
+
+
+╞Æ Proxy (Middleware)
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand
+

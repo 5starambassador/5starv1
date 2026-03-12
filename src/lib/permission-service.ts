@@ -2,11 +2,12 @@ import 'server-only'
 import { getRolePermissions } from '@/app/permission-actions'
 import { getCurrentUser } from './auth-service'
 import { DEFAULT_ROLE_PERMISSIONS, RolePermissions } from './permissions'
+import { cache } from 'react'
 
 /**
  * Get permissions for the currently logged-in admin
  */
-export async function getMyPermissions() {
+export const getMyPermissions = cache(async () => {
     const user = await getCurrentUser()
     if (!user) return null
 
@@ -22,7 +23,7 @@ export async function getMyPermissions() {
 
     // Fallback to coded defaults if DB fetch fails or role not in DB
     return codeDefaults || null
-}
+})
 
 /**
  * Check if the current user has access to a specific module

@@ -3,10 +3,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { useClickOutside } from '@/hooks/use-click-outside'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, X, Edit2, Search, Database, Globe, Loader2, Save, Clock, GraduationCap, Building, User as UserIcon, CheckCircle2, AlertCircle, ArrowUpRight, TrendingUp, Users } from 'lucide-react'
+import { Check, X, Edit2, Search, Database, Globe, Loader2, Save, Clock, GraduationCap, Building, User as UserIcon, CheckCircle2, AlertCircle, ArrowUpRight, TrendingUp, Users, Download } from 'lucide-react'
 import { toast } from 'sonner'
-import { getPendingVerifications, getVerifiedUsers, approveVerification, rejectVerification, bulkVerifyAgainstDatabase } from '@/app/verification-actions'
+import { getPendingVerifications, getVerifiedUsers, approveVerification, rejectVerification, bulkVerifyAgainstDatabase, getVerificationsForExport } from '@/app/verification-actions'
 import { getCampuses } from '@/app/campus-actions'
+import { exportToCSV } from '@/lib/export-utils'
 import { GRADES } from '@/lib/constants'
 import { getGradesForCampus } from '@/lib/grade-utils'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -202,6 +203,28 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
             toast.error(res.error || 'Bulk verification failed')
         }
         setIsBulking(false)
+    }
+
+    const handleExport = async () => {
+        setLoading(true)
+        const res = await getVerificationsForExport(activeTab, searchTerm, filterCampus, filterRole, filterGrade)
+        if (res.success && res.data) {
+            exportToCSV(res.data, `Verification_${activeTab}`, [
+                { header: 'Full Name', accessor: (u) => u.fullName },
+                { header: 'Mobile Number', accessor: (u) => u.mobileNumber },
+                { header: 'Child Name', accessor: (u) => u.childName || 'N/A' },
+                { header: 'ERP No', accessor: (u) => u.childEprNo || 'N/A' },
+                { header: 'Grade', accessor: (u) => u.grade || 'N/A' },
+                { header: 'Campus', accessor: (u) => u.assignedCampus || 'N/A' },
+                { header: 'Role', accessor: (u) => u.role },
+                { header: 'Benefit Status', accessor: (u) => u.benefitStatus },
+                { header: 'Registered On', accessor: (u) => new Date(u.createdAt).toLocaleDateString() }
+            ])
+            toast.success('Export started')
+        } else {
+            toast.error(res.error || 'Export failed')
+        }
+        setLoading(false)
     }
 
     const startEdit = (user: any) => {
@@ -414,6 +437,17 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleExport}
+                        disabled={loading}
+                        className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl text-xs font-bold shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
+                        title="Download CSV"
+                        suppressHydrationWarning
+                    >
+                        <Download size={16} />
+                        Export
+                    </button>
+
                     <button
                         onClick={() => setShowBulkUpload(true)}
                         className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl text-xs font-bold shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2 active:scale-95"

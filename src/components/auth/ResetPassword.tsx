@@ -50,7 +50,7 @@ export const ResetPassword = ({ onReset, onCancel, loading }: ResetPasswordProps
                             className="block w-full bg-white/5 border border-white/10 rounded-2xl pl-6 pr-12 h-12 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-lg font-medium tracking-wide"
                             placeholder="Min 8 chars"
                             value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
+                            onChange={(e) => setNewPassword(e.target.value.trim())}
                         />
                         <button
                             type="button"
@@ -59,6 +59,35 @@ export const ResetPassword = ({ onReset, onCancel, loading }: ResetPasswordProps
                         >
                             {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                         </button>
+                    </div>
+
+                    {/* Password Strength Indicators & Requirements Checklist */}
+                    <div className="mt-4 space-y-3 px-1">
+                        <div className="flex gap-2 mb-4">
+                            <div className={`h-1 flex-1 rounded-full transition-all duration-300 ${newPassword.length >= 8 ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)]' : 'bg-white/10'}`}></div>
+                            <div className={`h-1 flex-1 rounded-full transition-all duration-300 ${/[A-Z]/.test(newPassword) ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)]' : 'bg-white/10'}`}></div>
+                            <div className={`h-1 flex-1 rounded-full transition-all duration-300 ${/[0-9]/.test(newPassword) ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)]' : 'bg-white/10'}`}></div>
+                            <div className={`h-1 flex-1 rounded-full transition-all duration-300 ${/[!@#$%^&*]/.test(newPassword) ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)]' : 'bg-white/10'}`}></div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                            <div className={`flex items-center gap-3 transition-all ${newPassword.length >= 8 ? 'text-emerald-400' : 'text-white/30'}`}>
+                                <div className={`w-1.5 h-1.5 rounded-full ${newPassword.length >= 8 ? 'bg-emerald-400' : 'bg-white/20'}`}></div>
+                                <span className="text-[10px] font-black uppercase tracking-widest">8+ Characters</span>
+                            </div>
+                            <div className={`flex items-center gap-3 transition-all ${/[A-Z]/.test(newPassword) ? 'text-emerald-400' : 'text-white/30'}`}>
+                                <div className={`w-1.5 h-1.5 rounded-full ${/[A-Z]/.test(newPassword) ? 'bg-emerald-400' : 'bg-white/20'}`}></div>
+                                <span className="text-[10px] font-black uppercase tracking-widest">1 Uppercase</span>
+                            </div>
+                            <div className={`flex items-center gap-3 transition-all ${/[0-9]/.test(newPassword) ? 'text-emerald-400' : 'text-white/30'}`}>
+                                <div className={`w-1.5 h-1.5 rounded-full ${/[0-9]/.test(newPassword) ? 'bg-emerald-400' : 'bg-white/20'}`}></div>
+                                <span className="text-[10px] font-black uppercase tracking-widest">1 Number</span>
+                            </div>
+                            <div className={`flex items-center gap-3 transition-all ${/[!@#$%^&*]/.test(newPassword) ? 'text-emerald-400' : 'text-white/30'}`}>
+                                <div className={`w-1.5 h-1.5 rounded-full ${/[!@#$%^&*]/.test(newPassword) ? 'bg-emerald-400' : 'bg-white/20'}`}></div>
+                                <span className="text-[10px] font-black uppercase tracking-widest">1 Special</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

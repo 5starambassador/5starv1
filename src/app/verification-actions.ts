@@ -411,3 +411,86 @@ export async function bulkVerifyAgainstDatabase() {
         return { success: false, error: 'Bulk verification failed' }
     }
 }
+
+export async function getVerificationsForExport(
+    status: 'pending' | 'verified',
+    search: string = '',
+    campus?: string,
+    role?: string,
+    grade?: string
+) {
+    const user = await getCurrentUser()
+    if (!user || user.role !== 'Super Admin') return { success: false, error: 'Unauthorized' }
+
+    try {
+        const andConditions: any[] = []
+
+        if (status === 'verified') {
+            andConditions.push({ benefitStatus: 'Active' as any as AccountStatus })
+        } else {
+            andConditions.push({
+                OR: [
+                    {
+                        benefitStatus: 'PendingVerification' as any as AccountStatus,
+                        NOT: {
+                            AND: [
+                                { role: 'Staff' },
+                                { childInAchariya: false }
+                            ]
+                        }
+                    },
+                    {
+                        AND: [
+                            { benefitStatus: 'Pending' as any as AccountStatus },
+                            { childInAchariya: true }
+                        ]
+                    }
+                ]
+            })
+        }
+
+        if (search) {
+            andConditions.push({
+                OR: [
+                    { fullName: { contains: search, mode: 'insensitive' } },
+                    { mobileNumber: { contains: search } },
+                    { childEprNo: { contains: search, mode: 'insensitive' } },
+                    { childName: { contains: search, mode: 'insensitive' } }
+                ]
+            })
+        }
+
+        if (campus) andConditions.push({ assignedCampus: campus })
+        if (role) andConditions.push({ role: role as any })
+        if (grade) andConditions.push({ grade: grade })
+
+        const where: any = { AND: andConditions }
+
+        const users = await prisma.user.findMany({
+            where,
+            select: {
+                userId: true,
+                fullName: true,
+                mobileNumber: true,
+                childName: true,
+                childEprNo: true,
+                grade: true,
+                campusId: true,
+                childCampusId: true,
+                role: true,
+                assignedCampus: true,
+                benefitStatus: true,
+                createdAt: true
+            },
+            orderBy: { createdAt: 'desc' }
+        })
+
+        return {
+            success: true,
+            data: users
+        }
+    } catch (error) {
+        console.error('Error fetching export data:', error)
+        return { success: false, error: 'Failed to fetch export data' }
+    }
+}

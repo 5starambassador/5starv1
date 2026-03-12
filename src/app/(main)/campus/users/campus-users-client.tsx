@@ -55,6 +55,20 @@ export function CampusUsersClient({ initialUsers, query }: CampusUsersClientProp
                 onBulkAdd={handleBulkAdd}
                 onDelete={handleDelete}
                 onToggleStatus={handleToggleStatus}
+                // New required props for server-side filtering compatibility
+                statusFilterValue={[]}
+                onStatusFilterChange={() => { }}
+                roleFilterValue={[]}
+                onRoleFilterChange={() => { }}
+                sourceFilterValue={[]}
+                onSourceFilterChange={() => { }}
+                campusFilterValue={[]}
+                onCampusFilterChange={() => { }}
+                onClearAllFilters={() => {
+                    const params = new URLSearchParams(window.location.search)
+                    params.delete('q')
+                    router.replace(`?${params.toString()}`)
+                }}
             />
         </div>
     )

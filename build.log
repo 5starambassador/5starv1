@@ -1,0 +1,38 @@
+
+> achariya-ambassador@0.1.0 build
+> prisma generate && next build
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+Γ£ö Generated Prisma Client (v5.22.0) to .\node_modules\@prisma\client in 339ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Want real-time updates to your database without manual polling? Discover how with Pulse: https://pris.ly/tip-0-pulse
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+   Γû▓ Next.js 16.0.10 (Turbopack)
+   - Environments: .env.local, .env.production, .env
+   - Experiments (use with caution):
+     ┬╖ serverActions
+
+ ΓÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+   Creating an optimized production build ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ Γ£ô Compiled successfully in 13.9s
+   Running TypeScript ...
+Failed to compile.
+
+./src/app/(main)/superadmin/students/page.tsx:44:21
+Type error: Argument of type 'string | undefined' is not assignable to parameter of type '{ academicYear?: string | undefined; page?: number | undefined; pageSize?: number | undefined; search?: string | undefined; status?: string | undefined; role?: string | undefined; source?: string | undefined; campusFilter?: string | undefined; campuses?: { ...; }[] | undefined; } | undefined'.
+  Type 'string' is not assignable to type '{ academicYear?: string | undefined; page?: number | undefined; pageSize?: number | undefined; search?: string | undefined; status?: string | undefined; role?: string | undefined; source?: string | undefined; campusFilter?: string | undefined; campuses?: { ...; }[] | undefined; }'.
+
+  42 |     const [students, users, campusesData] = await Promise.all([
+  43 |         getAllStudents(year, source),
+> 44 |         getAllUsers(year), // Needed for parent lookup in modals
+     |                     ^
+  45 |         getCampuses()
+  46 |     ])
+  47 |
+Next.js build worker exited with code: 1 and signal: null

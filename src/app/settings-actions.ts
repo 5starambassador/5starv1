@@ -1,6 +1,6 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import prisma, { withRetry } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
 import { revalidatePath } from 'next/cache'
 import { logAction } from '@/lib/audit-logger'
@@ -40,14 +40,14 @@ const LeadManagementSettingsSchema = z.object({
  * EXPERT: Fail-closed (false) implementation.
  */
 export async function getRegistrationStatus(): Promise<boolean> {
-    try {
+    return withRetry(async () => {
         const settings = await prisma.systemSettings.findFirst()
         // Fail-closed: default to FALSE if not found or on error
         return settings?.allowNewRegistrations ?? false
-    } catch (error) {
+    }).catch(error => {
         console.error('Error fetching registration status:', error)
         return false // Fail-closed
-    }
+    })
 }
 
 // In-memory cache for system settings to reduce DB load & handle quota limits
@@ -80,7 +80,7 @@ export async function getSystemSettings() {
         }
 
         // Fetch global flags and current academic year in parallel with individual catches
-        const [settings, currentYearRecord] = await Promise.all([
+        const [settings, currentYearRecord] = await withRetry(() => Promise.all([
             prisma.systemSettings.findFirst().catch(e => {
                 console.warn('getSystemSettings: settings fetch failed, using fallback.', e.message || e);
                 return null;
@@ -90,7 +90,7 @@ export async function getSystemSettings() {
                 console.warn('getSystemSettings: academicYear fetch failed, using fallback.', e.message || e);
                 return null;
             })
-        ]);
+        ]));
 
         const consolidatedData = {
             ...(settings || (settingsCache?.data || defaultSettings)),
@@ -201,7 +201,7 @@ export async function updateSystemSettings(rawData: any) {
 // --- Security Settings ---
 
 export async function getSecuritySettings() {
-    try {
+    return withRetry(async () => {
         const settings = await prisma.securitySettings.findFirst()
         if (!settings) {
             return {
@@ -213,10 +213,10 @@ export async function getSecuritySettings() {
             }
         }
         return settings
-    } catch (error) {
+    }).catch(error => {
         console.error('Error getting security settings:', error)
         return null
-    }
+    })
 }
 
 export async function updateSecuritySettings(rawData: any) {
@@ -225,7 +225,7 @@ export async function updateSecuritySettings(rawData: any) {
         if (!user || user.role !== 'Super Admin') return { success: false, error: 'Unauthorized' }
 
         const validation = SecuritySettingsSchema.safeParse(rawData)
-        if (!validation.success) return { success: false, error: 'Invalid data' }
+        if (!validation.success) return { success: false, error: 'Invalid data format' }
         const data = validation.data
 
         const existing = await prisma.securitySettings.findFirst()
@@ -263,14 +263,14 @@ export async function updateSecuritySettings(rawData: any) {
         return { success: true, data: settings }
     } catch (error) {
         console.error('Error updating security settings:', error)
-        return { success: false, error: 'Failed' }
+        return { success: false, error: 'Failed to update security settings' }
     }
 }
 
 // --- Lead Management Settings ---
 
 export async function getLeadManagementSettings() {
-    try {
+    return withRetry(async () => {
         const settings = await prisma.leadManagementSettings.findFirst()
         return settings || {
             autoAssignLeads: true,
@@ -278,9 +278,10 @@ export async function getLeadManagementSettings() {
             followupEscalationDays: 7,
             duplicateDetectionEnabled: true
         }
-    } catch (error) {
+    }).catch(error => {
+        console.error('Error getting lead management settings:', error)
         return null
-    }
+    })
 }
 
 export async function updateLeadManagementSettings(rawData: any) {
@@ -289,7 +290,7 @@ export async function updateLeadManagementSettings(rawData: any) {
         if (!user || user.role !== 'Super Admin') return { success: false, error: 'Unauthorized' }
 
         const validation = LeadManagementSettingsSchema.safeParse(rawData)
-        if (!validation.success) return { success: false, error: 'Invalid data' }
+        if (!validation.success) return { success: false, error: 'Invalid data format' }
 
         const existing = await prisma.leadManagementSettings.findFirst()
         const id = existing?.id || 1
@@ -320,6 +321,7 @@ export async function updateLeadManagementSettings(rawData: any) {
         revalidatePath('/superadmin')
         return { success: true }
     } catch (error) {
+        console.error('Error updating lead management settings:', error)
         return { success: false, error: 'Failed' }
     }
 }

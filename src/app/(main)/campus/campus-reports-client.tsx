@@ -167,14 +167,17 @@ export function CampusReportsClient({
                 { header: 'Last Updated', dataKey: 'updatedAt' },
                 { header: 'Days Inactive', dataKey: 'daysInactive' }
             ],
-            data: deadLeads.map(l => ({
-                studentName: l.studentName || '-',
-                parentName: l.parentName,
-                parentMobile: l.parentMobile,
-                status: l.leadStatus,
-                updatedAt: new Date(l.updatedAt).toLocaleDateString('en-IN'),
-                daysInactive: Math.floor((Date.now() - new Date(l.updatedAt).getTime()) / (1000 * 60 * 60 * 24))
-            }))
+            data: deadLeads.map(l => {
+                const activityDate = l.updatedAt || l.createdAt
+                return {
+                    studentName: l.studentName || '-',
+                    parentName: l.parentName,
+                    parentMobile: l.parentMobile,
+                    status: l.leadStatus,
+                    updatedAt: activityDate ? new Date(activityDate).toLocaleDateString('en-IN') : 'N/A',
+                    daysInactive: activityDate ? Math.floor((Date.now() - new Date(activityDate).getTime()) / (1000 * 60 * 60 * 24)) : 0
+                }
+            })
         })
         toast.success('Dead leads report downloaded!')
     }

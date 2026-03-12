@@ -45,6 +45,8 @@ export function AuditLogPanel() {
     const [selectedModule, setSelectedModule] = useState('All')
     const [dateRange, setDateRange] = useState({ start: '', end: '' })
     const [expandedLogId, setExpandedLogId] = useState<number | null>(null)
+    const [page, setPage] = useState(1)
+    const [pagination, setPagination] = useState({ total: 0, totalPages: 0, pageSize: 50 })
 
     const fetchData = async () => {
         setLoading(true)
@@ -54,13 +56,18 @@ export function AuditLogPanel() {
                     search: searchTerm,
                     module: selectedModule,
                     startDate: dateRange.start,
-                    endDate: dateRange.end
+                    endDate: dateRange.end,
+                    page,
+                    pageSize: 50
                 }),
                 getAuditStats()
             ])
 
             if (logsRes.success && logsRes.logs) {
                 setLogs(logsRes.logs as any)
+                if (logsRes.pagination) {
+                    setPagination(logsRes.pagination)
+                }
             }
             if (statsRes.success && statsRes.stats) {
                 setStats(statsRes.stats)
@@ -72,13 +79,17 @@ export function AuditLogPanel() {
         }
     }
 
+    useEffect(() => {
+        setPage(1)
+    }, [searchTerm, selectedModule, dateRange])
+
     // Debounce search
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchData()
         }, 500)
         return () => clearTimeout(timer)
-    }, [searchTerm, selectedModule, dateRange])
+    }, [searchTerm, selectedModule, dateRange, page])
 
     const modules = ['All', 'AUTH', 'LEADS', 'ADMIN', 'SETTINGS', 'FINANCE', 'REPORTS', 'SECURITY']
 
@@ -363,6 +374,38 @@ export function AuditLogPanel() {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination Controls */}
+                {pagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex-col sm:flex-row gap-4">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                            Showing Page <span className="text-gray-900 mx-1">{page}</span> of <span className="text-gray-900 mx-1">{pagination.totalPages}</span>
+                            <span className="ml-2 opacity-50 font-medium lowercase">({pagination.total} entries found)</span>
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => {
+                                    setPage(p => Math.max(1, p - 1))
+                                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                                }}
+                                disabled={page === 1 || loading}
+                                className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all shadow-sm active:scale-95"
+                            >
+                                Previous
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setPage(p => Math.min(pagination.totalPages, p + 1))
+                                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                                }}
+                                disabled={page === pagination.totalPages || loading}
+                                className="px-6 py-2.5 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black disabled:opacity-50 transition-all shadow-lg shadow-gray-200 active:scale-95"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div >
     )

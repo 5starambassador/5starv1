@@ -650,11 +650,39 @@ export async function processBulkPayouts(payouts: {
                     continue
                 }
 
-                const settlement = user.settlements.find(s => s.amount === Number(p.amount))
+                // Senior Expert Logic: Categorical Matching
+                // Since multiple settlements (e.g. ADMISSION_SHARE and DONATION_SHARE) can have the same amount,
+                // we use the remarks from the CSV to find the specific record.
+                const pRemarks = (p.remarks || '').toLowerCase()
+                const settlement = user.settlements.find(s => {
+                    const sAmount = Number(s.amount)
+                    const inputAmount = Number(p.amount)
+                    if (sAmount !== inputAmount) return false
+
+                    const sType = s.benefitType || ''
+
+                    // Smart Mapping based on User's Template Remarks
+                    if (pRemarks.includes('admission')) {
+                        return sType === 'ADMISSION_SHARE'
+                    }
+                    if (pRemarks.includes('donation')) {
+                        return sType === 'DONATION_SHARE'
+                    }
+                    if (pRemarks.includes('slab')) {
+                        return sType === 'SLAB_SHARE'
+                    }
+                    if (pRemarks.includes('refund')) {
+                        return sType === 'OTHER' || sAmount === 25
+                    }
+
+                    // Fallback to simple amount match if no keywords found
+                    return true
+                })
+
                 if (!settlement) {
                     failureCount++
-                    errors.push(`Mobile ${p.mobile}: No pending ₹${p.amount} settlement`)
-                    results.push({ mobile: p.mobile, amount: p.amount, transactionId: p.transactionId, status: 'Failed', message: 'No pending settlement' })
+                    errors.push(`Mobile ${p.mobile}: No matching pending ₹${p.amount} settlement found for category identified in remarks.`)
+                    results.push({ mobile: p.mobile, amount: p.amount, transactionId: p.transactionId, status: 'Failed', message: 'No matching settlement category' })
                     continue
                 }
 
@@ -692,7 +720,7 @@ export async function processBulkPayouts(payouts: {
                         }
 
                         // Update Settlement
-                        await tx.settlement.update({
+                        const updatedSettlement = await tx.settlement.update({
                             where: { id: settlement.id },
                             data: {
                                 status: 'Processed',
@@ -702,6 +730,30 @@ export async function processBulkPayouts(payouts: {
                                 payoutDate: payoutDate
                             }
                         })
+
+                        // Senior Expert Fix: Sync Refund Status in Registration Table (Audit Trail)
+                        // If it's a ₹25 refund, mark the parent's registration payment as REFUNDED
+                        const isRefund = (settlement.remarks || '').toLowerCase().includes('refund') || Number(settlement.amount) === 25
+
+                        if (isRefund) {
+                            const regPayment = await tx.payment.findFirst({
+                                where: {
+                                    userId: user.userId,
+                                    orderStatus: 'SUCCESS',
+                                    orderAmount: 25
+                                },
+                                orderBy: { createdAt: 'asc' }
+                            })
+
+                            if (regPayment) {
+                                await tx.payment.update({
+                                    where: { id: regPayment.id },
+                                    data: {
+                                        adminRemarks: `REFUNDED via Bulk Import #${updatedSettlement.id} on ${new Date().toISOString()} | Ref: ${p.transactionId}`
+                                    }
+                                })
+                            }
+                        }
                     })
 
                     // Side-effects outside transaction
@@ -1314,7 +1366,9 @@ export async function getAccruedPayoutLiabilities(academicYear?: string, query?:
                         admissionNumber: r.admissionNumber,
                         campusId: r.campusId || 0,
                         campusName: r.campus || undefined,
+                        campus: r.campus || undefined, // Added for frontend compatibility
                         grade: r.gradeInterested || 'Grade-1',
+                        gradeInterested: r.gradeInterested || 'Grade-1', // Added for frontend compatibility
                         actualFee: r.annualFee || 0,
                         campusGrade1Fee: g1FeeFromTable,  // undefined when GradeFee table has no entry → calculator yields 0 → UI shows N/A
                         admissionFeeCollected: r.admissionFeeCollected || 0,

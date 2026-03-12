@@ -187,7 +187,7 @@ export function DataTable<T>({
     const totalPages = manualPagination ? (pageCount || 1) : computedTotalPages
 
     // If manual pagination, we assume 'data' is already the slice for the current page
-    const paginatedData = manualPagination ? data : sortedData.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+    const paginatedData = manualPagination ? sortedData : sortedData.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
     const handleSort = (key: string) => {
         setSortConfig(current => ({

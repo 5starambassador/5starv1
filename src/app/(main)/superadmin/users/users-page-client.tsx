@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
 import { User, Campus, BulkUserData } from '@/types'
@@ -17,11 +17,17 @@ const ConfirmDialog = dynamic(() => import('@/components/ui/ConfirmDialog').then
 
 interface UsersPageClientProps {
     users: User[]
+    pagination?: {
+        page: number
+        pageSize: number
+        totalCount: number
+        totalPages: number
+    } | null
     campuses: Campus[]
     currentUserRole?: string
 }
 
-export default function UsersPageClient({ users, campuses, currentUserRole }: UsersPageClientProps) {
+export default function UsersPageClient({ users, pagination, campuses, currentUserRole }: UsersPageClientProps) {
     const router = useRouter()
     const [searchQuery, setSearchQuery] = useState('')
     const [showAddUserModal, setShowAddUserModal] = useState(false)
@@ -29,7 +35,6 @@ export default function UsersPageClient({ users, campuses, currentUserRole }: Us
     const [editingUser, setEditingUser] = useState<any>(null)
     const [modalLoading, setModalLoading] = useState(false)
 
-    // Delete Confirmation State
     const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean, userId: number | null, userName: string }>({
         isOpen: false,
         userId: null,
@@ -41,10 +46,131 @@ export default function UsersPageClient({ users, campuses, currentUserRole }: Us
         userName: ''
     })
 
+    const searchParams = useSearchParams()
+
+    const handleSearchChange = (query: string) => {
+        setSearchQuery(query)
+        const params = new URLSearchParams(window.location.search)
+        if (query) params.set('search', query)
+        else params.delete('search')
+        params.set('page', '1')
+        router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
+    }
+
+    const handlePageChange = (page: number) => {
+        const params = new URLSearchParams(window.location.search)
+        params.set('page', page.toString())
+        router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
+    }
+
     // Reset Password State
     const [resetTarget, setResetTarget] = useState<{ id: number, name: string, type: 'user' | 'admin' } | null>(null)
     const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
+    const [statusFilter, setStatusFilter] = useState<string[]>([])
+    const [roleFilter, setRoleFilter] = useState<string[]>([])
+    const [sourceFilter, setSourceFilter] = useState<string[]>([])
+    const [campusFilter, setCampusFilter] = useState<string[]>([])
     const [userView, setUserView] = useState<'active' | 'archive'>('active')
+
+    // Initial state from URL & Sync on navigation
+    useEffect(() => {
+        const urlSearch = searchParams.get('search')
+        if (urlSearch !== null) setSearchQuery(urlSearch)
+
+        const urlStatus = searchParams.get('status')
+        if (urlStatus) {
+            const statusArray = urlStatus.split(',').filter(Boolean)
+            setStatusFilter(statusArray)
+            if (statusArray.includes('Deleted')) {
+                setUserView('archive')
+            } else {
+                setUserView('active')
+            }
+        } else {
+            setStatusFilter([])
+            setUserView('active')
+        }
+
+        const urlRole = searchParams.get('role')
+        if (urlRole) setRoleFilter(urlRole.split(',').filter(Boolean))
+        else setRoleFilter([])
+
+        const urlSource = searchParams.get('source')
+        if (urlSource) setSourceFilter(urlSource.split(',').filter(Boolean))
+        else setSourceFilter([])
+
+        const urlCampus = searchParams.get('campus')
+        if (urlCampus) setCampusFilter(urlCampus.split(',').filter(Boolean))
+        else setCampusFilter([])
+    }, [searchParams])
+
+    const handleStatusFilterChange = (status: string[] | ((prev: string[]) => string[])) => {
+        const newStatus = typeof status === 'function' ? status(statusFilter) : status
+        setStatusFilter(newStatus)
+        const params = new URLSearchParams(window.location.search)
+        if (newStatus.length > 0) params.set('status', newStatus.join(','))
+        else params.delete('status')
+        params.set('page', '1')
+        router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
+    }
+
+    const handleRoleFilterChange = (role: string[] | ((prev: string[]) => string[])) => {
+        const newRole = typeof role === 'function' ? role(roleFilter) : role
+        setRoleFilter(newRole)
+        const params = new URLSearchParams(window.location.search)
+        if (newRole.length > 0) params.set('role', newRole.join(','))
+        else params.delete('role')
+        params.set('page', '1')
+        router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
+    }
+
+    const handleSourceFilterChange = (source: string[] | ((prev: string[]) => string[])) => {
+        const newSource = typeof source === 'function' ? source(sourceFilter) : source
+        setSourceFilter(newSource)
+        const params = new URLSearchParams(window.location.search)
+        if (newSource.length > 0) params.set('source', newSource.join(','))
+        else params.delete('source')
+        params.set('page', '1')
+        router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
+    }
+
+    const handleCampusFilterChange = (campus: string[] | ((prev: string[]) => string[])) => {
+        const newCampus = typeof campus === 'function' ? campus(campusFilter) : campus
+        setCampusFilter(newCampus)
+        const params = new URLSearchParams(window.location.search)
+        if (newCampus.length > 0) params.set('campus', newCampus.join(','))
+        else params.delete('campus')
+        params.set('page', '1')
+        router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
+    }
+
+    const handleClearAllFilters = () => {
+        setRoleFilter([])
+        setSourceFilter([])
+        setCampusFilter([])
+        setStatusFilter([])
+        const params = new URLSearchParams(window.location.search)
+        params.delete('role')
+        params.delete('source')
+        params.delete('campus')
+        params.delete('status')
+        params.set('page', '1')
+        router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
+    }
+
+    const handleUserViewToggle = (view: 'active' | 'archive') => {
+        setUserView(view)
+        const params = new URLSearchParams(window.location.search)
+        if (view === 'archive') {
+            params.set('status', 'Deleted')
+            setStatusFilter(['Deleted'])
+        } else {
+            params.delete('status')
+            setStatusFilter([])
+        }
+        params.set('page', '1')
+        router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
+    }
 
     const [userForm, setUserForm] = useState({
         fullName: '',
@@ -200,10 +326,8 @@ export default function UsersPageClient({ users, campuses, currentUserRole }: Us
         }
     }
 
-    const filteredUsers = users.filter(user => {
-        if (userView === 'active') return user.status !== 'Deleted'
-        return user.status === 'Deleted'
-    })
+    // Data is already filtered by the server based on search/status/pagination
+    const filteredUsers = users
 
     return (
         <div className="space-y-6 animate-fade-in min-h-screen pb-20">
@@ -215,14 +339,14 @@ export default function UsersPageClient({ users, campuses, currentUserRole }: Us
             {/* View Toggle */}
             <div className="flex bg-white/50 backdrop-blur-sm p-1 rounded-2xl border border-white/20 w-fit shadow-sm">
                 <button
-                    onClick={() => setUserView('active')}
+                    onClick={() => handleUserViewToggle('active')}
                     className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${userView === 'active' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-500 hover:text-indigo-600'}`}
                     suppressHydrationWarning
                 >
                     Active Users
                 </button>
                 <button
-                    onClick={() => setUserView('archive')}
+                    onClick={() => handleUserViewToggle('archive')}
                     className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${userView === 'archive' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-500 hover:text-red-600'}`}
                     suppressHydrationWarning
                 >
@@ -232,9 +356,20 @@ export default function UsersPageClient({ users, campuses, currentUserRole }: Us
 
             <UserTable
                 users={filteredUsers}
+                pagination={pagination}
                 campuses={campuses}
                 searchTerm={searchQuery}
-                onSearchChange={setSearchQuery}
+                onSearchChange={handleSearchChange}
+                onPageChange={handlePageChange}
+                statusFilterValue={statusFilter}
+                onStatusFilterChange={handleStatusFilterChange}
+                roleFilterValue={roleFilter}
+                onRoleFilterChange={handleRoleFilterChange}
+                sourceFilterValue={sourceFilter}
+                onSourceFilterChange={handleSourceFilterChange}
+                campusFilterValue={campusFilter}
+                onCampusFilterChange={handleCampusFilterChange}
+                onClearAllFilters={handleClearAllFilters}
                 onAddUser={() => {
                     setEditingUser(null);
                     setUserForm({

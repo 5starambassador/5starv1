@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma'
+import prisma, { withRetry } from '@/lib/prisma'
 import { headers } from 'next/headers'
 import { getCurrentUser } from '@/lib/auth-service'
 
@@ -29,7 +29,7 @@ function scrubMetadata(data: any): any {
 }
 
 // Define critical actions that should trigger a Discord alert
-const CRITICAL_ACTIONS = ['FAILED_LOGIN', 'DELETE', 'BAN', 'EXPORT', 'UPDATE_ROLE', 'UNAUTHORIZED_ACCESS']
+const CRITICAL_ACTIONS = ['FAILED_LOGIN', 'DELETE', 'BAN', 'EXPORT', 'UPDATE_ROLE', 'UNAUTHORIZED_ACCESS', 'SECURITY_ALERT']
 const CRITICAL_MODULES = ['SECURITY', 'AUTH', 'SETTINGS', 'FINANCE']
 
 async function sendToDiscord(payload: {
@@ -83,15 +83,26 @@ async function sendToGoogleSheets(payload: {
     const googleAppUrl = process.env.GOOGLE_SHEETS_AUDIT_URL
     if (!googleAppUrl) return
 
+    // Limit the time we wait for external logging to avoid hanging background processes
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
+
     try {
         await fetch(googleAppUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
-            redirect: 'follow'
+            redirect: 'follow',
+            signal: controller.signal
         })
-    } catch (error) {
-        console.error('Failed to archive log to Google Sheets:', error)
+    } catch (error: any) {
+        if (error.name === 'AbortError') {
+            console.warn('Google Sheets archive timed out (5s) - skipping background logging')
+        } else {
+            console.error('Failed to archive log to Google Sheets:', error.message || error)
+        }
+    } finally {
+        clearTimeout(timeoutId)
     }
 }
 
@@ -139,20 +150,22 @@ export async function logAction(
             requestId
         }
 
-        // Create the DB record
-        await (prisma.activityLog as any).create({
-            data: {
-                action,
-                module,
-                description,
-                targetId: targetId || undefined,
-                adminId,
-                userId,
-                metadata: processedMetadata,
-                ipAddress: ip,
-                userAgent: userAgent
-            }
-        })
+        // Create the DB record with retry to ensure we don't drop audit logs during pool congestion
+        await withRetry(async () => {
+            await (prisma.activityLog as any).create({
+                data: {
+                    action,
+                    module,
+                    description,
+                    targetId: targetId || undefined,
+                    adminId,
+                    userId,
+                    metadata: processedMetadata,
+                    ipAddress: ip,
+                    userAgent: userAgent
+                }
+            })
+        }, 3, 500).catch(err => console.error('Persistent failure to log activity to DB:', err))
 
         // Fire-and-forget Discord alert for critical actions
         // Use a background task or just don't await to avoid blocking response
@@ -185,20 +198,7 @@ export async function logAction(
     }
 }
 
-// Alias for future use if we prefer this naming
-export const logActivity = async (params: {
-    action: string
-    module: string
-    description: string
-    metadata?: any
-    targetId?: string
-}) => {
-    return logAction(
-        params.action,
-        params.module,
-        params.description,
-        params.targetId,
-        null,
-        params.metadata
-    )
+// Specific helper for security-related anomalies
+export async function logSecurityAlert(description: string, metadata?: any) {
+    return logAction('SECURITY_ALERT', 'SECURITY', description, null, null, { ...metadata, isCritical: true })
 }
