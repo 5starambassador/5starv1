@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getAudienceCount, exportCampaignData, runCampaign, resetStuckCampaign, syncCampaignMetrics } from '@/app/campaign-actions'
+import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getAudienceCount, exportCampaignData, runCampaign, resetStuckCampaign, syncCampaignMetrics, sendIndividualWhatsApp, getWhatsAppTemplates } from '@/app/campaign-actions'
 import { dispatchCampaignBatch } from '@/app/campaign-dispatcher'
 import { getCampuses } from '@/app/campus-actions'
 import { toast } from 'sonner'
@@ -20,6 +20,9 @@ export function CampaignManager() {
     const [editingCampaign, setEditingCampaign] = useState<any>(null)
     const [campuses, setCampuses] = useState<any[]>([])
     const [viewMode, setViewMode] = useState<'list' | 'analytics'>('list')
+    const [showIndividualModal, setShowIndividualModal] = useState(false)
+    const [isIndividualProcessing, setIsIndividualProcessing] = useState(false)
+    const [availableTemplates, setAvailableTemplates] = useState<any[]>([])
 
     // Confirmation State
     const [confirmState, setConfirmState] = useState<{
@@ -29,6 +32,11 @@ export function CampaignManager() {
     }>({
         isOpen: false,
         type: null
+    })
+    const [individualForm, setIndividualForm] = useState({
+        mobile: '',
+        templateName: '',
+        variables: ['', '', '', '']
     })
     const [form, setForm] = useState({
         name: '',
@@ -99,6 +107,9 @@ export function CampaignManager() {
         loadCampaigns()
         getCampuses().then(res => {
             if (res.success) setCampuses(res.campuses || [])
+        })
+        getWhatsAppTemplates().then(res => {
+            if (res.success) setAvailableTemplates(res.templates || [])
         })
     }, [])
 
@@ -315,6 +326,20 @@ export function CampaignManager() {
                             Analytics
                         </button>
                     </div>
+
+                    <button
+                        onClick={() => {
+                            setIndividualForm({
+                                mobile: '',
+                                templateName: '',
+                                variables: ['', '', '', '']
+                            })
+                            setShowIndividualModal(true)
+                        }}
+                        className="flex items-center justify-center gap-2 px-5 py-3 bg-white border border-gray-200 text-gray-700 rounded-2xl font-bold text-xs uppercase tracking-tight hover:bg-gray-50 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-sm"
+                    >
+                        <Send size={16} className="text-indigo-600" /> Send Individual
+                    </button>
 
                     <button
                         onClick={() => {
@@ -973,6 +998,149 @@ export function CampaignManager() {
                         }}
                         onCancel={() => setConfirmState({ isOpen: false, type: null })}
                     />
+
+                    {/* Individual Message Modal */}
+                    <AnimatePresence>
+                        {showIndividualModal && (
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    onClick={() => setShowIndividualModal(false)}
+                                    className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+                                />
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95, y: 30 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: 30 }}
+                                    className="bg-white/95 backdrop-blur-xl border border-white/20 rounded-[40px] w-full max-w-lg shadow-2xl relative overflow-hidden"
+                                >
+                                    <div className="bg-white border-b border-gray-100 px-6 py-5">
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center">
+                                                    <Send size={18} className="text-indigo-600" />
+                                                </div>
+                                                <div>
+                                                    <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider">Direct WhatsApp</h2>
+                                                    <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-[0.15em]">One-off individual message</p>
+                                                </div>
+                                            </div>
+                                            <button onClick={() => setShowIndividualModal(false)} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
+                                                <X size={18} className="text-gray-500" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-8 space-y-6">
+                                        <div className="space-y-4">
+                                            <div className="space-y-1.5">
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Recipient Mobile</label>
+                                                <input
+                                                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 transition-all placeholder:text-gray-300"
+                                                    placeholder="e.g. 9876543210"
+                                                    value={individualForm.mobile}
+                                                    onChange={e => setIndividualForm({ ...individualForm, mobile: e.target.value })}
+                                                />
+                                            </div>
+
+                                            <div className="space-y-1.5">
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Select Template</label>
+                                                <select
+                                                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-green-50 focus:border-green-100 transition-all"
+                                                    value={individualForm.templateName}
+                                                    onChange={e => {
+                                                        const templ = availableTemplates.find(t => t.templateName === e.target.value);
+                                                        setIndividualForm({ 
+                                                            ...individualForm, 
+                                                            templateName: e.target.value,
+                                                            variables: Array(templ?.requiredVariablesCount || 0).fill('')
+                                                        });
+                                                    }}
+                                                >
+                                                    <option value="">Choose a template...</option>
+                                                    {availableTemplates.map(t => (
+                                                        <option key={t.id} value={t.templateName}>
+                                                            {t.templateName.replace(/_/g, ' ')} ({t.requiredVariablesCount} vars)
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {individualForm.templateName && (
+                                                    <div className="px-1 pt-1 opacity-80">
+                                                       <p className="text-[10px] text-indigo-600 font-bold italic">
+                                                           💡 {availableTemplates.find(t => t.templateName === individualForm.templateName)?.description || 'No description available'}
+                                                       </p>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {individualForm.variables.length > 0 && (
+                                                <div className="space-y-3 pt-2">
+                                                    <div className="flex justify-between items-center px-1">
+                                                       <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Variables Required ({individualForm.variables.length})</label>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        {individualForm.variables.map((v, idx) => (
+                                                            <div key={idx} className="space-y-1">
+                                                                <input
+                                                                    className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-indigo-100"
+                                                                    placeholder={`Variable ${idx + 1}`}
+                                                                    value={v}
+                                                                    onChange={e => {
+                                                                        const newVars = [...individualForm.variables]
+                                                                        newVars[idx] = e.target.value
+                                                                        setIndividualForm({ ...individualForm, variables: newVars })
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="pt-4 flex gap-3">
+                                            <button
+                                                onClick={async () => {
+                                                    if (!individualForm.mobile || !individualForm.templateName) {
+                                                        toast.error('Mobile and Template are required');
+                                                        return;
+                                                    }
+                                                    
+                                                    // Check variable count
+                                                    const templ = availableTemplates.find(t => t.templateName === individualForm.templateName);
+                                                    if (templ && individualForm.variables.some(v => v.trim() === '')) {
+                                                        toast.error(`Please fill all ${templ.requiredVariablesCount} variables`);
+                                                        return;
+                                                    }
+
+                                                    setIsIndividualProcessing(true);
+                                                    const res = await sendIndividualWhatsApp({
+                                                        mobile: individualForm.mobile,
+                                                        templateName: individualForm.templateName,
+                                                        variables: individualForm.variables
+                                                    });
+                                                    setIsIndividualProcessing(false);
+
+                                                    if (res.success) {
+                                                        toast.success('Message Dispatched Successfully');
+                                                        setShowIndividualModal(false);
+                                                    } else {
+                                                        toast.error(res.error || 'Dispatch Failed');
+                                                    }
+                                                }}
+                                                disabled={isIndividualProcessing}
+                                                className="w-full py-4 bg-gray-900 text-white rounded-[20px] font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-black active:scale-[0.98] transition-all shadow-xl shadow-gray-100 disabled:opacity-50"
+                                            >
+                                                {isIndividualProcessing ? <Loader2 size={14} className="animate-spin" /> : <><Send size={14} /> Send Now</>}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            </div>
+                        )}
+                    </AnimatePresence>
                 </div>
             )}
         </div>

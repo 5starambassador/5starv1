@@ -169,8 +169,14 @@ class WhatsAppService {
             const data = await response.json()
 
             if (response.ok && data.status === 'success') {
-                const messageId = data.message_id || data.request_id
-                await this.logMessage(mobile, templateName, variables.join(', '), type, 'SENT', messageId, undefined, refId)
+                const messageId = (data.message_id || data.request_id || '').toString()
+                const trackingRef = refId || `AUT_${Date.now()}_${Math.random().toString(36).substring(7)}`
+                const metadata = { 
+                    messageId, 
+                    sentAt: new Date().toISOString(),
+                    apiResponse: data 
+                }
+                await this.logMessage(mobile, templateName, variables.join(', '), type, 'SENT', undefined, undefined, trackingRef, metadata)
                 return { success: true, messageId }
             } else {
                 const errorMsg = data.message || JSON.stringify(data) || 'WhatsApp API Error'
@@ -250,11 +256,12 @@ class WhatsAppService {
             const data = await response.json()
 
             if (response.ok && data.status === 'success') {
-                const messageId = data.message_id || data.request_id
-                // Log all recipients as sent
-                await Promise.all(recipients.map(r =>
-                    this.logMessage(r.mobile, templateName, r.variables.join(', '), type, 'SENT', messageId, undefined, refId)
-                ))
+                const messageId = (data.message_id || data.request_id || '').toString()
+                // Log all recipients as sent with unique tracking refs if needed
+                await Promise.all(recipients.map(r => {
+                    const trackingRef = refId || `AUT_${Date.now()}_${Math.random().toString(36).substring(7)}`
+                    return this.logMessage(r.mobile, templateName, r.variables.join(', '), type, 'SENT', messageId, undefined, trackingRef)
+                }))
                 return { success: true, messageId }
             } else {
                 const errorMsg = data.message || JSON.stringify(data) || 'WhatsApp API Error'
@@ -332,8 +339,9 @@ class WhatsAppService {
             const data = await response.json()
 
             if (response.ok && data.status === 'success') {
-                const messageId = data.message_id || data.request_id
-                await this.logMessage(mobile, null, text, type, 'SENT', messageId)
+                const messageId = (data.message_id || data.request_id || '').toString()
+                const trackingRef = `AUT_${Date.now()}_${Math.random().toString(36).substring(7)}`
+                await this.logMessage(mobile, null, text, type, 'SENT', messageId, undefined, trackingRef)
                 return { success: true, messageId }
             } else {
                 const errorMsg = data.message || 'WhatsApp API Error'
@@ -356,7 +364,8 @@ class WhatsAppService {
         status: string,
         messageId?: string,
         error?: string,
-        refId?: string
+        refId?: string,
+        metadata?: any
     ) {
         try {
             await prisma.whatsAppLog.create({
@@ -367,7 +376,8 @@ class WhatsAppService {
                     type,
                     status,
                     errorMessage: error || null,
-                    refId: refId || null
+                    refId: refId || null,
+                    metadata: metadata || (messageId ? { messageId } : undefined)
                 } as any
             })
         } catch (logErr) {

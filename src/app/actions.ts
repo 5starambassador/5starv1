@@ -406,7 +406,6 @@ export async function registerUser(formData: any) {
     }
 
     // Mandatory campus validation for specific roles
-    // Others role is allowed to register without campus
     if ((role === 'Parent' || role === 'Staff' || role === 'Alumni') && !campusId) {
         return {
             success: false,
@@ -456,11 +455,20 @@ export async function registerUser(formData: any) {
                 role === 'Staff' ? UserRole.Staff :
                     role === 'Alumni' ? UserRole.Alumni : UserRole.Others)
 
+            if (!password) {
+                return { success: false, error: 'Password is required for registration.' }
+            }
+
+            const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.*[A-Z])[a-zA-Z0-9!@#$%^&*]{8,}$/;
+            if (!passwordRegex.test(password)) {
+                return { success: false, error: 'Password does not meet security requirements.' }
+            }
+
             const user = await prisma.user.create({
                 data: {
                     fullName,
                     mobileNumber,
-                    password: await bcrypt.hash(password || '123456', 10), // Hash password
+                    password: await bcrypt.hash(password, 10), // Hash password
                     role: userRole,
                     childInAchariya: childInAchariya === 'Yes',
                     childName: childName || null,
@@ -516,8 +524,9 @@ export async function registerUser(formData: any) {
             if (mobileNumber) {
                 // Using dynamic import to avoid circular dep issues in server actions
                 import('@/lib/whatsapp-service').then(({ whatsappService }) => {
-                    // Template: welcome_message (ReferralCode) -> Event: WELCOME_MESSAGE
-                    whatsappService.sendByEvent(mobileNumber, 'WELCOME_MESSAGE', [referralCode || 'PENDING'], 'ALERT')
+                    // Template: welcome_message (1:ReferralCode, 2:Link) -> Event: WELCOME_MESSAGE
+                    const marketingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://ambassador.achariya.in'}/marketing?ref=${referralCode || ''}`
+                    whatsappService.sendByEvent(mobileNumber, 'WELCOME_MESSAGE', [referralCode || 'PENDING', marketingUrl], 'ALERT')
                         .catch(err => console.error('Failed to send welcome whatsapp:', err))
                 })
             }
@@ -600,10 +609,12 @@ export async function createPendingUser(formData: any) {
     })
     const currentYear = currentYearRecord?.year || "2025-2026"
 
-    // Safety check: Is registration still open?
-    const settings = await prisma.systemSettings.findFirst()
-    if (!settings?.allowNewRegistrations) {
-        return { success: false, error: 'Registration is currently closed.' }
+    // Mandatory campus validation for specific roles
+    if ((role === 'Parent' || role === 'Staff' || role === 'Alumni') && !campusId) {
+        return {
+            success: false,
+            error: `Campus selection is mandatory for ${role} role. Please select a campus to continue.`
+        }
     }
 
     let studentFee = 60000
