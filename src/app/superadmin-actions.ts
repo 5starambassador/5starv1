@@ -616,102 +616,10 @@ export async function getAllUsers(options: {
     const user = await getCurrentUser()
     if (!user) throw new Error('Unauthorized')
 
-    const { filter: scopeFilter } = await getScopeFilter('userManagement', { campusNameField: 'assignedCampus' })
-
-    const yearFilter = academicYear && academicYear !== 'All' ? { academicYear } : {}
-
     const skip = page && pageSize ? (page - 1) * pageSize : undefined
     const take = pageSize
 
-    const andConditions: any[] = [
-        { referralCode: { not: null } }
-    ]
-
-    // 1. Add scope filter if present
-    if (scopeFilter && Object.keys(scopeFilter).length > 0) {
-        andConditions.push(scopeFilter)
-    }
-
-    // 2. Add year filter if present
-    if (Object.keys(yearFilter).length > 0) {
-        andConditions.push(yearFilter)
-    }
-
-    // 3. Add search filter if present
-    if (search) {
-        andConditions.push({
-            OR: [
-                { fullName: { contains: search, mode: 'insensitive' } },
-                { mobileNumber: { contains: search } },
-                { referralCode: { contains: search, mode: 'insensitive' } }
-            ]
-        })
-    }
-
-    // 4. Add role filter if present
-    if (role) {
-        const roles = role.split(',').filter(Boolean)
-        if (roles.length > 0) {
-            andConditions.push({ role: { in: roles } })
-        }
-    }
-
-    // 5. Add campus filter if present
-    if (campusFilter) {
-        const campuses = campusFilter.split(',').filter(Boolean)
-        if (campuses.length > 0) {
-            // Special handling for 'Global' if needed, but assuming assignedCampus stores the name
-            if (campuses.includes('Global')) {
-                const names = campuses.filter(c => c !== 'Global')
-                andConditions.push({
-                    OR: [
-                        { assignedCampus: { in: names } },
-                        { assignedCampus: null }
-                    ]
-                })
-            } else {
-                andConditions.push({ assignedCampus: { in: campuses } })
-            }
-        }
-    }
-
-    // 6. Add source filter if present
-    if (source) {
-        const sources = source.split(',').filter(Boolean)
-        if (sources.length > 0) {
-            const orConditions = []
-            if (sources.includes('manual')) {
-                orConditions.push({ registrationSource: { in: ['Manual', 'Admin Created', 'Manual_Import'] } })
-            }
-            if (sources.includes('system')) {
-                orConditions.push({
-                    OR: [
-                        { registrationSource: 'System' },
-                        { registrationSource: null }
-                    ]
-                })
-            }
-
-            if (orConditions.length > 0) {
-                andConditions.push({ OR: orConditions })
-            }
-        }
-    }
-
-    // 7. Add status filter if present
-    if (status) {
-        const statuses = status.split(',').filter(Boolean)
-        if (statuses.length > 0) {
-            andConditions.push({ status: { in: statuses } })
-        }
-    } else {
-        // Default: exclude Deleted users unless explicitly filtered
-        andConditions.push({ status: { not: 'Deleted' } })
-    }
-
-    const whereClause: any = {
-        AND: andConditions
-    }
+    const whereClause = await buildUserWhereClause({ academicYear, search, status, role, source, campusFilter })
 
     try {
         const [users, total] = await Promise.all([
@@ -779,6 +687,7 @@ export async function getAllUsers(options: {
             await logSecurityAlert(`Large bulk user read detected: ${users.length} records`, { count: users.length })
         }
 
+        const { filter: scopeFilter } = await getScopeFilter('userManagement', { campusNameField: 'assignedCampus' })
         await logAction('READ', 'user',
             `Accessed user list${page ? ` page ${page}` : ''} (${processedUsers.length} records, PII masked)`,
             null, null, {
@@ -807,6 +716,176 @@ export async function getAllUsers(options: {
             stack: error?.stack
         })
         return []
+    }
+}
+
+/**
+ * Fetches ALL users matching criteria for CSV export.
+ * Returns UNMASKED data for administrative use.
+ */
+export async function getUsersForExport(options: {
+    academicYear?: string,
+    search?: string,
+    status?: string,
+    role?: string,
+    source?: string,
+    campusFilter?: string,
+    startDate?: string,
+    endDate?: string
+} = {}): Promise<User[]> {
+    const user = await getCurrentUser()
+    const canExport = await hasPermission('userManagement')
+    if (!user || !canExport) throw new Error('Unauthorized')
+
+    const whereClause = await buildUserWhereClause(options)
+
+    // Add Date Range filter if present
+    if (options.startDate || options.endDate) {
+        const andArray = (whereClause.AND as any[]) || []
+        const dateFilter: any = {}
+        if (options.startDate) {
+            const start = new Date(options.startDate)
+            start.setHours(0, 0, 0, 0)
+            dateFilter.gte = start
+        }
+        if (options.endDate) {
+            const end = new Date(options.endDate)
+            end.setHours(23, 59, 59, 999)
+            dateFilter.lte = end
+        }
+        andArray.push({ createdAt: dateFilter })
+        whereClause.AND = andArray
+    }
+
+    try {
+        const users = await prisma.user.findMany({
+            where: whereClause,
+            orderBy: { createdAt: 'desc' }
+        })
+
+        // Fetch lightweight list to map IDs to Names
+        const campuses = await prisma.campus.findMany({ select: { id: true, campusName: true } })
+        const campusMap = new Map(campuses.map(c => [c.id, c.campusName]))
+
+        const processedUsers = users.map(u => ({
+            ...u,
+            assignedCampus: campusMap.get(u.campusId || 0) || u.assignedCampus,
+            role: u.role as string,
+            referralCode: u.referralCode || '',
+            referralCount: u.confirmedReferralCount,
+            studentFee: u.studentFee || 0,
+            password: '***PROTECTED***' // Password hash should still be hidden
+        }))
+
+        // Audit Logging for bulk export
+        await logAction('EXPORT', 'user',
+            `Exported full user list (${users.length} records, unmasked)`,
+            null, null, {
+            count: users.length,
+            filters: options
+        })
+
+        return processedUsers as User[]
+    } catch (error: any) {
+        console.error('CRITICAL DATABASE ERROR [getUsersForExport]:', error)
+        throw new Error('Failed to fetch data for export')
+    }
+}
+
+/**
+ * Private helper to build common where clause for user queries.
+ */
+async function buildUserWhereClause(options: {
+    academicYear?: string,
+    search?: string,
+    status?: string,
+    role?: string,
+    source?: string,
+    campusFilter?: string
+}) {
+    const { academicYear, search, status, role, source, campusFilter } = options
+    const { filter: scopeFilter } = await getScopeFilter('userManagement', { campusNameField: 'assignedCampus' })
+
+    const yearFilter = academicYear && academicYear !== 'All' ? { academicYear } : {}
+
+    const andConditions: any[] = [
+        { referralCode: { not: null } }
+    ]
+
+    if (scopeFilter && Object.keys(scopeFilter).length > 0) {
+        andConditions.push(scopeFilter)
+    }
+
+    if (Object.keys(yearFilter).length > 0) {
+        andConditions.push(yearFilter)
+    }
+
+    if (search) {
+        andConditions.push({
+            OR: [
+                { fullName: { contains: search, mode: 'insensitive' } },
+                { mobileNumber: { contains: search } },
+                { referralCode: { contains: search, mode: 'insensitive' } }
+            ]
+        })
+    }
+
+    if (role) {
+        const roles = role.split(',').filter(Boolean)
+        if (roles.length > 0) {
+            andConditions.push({ role: { in: roles } })
+        }
+    }
+
+    if (campusFilter) {
+        const campuses = campusFilter.split(',').filter(Boolean)
+        if (campuses.length > 0) {
+            if (campuses.includes('Global')) {
+                const names = campuses.filter(c => c !== 'Global')
+                andConditions.push({
+                    OR: [
+                        { assignedCampus: { in: names } },
+                        { assignedCampus: null }
+                    ]
+                })
+            } else {
+                andConditions.push({ assignedCampus: { in: campuses } })
+            }
+        }
+    }
+
+    if (source) {
+        const sources = source.split(',').filter(Boolean)
+        if (sources.length > 0) {
+            const orConditions = []
+            if (sources.includes('manual')) {
+                orConditions.push({ registrationSource: { in: ['Manual', 'Admin Created', 'Manual_Import'] } })
+            }
+            if (sources.includes('system')) {
+                orConditions.push({
+                    OR: [
+                        { registrationSource: 'System' },
+                        { registrationSource: null }
+                    ]
+                })
+            }
+            if (orConditions.length > 0) {
+                andConditions.push({ OR: orConditions })
+            }
+        }
+    }
+
+    if (status) {
+        const statuses = status.split(',').filter(Boolean)
+        if (statuses.length > 0) {
+            andConditions.push({ status: { in: statuses } })
+        }
+    } else {
+        andConditions.push({ status: { not: 'Deleted' } })
+    }
+
+    return {
+        AND: andConditions
     }
 }
 
@@ -1104,24 +1183,36 @@ export async function updateUser(userId: number, data: {
  * Fetches ALL external program leads for Super Admin monitoring.
  */
 export async function getAllProgramLeads() {
-    const user = await getCurrentUser()
-    if (!user) {
-        throw new Error('Unauthorized')
+    try {
+        const user = await getCurrentUser()
+        if (!user) {
+            throw new Error('Unauthorized')
+        }
+
+        const perms = await getMyPermissions()
+        if (!perms?.programLeads?.access) {
+            throw new Error('Unauthorized')
+        }
+
+        return await withRetry(async () => {
+            const leads = await prisma.programLead.findMany({
+                include: {
+                    program: { select: { title: true, slug: true } },
+                    referrer: { select: { fullName: true, referralCode: true, mobileNumber: true, assignedCampus: true } }
+                },
+                orderBy: { clickedAt: 'desc' }
+            })
+
+            // Ensure stable serialization (Prevents ECONNRESET/aborted issues on Windows/dev)
+            return { 
+                success: true, 
+                leads: JSON.parse(JSON.stringify(leads)) 
+            }
+        })
+    } catch (error: any) {
+        console.error('CRITICAL ERROR in getAllProgramLeads:', error)
+        return { success: false, error: error.message || 'Failed to fetch program leads' }
     }
-
-    if (!(await hasPermission('programLeads'))) {
-        throw new Error('Unauthorized')
-    }
-
-    const leads = await prisma.programLead.findMany({
-        include: {
-            program: { select: { title: true, slug: true } },
-            referrer: { select: { fullName: true, referralCode: true, mobileNumber: true, assignedCampus: true } }
-        },
-        orderBy: { clickedAt: 'desc' }
-    })
-
-    return { success: true, leads }
 }
 
 // ===================== DELETE USER (with return object) =====================

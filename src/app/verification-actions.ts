@@ -60,7 +60,9 @@ export async function getVerifiedUsers(
                     role: true,
                     assignedCampus: true,
                     confirmedReferralCount: true,
-                    benefitStatus: true
+                    benefitStatus: true,
+                    childInAchariya: true,
+                    empId: true
                 },
                 orderBy: { createdAt: 'desc' },
                 skip,
@@ -100,18 +102,12 @@ export async function getPendingVerifications(
             {
                 OR: [
                     {
-                        benefitStatus: 'PendingVerification' as any as AccountStatus,
-                        NOT: {
-                            AND: [
-                                { role: 'Staff' },
-                                { childInAchariya: false }
-                            ]
-                        }
+                        benefitStatus: 'PendingVerification' as any as AccountStatus
                     },
                     {
                         AND: [
                             { benefitStatus: 'Pending' as any as AccountStatus },
-                            { childInAchariya: true }
+                            { childEprNo: { not: null } }
                         ]
                     }
                 ]
@@ -151,7 +147,9 @@ export async function getPendingVerifications(
                     role: true,
                     assignedCampus: true,
                     createdAt: true,
-                    benefitStatus: true
+                    benefitStatus: true,
+                    childInAchariya: true,
+                    empId: true
                 },
                 orderBy: { createdAt: 'desc' },
                 skip,
@@ -305,19 +303,22 @@ export async function approveVerification(userId: number, updatedDetails?: {
             }
         }
 
-        // 2. Update User
+        // 2. Update User (Verification Phase)
         await prisma.user.update({
             where: { userId },
             data: {
-                benefitStatus: 'Active',
                 studentFee: newFee,
+                childInAchariya: true,
                 ...(updatedDetails?.childEprNo && { childEprNo: updatedDetails.childEprNo }),
                 ...(updatedDetails?.grade && { grade: updatedDetails.grade }),
                 ...(updatedDetails?.childName && { childName: updatedDetails.childName }),
             }
         })
 
-        // 3. Create Notification
+        // 3. Centralized Stat Sync (Matches new senior expert rules)
+        await syncUserStats(userId)
+
+        // 4. Create Notification
         await notifyVerificationApproved(userId)
 
         await logAction('UPDATE', 'verification', `Approved verification for user ${userId}`, userId.toString())

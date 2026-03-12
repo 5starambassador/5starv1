@@ -147,7 +147,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
             const loadLeads = async () => {
                 setLoading(true)
                 try {
-                    const res = await getAllProgramLeads()
+                    const res = await getAllProgramLeads() as any
                     if (res.success && res.leads) setProgramLeads(res.leads)
                 } catch (error) {
                     toast.error('Failed to load program leads')

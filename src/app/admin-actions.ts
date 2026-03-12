@@ -503,8 +503,8 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
                         role: 'Parent',
                         referralCode,
                         childInAchariya: true,
-                        status: 'Active',
-                        benefitStatus: 'Active',
+                        status: 'Pending',
+                        benefitStatus: 'Inactive',
                         academicYear: lead.admittedYear || '2025-2026'
                     }
                 })
@@ -555,8 +555,9 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
                     childEprNo: lead.admissionNumber,
                     childName: lead.studentName,
                     grade: lead.gradeInterested,
-                    status: 'Active',
-                    benefitStatus: 'Active'
+                    // Remove hardcoded 'status: Active' to enforce ₹25 payment rule
+                    // Account remains 'Pending' (for login) and 'Inactive' for benefits until referral
+                    benefitStatus: 'Inactive'
                 }
             })
 
@@ -1309,7 +1310,7 @@ export async function bulkConvertLeadsToStudents(leadIds: number[]) {
                             role: 'Parent',
                             // @ts-ignore
                             referralCode: undefined,
-                            status: 'Active',
+                            status: 'Pending',
                             childInAchariya: true
                         }
                     })
@@ -1376,8 +1377,8 @@ export async function bulkConvertLeadsToStudents(leadIds: number[]) {
                         childEprNo: lead.admissionNumber,
                         childName: lead.studentName,
                         grade: lead.gradeInterested,
-                        status: 'Active',
-                        benefitStatus: 'Active'
+                        // Account remains 'Pending' (for login) and 'Inactive' for benefits until referral
+                        benefitStatus: 'Inactive'
                     }
                 })
 

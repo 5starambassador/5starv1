@@ -113,7 +113,10 @@ export async function syncUserStats(userId: number) {
             ...updatedUserDetails,
             confirmedReferralCount: confirmedLeadsCount,
             yearFeeBenefitPercent: slabBenefit,
-            benefitStatus: confirmedLeadsCount > 0 ? 'Active' : (hasKids ? 'Active' : user.benefitStatus),
+            // BENEFIT STATUS DECOUPLING:
+            // senior expert rule: Active only if they have confirmed referrals.
+            // Being a parent (hasKids) no longer automatically activates benefitStatus.
+            benefitStatus: confirmedLeadsCount > 0 ? 'Active' : 'Inactive',
             // ELITE UPGRADE: Auto-flag as 5-Star Member upon reaching milestone
             isFiveStarMember: user.isFiveStarMember || nonSpecialConfirmedCount >= 5
         }
