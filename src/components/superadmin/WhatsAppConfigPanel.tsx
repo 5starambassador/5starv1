@@ -1,17 +1,41 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, RefreshCcw, Check, X, AlertTriangle, ToggleLeft, ToggleRight, MessageSquare, Plus, Info, Loader2 as LoaderIcon } from 'lucide-react'
+import { Save, RefreshCcw, Check, X, AlertTriangle, ToggleLeft, ToggleRight, MessageSquare, Plus, Info, Trash2, Loader2 as LoaderIcon } from 'lucide-react'
 import { toast } from 'sonner'
-import { getWhatsAppConfigs, updateWhatsAppConfig, createWhatsAppConfig, seedDefaultConfigs, WhatsAppConfigData } from '@/app/whatsapp-config-actions'
+import { getWhatsAppConfigs, updateWhatsAppConfig, createWhatsAppConfig, seedDefaultConfigs, deleteWhatsAppConfig, WhatsAppConfigData } from '@/app/whatsapp-config-actions'
+import { getWhatsAppAnalytics, WhatsAppAnalytics } from '@/app/automation-actions'
+import { generateWhatsAppLogReport } from '@/app/report-actions'
+import dynamic from 'next/dynamic'
+import { WhatsAppLogTable } from './WhatsAppLogTable'
+
+const AutomationInsights = dynamic(() => import('@/components/superadmin/AutomationInsights'), { 
+    ssr: false, 
+    loading: () => <div className="h-48 animate-pulse bg-white rounded-3xl mb-8" /> 
+})
 
 export default function WhatsAppConfigPanel() {
     const [configs, setConfigs] = useState<WhatsAppConfigData[]>([])
     const [loading, setLoading] = useState(true)
+    const [activeTab, setActiveTab] = useState<'config' | 'logs'>('config')
+    const [stats, setStats] = useState<WhatsAppAnalytics | null>(null)
+    const [loadingStats, setLoadingStats] = useState(false)
     const [saving, setSaving] = useState<number | null>(null)
     const [showAddForm, setShowAddForm] = useState(false)
     const [isCreating, setIsCreating] = useState(false)
     const [newConfig, setNewConfig] = useState({ eventKey: '', templateName: '', description: '', requiredVariablesCount: 2 })
+
+    const fetchStats = async () => {
+        setLoadingStats(true)
+        try {
+            const data = await getWhatsAppAnalytics(30)
+            setStats(data)
+        } catch (err) {
+            console.error('Failed to load automation stats')
+        } finally {
+            setLoadingStats(false)
+        }
+    }
 
     const fetchConfigs = async () => {
         setLoading(true)
@@ -27,6 +51,7 @@ export default function WhatsAppConfigPanel() {
 
     useEffect(() => {
         fetchConfigs()
+        fetchStats()
     }, [])
 
     const handleUpdate = async (id: number, templateName: string, isEnabled: boolean) => {
@@ -71,6 +96,42 @@ export default function WhatsAppConfigPanel() {
         setIsCreating(false)
     }
 
+    const handleDelete = async (id: number) => {
+        if (!confirm('Are you sure you want to delete this mapping? This action cannot be undone.')) return
+        const res = await deleteWhatsAppConfig(id)
+        if (res.success) {
+            toast.success('Mapping deleted successfully')
+            setConfigs(configs.filter(c => c.id !== id))
+        } else {
+            toast.error(res.error || 'Failed to delete')
+        }
+    }
+
+    const handleExport = async () => {
+        const promise = (async () => {
+            const res = await generateWhatsAppLogReport()
+            if (!res.success) throw new Error(res.error)
+            if (res.csv && res.filename) {
+                const blob = new Blob([res.csv], { type: 'text/csv' })
+                const url = window.URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = res.filename
+                document.body.appendChild(a)
+                a.click()
+                window.URL.revokeObjectURL(url)
+                document.body.removeChild(a)
+            }
+            return 'Logs exported successfully'
+        })()
+
+        toast.promise(promise, {
+            loading: 'Generating export...',
+            success: (s) => s,
+            error: 'Export failed'
+        })
+    }
+
     if (loading) {
         return (
             <div className="bg-white rounded-3xl p-12 border border-slate-100 shadow-sm flex flex-col items-center justify-center space-y-4">
@@ -105,31 +166,86 @@ export default function WhatsAppConfigPanel() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between mb-2">
+            {/* Header and Tabs */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-100 pb-2">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                        <MessageSquare className="h-6 w-6 text-indigo-500" />
-                        WhatsApp Automation Settings
+                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3 italic uppercase tracking-tight">
+                        <div className="p-2 bg-indigo-600 text-white rounded-xl rotate-3 group-hover:rotate-0 transition-transform">
+                            <MessageSquare className="h-6 w-6" />
+                        </div>
+                        Automation Center
                     </h2>
-                    <p className="text-slate-500 mt-1">Manage event-to-template mappings and toggle automated messages.</p>
+                    <p className="text-xs text-slate-400 font-bold mt-1 max-w-md uppercase tracking-widest">
+                        Manage system-wide triggers and monitor delivery health in real-time.
+                    </p>
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div className="flex bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/50 self-start">
                     <button
-                        onClick={() => setShowAddForm(!showAddForm)}
-                        className={`px-4 py-2 rounded-xl font-semibold transition-all flex items-center gap-2 ${showAddForm ? 'bg-slate-100 text-slate-600' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700'}`}
+                        onClick={() => setActiveTab('config')}
+                        className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'config' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                     >
-                        {showAddForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                        {showAddForm ? 'Cancel' : 'Add New Mapping'}
+                        Configuration
                     </button>
                     <button
-                        onClick={fetchConfigs}
-                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                        title="Refresh List"
+                        onClick={() => setActiveTab('logs')}
+                        className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'logs' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                     >
-                        <RefreshCcw className="h-5 w-5" />
+                        Activity Logs
                     </button>
                 </div>
             </div>
+
+            {activeTab === 'logs' ? (
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    {/* Insights move here */}
+                    {stats && <AutomationInsights data={stats} />}
+                    
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between px-2">
+                            <h3 className="text-lg font-black italic text-slate-800 uppercase tracking-tight">Live Message Feed</h3>
+                            <button 
+                                onClick={handleExport}
+                                className="px-4 py-2 bg-slate-800 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-black transition-all shadow-lg shadow-slate-200 flex items-center gap-2"
+                            >
+                                <Save className="h-3.5 w-3.5" />
+                                Export Full Log
+                            </button>
+                        </div>
+                        <WhatsAppLogTable />
+                    </div>
+                </div>
+            ) : (
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <div className="flex items-center justify-between mb-4 px-2">
+                        <div className="flex flex-col">
+                            <h3 className="text-lg font-black italic text-slate-800 uppercase tracking-tight">Event Mappings</h3>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Map internal events to MSG91 templates</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setShowAddForm(!showAddForm)}
+                                className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${showAddForm ? 'bg-slate-100 text-slate-600' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700'}`}
+                            >
+                                {showAddForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                                {showAddForm ? 'Cancel' : 'New Mapping'}
+                            </button>
+                            <button
+                                onClick={handleSeed}
+                                className="p-2.5 text-amber-500 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                                title="Force Sync System Templates (Code to DB)"
+                            >
+                                <RefreshCcw className="h-4 w-4" />
+                            </button>
+                            <button
+                                onClick={fetchConfigs}
+                                className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                title="Refresh List"
+                            >
+                                <RefreshCcw className="h-4 w-4" />
+                            </button>
+                        </div>
+                    </div>
 
             {/* Add New Mapping Form */}
             {showAddForm && (
@@ -196,25 +312,29 @@ export default function WhatsAppConfigPanel() {
                         key={config.id}
                         config={config}
                         onSave={(tpl, en) => handleUpdate(config.id, tpl, en)}
+                        onDelete={() => handleDelete(config.id)}
                         isSaving={saving === config.id}
                     />
                 ))}
             </div>
 
-            <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 flex items-start gap-3 mt-8">
-                <AlertTriangle className="h-5 w-5 text-indigo-600 mt-0.5" />
-                <p className="text-sm text-indigo-700 leading-relaxed">
-                    <span className="font-bold">Crucial:</span> Ensure the Template Names match exactly with your approved templates in MSG91.
-                    Changes here take effect instantly across all automated services.
-                </p>
-            </div>
+                    <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 flex items-start gap-3 mt-8">
+                        <AlertTriangle className="h-5 w-5 text-indigo-600 mt-0.5" />
+                        <p className="text-sm text-indigo-700 leading-relaxed">
+                            <span className="font-bold">Crucial:</span> Ensure the Template Names match exactly with your approved templates in MSG91.
+                            Changes here take effect instantly across all automated services.
+                        </p>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
 
-function ConfigCard({ config, onSave, isSaving }: {
+function ConfigCard({ config, onSave, onDelete, isSaving }: {
     config: WhatsAppConfigData,
     onSave: (tpl: string, en: boolean) => void,
+    onDelete: () => void,
     isSaving: boolean
 }) {
     const [template, setTemplate] = useState(config.templateName)
@@ -230,12 +350,21 @@ function ConfigCard({ config, onSave, isSaving }: {
                     </span>
                     <h4 className="font-bold text-slate-800">{config.description || 'System Event'}</h4>
                 </div>
-                <button
-                    onClick={() => setEnabled(!enabled)}
-                    className={`transition-colors p-1 ${enabled ? 'text-emerald-500' : 'text-slate-300'}`}
-                >
-                    {enabled ? <ToggleRight className="h-8 w-8" /> : <ToggleLeft className="h-8 w-8" />}
-                </button>
+                <div className="flex items-center gap-1.5">
+                    <button
+                        onClick={onDelete}
+                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                        title="Delete Mapping"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </button>
+                    <button
+                        onClick={() => setEnabled(!enabled)}
+                        className={`transition-colors p-1 ${enabled ? 'text-emerald-500' : 'text-slate-300'}`}
+                    >
+                        {enabled ? <ToggleRight className="h-8 w-8" /> : <ToggleLeft className="h-8 w-8" />}
+                    </button>
+                </div>
             </div>
 
             <div className="space-y-3">
