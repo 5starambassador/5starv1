@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { hasPermission } from '@/lib/permission-service'
 import { getAmbassadorQuery, getStudentQuery } from '@/lib/campaign-utils'
 import { EmailService } from '@/lib/email-service'
+import { whatsappService } from '@/lib/whatsapp-service'
 import { UserRole } from '@prisma/client'
 import fs from 'fs'
 import path from 'path'
@@ -594,5 +595,55 @@ export async function syncCampaignMetrics(campaignId: number) {
     } catch (error: any) {
         console.error('syncCampaignMetrics error:', error)
         return { success: false, error: error.message || 'Failed to sync metrics' }
+    }
+}
+
+export async function sendIndividualWhatsApp(data: {
+    mobile: string,
+    templateName: string,
+    variables: string[]
+}) {
+    try {
+        await checkCampaignAccess()
+
+        if (!data.mobile || !data.templateName) {
+            return { success: false, error: 'Mobile and template name are required' }
+        }
+
+        const res = await whatsappService.sendTemplateMessage(
+            data.mobile,
+            data.templateName,
+            data.variables,
+            'Campaign' // Marking as Campaign type for logs
+        )
+
+        if (res.success) {
+            await logAction('Send Individual WhatsApp', 'Marketing', `Direct message to: ${data.mobile} using ${data.templateName}`, undefined)
+            return { success: true, messageId: res.messageId }
+        } else {
+            return { success: false, error: res.error || 'Failed to send WhatsApp message' }
+        }
+    } catch (error: any) {
+        console.error('sendIndividualWhatsApp error:', error)
+        return { success: false, error: error.message || 'Failed to process request' }
+    }
+}
+
+export async function getWhatsAppTemplates() {
+    try {
+        await checkCampaignAccess()
+        const templates = await prisma.whatsAppConfig.findMany({
+            where: { isEnabled: true },
+            select: {
+                id: true,
+                templateName: true,
+                requiredVariablesCount: true,
+                description: true
+            }
+        })
+        return { success: true, templates }
+    } catch (error: any) {
+        console.error('getWhatsAppTemplates error:', error)
+        return { success: false, error: error.message || 'Failed to fetch templates' }
     }
 }
