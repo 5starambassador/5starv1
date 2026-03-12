@@ -17,7 +17,8 @@ export interface WhatsAppAnalytics {
 }
 
 /**
- * Fetches WhatsApp automation analytics for the dashboard
+ * Fetches WhatsApp automation analytics.
+ * Optimized to use count/groupBy and minimal data fetching.
  */
 export async function getWhatsAppAnalytics(days: number = 7): Promise<WhatsAppAnalytics> {
     const user = await getCurrentUser()
@@ -26,6 +27,7 @@ export async function getWhatsAppAnalytics(days: number = 7): Promise<WhatsAppAn
     }
 
     const startDate = new Date()
+    startDate.setHours(0, 0, 0, 0)
     startDate.setDate(startDate.getDate() - days)
 
     try {
@@ -44,13 +46,14 @@ export async function getWhatsAppAnalytics(days: number = 7): Promise<WhatsAppAn
             }),
             db.whatsAppLog.findMany({
                 where: { createdAt: { gte: startDate } },
-                select: { createdAt: true, type: true }
+                select: { createdAt: true, type: true },
+                orderBy: { createdAt: 'asc' }
             })
         ])
 
         // Process Daily Trends
         const trendMap = new Map<string, { date: string; sent: number; chatbot: number }>()
-        for (let i = 0; i < days; i++) {
+        for (let i = 0; i <= days; i++) {
             const d = new Date()
             d.setDate(d.getDate() - i)
             const dateStr = d.toISOString().split('T')[0]
@@ -74,12 +77,12 @@ export async function getWhatsAppAnalytics(days: number = 7): Promise<WhatsAppAn
             }))
 
         const distribution = typeStats.map((s: any) => ({
-            name: s.type,
-            value: s._count._all
+            name: s.type || 'UNKNOWN',
+            value: s._count._all || 0
         }))
 
         const chatbotVolume = typeStats.find((s: any) => s.type === 'CHATBOT')?._count._all || 0
-        const nudgeVolume = typeStats.find((s: any) => s.type === 'REMINDER')?._count._all || 0
+        const nudgeVolume = typeStats.find((s: any) => s.type === 'REMINDER' || s.type === 'SYSTEM')?._count._all || 0
         const dripVolume = typeStats.find((s: any) => s.type === 'DRIP')?._count._all || 0
 
         return {
@@ -104,5 +107,77 @@ export async function getWhatsAppAnalytics(days: number = 7): Promise<WhatsAppAn
             recentTrends: [],
             distribution: []
         }
+    }
+}
+
+/**
+ * Fetches paginated WhatsApp logs for the new Logs tab.
+ */
+export async function getPaginatedWhatsAppLogs(page: number = 1, pageSize: number = 20, filters?: { status?: string, type?: string }) {
+    const user = await getCurrentUser()
+    if (!user || !await hasPermission('analytics')) {
+        throw new Error('Unauthorized')
+    }
+
+    try {
+        const whereClause: any = {}
+        if (filters?.status && filters.status !== 'All') whereClause.status = filters.status
+        if (filters?.type && filters.type !== 'All') whereClause.type = filters.type
+
+        const [logs, total] = await Promise.all([
+            db.whatsAppLog.findMany({
+                where: whereClause,
+                orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * pageSize,
+                take: pageSize,
+                select: {
+                    id: true,
+                    mobile: true,
+                    template: true,
+                    type: true,
+                    status: true,
+                    refId: true,
+                    content: true,
+                    createdAt: true
+                }
+            }),
+            db.whatsAppLog.count({ where: whereClause })
+        ])
+
+        // --- Enriching logs with User/Admin details (Role and Campus) ---
+        const mobiles = Array.from(new Set(logs.map((l: any) => l.mobile)))
+        
+        // Lookup in User table
+        const users = await db.user.findMany({
+            where: { mobileNumber: { in: mobiles } },
+            select: { mobileNumber: true, role: true, assignedCampus: true }
+        })
+
+        // Lookup in Admin table
+        const admins = await db.admin.findMany({
+            where: { adminMobile: { in: mobiles } },
+            select: { adminMobile: true, role: true, assignedCampus: true }
+        })
+
+        const enrichedLogs = logs.map((log: any) => {
+            const user = users.find((u: any) => u.mobileNumber === log.mobile || `91${u.mobileNumber}` === log.mobile)
+            const admin = admins.find((a: any) => a.adminMobile === log.mobile || `91${a.adminMobile}` === log.mobile)
+            
+            return {
+                ...log,
+                userRole: user?.role || admin?.role || 'User',
+                campus: user?.assignedCampus || admin?.assignedCampus || '-'
+            }
+        })
+
+        return {
+            success: true,
+            logs: enrichedLogs,
+            total,
+            totalPages: Math.ceil(total / pageSize)
+        }
+    } catch (error) {
+        console.error('Error fetching paginated WhatsApp logs:', error)
+        return { success: false, error: 'Failed to fetch logs' }
     }
 }
