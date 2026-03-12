@@ -994,7 +994,9 @@ export async function syncPastRefunds(records: {
     bankName?: string,
     accountNumber?: string,
     ifscCode?: string,
-    date?: string
+    date?: string,
+    remarks?: string,
+    amount?: number
 }[]) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
@@ -1023,25 +1025,23 @@ export async function syncPastRefunds(records: {
             const searchMobiles = Array.from(inputMap.keys())
 
             // 1. Fetch all users for this chunk at once
-            // Note: Mobile numbers in DB might have spaces or prefixes. We try direct match first.
-            // Ideally, we'd fuzzy match, but Prisma only supports exact or contains.
-            // We'll search for exact matches on striped version if stored clean, or exact input if stored raw.
-            // Given the inconsistency, let's search for exact matches of inputs first.
             const users = await prisma.user.findMany({
                 where: { mobileNumber: { in: searchMobiles } },
                 include: {
                     settlements: {
-                        where: { amount: 25, status: { not: 'Rejected' } }
+                        where: { status: { not: 'Rejected' } }
                     }
                 }
             })
 
             const userMap = new Map(users.map(u => [u.mobileNumber.replace(/\s+/g, '').trim(), u]))
 
-            // 2. Perform updates record-by-record for robustness (Avoiding chunk timeouts)
+            // 2. Perform updates record-by-record for robustness
             for (const [normalizedMobile, record] of inputMap.entries()) {
                 const mobile = record.mobile.trim()
-                const utr = record.utr?.trim() || `REF-MANUAL-${Date.now()}` // Fallback if UTR is missing
+                const utr = record.utr?.trim() || `REF-MANUAL-${Date.now()}`
+                const remarks = record.remarks?.trim() || ''
+                const amount = record.amount || 0
 
                 if (!mobile) {
                     results.skipped++
@@ -1059,6 +1059,15 @@ export async function syncPastRefunds(records: {
                 }
 
                 try {
+                    // Smart Categorization logic
+                    const lowerRemarks = remarks.toLowerCase()
+                    let detectedType: any = 'OTHER'
+                    if (lowerRemarks.includes('admission')) detectedType = 'ADMISSION_SHARE'
+                    else if (lowerRemarks.includes('donation')) detectedType = 'DONATION_SHARE'
+                    else if (lowerRemarks.includes('slab')) detectedType = 'SLAB_SHARE'
+                    else if (lowerRemarks.includes('special') || lowerRemarks.includes('bonus')) detectedType = 'SPECIAL_BONUS'
+                    else if (lowerRemarks.includes('refund') || lowerRemarks.includes('registration')) detectedType = 'OTHER'
+
                     // --- Parse historical date ---
                     let payoutDate = new Date()
                     if (record.date) {
@@ -1073,71 +1082,74 @@ export async function syncPastRefunds(records: {
                         } else {
                             payoutDate = new Date(record.date)
                         }
-
-                        if (isNaN(payoutDate.getTime())) {
-                            payoutDate = new Date()
-                        }
+                        if (isNaN(payoutDate.getTime())) payoutDate = new Date()
                     }
 
-                    const pendingSettlement = user.settlements.find(s => s.status === 'Pending')
-                    const processedSettlement = user.settlements.find(s => s.status === 'Processed')
+                    // High Precision Match: Look for pending first, then processed by type and amount
+                    // We prioritize records that EXACTLY match the type and amount if possible
+                    const pendingMatch = user.settlements.find(s => 
+                        s.status === 'Pending' && 
+                        Math.abs(s.amount - amount) < 1 && 
+                        (s.benefitType === detectedType || (!s.benefitType && detectedType === 'OTHER'))
+                    )
+                    
+                    const processedMatch = user.settlements.find(s => 
+                        s.status === 'Processed' && 
+                        Math.abs(s.amount - amount) < 1 && 
+                        (s.benefitType === detectedType || (!s.benefitType && detectedType === 'OTHER'))
+                    )
+
+                    // Fallback: Just look for ANY pending if amount is 25 (legacy support)
+                    const legacyMatch = (amount === 25 && !pendingMatch) ? user.settlements.find(s => s.status === 'Pending' && s.amount === 25) : null
+
+                    const targetSettlement = pendingMatch || legacyMatch || processedMatch
 
                     await prisma.$transaction(async (tx) => {
-                        if (pendingSettlement) {
+                        if (targetSettlement) {
                             await tx.settlement.update({
-                                where: { id: pendingSettlement.id },
+                                where: { id: targetSettlement.id },
                                 data: {
                                     status: 'Processed',
                                     bankReference: utr,
                                     payoutDate: payoutDate,
-                                    remarks: 'Registration fee refunded'
-                                }
-                            })
-                        } else if (processedSettlement) {
-                            await tx.settlement.update({
-                                where: { id: processedSettlement.id },
-                                data: {
-                                    bankReference: utr,
-                                    payoutDate: payoutDate,
-                                    remarks: 'Registration fee refunded'
+                                    remarks: remarks || targetSettlement.remarks,
+                                    benefitType: targetSettlement.benefitType || (detectedType as any)
                                 }
                             })
                         } else {
+                            // Create new processed record if no match found
                             await tx.settlement.create({
                                 data: {
                                     userId: user.userId,
-                                    amount: 25,
+                                    amount: amount,
                                     status: 'Processed',
                                     bankReference: utr,
                                     payoutDate: payoutDate,
-                                    remarks: 'Registration fee refunded'
+                                    remarks: remarks || 'Sync processed payout',
+                                    benefitType: detectedType as any
                                 }
                             })
                         }
                     })
 
-                    // Notify User (Outside Transaction for side-effect safety)
-                    if (!processedSettlement) {
-                        // Only notify if we actually processed a new one or moved from pending
-                        notifyRefundProcessed(user.userId, user.fullName).catch(err => console.error('Notification failed:', err))
-                    }
-
-                    if (processedSettlement) {
+                    if (targetSettlement && targetSettlement.status === 'Processed') {
                         results.alreadyRefunded++
-                        results.results.push({ mobile, amount: 25, transactionId: utr, status: 'Success', message: 'Updated existing refund record' })
+                        results.results.push({ mobile, amount, transactionId: utr, status: 'Success', message: `Updated: ${remarks || 'Paid'}` })
                     } else {
                         results.success++
-                        results.results.push({ mobile, amount: 25, transactionId: utr, status: 'Success', message: 'Processed refund' })
+                        results.results.push({ mobile, amount, transactionId: utr, status: 'Success', message: `Synced: ${remarks || 'Paid'}` })
+                        // Only notify if it was a new sync or moved from pending
+                        notifyRefundProcessed(user.userId, user.fullName).catch(err => console.error('Notification failed:', err))
                     }
 
                 } catch (recordError: any) {
                     console.error(`Error processing record for ${mobile}:`, recordError)
-                    results.results.push({ mobile, amount: 0, transactionId: utr, status: 'Failed', message: recordError.message || 'Database error' })
+                    results.results.push({ mobile, amount, transactionId: utr, status: 'Failed', message: recordError.message || 'Database error' })
                 }
             }
         }
 
-        await logAction('BULK_SYNC', 'finance', `Synced ${results.success} refunds (Created/Processed) + ${results.alreadyRefunded} updated.`, 'Auto-Sync')
+        await logAction('BULK_SYNC', 'finance', `Synced ${results.success + results.alreadyRefunded} payouts.`, 'Auto-Sync')
         revalidatePath('/finance')
 
         return {

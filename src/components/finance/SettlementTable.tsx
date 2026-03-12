@@ -177,11 +177,13 @@ export function SettlementTable({ data }: SettlementTableProps) {
     }
 
     const handleDownloadTemplate = () => {
-        const headers = ['Beneficiary Name', 'Role', 'Mobile', 'Bank Name', 'Account Number', 'IFSC Code', 'Amount', 'Date', 'Academic Year', 'Bank Transaction ID', 'Remarks']
+        const headers = ['Beneficiary Name', 'Mobile', 'Bank Transaction Ref', 'Amount', 'Date', 'Remarks', 'Bank Name', 'Account Number', 'IFSC Code']
         const sampleRows = [
-            ['John Doe', 'Staff', "'9876543210", 'HDFC Bank', "'1234567890", 'HDFC0001234', '8000', '19-01-2026', '2026-2027', 'UTR123456789', 'Admission fee share'],
-            ['John Doe', 'Staff', "'9876543210", 'HDFC Bank', "'1234567890", 'HDFC0001234', '5000', '19-01-2026', '2026-2027', 'UTR987654321', 'Donation fee Share'],
-            ['Jane Doe', 'Parent', "'9888877777", 'SBI', "'9999888877", 'SBIN0001111', '25', '19-01-2026', '2026-2027', 'TXN555444333', 'Registration Fee Refund']
+            ['John Doe', "'9876543210", 'UTR111', '8000', '19-01-2026', 'Admission fee share'],
+            ['John Doe', "'9876543210", 'UTR222', '5000', '19-01-2026', 'Donation fee Share'],
+            ['Jane Smith', "'9888877777", 'UTR333', '1000', '19-01-2026', 'Slab Rewards'],
+            ['Alice Wong', "'9777766666", 'UTR444', '2000', '19-01-2026', 'Special Campus Bonus'],
+            ['Bob Brown', "'9666655555", 'UTR555', '25', '19-01-2026', 'Registration Fee Refund']
         ]
         const csvContent = "\uFEFF" + headers.join(',') + "\n" + sampleRows.map(r => r.join(',')).join('\n')
 
@@ -232,86 +234,61 @@ export function SettlementTable({ data }: SettlementTableProps) {
                     // Remove quotes and whitespace
                     let cleaned = val.replace(/^"|"$/g, '').trim()
 
-                    // Senior Expert Handling: Strip invisible prefixes (Tab or Quote)
-                    // We add a TAB (\t) or quote (') in export to stop scientific notation.
-                    // We must strip it here so the ID (mobile/account) is clean.
+                    // Strip invisible prefixes (Tab \t or Quote ')
                     if (cleaned.startsWith("'") || cleaned.startsWith("\t")) {
                         cleaned = cleaned.substring(1).trim()
                     }
 
-                    // Handle Scientific Notation in Account Numbers (Excel fallback issue)
+                    // Handle Scientific Notation (e.g. 9.94E+09)
+                    // We check for E+ or e+ and ensure it's a number
                     if (cleaned.toLowerCase().includes('e+')) {
                         const num = Number(cleaned)
-                        if (!isNaN(num)) return num.toLocaleString('fullwide', { useGrouping: false })
+                        if (!isNaN(num)) {
+                            // fullwide ensures we don't get scientific notation back in the string
+                            return num.toLocaleString('fullwide', { useGrouping: false })
+                        }
                     }
                     return cleaned
                 }
 
                 const parsedRecords = []
+                const headerCols = parseCSVLine(rows[0]).map(h => h.toLowerCase())
+
+                // Smart Header Mapping - Find indices based on keywords
+                const findIndex = (keywords: string[]) =>
+                    headerCols.findIndex(h => keywords.some(k => h.includes(k.toLowerCase())))
+
+                const idxMobile = findIndex(['mobile', 'phone', 'contact'])
+                const idxUTR = findIndex(['bank transaction ref', 'utr', 'bank ref', 'transaction id', 'ref no'])
+                const idxID = findIndex(['ref id', 'settlement id', 'id'])
+                const idxAmount = findIndex(['amount', 'value', 'price'])
+                const idxDate = findIndex(['date', 'time', 'payout date'])
+                const idxBank = findIndex(['bank name', 'bank', 'beneficiary bank'])
+                const idxAcc = findIndex(['account number', 'acc', 'account'])
+                const idxIFSC = findIndex(['ifsc', 'code'])
+                const idxRemarks = findIndex(['remarks', 'note', 'description'])
+
+                // Final UTR Logic: Prioritize Bank Ref, then check generic Ref, then fallback
+                const finalUTRIdx = idxUTR !== -1 ? idxUTR : (idxID !== -1 ? idxID : -1)
+
+                // Minimum Requirement: We need at least Mobile to attempt a sync
+                if (idxMobile === -1) {
+                    toast.error("Could not find 'Mobile' column in CSV. Please ensure headers are present.")
+                    setIsUploading(false)
+                    return
+                }
+
                 for (let i = 1; i < rows.length; i++) {
                     const cols = parseCSVLine(rows[i])
                     if (cols.length < 2) continue
 
-                    let mobile = ''
-                    let bankName = '', accountNumber = '', ifscCode = '', utr = '', dateStr = '', amountStr = '', remarks = ''
-
-                    const getBestUTR = (candidates: string[]) => {
-                        const skipTerms = ['refund', 'fee', 'registration', 'remarks', 'payout', 'payment']
-                        // 1. Try to find a value that doesn't contain skip terms and is alphanumeric
-                        for (const v of candidates) {
-                            if (!v || v.length < 5) continue
-                            const lower = v.toLowerCase()
-                            if (!skipTerms.some(t => lower.includes(t)) && /[0-9]/.test(v)) return v
-                        }
-                        // 2. Fallback to anything non-empty and non-remark
-                        for (const v of candidates) {
-                            if (!v) continue
-                            const lower = v.toLowerCase()
-                            if (!skipTerms.some(t => lower.includes(t))) return v
-                        }
-                        return candidates[0] || ''
-                    }
-
-                    if (cols.length >= 11) {
-                        // User's Approved Template: 11 Columns
-                        // 0:Name, 1:Role, 2:Mobile, 3:Bank, 4:Acc, 5:IFSC, 6:Amount, 7:Date, 8:AcademicYear, 9:UTR, 10:Remarks
-                        mobile = cleanVal(cols[2])
-                        bankName = cleanVal(cols[3])
-                        accountNumber = cleanVal(cols[4])
-                        ifscCode = cleanVal(cols[5])
-                        amountStr = cleanVal(cols[6])
-                        dateStr = cleanVal(cols[7])
-                        // Academic Year is at index 8 (skipped here as it's not needed for the payout match call but recorded in remarks)
-                        utr = cleanVal(cols[9])
-                        const csvRemarks = cleanVal(cols[10])
-                        remarks = csvRemarks
-                    } else if (cols.length >= 9) {
-                        // Standard Export Support
-                        mobile = cleanVal(cols[2])
-                        bankName = cleanVal(cols[3])
-                        accountNumber = cleanVal(cols[4])
-                        ifscCode = cleanVal(cols[5])
-                        amountStr = cleanVal(cols[6])
-                        dateStr = cleanVal(cols[7])
-                        utr = getBestUTR([cleanVal(cols[8]), cleanVal(cols[cols.length - 1])])
-                        remarks = cleanVal(cols[cols.length - 1])
-                    } else if (cols.length === 8) {
-                        // Legacy Export Order: 0:Name, 1:Mobile, 2:Bank, 3:Acc, 4:IFSC, 5:Amount, 6:Date, 7:Remarks
-                        mobile = cleanVal(cols[1])
-                        bankName = cleanVal(cols[2])
-                        accountNumber = cleanVal(cols[3])
-                        ifscCode = cleanVal(cols[4])
-                        amountStr = cleanVal(cols[5])
-                        dateStr = cleanVal(cols[6])
-                        utr = getBestUTR([cleanVal(cols[7])])
-                    } else {
-                        // Fallback for older or simpler formats, assume mobile is at index 1
-                        mobile = cleanVal(cols[1])
-                        utr = cleanVal(cols[cols.length - 1])
-                    }
-
+                    const mobile = cleanVal(cols[idxMobile])
                     if (!mobile) continue
 
+                    // Get UTR (Required for Sync, but we can fallback to Bulk-Sync date if missing)
+                    let utr = finalUTRIdx !== -1 ? cleanVal(cols[finalUTRIdx]) : ''
+
+                    // Smart UTR fallback logic
                     if (!utr || utr.length < 3) {
                         const prefix = syncMode === 'mobile' ? 'Bulk-Synced' : 'Bulk'
                         utr = `${prefix}-${format(new Date(), 'yyyyMMdd')}`
@@ -320,12 +297,12 @@ export function SettlementTable({ data }: SettlementTableProps) {
                     parsedRecords.push({
                         mobile,
                         utr,
-                        bankName,
-                        accountNumber,
-                        ifscCode,
-                        date: dateStr,
-                        amount: parseFloat(amountStr) || 0,
-                        remarks
+                        bankName: idxBank !== -1 ? cleanVal(cols[idxBank]) : '',
+                        accountNumber: idxAcc !== -1 ? cleanVal(cols[idxAcc]) : '',
+                        ifscCode: idxIFSC !== -1 ? cleanVal(cols[idxIFSC]) : '',
+                        date: idxDate !== -1 ? cleanVal(cols[idxDate]) : '',
+                        amount: idxAmount !== -1 ? parseFloat(cleanVal(cols[idxAmount]).replace(/[^0-9.]/g, '')) || 0 : 0,
+                        remarks: idxRemarks !== -1 ? cleanVal(cols[idxRemarks]) : ''
                     })
                 }
 
@@ -342,7 +319,9 @@ export function SettlementTable({ data }: SettlementTableProps) {
                         bankName: r.bankName,
                         accountNumber: r.accountNumber,
                         ifscCode: r.ifscCode,
-                        date: r.date
+                        date: r.date,
+                        remarks: r.remarks,
+                        amount: r.amount
                     })))
                     setShowBulkConfirm(true)
                 } else {
