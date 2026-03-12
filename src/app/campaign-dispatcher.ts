@@ -242,10 +242,18 @@ export async function dispatchCampaignBatch(campaignId: number) {
 
                 // WhatsApp
                 if (isWhatsapp && waService && user.mobileNumber) {
-                    const messageBody = aliasTokens(campaign.templateBody, user)
+                    // MSG91 template variables should NOT include the full message body.
+                    // The template on MSG91 already has the message — we only pass personalisation tokens.
+                    // Convention: {{1}} = Name, {{2}} = Referral Code (if template uses it)
+                    const waVars: string[] = [
+                        (user.fullName || 'Ambassador').replace(/[\r\n]+/g, ' ').trim()
+                    ]
+                    if (user.referralCode) {
+                        waVars.push(user.referralCode)
+                    }
                     whatsappRecipients.push({
                         mobile: user.mobileNumber,
-                        variables: [messageBody]
+                        variables: waVars
                     })
                 }
 
