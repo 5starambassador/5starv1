@@ -19,7 +19,8 @@ export function encryptReferralCode(code: string): string {
         }).join('');
 
         // Base64 encode for URL safety
-        const base64 = Buffer.from(encrypted, 'binary').toString('base64');
+        // Strip any whitespace/newlines that Buffer.toString may introduce
+        const base64 = Buffer.from(encrypted, 'binary').toString('base64').replace(/[\r\n\s]/g, '');
 
         // Make URL-safe
         return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
@@ -51,7 +52,8 @@ export function decryptReferralCode(encryptedCode: string): string {
             return String.fromCharCode(char.charCodeAt(0) ^ keyChar.charCodeAt(0));
         }).join('');
 
-        return decrypted;
+        // Strip any trailing control characters (e.g. \n from XOR producing ASCII 10)
+        return decrypted.replace(/[\x00-\x1F\x7F]/g, '');
     } catch (error) {
         console.error('Decryption error:', error);
         return encryptedCode; // Fallback to try original
