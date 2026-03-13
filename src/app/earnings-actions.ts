@@ -71,39 +71,41 @@ export async function getMyEarningsStats(academicYear?: string): Promise<{
                 return date >= new Date('2025-01-01')
             })
 
-        // Fetch Settlements — using OR so granular payouts (with payoutDate) are matched
-        // by payoutDate, while legacy lump-sum settlements are matched by createdAt
-        const settlementWhere: any = { userId: user.userId }
-        if (academicYear !== 'All Time' && yearRecord) {
-            const dateRange = {
-                gte: yearRecord.startDate,
-                lte: yearRecord.endDate
-            }
-            settlementWhere.OR = [
-                // 1. Legacy lump-sum settlements → filter by createdAt
-                { benefitType: null, createdAt: dateRange },
-                // 2. Granular settlements → filter by payoutDate (fall back to createdAt if null)
-                { benefitType: { not: null }, payoutDate: dateRange },
-                { benefitType: { not: null }, payoutDate: null, createdAt: dateRange },
-                // 3. IMPORTANT: Any settlement linked to a referral assigned to THIS cycle
-                // This ensures early payouts in Feb/Mar show up in the 2026-2027 view
-                {
-                    referralLead: {
-                        OR: [
-                            { academicYear: yearFilter },
-                            { admittedYear: yearFilter }
-                        ]
-                    }
-                },
-                // 4. Pending settlements always included (no payout date yet)
-                { status: 'Pending', userId: user.userId }
-            ]
-            delete settlementWhere.createdAt
-        }
-
-        const settlements = await prisma.settlement.findMany({
-            where: settlementWhere,
+        // Fetch ALL settlements for the user and filter in JS for precise attribution
+        // (Avoids discrepancies between Prisma OR logic and JS heuristic)
+        const settlementsAll = await prisma.settlement.findMany({
+            where: { userId: user.userId },
+            include: { referralLead: true },
             orderBy: { createdAt: 'desc' }
+        })
+
+        const settlements = settlementsAll.filter((s: any) => {
+            if (academicYear === 'All Time') return true
+            if (s.status === 'Pending') return true // Pending always visible in selected cycle
+
+            const pDate = s.payoutDate ? new Date(s.payoutDate) : new Date(s.createdAt)
+            const type = s.benefitType
+            
+            // Heuristic for Jan-March 2026 Admission Shares
+            const isFebMarchFuture = type === 'ADMISSION_SHARE' && 
+                                    pDate.getFullYear() === 2026 && pDate.getMonth() <= 2
+
+            let yearOfAttribution = ''
+            if (s.referralLead) {
+                yearOfAttribution = s.referralLead.academicYear || s.referralLead.admittedYear
+            } else if (isFebMarchFuture) {
+                yearOfAttribution = '2026-2027'
+            } else {
+                // Find matching year by date
+                const matchedYear = activeYears.find(y => {
+                    const sDate = new Date(y.startDate)
+                    const eDate = new Date(y.endDate)
+                    return pDate >= sDate && pDate <= eDate
+                })
+                yearOfAttribution = matchedYear?.year || '2025-2026'
+            }
+
+            return yearOfAttribution === yearFilter
         })
 
         // Calculate Benefits using the official calculator

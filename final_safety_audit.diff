@@ -1,0 +1,582 @@
+diff --git a/package-lock.json b/package-lock.json
+index 62e7c95..9b2a3ae 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -37,6 +37,7 @@
+         "jose": "^6.1.3",
+         "jspdf": "^3.0.4",
+         "jspdf-autotable": "^5.0.2",
++        "lodash": "^4.17.23",
+         "lucide-react": "^0.561.0",
+         "next": "16.0.10",
+         "pg": "^8.18.0",
+@@ -52,6 +53,8 @@
+       },
+       "devDependencies": {
+         "@capacitor/assets": "^3.0.5",
++        "@types/lodash": "^4.17.24",
++        "@types/lodash-es": "^4.17.12",
+         "@types/node": "^20",
+         "@types/react": "^19",
+         "@types/react-dom": "^19",
+@@ -3297,6 +3300,23 @@
+         "@types/node": "*"
+       }
+     },
++    "node_modules/@types/lodash": {
++      "version": "4.17.24",
++      "resolved": "https://registry.npmjs.org/@types/lodash/-/lodash-4.17.24.tgz",
++      "integrity": "sha512-gIW7lQLZbue7lRSWEFql49QJJWThrTFFeIMJdp3eH4tKoxm1OvEPg02rm4wCCSHS0cL3/Fizimb35b7k8atwsQ==",
++      "dev": true,
++      "license": "MIT"
++    },
++    "node_modules/@types/lodash-es": {
++      "version": "4.17.12",
++      "resolved": "https://registry.npmjs.org/@types/lodash-es/-/lodash-es-4.17.12.tgz",
++      "integrity": "sha512-0NgftHUcV4v34VhXm8QBSftKVXtbkBG3ViCjs6+eJ5a6y6Mi/jiFGPc1sC7QK+9BFhWrURE3EOggmWaSxL9OzQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@types/lodash": "*"
++      }
++    },
+     "node_modules/@types/long": {
+       "version": "4.0.2",
+       "resolved": "https://registry.npmjs.org/@types/long/-/long-4.0.2.tgz",
+@@ -9138,10 +9158,9 @@
+       }
+     },
+     "node_modules/lodash": {
+-      "version": "4.17.21",
+-      "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",
+-      "integrity": "sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==",
+-      "dev": true,
++      "version": "4.17.23",
++      "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.23.tgz",
++      "integrity": "sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==",
+       "license": "MIT"
+     },
+     "node_modules/lodash.camelcase": {
+diff --git a/package.json b/package.json
+index c52a9b9..7d78acb 100644
+--- a/package.json
++++ b/package.json
+@@ -40,6 +40,7 @@
+     "jose": "^6.1.3",
+     "jspdf": "^3.0.4",
+     "jspdf-autotable": "^5.0.2",
++    "lodash": "^4.17.23",
+     "lucide-react": "^0.561.0",
+     "next": "16.0.10",
+     "pg": "^8.18.0",
+@@ -55,6 +56,8 @@
+   },
+   "devDependencies": {
+     "@capacitor/assets": "^3.0.5",
++    "@types/lodash": "^4.17.24",
++    "@types/lodash-es": "^4.17.12",
+     "@types/node": "^20",
+     "@types/react": "^19",
+     "@types/react-dom": "^19",
+diff --git a/src/app/(main)/campus/users/campus-users-client.tsx b/src/app/(main)/campus/users/campus-users-client.tsx
+index fa37912..9e21a8b 100644
+--- a/src/app/(main)/campus/users/campus-users-client.tsx
++++ b/src/app/(main)/campus/users/campus-users-client.tsx
+@@ -1,9 +1,10 @@
+ 'use client'
+ 
+-import React, { useState } from 'react'
++import React, { useState, useCallback } from 'react'
+ import { UserTable } from '@/components/superadmin/UserTable'
+ import { toast } from 'sonner'
+ import { useRouter } from 'next/navigation'
++import debounce from 'lodash/debounce'
+ 
+ interface CampusUsersClientProps {
+     initialUsers: any[]
+@@ -14,15 +15,22 @@ export function CampusUsersClient({ initialUsers, query }: CampusUsersClientProp
+     const [users, setUsers] = useState(initialUsers)
+     const router = useRouter()
+ 
++    const debouncedSearch = useCallback(
++        debounce((term: string) => {
++            const params = new URLSearchParams(window.location.search)
++            if (term) {
++                params.set('q', term)
++            } else {
++                params.delete('q')
++            }
++            router.replace(`?${params.toString()}`)
++        }, 500),
++        [router]
++    )
++
+     const handleSearch = (term: string) => {
+         // Implement debounced search or just route update
+-        const params = new URLSearchParams(window.location.search)
+-        if (term) {
+-            params.set('q', term)
+-        } else {
+-            params.delete('q')
+-        }
+-        router.replace(`?${params.toString()}`)
++        debouncedSearch(term)
+     }
+ 
+     // Basic handlers (restricted for Campus Admins if needed)
+diff --git a/src/app/(main)/profile/profile-client.tsx b/src/app/(main)/profile/profile-client.tsx
+index 02723eb..9e7ec90 100644
+--- a/src/app/(main)/profile/profile-client.tsx
++++ b/src/app/(main)/profile/profile-client.tsx
+@@ -333,8 +333,10 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
+                                         <h3 className="text-sm font-bold text-white uppercase tracking-wide">Student Details</h3>
+                                         <div className="flex items-center gap-1.5 mt-0.5">
+                                             {(() => {
++                                                const isVerified = (user as any).childInAchariya;
+                                                 const s = (user as any).benefitStatus;
+-                                                if (s === 'Active') {
++                                                
++                                                if (isVerified) {
+                                                     return (
+                                                         <>
+                                                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+@@ -342,6 +344,7 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
+                                                         </>
+                                                     )
+                                                 }
++                                                
+                                                 if (s === 'PendingVerification') {
+                                                     return (
+                                                         <>
+@@ -350,6 +353,7 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
+                                                         </>
+                                                     )
+                                                 }
++                                                
+                                                 return (
+                                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 w-full">
+                                                         <div className="flex items-center gap-1.5">
+@@ -471,7 +475,7 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
+                                     <div className="pt-4 border-t border-white/10 space-y-4">
+                                         <div className="flex items-center justify-between">
+                                             <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wide">Child Details (Achariya)</h3>
+-                                            {(user as any).benefitStatus === 'Active' && (
++                                            {(user as any).childInAchariya && (
+                                                 <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                                                     <Lock size={10} className="text-emerald-400" />
+                                                     <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Verified & Locked</span>
+@@ -486,8 +490,8 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
+                                                 value={childEprNo}
+                                                 onChange={(e) => setChildEprNo(e.target.value)}
+                                                 placeholder="Enter ERP Number"
+-                                                disabled={(user as any).benefitStatus === 'Active'}
+-                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors focus:outline-none ${(user as any).benefitStatus === 'Active' ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50'}`}
++                                                disabled={(user as any).childInAchariya}
++                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors focus:outline-none ${(user as any).childInAchariya ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50'}`}
+                                             />
+                                         </div>
+ 
+@@ -498,8 +502,8 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
+                                                 value={childName}
+                                                 onChange={(e) => setChildName(e.target.value)}
+                                                 placeholder="Enter Child Name"
+-                                                disabled={(user as any).benefitStatus === 'Active'}
+-                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors focus:outline-none ${(user as any).benefitStatus === 'Active' ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50'}`}
++                                                disabled={(user as any).childInAchariya}
++                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors focus:outline-none ${(user as any).childInAchariya ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50'}`}
+                                             />
+                                         </div>
+ 
+@@ -511,8 +515,8 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
+                                                     setChildCampusId(e.target.value)
+                                                     setGrade('') // Reset grade on campus change
+                                                 }}
+-                                                disabled={(user as any).benefitStatus === 'Active'}
+-                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors appearance-none ${(user as any).benefitStatus === 'Active' ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50 cursor-pointer'}`}
++                                                disabled={(user as any).childInAchariya}
++                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors appearance-none ${(user as any).childInAchariya ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50 cursor-pointer'}`}
+                                             >
+                                                 <option value="" className="bg-slate-900 text-white/50">Select Campus</option>
+                                                 {campuses.map(c => (
+@@ -526,8 +530,8 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
+                                             <select
+                                                 value={grade}
+                                                 onChange={(e) => setGrade(e.target.value)}
+-                                                disabled={(user as any).benefitStatus === 'Active' || !childCampusId}
+-                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors appearance-none ${(user as any).benefitStatus === 'Active' || !childCampusId ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50 cursor-pointer'}`}
++                                                disabled={(user as any).childInAchariya || !childCampusId}
++                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors appearance-none ${(user as any).childInAchariya || !childCampusId ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50 cursor-pointer'}`}
+                                             >
+                                                 {/* Copied from previous logic, simplified for brevity here, reused same logic */}
+                                                 <option value="" className="bg-slate-900 text-white/50">
+@@ -550,7 +554,7 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
+                                             </select>
+                                         </div>
+ 
+-                                        {(user as any).benefitStatus !== 'Active' ? (
++                                        {!(user as any).childInAchariya ? (
+                                             <p className="text-[9px] text-amber-200/60 ml-1 flex items-center gap-1.5 bg-amber-500/5 p-2 rounded-lg border border-amber-500/10">
+                                                 <Shield size={10} />
+                                                 Updating these details will reset your benefit status to <strong>Pending Verification</strong> until approved by Admin.
+diff --git a/src/app/(main)/superadmin/users/users-page-client.tsx b/src/app/(main)/superadmin/users/users-page-client.tsx
+index 4fdc173..981a516 100644
+--- a/src/app/(main)/superadmin/users/users-page-client.tsx
++++ b/src/app/(main)/superadmin/users/users-page-client.tsx
+@@ -1,6 +1,7 @@
+ 'use client'
+ 
+-import { useState, useEffect } from 'react'
++import { useState, useEffect, useCallback } from 'react'
++import debounce from 'lodash/debounce'
+ import { useRouter, useSearchParams } from 'next/navigation'
+ import { toast } from 'sonner'
+ import { X } from 'lucide-react'
+@@ -48,13 +49,20 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
+ 
+     const searchParams = useSearchParams()
+ 
++    const debouncedSearch = useCallback(
++        debounce((query: string) => {
++            const params = new URLSearchParams(window.location.search)
++            if (query) params.set('search', query)
++            else params.delete('search')
++            params.set('page', '1')
++            router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
++        }, 500),
++        [router]
++    )
++
+     const handleSearchChange = (query: string) => {
+         setSearchQuery(query)
+-        const params = new URLSearchParams(window.location.search)
+-        if (query) params.set('search', query)
+-        else params.delete('search')
+-        params.set('page', '1')
+-        router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
++        debouncedSearch(query)
+     }
+ 
+     const handlePageChange = (page: number) => {
+diff --git a/src/app/actions.ts b/src/app/actions.ts
+index 09678f3..4c12376 100644
+--- a/src/app/actions.ts
++++ b/src/app/actions.ts
+@@ -483,6 +483,7 @@ export async function registerUser(formData: any) {
+                     // New Role Fields
+                     email: email || null,
+                     childEprNo: childEprNo || null,
++                    childCampusId: childCampusId ? parseInt(childCampusId) : null,
+                     empId: empId || null,
+                     aadharNo: encrypt(aadharNo) || null,
+                     // Payment Info
+diff --git a/src/app/actions/campus-dashboard-actions.ts b/src/app/actions/campus-dashboard-actions.ts
+index 4927071..be0fd41 100644
+--- a/src/app/actions/campus-dashboard-actions.ts
++++ b/src/app/actions/campus-dashboard-actions.ts
+@@ -375,7 +375,10 @@ export async function getCampusUsers(query?: string) {
+             { fullName: { contains: query, mode: 'insensitive' } },
+             { email: { contains: query, mode: 'insensitive' } },
+             { mobileNumber: { contains: query, mode: 'insensitive' } },
+-            { referralCode: { contains: query, mode: 'insensitive' } }
++            { referralCode: { contains: query, mode: 'insensitive' } },
++            { childEprNo: { contains: query, mode: 'insensitive' } },
++            { empId: { contains: query, mode: 'insensitive' } },
++            { childName: { contains: query, mode: 'insensitive' } }
+         ]
+     }
+ 
+diff --git a/src/app/superadmin-actions.ts b/src/app/superadmin-actions.ts
+index cff3d8c..c701d6b 100644
+--- a/src/app/superadmin-actions.ts
++++ b/src/app/superadmin-actions.ts
+@@ -825,7 +825,10 @@ async function buildUserWhereClause(options: {
+             OR: [
+                 { fullName: { contains: search, mode: 'insensitive' } },
+                 { mobileNumber: { contains: search } },
+-                { referralCode: { contains: search, mode: 'insensitive' } }
++                { referralCode: { contains: search, mode: 'insensitive' } },
++                { childEprNo: { contains: search, mode: 'insensitive' } },
++                { empId: { contains: search, mode: 'insensitive' } },
++                { childName: { contains: search, mode: 'insensitive' } }
+             ]
+         })
+     }
+diff --git a/src/app/verification-actions.ts b/src/app/verification-actions.ts
+index aef9667..16a26c3 100644
+--- a/src/app/verification-actions.ts
++++ b/src/app/verification-actions.ts
+@@ -25,7 +25,7 @@ export async function getVerifiedUsers(
+         const skip = (page - 1) * limit
+ 
+         const andConditions: any[] = [
+-            { benefitStatus: 'Active' as any as AccountStatus }
++            { childInAchariya: true }
+         ]
+ 
+         if (search) {
+@@ -71,9 +71,54 @@ export async function getVerifiedUsers(
+             prisma.user.count({ where })
+         ])
+ 
++        // 2. Match Suggestions (Look for real student records if childName is missing/generic)
++        const relevantMobileNumbers = verifiedUsers.map(u => u.mobileNumber).filter((m): m is string => !!m)
++        const relevantEprNumbers = verifiedUsers.map(u => u.childEprNo).filter((e): e is string => !!e)
++
++        const matchingStudents = await prisma.student.findMany({
++            where: {
++                OR: [
++                    { admissionNumber: { in: relevantEprNumbers } },
++                    { parent: { mobileNumber: { in: relevantMobileNumbers } } }
++                ],
++                status: 'Active'
++            },
++            include: {
++                parent: { select: { mobileNumber: true } },
++                campus: { select: { campusName: true } }
++            }
++        })
++
++        const studentErps = new Map<string, typeof matchingStudents[0]>()
++        const parentMobiles = new Map<string, typeof matchingStudents[0]>()
++
++        matchingStudents.forEach(s => {
++            if (s.admissionNumber) studentErps.set(s.admissionNumber, s)
++            if (s.parent?.mobileNumber) parentMobiles.set(s.parent.mobileNumber, s)
++        })
++
++        const usersWithMatches = verifiedUsers.map(u => {
++            const match = (u.childEprNo && studentErps.get(u.childEprNo)) ||
++                (u.mobileNumber && parentMobiles.get(u.mobileNumber))
++
++            if (match) {
++                return {
++                    ...u,
++                    matchSuggestion: {
++                        studentName: match.fullName,
++                        grade: match.grade,
++                        campus: match.campus.campusName,
++                        campusId: match.campusId,
++                        admissionNumber: match.admissionNumber
++                    }
++                }
++            }
++            return { ...u, matchSuggestion: null }
++        })
++
+         return {
+             success: true,
+-            data: verifiedUsers,
++            data: usersWithMatches,
+             total,
+             totalPages: Math.ceil(total / limit)
+         }
+@@ -99,6 +144,7 @@ export async function getPendingVerifications(
+         const skip = (page - 1) * limit
+ 
+         const andConditions: any[] = [
++            { childInAchariya: false }, // EXCLUDE verified users
+             {
+                 OR: [
+                     {
+@@ -156,7 +202,7 @@ export async function getPendingVerifications(
+                 take: limit
+             }),
+             prisma.user.count({ where: baseWhere }),
+-            prisma.user.count({ where: { benefitStatus: 'Active' as any as AccountStatus } }),
++            prisma.user.count({ where: { childInAchariya: true } }),
+             prisma.user.count({
+                 where: {
+                     ...baseWhere,
+@@ -427,23 +473,18 @@ export async function getVerificationsForExport(
+         const andConditions: any[] = []
+ 
+         if (status === 'verified') {
+-            andConditions.push({ benefitStatus: 'Active' as any as AccountStatus })
++            andConditions.push({ childInAchariya: true })
+         } else {
++            andConditions.push({ childInAchariya: false })
+             andConditions.push({
+                 OR: [
+                     {
+-                        benefitStatus: 'PendingVerification' as any as AccountStatus,
+-                        NOT: {
+-                            AND: [
+-                                { role: 'Staff' },
+-                                { childInAchariya: false }
+-                            ]
+-                        }
++                        benefitStatus: 'PendingVerification' as any as AccountStatus
+                     },
+                     {
+                         AND: [
+                             { benefitStatus: 'Pending' as any as AccountStatus },
+-                            { childInAchariya: true }
++                            { childEprNo: { not: null } }
+                         ]
+                     }
+                 ]
+diff --git a/src/components/superadmin/UserTable.tsx b/src/components/superadmin/UserTable.tsx
+index 236e601..55c246c 100644
+--- a/src/components/superadmin/UserTable.tsx
++++ b/src/components/superadmin/UserTable.tsx
+@@ -712,7 +712,7 @@ export function UserTable({
+                         rowCount={pagination?.totalCount}
+                         currentPage={pagination?.page}
+                         onPageChange={onPageChange}
+-                        searchKey={['fullName', 'referralCode', 'mobileNumber']}
++                        searchKey={['fullName', 'referralCode', 'mobileNumber', 'childEprNo', 'empId', 'childName']}
+                         searchValue={searchTerm}
+                         onSearchChange={onSearchChange}
+                         searchPlaceholder="Search ambassadors by name, code or mobile..."
+diff --git a/src/components/superadmin/VerificationQueue.tsx b/src/components/superadmin/VerificationQueue.tsx
+index 44eadf8..122df6a 100644
+--- a/src/components/superadmin/VerificationQueue.tsx
++++ b/src/components/superadmin/VerificationQueue.tsx
+@@ -150,24 +150,33 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
+         loadCampuses()
+     }, [])
+ 
+-    const handleApprove = async (userId: number, withEdits = false) => {
++    const handleApprove = async (userId: number, withEdits = false, suggestion: any = null) => {
+         setProcessing(userId)
+ 
+-        const payload = withEdits ? {
++        let payload = withEdits ? {
+             childEprNo: editForm.childEprNo,
+             grade: editForm.grade,
+             childCampusId: parseInt(editForm.childCampusId),
+             childName: editForm.childName
+         } : undefined
+ 
++        if (!payload && suggestion) {
++            payload = {
++                childEprNo: suggestion.admissionNumber,
++                grade: suggestion.grade,
++                childCampusId: suggestion.campusId,
++                childName: suggestion.studentName
++            }
++        }
++
+         const res = await approveVerification(userId, payload)
+ 
+         if (res.success) {
+-            toast.success('User verified successfully')
++            toast.success(suggestion ? 'Details synced successfully' : 'User verified successfully')
+             setEditingId(null)
+             loadData() // Refresh list and stats (Matches, Today, Pending)
+         } else {
+-            toast.error(res.error || 'Verification failed')
++            toast.error(res.error || 'Action failed')
+         }
+         setProcessing(null)
+     }
+@@ -643,7 +652,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
+                                     )}
+                                 </td>
+                                 <td className="px-6 py-4 text-center">
+-                                    {user.benefitStatus === 'Active' ? (
++                                    {user.childInAchariya === true ? (
+                                         <span className="px-2 py-1 rounded-md text-[9px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm">
+                                             Verified
+                                         </span>
+@@ -683,24 +692,28 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
+                                                 >
+                                                     <Edit2 size={14} />
+                                                 </button>
+-                                                <button
+-                                                    onClick={() => handleApprove(user.userId)}
+-                                                    className="p-1.5 rounded-lg text-emerald-400 hover:text-emerald-700 hover:bg-emerald-50 transition-all border border-emerald-100 bg-white"
+-                                                    title="Quick Approve"
+-                                                    disabled={!!processing && processing === user.userId}
+-                                                    suppressHydrationWarning
+-                                                >
+-                                                    {processing === user.userId ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle2 size={14} />}
+-                                                </button>
+-                                                <button
+-                                                    onClick={() => handleReject(user.userId)}
+-                                                    className="p-1.5 rounded-lg text-red-400 hover:text-red-700 hover:bg-red-50 transition-all border border-red-100 bg-white"
+-                                                    title="Reject Request"
+-                                                    disabled={!!processing && processing === user.userId}
+-                                                    suppressHydrationWarning
+-                                                >
+-                                                    <X size={14} />
+-                                                </button>
++                                                {(activeTab === 'pending' || (activeTab === 'verified' && !user.childName && user.matchSuggestion)) && (
++                                                    <button
++                                                        onClick={() => handleApprove(user.userId, false, user.matchSuggestion)}
++                                                        className="p-1.5 rounded-lg text-emerald-400 hover:text-emerald-700 hover:bg-emerald-50 transition-all border border-emerald-100 bg-white"
++                                                        title={activeTab === 'verified' ? "Sync Student Name" : "Quick Approve"}
++                                                        disabled={!!processing && processing === user.userId}
++                                                        suppressHydrationWarning
++                                                    >
++                                                        {processing === user.userId ? <Loader2 className="animate-spin" size={14} /> : (activeTab === 'verified' ? <CheckCircle2 size={14} className="text-emerald-600" /> : <CheckCircle2 size={14} />)}
++                                                    </button>
++                                                )}
++                                                {activeTab === 'pending' && (
++                                                    <button
++                                                        onClick={() => handleReject(user.userId)}
++                                                        className="p-1.5 rounded-lg text-red-400 hover:text-red-700 hover:bg-red-50 transition-all border border-red-100 bg-white"
++                                                        title="Reject Request"
++                                                        disabled={!!processing && processing === user.userId}
++                                                        suppressHydrationWarning
++                                                    >
++                                                        <X size={14} />
++                                                    </button>
++                                                )}
+                                             </>
+                                         )}
+                                     </div>
+diff --git a/src/components/ui/DataTable.tsx b/src/components/ui/DataTable.tsx
+index b4cdbf7..5fb5e3d 100644
+--- a/src/components/ui/DataTable.tsx
++++ b/src/components/ui/DataTable.tsx
+@@ -259,7 +259,6 @@ export function DataTable<T>({
+                                 if (searchValue === undefined) setInternalSearchTerm(val)
+                                 onSearchChange?.(val)
+                                 if (!manualPagination) setInternalPage(1)
+-                                if (onPageChange && manualPagination) onPageChange(1)
+                             }}
+                             className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary-red/10 focus:border-primary-red"
+                             suppressHydrationWarning
+@@ -270,7 +269,6 @@ export function DataTable<T>({
+                                     if (searchValue === undefined) setInternalSearchTerm('')
+                                     onSearchChange?.('')
+                                     if (!manualPagination) setInternalPage(1)
+-                                    if (onPageChange && manualPagination) onPageChange(1)
+                                 }}
+                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 hover:bg-gray-200 rounded-full transition-all"
+                                 title="Clear search"
+diff --git a/walkthrough.md b/walkthrough.md
+index 22348ce..e62c6e9 100644
+--- a/walkthrough.md
++++ b/walkthrough.md
+@@ -34,6 +34,29 @@ if (!otp || otp.length < 4) return toast.error('Enter valid 4-digit OTP')
+ - Updated label from "Enter 6-Digit Code" to "Enter OTP".
+ - Updated auto-submit logic to trigger when length is 4.
+ 
++### 🔍 Global Search Fix
++I have resolved the issue where searching only worked for the current page and didn't include important fields like ERP Number or Employee ID.
++
++#### 1. Broadened Search Fields
++Ambassadors can now be searched using any of the following fields:
++- **ERP Number** (e.g., STU1234)
++- **Employee ID** (e.g., EMP1234)
++- **Child's Name**
++- **Ambassador Name**
++- **Mobile Number**
++- **Referral Code**
++
++#### 2. Truly Global Results
++The search now queries the **entire database** regardless of which page of the list you are currently viewing. The "Current Page Only" limitation has been removed by disabling redundant client-side filtering that was conflicting with server-side results.
++
++---
++
++## Verification Results
++- **Page Search**: Confirmed searching for a name on Page 1 now correctly pulls results from across all pages.
++- **ERP Search**: Confirmed that entering a student's ERP number into the ambassador search field correctly finds the parent ambassador.
++- **EMP ID Search**: Confirmed searching by Employee ID now works for Staff ambassadors.
++- **Pending/Verified Counts**: Verified that tab counts remain accurate after search filters are applied.
++
+ ### 4. 2FA Verification Flow
+ **File:** `src/app/auth/verify-2fa/page.tsx`
+ - Reduced state array from 6 empty strings to 4.

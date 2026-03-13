@@ -54,7 +54,8 @@ export function SettlementTable({ data }: SettlementTableProps) {
         accountNumber?: string,
         ifscCode?: string,
         date?: string,
-        remarks?: string
+        remarks?: string,
+        eprNo?: string
     }[]>([])
     const [pastPayoutsToSync, setPastPayoutsToSync] = useState<{
         mobile: string,
@@ -62,7 +63,10 @@ export function SettlementTable({ data }: SettlementTableProps) {
         bankName?: string,
         accountNumber?: string,
         ifscCode?: string,
-        date?: string
+        date?: string,
+        remarks?: string,
+        amount?: number,
+        eprNo?: string
     }[]>([])
     const [syncMode, setSyncMode] = useState<'mobile'>('mobile')
     const [selectedIds, setSelectedIds] = useState<number[]>([])
@@ -179,11 +183,9 @@ export function SettlementTable({ data }: SettlementTableProps) {
     const handleDownloadTemplate = () => {
         const headers = ['Beneficiary Name', 'Mobile', 'Bank Transaction Ref', 'Amount', 'Date', 'Remarks', 'Bank Name', 'Account Number', 'IFSC Code']
         const sampleRows = [
-            ['John Doe', "'9876543210", 'UTR111', '8000', '19-01-2026', 'Admission fee share'],
+            ['Mivith Binu (Referral)', "'9876543210", 'UTR111', '8000', '19-01-2026', 'Admission fee share'],
+            ['Sridevi (Ambassador)', "'9790882774", 'ERP-WAIVER-001', '10500', '19-03-2026', 'Staff Waiver'],
             ['John Doe', "'9876543210", 'UTR222', '5000', '19-01-2026', 'Donation fee Share'],
-            ['Jane Smith', "'9888877777", 'UTR333', '1000', '19-01-2026', 'Slab Rewards'],
-            ['Alice Wong', "'9777766666", 'UTR444', '2000', '19-01-2026', 'Special Campus Bonus'],
-            ['Bob Brown', "'9666655555", 'UTR555', '25', '19-01-2026', 'Registration Fee Refund']
         ]
         const csvContent = "\uFEFF" + headers.join(',') + "\n" + sampleRows.map(r => r.join(',')).join('\n')
 
@@ -259,6 +261,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
                     headerCols.findIndex(h => keywords.some(k => h.includes(k.toLowerCase())))
 
                 const idxMobile = findIndex(['mobile', 'phone', 'contact'])
+                const idxEPR = findIndex(['erp', 'admission', 'student id', 'id no'])
                 const idxUTR = findIndex(['bank transaction ref', 'utr', 'bank ref', 'transaction id', 'ref no'])
                 const idxID = findIndex(['ref id', 'settlement id', 'id'])
                 const idxAmount = findIndex(['amount', 'value', 'price'])
@@ -271,9 +274,9 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 // Final UTR Logic: Prioritize Bank Ref, then check generic Ref, then fallback
                 const finalUTRIdx = idxUTR !== -1 ? idxUTR : (idxID !== -1 ? idxID : -1)
 
-                // Minimum Requirement: We need at least Mobile to attempt a sync
-                if (idxMobile === -1) {
-                    toast.error("Could not find 'Mobile' column in CSV. Please ensure headers are present.")
+                // Minimum Requirement: We need EITHER Mobile or ERP to attempt a sync
+                if (idxMobile === -1 && idxEPR === -1) {
+                    toast.error("Could not find 'Mobile' or 'ERP No' column in CSV. Please ensure headers are present.")
                     setIsUploading(false)
                     return
                 }
@@ -282,20 +285,25 @@ export function SettlementTable({ data }: SettlementTableProps) {
                     const cols = parseCSVLine(rows[i])
                     if (cols.length < 2) continue
 
-                    const mobile = cleanVal(cols[idxMobile])
-                    if (!mobile) continue
+                    const mobile = idxMobile !== -1 ? cleanVal(cols[idxMobile]) : ''
+                    const eprNo = idxEPR !== -1 ? cleanVal(cols[idxEPR]) : ''
+                    const remarks = idxRemarks !== -1 ? cleanVal(cols[idxRemarks]) : ''
+                    const isWaiver = remarks.toLowerCase().includes('waiver')
+                    
+                    if (!mobile && !eprNo) continue
 
                     // Get UTR (Required for Sync, but we can fallback to Bulk-Sync date if missing)
                     let utr = finalUTRIdx !== -1 ? cleanVal(cols[finalUTRIdx]) : ''
 
                     // Smart UTR fallback logic
                     if (!utr || utr.length < 3) {
-                        const prefix = syncMode === 'mobile' ? 'Bulk-Synced' : 'Bulk'
-                        utr = `${prefix}-${format(new Date(), 'yyyyMMdd')}`
+                        const prefix = isWaiver ? 'ERP-WAIVER' : (syncMode === 'mobile' ? 'Bulk-Synced' : 'Bulk')
+                        utr = `${prefix}-${format(new Date(), 'yyyyMMdd_HHmm')}`
                     }
 
                     parsedRecords.push({
                         mobile,
+                        eprNo,
                         utr,
                         bankName: idxBank !== -1 ? cleanVal(cols[idxBank]) : '',
                         accountNumber: idxAcc !== -1 ? cleanVal(cols[idxAcc]) : '',
@@ -333,7 +341,8 @@ export function SettlementTable({ data }: SettlementTableProps) {
                         accountNumber: r.accountNumber,
                         ifscCode: r.ifscCode,
                         date: r.date,
-                        remarks: r.remarks
+                        remarks: r.remarks,
+                        eprNo: r.eprNo
                     }))
 
                     if (toProcess.length === 0) {
@@ -663,8 +672,8 @@ export function SettlementTable({ data }: SettlementTableProps) {
                 isOpen={showBulkConfirm}
                 title={syncMode === 'mobile' ? "Confirm Past Payout Sync" : "Confirm Bulk Payouts"}
                 description={syncMode === 'mobile'
-                    ? `Found ${pastPayoutsToSync.length} records to sync by Mobile Number. This will mark them as PAID immediately. Proceed?`
-                    : `Found ${pendingPayoutsToProcess.length} valid records to process by Mobile Number. Are you sure you want to proceed?`
+                    ? `Found ${pastPayoutsToSync.length} records to sync by Mobile/ERP. This will mark them as PAID immediately. Proceed?`
+                    : `Found ${pendingPayoutsToProcess.length} valid records to process. The system will match by Referral Admission Number (Priority) or Mobile Number. Proceed?`
                 }
                 confirmText={syncMode === 'mobile' ? "Sync Now" : "Proceed Bulk"}
                 onConfirm={confirmBulkProcess}

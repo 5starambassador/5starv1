@@ -10,7 +10,7 @@ import { GlassCard } from '@/components/ui/GlassCard'
 import Link from 'next/link'
 
 // Shared Logic for Filtering Settlements (Matches earnings-actions.ts)
-const filterSettlementsByYear = (settlements: any[], yearRecord: any, yearFilter: string) => {
+const filterSettlementsByYear = (settlements: any[], yearRecord: any, yearFilter: string, allYears: any[]) => {
     if (!yearRecord) return settlements // "All Time" case
 
     const startDate = new Date(yearRecord.startDate)
@@ -18,22 +18,30 @@ const filterSettlementsByYear = (settlements: any[], yearRecord: any, yearFilter
 
     return settlements.filter((s: any) => {
         const createdAt = new Date(s.createdAt)
-        const payoutDate = s.payoutDate ? new Date(s.payoutDate) : null
+        const pDate = s.payoutDate ? new Date(s.payoutDate) : createdAt
 
-        // 1. Legacy Check
+        // 1. Legacy Check (No benefit type)
         if (!s.benefitType && createdAt >= startDate && createdAt <= endDate) return true
 
-        // 2. Granular Payout Check
-        if (s.benefitType && payoutDate && payoutDate >= startDate && payoutDate <= endDate) return true
-        if (s.benefitType && !payoutDate && createdAt >= startDate && createdAt <= endDate) return true
+        // 2. Attribution Heuristic
+        const isFebMarchFuture = s.benefitType === 'ADMISSION_SHARE' && 
+                                pDate.getFullYear() === 2026 && pDate.getMonth() <= 2
 
-        // 3. Referral-Link Check (New)
+        let yearOfAttribution = ''
         if (s.referralLead) {
-            const rYear = s.referralLead.academicYear || s.referralLead.admittedYear
-            if (rYear === yearFilter) return true
+            yearOfAttribution = s.referralLead.academicYear || s.referralLead.admittedYear
+        } else if (isFebMarchFuture) {
+            yearOfAttribution = '2026-2027'
+        } else {
+            const matchedYear = allYears.find((y: any) => {
+                const sDate = new Date(y.startDate)
+                const eDate = new Date(y.endDate)
+                return pDate >= sDate && pDate <= eDate
+            })
+            yearOfAttribution = matchedYear?.year || '2025-2026'
         }
 
-        return false
+        return yearOfAttribution === yearFilter
     })
 }
 
@@ -227,20 +235,83 @@ export function DashboardClient({
         const earnedBenefits = calculateTotalBenefit(formatForCalculator(confirmedSet), userContext, slabs)
         const potentialBenefits = calculateTotalBenefit(formatForCalculator(allProspectsSet), userContext, slabs, true)
 
-        // 4. Calculate Settlements for this set
-        let filteredSettlements = settlements
-        if (selectedYearId !== 'all' && selectedYearRecord) {
-            filteredSettlements = filterSettlementsByYear(settlements, selectedYearRecord, selectedYearRecord.year)
-        }
+        // 4. Calculate Settlements for this set (TYPE-AWARE FIFO)
+        // We use the same segmented logic as finance-actions.ts to ensure cross-year settlements 
+        // (like a Feb payment for an April referral) are correctly attributed.
+        
+        // Use full settlements for matching, filtered by status
+        const validSettlements = settlements.filter((s: any) => s.status === 'Processed')
+        
+        // Prepare pools from Settlements
+        let runningAdm = 0
+        let runningDon = 0
+        let runningSlab = 0
+        let runningGreedy = 0
 
-        const totalSettled = filteredSettlements
-            .filter((s: any) => s.status === 'Processed')
-            .reduce((acc: number, s: any) => acc + (s.amount || 0), 0)
+        validSettlements.forEach((s: any) => {
+            const pDate = s.payoutDate ? new Date(s.payoutDate) : new Date(s.createdAt)
+            const type = s.benefitType
+            
+            // Heuristic for Jan-March 2026 Admission Shares
+            const isFebMarchFuture = type === 'ADMISSION_SHARE' && 
+                                    pDate.getFullYear() === 2026 && pDate.getMonth() <= 2
+
+            let yearOfAttribution = ''
+            if (s.referralLead) {
+                yearOfAttribution = s.referralLead.academicYear || s.referralLead.admittedYear
+            } else if (isFebMarchFuture) {
+                yearOfAttribution = '2026-2027'
+            } else {
+                // Find matching year by date
+                const matchedYear = activeYears.find(y => {
+                    const sDate = new Date(y.startDate)
+                    const eDate = new Date(y.endDate)
+                    return pDate >= sDate && pDate <= eDate
+                })
+                yearOfAttribution = matchedYear?.year || '2025-2026'
+            }
+
+            if (selectedYearId !== 'all' && selectedYearRecord && yearOfAttribution !== selectedYearRecord.year) {
+                return // Skip if not matching filter
+            }
+
+            if (type === 'ADMISSION_SHARE') runningAdm += (s.amount || 0)
+            else if (type === 'DONATION_SHARE') runningDon += (s.amount || 0)
+            else if (type === 'SLAB_SHARE') runningSlab += (s.amount || 0)
+            else runningGreedy += (s.amount || 0)
+        })
+
+        // MATCH AGAINST EARNINGS (FIFO)
+        const admShareTotal = earnedBenefits.admissionShare
+        const donShareTotal = earnedBenefits.donationShare
+        const slabShareTotal = earnedBenefits.slabShare + (earnedBenefits as any).longTermBaseAmount || 0
+        const specialBonusTotal = earnedBenefits.specialBonusShare
+
+        const settledAdm = Math.min(admShareTotal, runningAdm)
+        const settledDon = Math.min(donShareTotal, runningDon)
+        const settledSlab = Math.min(slabShareTotal, runningSlab)
+        
+        let totalSettledForYear = settledAdm + settledDon + settledSlab
+        let remainingGreedy = runningGreedy
+        
+        // Greedily consume remaining earnings types with generic "Greedy" pool
+        const leftoverAdm = admShareTotal - settledAdm
+        const greedyAdm = Math.min(leftoverAdm, remainingGreedy); remainingGreedy -= greedyAdm
+        
+        const leftoverDon = donShareTotal - settledDon
+        const greedyDon = Math.min(leftoverDon, remainingGreedy); remainingGreedy -= greedyDon
+        
+        const leftoverSlab = slabShareTotal - settledSlab
+        const greedySlab = Math.min(leftoverSlab, remainingGreedy); remainingGreedy -= greedySlab
+        
+        const greedySpecial = Math.min(specialBonusTotal, remainingGreedy)
+        
+        totalSettledForYear += greedyAdm + greedyDon + greedySlab + greedySpecial
 
         const benefitStats = {
-            earned: Math.max(0, earnedBenefits.totalAmount - totalSettled), // Net Balance
+            earned: Math.max(0, earnedBenefits.totalAmount - totalSettledForYear), // Net Balance
             grossEarned: earnedBenefits.totalAmount,
-            totalSettled: totalSettled,
+            totalSettled: totalSettledForYear,
             potential: potentialBenefits.totalAmount,
             displayPercent: earnedBenefits.tierPercent,
             potentialPercent: potentialBenefits.tierPercent

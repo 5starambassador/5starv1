@@ -13,9 +13,11 @@ interface ReferralsListProps {
     user: any
     slabs: any[]
     activeYears: any[]
+    settlements: any[]
+    campusFeeMap?: Record<string, Record<number, { otp: number, wotp: number }>>
 }
 
-export function ReferralsList({ referrals, user, slabs, activeYears }: ReferralsListProps) {
+export function ReferralsList({ referrals, user, slabs, activeYears, settlements, campusFeeMap }: ReferralsListProps) {
     const sortedYears = [...activeYears].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
     const currentYearRecord = activeYears.find(y => y.isCurrent) || sortedYears[0]
     const dropdownYears = [...sortedYears.map(y => y.year), 'All Time']
@@ -46,7 +48,7 @@ export function ReferralsList({ referrals, user, slabs, activeYears }: Referrals
         ? referrals
         : referrals.filter(r => getReferralYear(r) === selectedYear)
 
-    // Marginal Yield Logic
+    // Marginal Yield Logic (Type-Aware FIFO)
     const referralsWithYield = (() => {
         const sorted = [...filteredReferrals].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
         const confirmed = sorted.filter(r => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted')
@@ -61,25 +63,116 @@ export function ReferralsList({ referrals, user, slabs, activeYears }: Referrals
             previousYearReferrals: [] // Simplified for now
         }
 
-        const format = (list: any[]) => list.map(r => ({
-            id: r.leadId,
-            campusId: r.campusId || 0,
-            campusName: r.campus,
-            grade: r.gradeInterested,
-            actualFee: r.student?.annualFee || r.annualFee || 60000,
-            admissionFeeCollected: r.admissionFeeCollected || 0,
-            donationFeeCollected: r.donationFeeCollected || 0
-        }))
+        const format = (list: any[]) => list.map(r => {
+            const rYear = getReferralYear(r)
+            const g1Fee = campusFeeMap && campusFeeMap[rYear] && r.campusId ? campusFeeMap[rYear][r.campusId]?.wotp : 0
+
+            return {
+                id: r.leadId,
+                campusId: r.campusId || 0,
+                campusName: r.campus,
+                grade: r.gradeInterested,
+                actualFee: r.student?.annualFee || r.annualFee || 60000,
+                campusGrade1Fee: g1Fee || 0,
+                admissionFeeCollected: r.admissionFeeCollected || 0,
+                donationFeeCollected: r.donationFeeCollected || 0
+            }
+        })
+
+        // --- PREPARE SETTLEMENT POOLS ---
+        const validSettlements = (settlements || []).filter((s: any) => s.status === 'Processed')
+        let runningAdm = 0
+        let runningDon = 0
+        let runningSlab = 0
+        let runningGreedy = 0
+
+        const selectedYearRecord = activeYears.find(y => y.year === selectedYear)
+
+        validSettlements.forEach((s: any) => {
+            const pDate = s.payoutDate ? new Date(s.payoutDate) : new Date(s.createdAt)
+            const type = s.benefitType
+            
+            // Heuristic for Jan-March 2026 Admission Shares
+            const isFebMarchFuture = type === 'ADMISSION_SHARE' && 
+                                    pDate.getFullYear() === 2026 && pDate.getMonth() <= 2
+
+            let yearOfAttribution = ''
+            if (s.referralLead) {
+                yearOfAttribution = s.referralLead.academicYear || s.referralLead.admittedYear
+            } else if (isFebMarchFuture) {
+                yearOfAttribution = '2026-2027'
+            } else {
+                // Find matching year by date
+                const matchedYear = activeYears.find(y => {
+                    const sDate = new Date(y.startDate)
+                    const eDate = new Date(y.endDate)
+                    return pDate >= sDate && pDate <= eDate
+                })
+                yearOfAttribution = matchedYear?.year || '2025-2026'
+            }
+
+            if (selectedYear !== 'All Time' && selectedYearRecord && yearOfAttribution !== selectedYearRecord.year) {
+                return
+            }
+
+            if (type === 'ADMISSION_SHARE') runningAdm += (s.amount || 0)
+            else if (type === 'DONATION_SHARE') runningDon += (s.amount || 0)
+            else if (type === 'SLAB_SHARE') runningSlab += (s.amount || 0)
+            else runningGreedy += (s.amount || 0)
+        })
 
         const results: any[] = []
 
-        // 1. Calculate Secured Yields (Marginal)
+        // 1. Calculate Secured Yields (Marginal) & Apply Granular FIFO
         let prevSecuredTotal = 0
+        let prevMetrics = { admissionShare: 0, donationShare: 0, slabShare: 0, specialBonusShare: 0 }
+        
+        // Pools for matching
+        let remAdm = runningAdm
+        let remDon = runningDon
+        let remSlab = runningSlab
+        let remGreedy = runningGreedy
+
         confirmed.forEach((r, i) => {
-            const currentTotal = calculateTotalBenefit(format(confirmed.slice(0, i + 1)), context, slabs).totalAmount
+            const currentTotalMetrics = calculateTotalBenefit(format(confirmed.slice(0, i + 1)), context, slabs)
+            const currentTotal = currentTotalMetrics.totalAmount
             const yieldAmount = currentTotal - prevSecuredTotal
-            results.push({ ...r, calculatedYield: yieldAmount, yieldType: 'secured' })
+            
+            // Calculate marginal components for this referral
+            const mAdm = currentTotalMetrics.admissionShare - prevMetrics.admissionShare
+            const mDon = currentTotalMetrics.donationShare - prevMetrics.donationShare
+            const mSlab = currentTotalMetrics.slabShare - prevMetrics.slabShare
+            const mSpec = currentTotalMetrics.specialBonusShare - prevMetrics.specialBonusShare
+            
+            // Match against pools
+            let sAdm = Math.min(mAdm, remAdm); remAdm -= sAdm
+            let sDon = Math.min(mDon, remDon); remDon -= sDon
+            let sSlab = Math.min(mSlab, remSlab); remSlab -= sSlab
+            
+            // Greedy match for Specials or remaining gaps
+            let leftover = (mAdm - sAdm) + (mDon - sDon) + (mSlab - sSlab) + mSpec
+            let sGreedy = Math.min(leftover, remGreedy); remGreedy -= sGreedy
+            
+            const settledForReferral = sAdm + sDon + sSlab + sGreedy
+            const isSettled = settledForReferral >= yieldAmount && yieldAmount > 0
+            const isPartial = settledForReferral > 0 && settledForReferral < yieldAmount
+
+            results.push({ 
+                ...r, 
+                calculatedYield: yieldAmount, 
+                yieldType: 'secured', 
+                isSettled,
+                isPartial,
+                settledAmount: settledForReferral
+            })
+            
             prevSecuredTotal = currentTotal
+            prevMetrics = {
+                admissionShare: currentTotalMetrics.admissionShare,
+                donationShare: currentTotalMetrics.donationShare,
+                slabShare: currentTotalMetrics.slabShare,
+                specialBonusShare: currentTotalMetrics.specialBonusShare
+            }
         })
 
         // 2. Calculate Potential Yields (Marginal)
@@ -226,17 +319,18 @@ function ReferralCard({ referral, type }: { referral: any, type: 'pre-asset' | '
             <div className={`absolute top-0 right-0 w-32 h-32 blur-[60px] rounded-full pointer-events-none ${isAsset ? 'bg-blue-400/10' : 'bg-amber-400/5'}`} />
 
             {/* Yield Badge - THE DASHBOARD ENERGY HOOK */}
-            {yieldAmount > 0 && (
-                <div className={`absolute top-0 right-10 px-6 py-2.5 rounded-b-3xl border-x border-b font-black text-[10px] uppercase tracking-[0.2em] z-20 shadow-2xl ${referral.yieldType === 'secured'
-                    ? 'bg-gradient-to-br from-emerald-500/20 to-blue-600/20 border-blue-400/30 text-emerald-400'
-                    : 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-amber-400/30 text-amber-400 animate-pulse'
+                <div className={`absolute top-0 right-10 px-6 py-2.5 rounded-b-3xl border-x border-b font-black text-[10px] uppercase tracking-[0.2em] z-20 shadow-2xl ${(referral.isSettled || referral.isPartial)
+                    ? 'bg-gradient-to-br from-indigo-500/30 to-blue-600/30 border-blue-400/50 text-blue-200'
+                    : referral.yieldType === 'secured'
+                        ? 'bg-gradient-to-br from-emerald-500/20 to-blue-600/20 border-blue-400/30 text-emerald-400'
+                        : 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-amber-400/30 text-amber-400 animate-pulse'
                     }`}>
                     <span className="flex items-center gap-2 font-black">
-                        <Star size={12} className={referral.yieldType === 'secured' ? 'fill-emerald-400' : 'fill-amber-400'} />
-                        {referral.yieldType === 'secured' ? 'Secured' : 'Potential'}: ₹{yieldAmount.toLocaleString('en-IN')}
+                        <Star size={12} className={(referral.isSettled || referral.isPartial) ? 'fill-blue-400' : referral.yieldType === 'secured' ? 'fill-emerald-400' : 'fill-amber-400'} />
+                        {referral.isSettled ? 'Settled' : referral.isPartial ? 'Settled' : referral.yieldType === 'secured' ? 'Secured' : 'Potential'}: 
+                        ₹{(referral.isPartial ? referral.settledAmount : yieldAmount).toLocaleString('en-IN')}
                     </span>
                 </div>
-            )}
 
             <div className="relative z-10">
                 <div className="flex justify-between items-start mb-3">
