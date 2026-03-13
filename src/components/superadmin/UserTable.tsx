@@ -712,7 +712,7 @@ export function UserTable({
                         rowCount={pagination?.totalCount}
                         currentPage={pagination?.page}
                         onPageChange={onPageChange}
-                        searchKey={['fullName', 'referralCode', 'mobileNumber']}
+                        searchKey={['fullName', 'referralCode', 'mobileNumber', 'childEprNo', 'empId', 'childName']}
                         searchValue={searchTerm}
                         onSearchChange={onSearchChange}
                         searchPlaceholder="Search ambassadors by name, code or mobile..."

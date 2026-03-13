@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { UserTable } from '@/components/superadmin/UserTable'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import debounce from 'lodash/debounce'
 
 interface CampusUsersClientProps {
     initialUsers: any[]
@@ -14,15 +15,22 @@ export function CampusUsersClient({ initialUsers, query }: CampusUsersClientProp
     const [users, setUsers] = useState(initialUsers)
     const router = useRouter()
 
+    const debouncedSearch = useCallback(
+        debounce((term: string) => {
+            const params = new URLSearchParams(window.location.search)
+            if (term) {
+                params.set('q', term)
+            } else {
+                params.delete('q')
+            }
+            router.replace(`?${params.toString()}`)
+        }, 500),
+        [router]
+    )
+
     const handleSearch = (term: string) => {
         // Implement debounced search or just route update
-        const params = new URLSearchParams(window.location.search)
-        if (term) {
-            params.set('q', term)
-        } else {
-            params.delete('q')
-        }
-        router.replace(`?${params.toString()}`)
+        debouncedSearch(term)
     }
 
     // Basic handlers (restricted for Campus Admins if needed)

@@ -333,8 +333,10 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                                         <h3 className="text-sm font-bold text-white uppercase tracking-wide">Student Details</h3>
                                         <div className="flex items-center gap-1.5 mt-0.5">
                                             {(() => {
+                                                const isVerified = (user as any).childInAchariya;
                                                 const s = (user as any).benefitStatus;
-                                                if (s === 'Active') {
+                                                
+                                                if (isVerified) {
                                                     return (
                                                         <>
                                                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -342,6 +344,7 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                                                         </>
                                                     )
                                                 }
+                                                
                                                 if (s === 'PendingVerification') {
                                                     return (
                                                         <>
@@ -350,6 +353,7 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                                                         </>
                                                     )
                                                 }
+                                                
                                                 return (
                                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 w-full">
                                                         <div className="flex items-center gap-1.5">
@@ -471,7 +475,7 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                                     <div className="pt-4 border-t border-white/10 space-y-4">
                                         <div className="flex items-center justify-between">
                                             <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wide">Child Details (Achariya)</h3>
-                                            {(user as any).benefitStatus === 'Active' && (
+                                            {(user as any).childInAchariya && (
                                                 <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
                                                     <Lock size={10} className="text-emerald-400" />
                                                     <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Verified & Locked</span>
@@ -486,8 +490,8 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                                                 value={childEprNo}
                                                 onChange={(e) => setChildEprNo(e.target.value)}
                                                 placeholder="Enter ERP Number"
-                                                disabled={(user as any).benefitStatus === 'Active'}
-                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors focus:outline-none ${(user as any).benefitStatus === 'Active' ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50'}`}
+                                                disabled={(user as any).childInAchariya}
+                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors focus:outline-none ${(user as any).childInAchariya ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50'}`}
                                             />
                                         </div>
 
@@ -498,8 +502,8 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                                                 value={childName}
                                                 onChange={(e) => setChildName(e.target.value)}
                                                 placeholder="Enter Child Name"
-                                                disabled={(user as any).benefitStatus === 'Active'}
-                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors focus:outline-none ${(user as any).benefitStatus === 'Active' ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50'}`}
+                                                disabled={(user as any).childInAchariya}
+                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors focus:outline-none ${(user as any).childInAchariya ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50'}`}
                                             />
                                         </div>
 
@@ -511,8 +515,8 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                                                     setChildCampusId(e.target.value)
                                                     setGrade('') // Reset grade on campus change
                                                 }}
-                                                disabled={(user as any).benefitStatus === 'Active'}
-                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors appearance-none ${(user as any).benefitStatus === 'Active' ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50 cursor-pointer'}`}
+                                                disabled={(user as any).childInAchariya}
+                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors appearance-none ${(user as any).childInAchariya ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50 cursor-pointer'}`}
                                             >
                                                 <option value="" className="bg-slate-900 text-white/50">Select Campus</option>
                                                 {campuses.map(c => (
@@ -526,8 +530,8 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                                             <select
                                                 value={grade}
                                                 onChange={(e) => setGrade(e.target.value)}
-                                                disabled={(user as any).benefitStatus === 'Active' || !childCampusId}
-                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors appearance-none ${(user as any).benefitStatus === 'Active' || !childCampusId ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50 cursor-pointer'}`}
+                                                disabled={(user as any).childInAchariya || !childCampusId}
+                                                className={`w-full bg-black/20 border rounded-xl px-4 py-3 text-white transition-colors appearance-none ${(user as any).childInAchariya || !childCampusId ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-white/10 focus:border-amber-500/50 cursor-pointer'}`}
                                             >
                                                 {/* Copied from previous logic, simplified for brevity here, reused same logic */}
                                                 <option value="" className="bg-slate-900 text-white/50">
@@ -550,7 +554,7 @@ export default function ProfileClient({ user, logoutAction }: ProfileClientProps
                                             </select>
                                         </div>
 
-                                        {(user as any).benefitStatus !== 'Active' ? (
+                                        {!(user as any).childInAchariya ? (
                                             <p className="text-[9px] text-amber-200/60 ml-1 flex items-center gap-1.5 bg-amber-500/5 p-2 rounded-lg border border-amber-500/10">
                                                 <Shield size={10} />
                                                 Updating these details will reset your benefit status to <strong>Pending Verification</strong> until approved by Admin.

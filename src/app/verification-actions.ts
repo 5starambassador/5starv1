@@ -25,7 +25,7 @@ export async function getVerifiedUsers(
         const skip = (page - 1) * limit
 
         const andConditions: any[] = [
-            { benefitStatus: 'Active' as any as AccountStatus }
+            { childInAchariya: true }
         ]
 
         if (search) {
@@ -71,9 +71,54 @@ export async function getVerifiedUsers(
             prisma.user.count({ where })
         ])
 
+        // 2. Match Suggestions (Look for real student records if childName is missing/generic)
+        const relevantMobileNumbers = verifiedUsers.map(u => u.mobileNumber).filter((m): m is string => !!m)
+        const relevantEprNumbers = verifiedUsers.map(u => u.childEprNo).filter((e): e is string => !!e)
+
+        const matchingStudents = await prisma.student.findMany({
+            where: {
+                OR: [
+                    { admissionNumber: { in: relevantEprNumbers } },
+                    { parent: { mobileNumber: { in: relevantMobileNumbers } } }
+                ],
+                status: 'Active'
+            },
+            include: {
+                parent: { select: { mobileNumber: true } },
+                campus: { select: { campusName: true } }
+            }
+        })
+
+        const studentErps = new Map<string, typeof matchingStudents[0]>()
+        const parentMobiles = new Map<string, typeof matchingStudents[0]>()
+
+        matchingStudents.forEach(s => {
+            if (s.admissionNumber) studentErps.set(s.admissionNumber, s)
+            if (s.parent?.mobileNumber) parentMobiles.set(s.parent.mobileNumber, s)
+        })
+
+        const usersWithMatches = verifiedUsers.map(u => {
+            const match = (u.childEprNo && studentErps.get(u.childEprNo)) ||
+                (u.mobileNumber && parentMobiles.get(u.mobileNumber))
+
+            if (match) {
+                return {
+                    ...u,
+                    matchSuggestion: {
+                        studentName: match.fullName,
+                        grade: match.grade,
+                        campus: match.campus.campusName,
+                        campusId: match.campusId,
+                        admissionNumber: match.admissionNumber
+                    }
+                }
+            }
+            return { ...u, matchSuggestion: null }
+        })
+
         return {
             success: true,
-            data: verifiedUsers,
+            data: usersWithMatches,
             total,
             totalPages: Math.ceil(total / limit)
         }
@@ -99,6 +144,7 @@ export async function getPendingVerifications(
         const skip = (page - 1) * limit
 
         const andConditions: any[] = [
+            { childInAchariya: false }, // EXCLUDE verified users
             {
                 OR: [
                     {
@@ -156,7 +202,7 @@ export async function getPendingVerifications(
                 take: limit
             }),
             prisma.user.count({ where: baseWhere }),
-            prisma.user.count({ where: { benefitStatus: 'Active' as any as AccountStatus } }),
+            prisma.user.count({ where: { childInAchariya: true } }),
             prisma.user.count({
                 where: {
                     ...baseWhere,
@@ -427,23 +473,18 @@ export async function getVerificationsForExport(
         const andConditions: any[] = []
 
         if (status === 'verified') {
-            andConditions.push({ benefitStatus: 'Active' as any as AccountStatus })
+            andConditions.push({ childInAchariya: true })
         } else {
+            andConditions.push({ childInAchariya: false })
             andConditions.push({
                 OR: [
                     {
-                        benefitStatus: 'PendingVerification' as any as AccountStatus,
-                        NOT: {
-                            AND: [
-                                { role: 'Staff' },
-                                { childInAchariya: false }
-                            ]
-                        }
+                        benefitStatus: 'PendingVerification' as any as AccountStatus
                     },
                     {
                         AND: [
                             { benefitStatus: 'Pending' as any as AccountStatus },
-                            { childInAchariya: true }
+                            { childEprNo: { not: null } }
                         ]
                     }
                 ]

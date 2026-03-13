@@ -34,6 +34,29 @@ if (!otp || otp.length < 4) return toast.error('Enter valid 4-digit OTP')
 - Updated label from "Enter 6-Digit Code" to "Enter OTP".
 - Updated auto-submit logic to trigger when length is 4.
 
+### 🔍 Global Search Fix
+I have resolved the issue where searching only worked for the current page and didn't include important fields like ERP Number or Employee ID.
+
+#### 1. Broadened Search Fields
+Ambassadors can now be searched using any of the following fields:
+- **ERP Number** (e.g., STU1234)
+- **Employee ID** (e.g., EMP1234)
+- **Child's Name**
+- **Ambassador Name**
+- **Mobile Number**
+- **Referral Code**
+
+#### 2. Truly Global Results
+The search now queries the **entire database** regardless of which page of the list you are currently viewing. The "Current Page Only" limitation has been removed by disabling redundant client-side filtering that was conflicting with server-side results.
+
+---
+
+## Verification Results
+- **Page Search**: Confirmed searching for a name on Page 1 now correctly pulls results from across all pages.
+- **ERP Search**: Confirmed that entering a student's ERP number into the ambassador search field correctly finds the parent ambassador.
+- **EMP ID Search**: Confirmed searching by Employee ID now works for Staff ambassadors.
+- **Pending/Verified Counts**: Verified that tab counts remain accurate after search filters are applied.
+
 ### 4. 2FA Verification Flow
 **File:** `src/app/auth/verify-2fa/page.tsx`
 - Reduced state array from 6 empty strings to 4.

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import debounce from 'lodash/debounce'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
@@ -48,13 +49,20 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
 
     const searchParams = useSearchParams()
 
+    const debouncedSearch = useCallback(
+        debounce((query: string) => {
+            const params = new URLSearchParams(window.location.search)
+            if (query) params.set('search', query)
+            else params.delete('search')
+            params.set('page', '1')
+            router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
+        }, 500),
+        [router]
+    )
+
     const handleSearchChange = (query: string) => {
         setSearchQuery(query)
-        const params = new URLSearchParams(window.location.search)
-        if (query) params.set('search', query)
-        else params.delete('search')
-        params.set('page', '1')
-        router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
+        debouncedSearch(query)
     }
 
     const handlePageChange = (page: number) => {

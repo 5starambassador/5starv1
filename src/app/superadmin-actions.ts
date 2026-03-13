@@ -825,7 +825,10 @@ async function buildUserWhereClause(options: {
             OR: [
                 { fullName: { contains: search, mode: 'insensitive' } },
                 { mobileNumber: { contains: search } },
-                { referralCode: { contains: search, mode: 'insensitive' } }
+                { referralCode: { contains: search, mode: 'insensitive' } },
+                { childEprNo: { contains: search, mode: 'insensitive' } },
+                { empId: { contains: search, mode: 'insensitive' } },
+                { childName: { contains: search, mode: 'insensitive' } }
             ]
         })
     }

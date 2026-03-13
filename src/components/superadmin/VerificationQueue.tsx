@@ -150,24 +150,33 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
         loadCampuses()
     }, [])
 
-    const handleApprove = async (userId: number, withEdits = false) => {
+    const handleApprove = async (userId: number, withEdits = false, suggestion: any = null) => {
         setProcessing(userId)
 
-        const payload = withEdits ? {
+        let payload = withEdits ? {
             childEprNo: editForm.childEprNo,
             grade: editForm.grade,
             childCampusId: parseInt(editForm.childCampusId),
             childName: editForm.childName
         } : undefined
 
+        if (!payload && suggestion) {
+            payload = {
+                childEprNo: suggestion.admissionNumber,
+                grade: suggestion.grade,
+                childCampusId: suggestion.campusId,
+                childName: suggestion.studentName
+            }
+        }
+
         const res = await approveVerification(userId, payload)
 
         if (res.success) {
-            toast.success('User verified successfully')
+            toast.success(suggestion ? 'Details synced successfully' : 'User verified successfully')
             setEditingId(null)
             loadData() // Refresh list and stats (Matches, Today, Pending)
         } else {
-            toast.error(res.error || 'Verification failed')
+            toast.error(res.error || 'Action failed')
         }
         setProcessing(null)
     }
@@ -643,7 +652,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                     )}
                                 </td>
                                 <td className="px-6 py-4 text-center">
-                                    {user.benefitStatus === 'Active' ? (
+                                    {user.childInAchariya === true ? (
                                         <span className="px-2 py-1 rounded-md text-[9px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm">
                                             Verified
                                         </span>
@@ -683,24 +692,28 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                                 >
                                                     <Edit2 size={14} />
                                                 </button>
-                                                <button
-                                                    onClick={() => handleApprove(user.userId)}
-                                                    className="p-1.5 rounded-lg text-emerald-400 hover:text-emerald-700 hover:bg-emerald-50 transition-all border border-emerald-100 bg-white"
-                                                    title="Quick Approve"
-                                                    disabled={!!processing && processing === user.userId}
-                                                    suppressHydrationWarning
-                                                >
-                                                    {processing === user.userId ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle2 size={14} />}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleReject(user.userId)}
-                                                    className="p-1.5 rounded-lg text-red-400 hover:text-red-700 hover:bg-red-50 transition-all border border-red-100 bg-white"
-                                                    title="Reject Request"
-                                                    disabled={!!processing && processing === user.userId}
-                                                    suppressHydrationWarning
-                                                >
-                                                    <X size={14} />
-                                                </button>
+                                                {(activeTab === 'pending' || (activeTab === 'verified' && !user.childName && user.matchSuggestion)) && (
+                                                    <button
+                                                        onClick={() => handleApprove(user.userId, false, user.matchSuggestion)}
+                                                        className="p-1.5 rounded-lg text-emerald-400 hover:text-emerald-700 hover:bg-emerald-50 transition-all border border-emerald-100 bg-white"
+                                                        title={activeTab === 'verified' ? "Sync Student Name" : "Quick Approve"}
+                                                        disabled={!!processing && processing === user.userId}
+                                                        suppressHydrationWarning
+                                                    >
+                                                        {processing === user.userId ? <Loader2 className="animate-spin" size={14} /> : (activeTab === 'verified' ? <CheckCircle2 size={14} className="text-emerald-600" /> : <CheckCircle2 size={14} />)}
+                                                    </button>
+                                                )}
+                                                {activeTab === 'pending' && (
+                                                    <button
+                                                        onClick={() => handleReject(user.userId)}
+                                                        className="p-1.5 rounded-lg text-red-400 hover:text-red-700 hover:bg-red-50 transition-all border border-red-100 bg-white"
+                                                        title="Reject Request"
+                                                        disabled={!!processing && processing === user.userId}
+                                                        suppressHydrationWarning
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                )}
                                             </>
                                         )}
                                     </div>

@@ -375,7 +375,10 @@ export async function getCampusUsers(query?: string) {
             { fullName: { contains: query, mode: 'insensitive' } },
             { email: { contains: query, mode: 'insensitive' } },
             { mobileNumber: { contains: query, mode: 'insensitive' } },
-            { referralCode: { contains: query, mode: 'insensitive' } }
+            { referralCode: { contains: query, mode: 'insensitive' } },
+            { childEprNo: { contains: query, mode: 'insensitive' } },
+            { empId: { contains: query, mode: 'insensitive' } },
+            { childName: { contains: query, mode: 'insensitive' } }
         ]
     }
 

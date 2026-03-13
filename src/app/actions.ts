@@ -483,6 +483,7 @@ export async function registerUser(formData: any) {
                     // New Role Fields
                     email: email || null,
                     childEprNo: childEprNo || null,
+                    childCampusId: childCampusId ? parseInt(childCampusId) : null,
                     empId: empId || null,
                     aadharNo: encrypt(aadharNo) || null,
                     // Payment Info
