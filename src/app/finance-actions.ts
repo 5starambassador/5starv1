@@ -1,6 +1,6 @@
 'use server'
 
-import prisma from '@/lib/prisma'
+import prisma, { withRetry } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
 import { EmailService } from '@/lib/email-service'
 import { logAction } from '@/lib/audit-logger'
@@ -63,7 +63,7 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
         }
 
         // Query 1: Get ALL users who match and have processed settlements
-        const syncedUsersPromise = prisma.user.findMany({
+        const syncedUsersPromise = withRetry(() => prisma.user.findMany({
             where: {
                 ...baseWhere,
                 settlements: { some: { amount: 25, status: 'Processed' } }
@@ -83,11 +83,11 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
                 }
             },
             orderBy: { createdAt: 'desc' },
-            take: query ? 1000 : 10000
-        })
+            take: query ? 500 : 1000 // Optimized from 10000
+        }))
 
         // Query 2: Get matching users without processed settlements
-        const recentSuccessPromise = prisma.user.findMany({
+        const recentSuccessPromise = withRetry(() => prisma.user.findMany({
             where: {
                 ...baseWhere,
                 NOT: { settlements: { some: { amount: 25, status: 'Processed' } } }
@@ -107,8 +107,8 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
                 }
             },
             orderBy: { createdAt: 'desc' },
-            take: query ? 2000 : (filter === 'Recent' ? 10 : 10000)
-        })
+            take: query ? 500 : (filter === 'Recent' ? 10 : 1000) // Optimized from 10000
+        }))
 
 
 
@@ -127,10 +127,10 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
         const campusIds = transactions.map(t => t.campusId).filter(Boolean) as number[]
         const uniqueCampusIds = Array.from(new Set(campusIds))
 
-        const campuses = await prisma.campus.findMany({
+        const campuses = await withRetry(() => prisma.campus.findMany({
             where: { id: { in: uniqueCampusIds } },
             select: { id: true, campusName: true }
-        })
+        }))
 
         const campusMap = new Map(campuses.map(c => [c.id, c.campusName]))
 

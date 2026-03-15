@@ -119,7 +119,11 @@ class WhatsAppService {
 
         try {
             const sanitizedMobile = this.sanitizeMobile(mobile)
+            const integratedNumber = this.sanitizeMobile(MSG91_WHATSAPP_NUMBER)
             const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/bulk/`
+
+            console.log(`[WhatsApp] Sending to ${sanitizedMobile} via integrated number: ${integratedNumber || 'EMPTY'}`)
+            console.log(`[WhatsApp] Using Namespace: ${MSG91_WHATSAPP_NAMESPACE}`)
 
             const components: any = {}
             variables.forEach((v, i) => {

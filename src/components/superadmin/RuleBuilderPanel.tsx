@@ -493,10 +493,6 @@ export default function RuleBuilderPanel() {
                                             <div className="text-left">
                                                 <div className="flex items-center gap-3">
                                                     <h6 className="text-sm font-black text-slate-800 uppercase tracking-tight">Audience Segmentation</h6>
-                                                    <div className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded-full flex items-center gap-1.5">
-                                                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
-                                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Est. Impact: 5894 Profiles</span>
-                                                    </div>
                                                 </div>
                                                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Role, Campus, Health & Funnel Logic</p>
                                             </div>
@@ -1127,10 +1123,10 @@ export default function RuleBuilderPanel() {
                 ))}
             </div>
             
-            <div className="mt-8 bg-blue-50/50 rounded-2xl p-4 border border-blue-100 flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-                <p className="text-sm text-blue-800 leading-relaxed">
-                    <span className="font-bold">Note on "Safe Mode":</span> The Smart Engine is currently parsing and evaluating these rules against your database safely. However, the final <code>sendByEvent</code> connection is temporarily commented out in the backend until you are 100% satisfied with this UI.
+            <div className="mt-8 bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100 flex items-start gap-3">
+                <Check className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+                <p className="text-sm text-indigo-800 leading-relaxed">
+                    <span className="font-bold">Live Testing Enabled:</span> Use the "Test Run" button on any rule to fire a live signal to your mobile number. Ensure your templates are approved in the MSG91 portal.
                 </p>
             </div>
         </div>

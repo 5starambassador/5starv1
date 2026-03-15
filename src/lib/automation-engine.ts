@@ -366,8 +366,13 @@ export class AutomationEngine {
       if (user?.fullName) finalName = user.fullName
 
       const templateKey = rule.actionTarget || rule.triggerEvent || ''
-      await whatsappService.sendByEvent(testMobileNumber, templateKey, [finalName, 'Test Campus'], 'SYSTEM')
-      return { success: true, message: `Test signal sent to MSG91 for ${testMobileNumber}.` }
+      const res = await whatsappService.sendByEvent(testMobileNumber, templateKey, [finalName, 'Test Campus'], 'SYSTEM')
+      
+      if (res.success) {
+          return { success: true, message: `Test signal sent to MSG91 for ${testMobileNumber}.`, messageId: res.messageId }
+      } else {
+          return { success: false, error: res.error || 'Failed to dispatch via WhatsApp Service' }
+      }
   }
 
   // --- Helpers ---
