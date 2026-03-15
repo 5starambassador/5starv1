@@ -31,6 +31,11 @@ export function RejectedPaymentsTable({ payments: initialPayments }: { payments:
     const [searchTerm, setSearchTerm] = useState(searchParams.get('search')?.toString() || '')
     const [exportLoading, setExportLoading] = useState(false)
     const [payments, setPayments] = useState(initialPayments)
+    const [hasMounted, setHasMounted] = useState(false)
+
+    useEffect(() => {
+        setHasMounted(true)
+    }, [])
 
     useEffect(() => {
         setPayments(initialPayments)
@@ -88,6 +93,7 @@ export function RejectedPaymentsTable({ payments: initialPayments }: { payments:
                             className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all text-gray-900"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            suppressHydrationWarning
                         />
                     </div>
                 </div>
@@ -95,13 +101,19 @@ export function RejectedPaymentsTable({ payments: initialPayments }: { payments:
                 <div className="flex items-center gap-3">
                     <span className="text-sm font-bold text-gray-500 hidden sm:inline">{payments.length} Found</span>
                     <div className="h-6 w-px bg-gray-200 mx-2 hidden sm:block"></div>
-                    <button onClick={() => router.refresh()} title="Refresh" className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                    <button 
+                        onClick={() => router.refresh()} 
+                        title="Refresh" 
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        suppressHydrationWarning
+                    >
                         <RefreshCcw size={16} />
                     </button>
                     <button
                         onClick={handleExport}
                         disabled={exportLoading || payments.length === 0}
                         className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm"
+                        suppressHydrationWarning
                     >
                         {exportLoading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Export to CSV
                     </button>
@@ -129,7 +141,7 @@ export function RejectedPaymentsTable({ payments: initialPayments }: { payments:
                             {payments.map((payment) => (
                                 <tr key={payment.orderId} className="hover:bg-gray-50/50 transition-colors">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
-                                        {format(new Date(payment.updatedAt), 'dd MMM, hh:mm a')}
+                                        {hasMounted ? format(new Date(payment.updatedAt), 'dd MMM, hh:mm a') : '...'}
                                     </td>
                                     <td className="px-6 py-4">
                                         <div>
