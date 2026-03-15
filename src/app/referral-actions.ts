@@ -309,6 +309,14 @@ export async function submitReferral(formData: {
                     )
                 }
             }
+
+            // ⚡ INTEGRATION: Trigger Instant Automations
+            try {
+                const { automationEngine } = await import('@/lib/automation-engine')
+                await automationEngine.processImmediateEvent('ON_LEAD_SUBMITTED', referringUserId, { leadId: newLead.leadId })
+            } catch (err) {
+                console.error('[AutomationEngine] Trigger failed:', err)
+            }
         } catch (notifError) {
             console.error('In-app notification error:', notifError)
             // Don't fail the referral submission if notification fails

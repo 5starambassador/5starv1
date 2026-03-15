@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, RefreshCcw, Check, X, AlertTriangle, ToggleLeft, ToggleRight, MessageSquare, Plus, Info, Trash2, Loader2 as LoaderIcon } from 'lucide-react'
+import { Save, RefreshCcw, Check, X, AlertTriangle, ToggleLeft, ToggleRight, MessageSquare, Plus, Info, Trash2, Edit2, Loader2 as LoaderIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { getWhatsAppConfigs, updateWhatsAppConfig, createWhatsAppConfig, seedDefaultConfigs, deleteWhatsAppConfig, WhatsAppConfigData } from '@/app/whatsapp-config-actions'
 import { getWhatsAppAnalytics, WhatsAppAnalytics } from '@/app/automation-actions'
 import { generateWhatsAppLogReport } from '@/app/report-actions'
 import dynamic from 'next/dynamic'
 import { WhatsAppLogTable } from './WhatsAppLogTable'
+import RuleBuilderPanel from './RuleBuilderPanel' // <-- Added import
 
 const AutomationInsights = dynamic(() => import('@/components/superadmin/AutomationInsights'), { 
     ssr: false, 
@@ -17,7 +18,7 @@ const AutomationInsights = dynamic(() => import('@/components/superadmin/Automat
 export default function WhatsAppConfigPanel() {
     const [configs, setConfigs] = useState<WhatsAppConfigData[]>([])
     const [loading, setLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<'config' | 'logs'>('config')
+    const [activeTab, setActiveTab] = useState<'config' | 'logs' | 'rules'>('config') // <-- Added rules tab
     const [stats, setStats] = useState<WhatsAppAnalytics | null>(null)
     const [loadingStats, setLoadingStats] = useState(false)
     const [saving, setSaving] = useState<number | null>(null)
@@ -54,12 +55,12 @@ export default function WhatsAppConfigPanel() {
         fetchStats()
     }, [])
 
-    const handleUpdate = async (id: number, templateName: string, isEnabled: boolean) => {
+    const handleUpdate = async (id: number, templateName: string, description: string, reqVars: number, isEnabled: boolean) => {
         setSaving(id)
-        const res = await updateWhatsAppConfig(id, { templateName, isEnabled })
+        const res = await updateWhatsAppConfig(id, { templateName, description, requiredVariablesCount: reqVars, isEnabled })
         if (res.success) {
             toast.success('Configuration updated')
-            setConfigs(configs.map(c => c.id === id ? { ...c, templateName, isEnabled } : c))
+            setConfigs(configs.map(c => c.id === id ? { ...c, templateName, description, requiredVariablesCount: reqVars, isEnabled } : c))
         } else {
             toast.error('Failed to update')
         }
@@ -185,7 +186,13 @@ export default function WhatsAppConfigPanel() {
                         onClick={() => setActiveTab('config')}
                         className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'config' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                     >
-                        Configuration
+                        Mapping Config
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('rules')}
+                        className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'rules' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                        Smart Rules Builder
                     </button>
                     <button
                         onClick={() => setActiveTab('logs')}
@@ -196,7 +203,9 @@ export default function WhatsAppConfigPanel() {
                 </div>
             </div>
 
-            {activeTab === 'logs' ? (
+            {activeTab === 'rules' ? (
+                <RuleBuilderPanel />
+            ) : activeTab === 'logs' ? (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
                     {/* Insights move here */}
                     {stats && <AutomationInsights data={stats} />}
@@ -311,7 +320,7 @@ export default function WhatsAppConfigPanel() {
                     <ConfigCard
                         key={config.id}
                         config={config}
-                        onSave={(tpl, en) => handleUpdate(config.id, tpl, en)}
+                        onSave={(tpl, desc, vars, en) => handleUpdate(config.id, tpl, desc, vars, en)}
                         onDelete={() => handleDelete(config.id)}
                         isSaving={saving === config.id}
                     />
@@ -333,13 +342,29 @@ export default function WhatsAppConfigPanel() {
 
 function ConfigCard({ config, onSave, onDelete, isSaving }: {
     config: WhatsAppConfigData,
-    onSave: (tpl: string, en: boolean) => void,
+    onSave: (tpl: string, desc: string, numVars: number, en: boolean) => void,
     onDelete: () => void,
     isSaving: boolean
 }) {
+    const [isEditing, setIsEditing] = useState(false)
     const [template, setTemplate] = useState(config.templateName)
+    const [description, setDescription] = useState(config.description || '')
+    const [reqVars, setReqVars] = useState(config.requiredVariablesCount || 0)
     const [enabled, setEnabled] = useState(config.isEnabled)
-    const hasChanges = template !== config.templateName || enabled !== config.isEnabled
+    const hasChanges = template !== config.templateName || enabled !== config.isEnabled || description !== (config.description || '') || reqVars !== config.requiredVariablesCount
+
+    const handleSave = () => {
+        onSave(template, description, reqVars, enabled)
+        setIsEditing(false)
+    }
+
+    const handleCancel = () => {
+        setTemplate(config.templateName)
+        setDescription(config.description || '')
+        setReqVars(config.requiredVariablesCount)
+        setEnabled(config.isEnabled)
+        setIsEditing(false)
+    }
 
     return (
         <div className={`bg-white rounded-2xl p-5 border transition-all ${config.isEnabled ? 'border-slate-100 shadow-sm' : 'border-slate-100 opacity-75 grayscale-[0.5]'}`}>
@@ -351,6 +376,15 @@ function ConfigCard({ config, onSave, onDelete, isSaving }: {
                     <h4 className="font-bold text-slate-800">{config.description || 'System Event'}</h4>
                 </div>
                 <div className="flex items-center gap-1.5">
+                    {!isEditing && (
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            title="Edit Mapping"
+                        >
+                            <Edit2 className="h-4 w-4" />
+                        </button>
+                    )}
                     <button
                         onClick={onDelete}
                         className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
@@ -359,44 +393,92 @@ function ConfigCard({ config, onSave, onDelete, isSaving }: {
                         <Trash2 className="h-4 w-4" />
                     </button>
                     <button
-                        onClick={() => setEnabled(!enabled)}
-                        className={`transition-colors p-1 ${enabled ? 'text-emerald-500' : 'text-slate-300'}`}
+                        onClick={() => {
+                            if (!isEditing) {
+                                // Direct toggle if not editing
+                                onSave(config.templateName, config.description || '', config.requiredVariablesCount, !config.isEnabled)
+                            } else {
+                                // Defer toggle to form state
+                                setEnabled(!enabled)
+                            }
+                        }}
+                        className={`transition-colors p-1 ${(!isEditing ? config.isEnabled : enabled) ? 'text-emerald-500' : 'text-slate-300'}`}
                     >
-                        {enabled ? <ToggleRight className="h-8 w-8" /> : <ToggleLeft className="h-8 w-8" />}
+                        {(!isEditing ? config.isEnabled : enabled) ? <ToggleRight className="h-8 w-8" /> : <ToggleLeft className="h-8 w-8" />}
                     </button>
                 </div>
             </div>
 
-            <div className="space-y-3">
-                <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-400 ml-1">MSG91 Template Name</label>
-                    <div className="relative">
+            {isEditing ? (
+                <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-400 ml-1">MSG91 Template Name</label>
                         <textarea
                             value={template}
                             onChange={(e) => setTemplate(e.target.value)}
-                            className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all text-slate-700 min-h-[80px] resize-y"
-                            placeholder="e.g. welcome_v1 or message content"
+                            className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all text-slate-700 min-h-[50px] resize-none"
+                            placeholder="e.g. welcome_v1"
                         />
-                        {hasChanges && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                                <button
-                                    disabled={isSaving}
-                                    onClick={() => onSave(template, enabled)}
-                                    className="p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm"
-                                >
-                                    {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                                </button>
-                                <button
-                                    onClick={() => { setTemplate(config.templateName); setEnabled(config.isEnabled); }}
-                                    className="p-1.5 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300"
-                                >
-                                    <X className="h-3 w-3" />
-                                </button>
-                            </div>
-                        )}
+                    </div>
+                    
+                    <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-400 ml-1">Short Description</label>
+                        <input
+                            type="text"
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all text-slate-700"
+                            placeholder="e.g. Sent when user signs up"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <div className="flex-1 space-y-1">
+                            <label className="text-xs font-semibold text-slate-400 ml-1"># Variables</label>
+                            <input
+                                type="number"
+                                value={reqVars}
+                                onChange={(e) => setReqVars(Number(e.target.value))}
+                                className="w-full bg-slate-50 border-none rounded-xl px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all text-slate-700"
+                                min="0" max="10"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                        <button
+                            disabled={isSaving && hasChanges}
+                            onClick={hasChanges ? handleSave : () => setIsEditing(false)}
+                            className="px-4 py-1.5 bg-indigo-600 text-white font-bold text-xs rounded-lg hover:bg-indigo-700 shadow-sm flex items-center gap-1.5"
+                        >
+                            {isSaving && hasChanges ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                            {hasChanges ? 'Save Changes' : 'Done'}
+                        </button>
+                        <button
+                            disabled={isSaving && hasChanges}
+                            onClick={handleCancel}
+                            className="p-1.5 bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
                     </div>
                 </div>
-            </div>
+            ) : (
+                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100/50 space-y-2">
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-400 font-semibold">Template Name</span>
+                        <code className="text-xs font-bold text-slate-700 bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">
+                            {config.templateName}
+                        </code>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-400 font-semibold">Required Variables</span>
+                        <span className="text-xs font-bold text-slate-600">
+                            {config.requiredVariablesCount}
+                        </span>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

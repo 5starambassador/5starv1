@@ -62,7 +62,34 @@ export async function GET(req: Request) {
             })
 
             // CRITICAL: Perform a deep-sync to ensure benefits/slabs/student-records are all in line
-            await syncUserStats(updatedPayment.userId)
+            // 1. WhatsApp Welcome Message (Legacy Logic - Day 0)
+            if (user?.mobileNumber) {
+                const { whatsappService } = await import('@/lib/whatsapp-service');
+                const marketingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://ambassador.achariya.in'}/marketing?ref=${referralCode || ''}`
+                whatsappService.sendByEvent(user.mobileNumber, 'WELCOME_MESSAGE', [referralCode || 'PENDING', marketingUrl], 'ALERT')
+                    .catch(err => console.error('Failed to send welcome whatsapp:', err))
+            }
+
+            // ⚡ INTEGRATION: Trigger Welcome Automations ONLY if first-time activation
+            if (user?.status !== 'Active') {
+                // 1. WhatsApp Welcome Message (Legacy Logic - Day 0)
+                if (user?.mobileNumber) {
+                    const { whatsappService } = await import('@/lib/whatsapp-service');
+                    const marketingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://ambassador.achariya.in'}/marketing?ref=${referralCode || ''}`
+                    whatsappService.sendByEvent(user.mobileNumber, 'WELCOME_MESSAGE', [referralCode || 'PENDING', marketingUrl], 'ALERT')
+                        .catch(err => console.error('Failed to send welcome whatsapp:', err))
+                }
+
+                // 2. Trigger Instant Automations (Smart Rules Engine)
+                try {
+                    const { automationEngine } = await import('@/lib/automation-engine')
+                    await automationEngine.processImmediateEvent('ON_PAYMENT_SUCCESS', updatedPayment.userId, { 
+                        amount: successPayment.payment_amount || undefined 
+                    })
+                } catch (err) {
+                    console.error('[AutomationEngine] Trigger failed:', err)
+                }
+            }
 
         }
 

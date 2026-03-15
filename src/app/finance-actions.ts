@@ -578,6 +578,18 @@ export async function processPayout(settlementId: number, transactionId: string,
         }
 
         revalidatePath('/finance')
+
+        // ⚡ INTEGRATION: Trigger Instant Automations
+        try {
+            const { automationEngine } = await import('@/lib/automation-engine')
+            await automationEngine.processImmediateEvent('ON_SETTLEMENT_PROCESSED', settlement.userId, {
+                amount: settlement.amount,
+                category: settlement.benefitType || 'OTHER'
+            })
+        } catch (err) {
+            console.error('[AutomationEngine] Trigger failed:', err)
+        }
+
         return { success: true, message: 'Payout processed successfully' }
     } catch (error: any) {
         console.error('Process Payout Error:', error)
@@ -635,6 +647,7 @@ export async function processBulkPayouts(payouts: {
         let successCount = 0
         let failureCount = 0
         const errors: string[] = []
+        const processedUserIds = new Set<number>()
 
         // 1. Initial ID Validation (Safety First)
         // Only prioritize actual user-provided IDs, ignore system prefixes
@@ -856,6 +869,8 @@ export async function processBulkPayouts(payouts: {
                         message: isWaiver ? 'Waiver Synced' : 'Payout Processed' 
                     })
 
+                    processedUserIds.add(user.userId)
+
                 } catch (e: any) {
                     failureCount++
                     errors.push(`Mobile ${p.mobile}: ${e.message}`)
@@ -866,6 +881,17 @@ export async function processBulkPayouts(payouts: {
 
         await logAction('BULK_UPDATE', 'finance', `Bulk processed ${successCount} financial movements (Payouts/Waivers).`, 'Bulk')
         revalidatePath('/finance')
+
+        // ⚡ INTEGRATION: Trigger Instant Automations
+        try {
+            const { automationEngine } = await import('@/lib/automation-engine')
+            for (const uid of Array.from(processedUserIds)) {
+                await automationEngine.processImmediateEvent('ON_SETTLEMENT_PROCESSED', uid)
+            }
+        } catch (err) {
+            console.error('[AutomationEngine] Bulk trigger failed:', err)
+        }
+
         return { success: successCount > 0, message: `Processed ${successCount} records.`, processed: successCount, failed: failureCount, errors, results }
     } catch (error: any) {
         return { success: false, error: error.message || 'Failed' }
@@ -923,6 +949,19 @@ export async function bulkProcessPayoutsById(settlementIds: number[], transactio
 
         await logAction('BULK_UPDATE', 'finance', `Bulk processed ${results.length} settlements by ID.`, 'Bulk Selection')
         revalidatePath('/finance')
+
+        // ⚡ INTEGRATION: Trigger Instant Automations
+        try {
+            const { automationEngine } = await import('@/lib/automation-engine')
+            // Collect unique user IDs to avoid double triggers in a bulk batch
+            const uniqueUserIds = Array.from(new Set(settlements.map(s => s.userId)))
+            for (const uid of uniqueUserIds) {
+                await automationEngine.processImmediateEvent('ON_SETTLEMENT_PROCESSED', uid)
+            }
+        } catch (err) {
+            console.error('[AutomationEngine] Bulk trigger failed:', err)
+        }
+
         return { success: true, message: `Successfully processed ${results.length} payouts.` }
     } catch (error: any) {
         console.error('Bulk Process By ID Error:', error)

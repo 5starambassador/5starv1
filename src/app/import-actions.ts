@@ -478,6 +478,14 @@ export async function importStudents(csvData: string) {
                             updateData.leadStatus = 'Admitted'
                             updateData.confirmedDate = new Date()
                             usersToSync.add(ambassadorId) // Mark for stat update
+
+                            // ⚡ INTEGRATION: Trigger Instant Automations
+                            try {
+                                const { automationEngine } = await import('@/lib/automation-engine')
+                                await automationEngine.processImmediateEvent('ON_LEAD_ADMITTED', ambassadorId, { leadId: existingLead.leadId })
+                            } catch (err) {
+                                console.error('[AutomationEngine] Admission trigger failed:', err)
+                            }
                         }
                         const updatedLead = await prisma.referralLead.update({
                             where: { leadId: existingLead.leadId },
@@ -509,6 +517,14 @@ export async function importStudents(csvData: string) {
                         })
                         leadId = newLead.leadId
                         usersToSync.add(ambassadorId) // Mark for stat update
+
+                        // ⚡ INTEGRATION: Trigger Instant Automations
+                        try {
+                            const { automationEngine } = await import('@/lib/automation-engine')
+                            await automationEngine.processImmediateEvent('ON_LEAD_ADMITTED', ambassadorId, { leadId: newLead.leadId })
+                        } catch (err) {
+                            console.error('[AutomationEngine] Admission trigger failed:', err)
+                        }
                     }
                 }
 
@@ -772,7 +788,7 @@ export async function importReferrals(csvData: string) {
             }
 
             // Create Referral Lead
-            await prisma.referralLead.create({
+            const newLead = await prisma.referralLead.create({
                 data: {
                     userId: ambassadorId,
                     parentName,
@@ -792,8 +808,18 @@ export async function importReferrals(csvData: string) {
                 } as any
             })
 
-            if (status === 'Confirmed') {
+            if (status === 'Confirmed' || status === 'Admitted') {
                 ambassadorsToUpdate.add(ambassadorId)
+
+                // ⚡ INTEGRATION: Trigger Instant Automations (Only for Admitted)
+                if (status === 'Admitted') {
+                    try {
+                        const { automationEngine } = await import('@/lib/automation-engine')
+                        await automationEngine.processImmediateEvent('ON_LEAD_ADMITTED', ambassadorId, { leadId: newLead.leadId })
+                    } catch (err) {
+                        console.error('[AutomationEngine] Admission trigger failed:', err)
+                    }
+                }
             }
 
             processed++

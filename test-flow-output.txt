@@ -1,0 +1,33 @@
+--- STARTING PAYMENT VERIFICATION E2E ---
+
+[1] Setting up Test Rule for Welcome Message...
+Γ£à Rule created: E2E Test: Dashboard Welcome Message
+
+[2] Setting up Pending User and Payment...
+PrismaClientValidationError: 
+Invalid `prisma.payment.create()` invocation in
+F:\5 star\scripts\test-payment-verification-flow.ts:46:44
+
+  43 })
+  44 
+  45 const mockOrder = `order_test_${Date.now()}`
+ΓåÆ 46 const mockPayment = await prisma.payment.create({
+       data: {
+         userId: 13195,
+         amount: 25,
+         orderId: "order_test_1773559398210",
+         orderStatus: "ACTIVE",
+         paymentStatus: "Pending",
+     +   orderAmount: Float
+       }
+     })
+
+Argument `orderAmount` is missing.
+    at wn (F:\5 star\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (F:\5 star\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (F:\5 star\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (F:\5 star\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (F:\5 star\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async testPaymentVerificationFlow (F:\5 star\scripts\test-payment-verification-flow.ts:46:23) {
+  clientVersion: '5.22.0'
+}

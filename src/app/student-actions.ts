@@ -401,6 +401,14 @@ export async function convertLeadToStudent(leadId: number, studentDetails: {
         if (result) {
             await syncUserStats(result.parentId)
             await syncUserStats(lead.userId)
+
+            // ⚡ INTEGRATION: Trigger Instant Automations
+            try {
+                const { automationEngine } = await import('@/lib/automation-engine')
+                await automationEngine.processImmediateEvent('ON_LEAD_ADMITTED', lead.userId, { leadId: lead.leadId })
+            } catch (err) {
+                console.error('[AutomationEngine] Admission trigger failed:', err)
+            }
         }
 
         await revalidateDashboard()

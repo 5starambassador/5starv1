@@ -1,0 +1,46 @@
+[
+  {
+    "id": 31626,
+    "mobile": "8015000009",
+    "template": "welcome_message",
+    "content": "Rajakumaran, CORPORATE",
+    "type": "SYSTEM",
+    "status": "SENT",
+    "errorMessage": null,
+    "refId": "AUT_1773538598988_aspb5t",
+    "createdAt": "2026-03-15T01:36:38.990Z",
+    "metadata": {
+      "sentAt": "2026-03-15T01:36:38.988Z",
+      "messageId": "6de0b00e5c014506bf4610e877d3b6ef",
+      "apiResponse": {
+        "data": "Your request is in process, check delivery reports for status",
+        "errors": null,
+        "status": "success",
+        "hasError": false,
+        "request_id": "6de0b00e5c014506bf4610e877d3b6ef"
+      }
+    }
+  },
+  {
+    "id": 31625,
+    "mobile": "8015000009",
+    "template": "welcome_message",
+    "content": "Rajakumaran, CORPORATE",
+    "type": "SYSTEM",
+    "status": "SENT",
+    "errorMessage": null,
+    "refId": "AUT_1773538140080_w30wzo",
+    "createdAt": "2026-03-15T01:29:00.090Z",
+    "metadata": {
+      "sentAt": "2026-03-15T01:29:00.080Z",
+      "messageId": "4a01ad149dc44ad2bde521250827d39a",
+      "apiResponse": {
+        "data": "Your request is in process, check delivery reports for status",
+        "errors": null,
+        "status": "success",
+        "hasError": false,
+        "request_id": "4a01ad149dc44ad2bde521250827d39a"
+      }
+    }
+  }
+]

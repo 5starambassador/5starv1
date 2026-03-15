@@ -501,6 +501,14 @@ export async function confirmCampusReferral(leadId: number, campusName: string, 
             }
         })
 
+        // ⚡ INTEGRATION: Trigger Instant Automations
+        try {
+            const { automationEngine } = await import('@/lib/automation-engine')
+            await automationEngine.processImmediateEvent('ON_LEAD_ADMITTED', userId, { leadId })
+        } catch (err) {
+            console.error('[AutomationEngine] Admission trigger failed:', err)
+        }
+
         revalidatePath('/campus')
         revalidatePath('/dashboard')
         revalidatePath('/superadmin')

@@ -605,6 +605,14 @@ export async function confirmReferral(leadId: number, admissionNumber: string, s
         // Log the action (1.5)
         await logAction('UPDATE', 'referral', `Confirmed referral lead: ${result.leadId}`, result.leadId.toString(), null, { userId: result.userId })
 
+        // ⚡ INTEGRATION: Trigger Instant Automations
+        try {
+            const { automationEngine } = await import('@/lib/automation-engine')
+            await automationEngine.processImmediateEvent('ON_LEAD_CONFIRMED', result.userId, { leadId: result.leadId })
+        } catch (err) {
+            console.error('[AutomationEngine] Trigger failed:', err)
+        }
+
         return { success: true }
     } catch (e: any) {
         console.error(e)
@@ -1384,6 +1392,14 @@ export async function bulkConvertLeadsToStudents(leadIds: number[]) {
 
                 // Notify Ambassador
                 await notifyReferralAdmitted(lead.userId, lead.studentName || lead.parentName)
+
+                // ⚡ INTEGRATION: Trigger Instant Automations
+                try {
+                    const { automationEngine } = await import('@/lib/automation-engine')
+                    await automationEngine.processImmediateEvent('ON_LEAD_ADMITTED', lead.userId, { leadId: lead.leadId })
+                } catch (err) {
+                    console.error('[AutomationEngine] Admission trigger failed:', err)
+                }
 
                 processed++
             } catch (err: any) {

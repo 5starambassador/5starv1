@@ -4,4 +4,5 @@ export const outfit = Outfit({
     subsets: ["latin"],
     display: "swap",
     variable: "--font-outfit",
+    adjustFontFallback: false,
 });

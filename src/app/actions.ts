@@ -521,15 +521,13 @@ export async function registerUser(formData: any) {
                 notifyWelcome(user.userId, fullName)
             })
 
-            // WhatsApp Welcome Message (Day 0)
-            if (mobileNumber) {
-                // Using dynamic import to avoid circular dep issues in server actions
-                import('@/lib/whatsapp-service').then(({ whatsappService }) => {
-                    // Template: welcome_message (1:ReferralCode, 2:Link) -> Event: WELCOME_MESSAGE
-                    const marketingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://ambassador.achariya.in'}/marketing?ref=${referralCode || ''}`
-                    whatsappService.sendByEvent(mobileNumber, 'WELCOME_MESSAGE', [referralCode || 'PENDING', marketingUrl], 'ALERT')
-                        .catch(err => console.error('Failed to send welcome whatsapp:', err))
-                })
+
+            // ⚡ INTEGRATION: Trigger Instant Automations
+            try {
+                const { automationEngine } = await import('@/lib/automation-engine')
+                await automationEngine.processImmediateEvent('ON_USER_REGISTERED', user.userId)
+            } catch (err) {
+                console.error('[AutomationEngine] Trigger failed:', err)
             }
 
             return { success: true }
@@ -582,6 +580,15 @@ export async function registerUser(formData: any) {
                     if (result?.success) {
                         // Create session and log them in (outside transaction for side-effect safety)
                         await createSession(result.userId, 'user', mapUserRole(result.role as any), false)
+
+                        // ⚡ INTEGRATION: Trigger Instant Automations for Upgraded Users
+                        try {
+                            const { automationEngine } = await import('@/lib/automation-engine')
+                            await automationEngine.processImmediateEvent('ON_USER_REGISTERED', result.userId)
+                        } catch (err) {
+                            console.error('[AutomationEngine] Trigger failed:', err)
+                        }
+
                         return { success: true }
                     }
                     return { success: false, error: 'This mobile number is already registered. Please login.' }

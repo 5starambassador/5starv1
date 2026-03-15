@@ -41,6 +41,18 @@ export async function createTicket(data: {
 
         revalidatePath('/support')
         logAction('CREATE', 'support', `Ticket created: "${data.subject}" [${priority}]`, ticket.id.toString(), user.userId, { isUser: true, category: data.category })
+
+        // ⚡ INTEGRATION: Trigger Instant Automations
+        try {
+            const { automationEngine } = await import('@/lib/automation-engine')
+            await automationEngine.processImmediateEvent('ON_TICKET_CREATED', user.userId, {
+                category: data.category,
+                campus: data.campus || (user.assignedCampus ?? undefined)
+            })
+        } catch (err) {
+            console.error('[AutomationEngine] Trigger failed:', err)
+        }
+
         return { success: true, ticket }
     } catch (error: any) {
         console.error('Error creating ticket:', error)
