@@ -175,6 +175,10 @@ export async function importAmbassadors(csvData: string) {
         let errors: string[] = []
         let results: any[] = []
 
+        // Pre-fetch campuses for ID resolution
+        const allCampuses = await prisma.campus.findMany({ select: { id: true, campusName: true } })
+        const campusLookup = new Map(allCampuses.map(c => [c.campusName.toLowerCase(), c.id]))
+
         for (const [index, row] of rows.entries()) {
             // Flexible Headers (Basic Info)
             const fullName = row.fullname || row.fullName || row['full name']
@@ -221,6 +225,7 @@ export async function importAmbassadors(csvData: string) {
                 role,
                 email,
                 assignedCampus,
+                campusId: campusLookup.get(assignedCampus.toLowerCase()) || null,
                 referralCode: finalReferralCode,
                 empId,
                 childEprNo,
@@ -314,7 +319,15 @@ export async function importStudents(csvData: string) {
 
                 // Find or Create Parent
                 let parent = await prisma.user.findUnique({ where: { mobileNumber: parentMobile } })
-                if (!parent) {
+                if (parent) {
+                    // AS SENIOR EXPERT: Sync Parent Name if it differs from CSV (Fixes "poisoned" names)
+                    if (parentName && parent.fullName !== parentName) {
+                        await prisma.user.update({
+                            where: { userId: parent.userId },
+                            data: { fullName: parentName }
+                        })
+                    }
+                } else {
                     if (!parentName) {
                         const msg = `Parent not found and 'Parent Name' missing. Cannot create account.`
                         errors.push(`Row ${index + 2}: ${msg}`)
@@ -382,18 +395,6 @@ export async function importStudents(csvData: string) {
                     }
                 }
 
-                // Check admission number uniqueness
-                if (admissionNumber) {
-                    const exists = await prisma.student.findUnique({ where: { admissionNumber } })
-                    if (exists) {
-                        const msg = `ERP/Admission no ${admissionNumber} already exists`
-                        errors.push(`Row ${index + 2}: ${msg}`)
-                        results.push({ row: index + 2, data: row, status: 'Failed', reason: msg })
-                        continue
-                    }
-                }
-
-
                 // Fetch Fee from GradeFee table based on selected plan
                 let annualFeeAmount = 0
                 let baseFeeValue = 0
@@ -433,27 +434,26 @@ export async function importStudents(csvData: string) {
                 // If parent exists and child record found, we mark for sync which handles activation
                 // Also auto-verify 'Pending' parents who haven't claimed child yet
                 if (parent) {
-                    const needsVerification = parent.benefitStatus === 'PendingVerification'
+                    // AS SENIOR EXPERT: Always sync child details from ERP to keep dashboard/queue accurate
+                    // We trust ERP data (Import) over User Input (Profile)
                     const isPending = parent.status === 'Pending' || parent.benefitStatus === 'Pending'
+                    const needsVerification = parent.benefitStatus === 'PendingVerification'
 
-                    if (needsVerification || isPending) {
-                        // Auto-populate/Correct parent details from student record
-                        // We trust ERP Import Data over User Input for unverified users
-                        await prisma.user.update({
-                            where: { userId: parent.userId },
-                            data: {
-                                childInAchariya: true,
-                                childName: fullName, // Use student name from import
-                                childEprNo: admissionNumber, // Overwrite with correct ERP No
-                                grade: grade, // Overwrite with correct Grade
-                                campusId: campusId, // Overwrite with correct Campus ID
-                                benefitStatus: 'PendingVerification' // Mark as ready for sync/activation
-                            }
-                        })
-                        console.log(`[IMPORT] Auto-corrected/Updated Parent: ${parent.mobileNumber} linked to ${fullName} (${admissionNumber})`)
-
-                        usersToSync.add(parent.userId)
-                    }
+                    await prisma.user.update({
+                        where: { userId: parent.userId },
+                        data: {
+                            childInAchariya: true, // ERP presence confirms they have a child
+                            childName: fullName,
+                            childEprNo: admissionNumber || parent.childEprNo,
+                            grade: grade,
+                            campusId: campusId,
+                            assignedCampus: campusName,
+                            // Only update status if it's currently pending
+                            ...( (isPending || needsVerification) && { benefitStatus: 'PendingVerification' })
+                        }
+                    })
+                    console.log(`[IMPORT] Synced record for ${parent.mobileNumber}: Grade ${grade}, Child ${fullName}`)
+                    usersToSync.add(parent.userId)
                 }
 
                 // Handle Referral Logic (Create/Update Confirmed Lead)
@@ -528,25 +528,64 @@ export async function importStudents(csvData: string) {
                     }
                 }
 
-                // Create Student
-                await prisma.student.create({
-                    data: {
-                        fullName,
-                        parentId: parent.userId,
-                        campusId,
-                        grade,
-                        section,
-                        rollNumber,
-                        admissionNumber,
-                        ambassadorId, // Link directly
-                        referralLeadId: leadId,
-                        baseFee: baseFeeValue,
-                        academicYear: academicYearForRecord,
-                        selectedFeeType: selectedFeeType,
-                        annualFee: annualFeeAmount,
-                        status: studentStatus
-                    } as any
-                })
+                // Upsert Student (Create or Update based on Admission Number)
+                if (admissionNumber) {
+                    await prisma.student.upsert({
+                        where: { admissionNumber },
+                        update: {
+                            fullName,
+                            parentId: parent.userId,
+                            campusId,
+                            grade,
+                            section,
+                            rollNumber,
+                            ambassadorId,
+                            referralLeadId: leadId,
+                            baseFee: baseFeeValue,
+                            academicYear: academicYearForRecord,
+                            selectedFeeType: selectedFeeType,
+                            annualFee: annualFeeAmount,
+                            status: studentStatus
+                        },
+                        create: {
+                            fullName,
+                            parentId: parent.userId,
+                            campusId,
+                            grade,
+                            section,
+                            rollNumber,
+                            admissionNumber,
+                            ambassadorId, // Link directly
+                            referralLeadId: leadId,
+                            baseFee: baseFeeValue,
+                            academicYear: academicYearForRecord,
+                            selectedFeeType: selectedFeeType,
+                            annualFee: annualFeeAmount,
+                            status: studentStatus
+                        }
+                    })
+                    console.log(`[IMPORT] Upserted Student: ${fullName} (${admissionNumber})`)
+                } else {
+                    // Fallback for students without ERP (rare in this logic but handled)
+                    await prisma.student.create({
+                        data: {
+                            fullName,
+                            parentId: parent.userId,
+                            campusId,
+                            grade,
+                            section,
+                            rollNumber,
+                            admissionNumber,
+                            ambassadorId,
+                            referralLeadId: leadId,
+                            baseFee: baseFeeValue,
+                            academicYear: academicYearForRecord,
+                            selectedFeeType: selectedFeeType,
+                            annualFee: annualFeeAmount,
+                            status: studentStatus
+                        } as any
+                    })
+                }
                 processed++
                 results.push({ row: index + 2, data: row, status: 'Success', reason: 'Imported' })
             } catch (err: any) {

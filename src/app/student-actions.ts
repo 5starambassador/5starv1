@@ -456,31 +456,16 @@ export async function bulkAddStudents(students: Array<{
                 s.ambassadorMobile = `+91${s.ambassadorMobile}`
             }
 
-            // 0. Duplicate Check (ERP No)
-            if (s.admissionNumber) {
-                const existingStudent = await prisma.student.findUnique({
-                    where: { admissionNumber: s.admissionNumber }
-                })
-                if (existingStudent) {
-                    failed++
-                    errors.push(`${s.fullName}: Duplicate Student ERP No (${s.admissionNumber})`)
-                    continue
-                }
-            }
-
-            // 1. Find or Create Parent
+            // 1. Find Parent
             let parent = await prisma.user.findUnique({ where: { mobileNumber: s.parentMobile } })
 
             if (!parent) {
-                // Strict Mode: Do not create parent accounts automatically. 
-                // Parents must register and pay first.
                 failed++
                 errors.push(`${s.fullName}: Parent not found (${s.parentMobile}). Please register first.`)
                 continue
             }
 
-            // 2. Find Campus
-            // 2. Find Campus
+            // 2. Find Campus (Moved up for sync safety)
             const campus = await prisma.campus.findUnique({ where: { campusName: s.campusName } })
             if (!campus) {
                 failed++
@@ -492,6 +477,26 @@ export async function bulkAddStudents(students: Array<{
                 errors.push(`${s.fullName}: Campus is INACTIVE (${s.campusName})`)
                 continue
             }
+
+            // AS SENIOR EXPERT: Always sync child details from ERP to keep dashboard/queue accurate
+            // We trust ERP data (Import) over User Input (Profile)
+            const isPending = parent.status === 'Pending' || parent.benefitStatus === 'Pending'
+            const needsVerification = parent.benefitStatus === 'PendingVerification'
+
+            parent = await prisma.user.update({
+                where: { userId: parent.userId },
+                data: {
+                    fullName: s.parentName || parent.fullName,
+                    childInAchariya: true,
+                    childName: s.fullName,
+                    childEprNo: s.admissionNumber || parent.childEprNo,
+                    grade: s.grade,
+                    campusId: campus.id || parent.campusId,
+                    assignedCampus: s.campusName,
+                    // Only update status if it's currently pending
+                    ...( (isPending || needsVerification) && { benefitStatus: 'PendingVerification' })
+                }
+            })
 
             // 3. Find Ambassador (Mobile Priority, Name Fallback)
             let ambassadorId = null
@@ -510,7 +515,7 @@ export async function bulkAddStudents(students: Array<{
                 const matches = await prisma.user.findMany({
                     where: {
                         fullName: { equals: s.ambassadorName, mode: 'insensitive' },
-                        role: { not: 'Student' as any } // Exclude students? Actually checking all non-students is safer
+                        role: { not: 'Student' as any }
                     }
                 })
 
@@ -525,12 +530,11 @@ export async function bulkAddStudents(students: Array<{
 
             // 3.1 Referral Limit Check
             if (ambassadorId) {
-                // Get existing count for this ambassador in this AY
                 if (!referralCounts.has(ambassadorId)) {
                     const count = await prisma.student.count({
                         where: {
                             ambassadorId: ambassadorId,
-                            academicYear: s.academicYear || '2025-2026' // Assuming hardcoded for now or fetch from SystemSettings if available
+                            academicYear: s.academicYear || '2025-2026'
                         }
                     })
                     referralCounts.set(ambassadorId, count)
@@ -542,12 +546,11 @@ export async function bulkAddStudents(students: Array<{
                     errors.push(`${s.fullName}: Ambassador limit reached (Max 5) for ${s.ambassadorMobile || s.ambassadorName}`)
                     continue
                 }
-
-                // Increment locally to catch limits within the same batch
                 referralCounts.set(ambassadorId, currentCount + 1)
             }
 
-            // Perform Student Creation in a transaction to ensure Parent-Student link is atomic
+
+            // Perform Student Upsert (Create or Update based on ERP No)
             await prisma.$transaction(async (tx) => {
                 // Calculate Fees (Reusing logic with tx)
                 let bFee = 0
@@ -562,22 +565,55 @@ export async function bulkAddStudents(students: Array<{
 
                 const dPercent = parent.yearFeeBenefitPercent || 0
 
-                await tx.student.create({
-                    data: {
-                        fullName: s.fullName,
-                        parentId: parent.userId,
-                        campusId: campus.id,
-                        grade: s.grade,
-                        section: s.section,
-                        rollNumber: s.rollNumber,
-                        admissionNumber: s.admissionNumber,
-                        ambassadorId: ambassadorId,
-                        baseFee: bFee,
-                        discountPercent: dPercent,
-                        status: 'Active',
-                        academicYear: s.academicYear || '2025-2026'
-                    }
-                })
+                if (s.admissionNumber) {
+                    await tx.student.upsert({
+                        where: { admissionNumber: s.admissionNumber },
+                        update: {
+                            fullName: s.fullName,
+                            parentId: parent.userId,
+                            campusId: campus.id,
+                            grade: s.grade,
+                            section: s.section,
+                            rollNumber: s.rollNumber,
+                            ambassadorId: ambassadorId,
+                            baseFee: bFee,
+                            discountPercent: dPercent,
+                            status: 'Active',
+                            academicYear: s.academicYear || '2025-2026'
+                        },
+                        create: {
+                            fullName: s.fullName,
+                            parentId: parent.userId,
+                            campusId: campus.id,
+                            grade: s.grade,
+                            section: s.section,
+                            rollNumber: s.rollNumber,
+                            admissionNumber: s.admissionNumber,
+                            ambassadorId: ambassadorId,
+                            baseFee: bFee,
+                            discountPercent: dPercent,
+                            status: 'Active',
+                            academicYear: s.academicYear || '2025-2026'
+                        }
+                    })
+                } else {
+                    await tx.student.create({
+                        data: {
+                            fullName: s.fullName,
+                            parentId: parent.userId,
+                            campusId: campus.id,
+                            grade: s.grade,
+                            section: s.section,
+                            rollNumber: s.rollNumber,
+                            admissionNumber: s.admissionNumber,
+                            ambassadorId: ambassadorId,
+                            baseFee: bFee,
+                            discountPercent: dPercent,
+                            status: 'Active',
+                            academicYear: s.academicYear || '2025-2026'
+                        }
+                    })
+                }
             })
 
             // Increment Ambassador's count and promote to 5-Star if threshold reached

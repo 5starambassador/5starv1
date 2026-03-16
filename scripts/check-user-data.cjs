@@ -1,0 +1,20 @@
+const { PrismaClient } = require('@prisma/client')
+const prisma = new PrismaClient()
+
+async function main() {
+  const users = await prisma.user.findMany({
+    where: { mobileNumber: { in: ['6374285445', '+916374285445'] } }
+  })
+  console.log('--- USERS ---')
+  console.log(JSON.stringify(users, null, 2))
+
+  const students = await prisma.student.findMany({
+    where: { parentId: { in: users.map(u => u.userId) } }
+  })
+  console.log('\n--- STUDENTS ---')
+  console.log(JSON.stringify(students, null, 2))
+}
+
+main()
+  .catch(e => console.error(e))
+  .finally(() => prisma.$disconnect())
