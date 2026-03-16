@@ -7,7 +7,7 @@ import { useClickOutside } from '@/hooks/use-click-outside'
 
 import { DataTable } from '@/components/ui/DataTable'
 import { toast } from 'sonner'
-import { bulkRejectReferrals, bulkDeleteReferrals, bulkConfirmReferrals, bulkConvertLeadsToStudents, exportReferrals, updateReferral, getGradeFee, deleteReferral } from '@/app/admin-actions'
+import { bulkRejectReferrals, bulkDeleteReferrals, bulkConfirmReferrals, bulkConvertLeadsToStudents, exportReferrals, updateReferral, getGradeFee, deleteReferral, bulkRevertRejection } from '@/app/admin-actions'
 import { getCampuses } from '@/app/campus-actions'
 import { format } from 'date-fns'
 import { GRADES } from '@/lib/constants'
@@ -243,6 +243,7 @@ export function ReferralManagementTable({
     const [showBulkApproveConfirm, setShowBulkApproveConfirm] = useState(false)
     const [showBulkAddToStudentConfirm, setShowBulkAddToStudentConfirm] = useState(false)
     const [showBulkRejectConfirm, setShowBulkRejectConfirm] = useState(false)
+    const [showBulkRevertRejectionConfirm, setShowBulkRevertRejectionConfirm] = useState(false)
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
 
     // --- Helpers ---
@@ -406,6 +407,7 @@ export function ReferralManagementTable({
     const canBulkApprove = selectedLeadsMetadata.some(r => ['New', 'Follow-up', 'Interested'].includes(r.leadStatus))
     const canBulkStudent = selectedLeadsMetadata.some(r => r.leadStatus === 'Confirmed' && !r.student)
     const canBulkReject = selectedLeadsMetadata.some(r => r.leadStatus !== 'Rejected' && r.leadStatus !== 'Confirmed')
+    const canBulkRevertRejection = selectedLeadsMetadata.some(r => r.leadStatus === 'Rejected')
     const canBulkDelete = selectedIds.length > 0 && isSuperAdmin
 
     // --- Batch Actions ---
@@ -483,6 +485,23 @@ export function ReferralManagementTable({
         const res = await bulkRejectReferrals(selectedIds)
         if (res.success) {
             toast.success('Rejected successfully', { id: tid })
+            setSelectedIds([])
+            router.refresh()
+        } else {
+            toast.error(res.error, { id: tid })
+        }
+    }
+
+    const handleBulkRevertRejection = async () => {
+        setShowBulkRevertRejectionConfirm(true)
+    }
+
+    const executeBulkRevertRejection = async () => {
+        setShowBulkRevertRejectionConfirm(false)
+        const tid = toast.loading('Reverting Rejections...')
+        const res = await bulkRevertRejection(selectedIds)
+        if (res.success) {
+            toast.success(`Reverted ${res.count} rejections`, { id: tid })
             setSelectedIds([])
             router.refresh()
         } else {
@@ -1083,6 +1102,15 @@ export function ReferralManagementTable({
                                 </button>
                             )}
 
+                            {canBulkRevertRejection && (
+                                <button
+                                    onClick={handleBulkRevertRejection}
+                                    className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all hover:scale-105 flex items-center gap-2"
+                                >
+                                    <RefreshCcw size={14} /> Revert Rejection
+                                </button>
+                            )}
+
                             {canBulkDelete && (
                                 <button
                                     onClick={handleBulkDelete}
@@ -1168,6 +1196,16 @@ export function ReferralManagementTable({
                 variant="danger"
                 onConfirm={executeBulkReject}
                 onCancel={() => setShowBulkRejectConfirm(false)}
+            />
+
+            <ConfirmDialog
+                isOpen={showBulkRevertRejectionConfirm}
+                title="Revert Rejections?"
+                description={`Are you sure you want to REVERT REJECTION for ${selectedIds.length} referrals? Their status will be reset to New.`}
+                confirmText="Yes, Revert All"
+                variant="warning"
+                onConfirm={executeBulkRevertRejection}
+                onCancel={() => setShowBulkRevertRejectionConfirm(false)}
             />
 
             <ConfirmDialog

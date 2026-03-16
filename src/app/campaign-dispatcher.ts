@@ -14,7 +14,7 @@ import { getAmbassadorQuery, getStudentQuery } from '@/lib/campaign-utils'
  * - WhatsApp: Sent via WhatsAppService
  */
 export async function dispatchCampaignBatch(campaignId: number) {
-    const BATCH_SIZE = 200 // Process 200 users at a time to keep memory low
+    const BATCH_SIZE = 500 // Increased for larger audiences to reduce batch overhead
     const adminFn = await getFirebaseAdmin()
 
     const campaign = await prisma.campaign.findUnique({
@@ -61,6 +61,16 @@ export async function dispatchCampaignBatch(campaignId: number) {
             } as any
         })
         logId = log.id
+
+        // PRE-FLIGHT: Update Log with Total Match Count for Progress UI
+        const preCount = await getAmbassadorQuery(audience as any) 
+        const totalToProcess = await prisma.user.count({ where: preCount })
+        if (logId) {
+            await prisma.campaignLog.update({
+                where: { id: logId },
+                data: { recipientCount: totalToProcess } as any
+            })
+        }
     } catch (e) {
         console.error('Failed to create initial log', e)
     }
@@ -223,7 +233,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
             }
 
             stats.total += users.length
-            processedCount += users.length
+            // processedCount moved to bottom of loop to avoid double-counting
 
             // PROCESS BATCH
             const promises: Promise<void>[] = []
@@ -321,11 +331,10 @@ export async function dispatchCampaignBatch(campaignId: number) {
             // Update processed count & rate limit safety
             processedCount += users.length
 
-            // THROTTLING: Add a small delay between batches to avoid Meta Spam Rate Limits (131048)
-            // 10 seconds between batches of 200 is a safer "warming" pace for 3000+ messages
+            // THROTTLING: Adaptive cooldown to stay within 60s timeout
             if (users.length === BATCH_SIZE) {
-                console.log(`[CampaignDispatcher] Batch complete. Cooling down for 10s... (Processed: ${processedCount})`)
-                await new Promise(resolve => setTimeout(resolve, 10000))
+                console.log(`[CampaignDispatcher] Batch complete. Cooling down for 0.5s... (Processed: ${processedCount})`)
+                await new Promise(resolve => setTimeout(resolve, 500))
             }
 
             // Log Recipients for Analytics (All Channels)
@@ -379,7 +388,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 await prisma.campaignLog.update({
                     where: { id: logId },
                     data: {
-                        recipientCount: stats.total,
+                        // Keep the recipientCount fixed to what we calculated at start
                         sentCount: stats.emailSent + stats.pushSent + stats.inAppSent + stats.whatsappSent,
                         failedCount: stats.emailFailed + stats.pushFailed + stats.whatsappFailed,
                         emailSent: stats.emailSent,

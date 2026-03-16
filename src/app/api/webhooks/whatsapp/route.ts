@@ -7,6 +7,15 @@ import { chatbotService } from '@/lib/chatbot-service'
  */
 export async function POST(req: Request) {
     try {
+        // SECURITY: Check for webhook secret to prevent spoofing
+        const authHeader = req.headers.get('Authorization') || new URL(req.url).searchParams.get('secret')
+        const EXPECTED_SECRET = process.env.WHATSAPP_WEBHOOK_SECRET
+
+        if (EXPECTED_SECRET && authHeader !== EXPECTED_SECRET) {
+            console.error('❌ [WhatsApp Webhook] Unauthorized access attempt')
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+        }
+
         const payload = await req.json()
         console.log('📬 [Webhook] Received WhatsApp Message:', JSON.stringify(payload, null, 2))
 

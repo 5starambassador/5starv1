@@ -11,6 +11,15 @@ import prisma from '@/lib/prisma'
 
 export async function POST(request: Request) {
     try {
+        // SECURITY: Check for webhook secret/authkey to prevent spoofing
+        const authKey = request.headers.get('authkey') || new URL(request.url).searchParams.get('secret')
+        const EXPECTED_SECRET = process.env.MSG91_WEBHOOK_SECRET
+
+        if (EXPECTED_SECRET && authKey !== EXPECTED_SECRET) {
+            console.error('❌ [MSG91 Webhook] Unauthorized access attempt')
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+        }
+
         const body = await request.json()
         console.log('🚀 [MSG91 Webhook] HIT at:', new Date().toISOString())
         console.log('[MSG91 Webhook] Payload:', JSON.stringify(body, null, 2))
@@ -43,7 +52,7 @@ export async function POST(request: Request) {
             const log = await prisma.whatsAppLog.findFirst({
                 where: {
                     refId: refStr,
-                    ...(refStr.startsWith('AUT_') ? {} : { mobile: { contains: mobile } })
+                    ...(refStr.startsWith('AUT_') ? {} : { mobile: mobile })
                 },
                 orderBy: { createdAt: 'desc' }
             })
@@ -100,7 +109,7 @@ export async function POST(request: Request) {
                     await (prisma as any).campaignRecipient.updateMany({
                         where: {
                             campaignId: campaignId,
-                            mobile: { contains: mobile },
+                            mobile: mobile,
                             channel: 'WHATSAPP'
                         },
                         data: {

@@ -3,7 +3,7 @@ import { X, User, Phone, MapPin, Calendar, CreditCard, Hash, Shield, Key, Clock,
 import { format } from 'date-fns'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { getGradeFee, revertReferralConfirmation, getCampusGrades } from '@/app/admin-actions'
+import { getGradeFee, revertReferralConfirmation, revertReferralRejection, getCampusGrades } from '@/app/admin-actions'
 import { GRADES } from '@/lib/constants'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
@@ -289,6 +289,25 @@ export function ReferralDetailPanel({
                 window.location.reload()
             } else {
                 toast.error(res.error || 'Failed to revert')
+            }
+        } catch (error) {
+            toast.error('Revert failed')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleRevertRejection = async () => {
+        if (!confirm('Are you sure you want to revert this rejection? The status will be reset to New.')) return
+
+        setLoading(true)
+        try {
+            const res = await revertReferralRejection(referral.leadId)
+            if (res.success) {
+                toast.success('Rejection reverted successfully')
+                window.location.reload()
+            } else {
+                toast.error(res.error || 'Failed to revert rejection')
             }
         } catch (error) {
             toast.error('Revert failed')
@@ -917,6 +936,31 @@ export function ReferralDetailPanel({
                                                     Revert
                                                 </button>
                                             )}
+                                        </div>
+                                    )}
+
+                                    {referral.leadStatus === 'Rejected' && isSuperAdmin && (
+                                        <div className="col-span-2 p-3 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                                                    <AlertCircle size={16} className="text-red-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-black text-red-900 uppercase">Rejected Lead</p>
+                                                    <p className="text-[10px] font-bold text-red-600 truncate max-w-[200px]">
+                                                        {referral.rejectionReason || 'No reason specified'}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={handleRevertRejection}
+                                                disabled={loading}
+                                                className="py-2 px-3 bg-white border border-red-200 text-red-500 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-red-50 transition-all flex items-center justify-center gap-2"
+                                            >
+                                                {loading ? <Clock size={12} className="animate-spin" /> : <RefreshCcw size={12} />}
+                                                Revert Rejection
+                                            </button>
                                         </div>
                                     )}
 

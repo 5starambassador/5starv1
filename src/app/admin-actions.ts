@@ -693,6 +693,108 @@ export async function revertReferralConfirmation(leadId: number) {
 }
 
 /**
+ * Reverts a rejected referral back to New status.
+ * Required for cases where a lead was rejected by mistake.
+ */
+export async function revertReferralRejection(leadId: number) {
+    const admin = await getCurrentUser()
+    if (!admin || !admin.role.includes('Admin')) {
+        return { success: false, error: 'Permission Denied: Only Admins can revert rejection' }
+    }
+
+    try {
+        const lead = await prisma.referralLead.findUnique({
+            where: { leadId }
+        })
+
+        if (!lead || lead.leadStatus !== 'Rejected') {
+            return { success: false, error: 'Lead is not currently rejected' }
+        }
+
+        await prisma.referralLead.update({
+            where: { leadId },
+            data: {
+                leadStatus: 'New',
+                rejectionReason: null
+            }
+        })
+
+        revalidatePath('/admin')
+        revalidatePath('/dashboard')
+        revalidatePath('/referrals')
+        revalidatePath('/superadmin/referrals')
+
+        await logAction('UPDATE', 'referral', `Reverted rejection for lead: ${leadId}`, leadId.toString())
+
+        // Send Notification
+        try {
+            await notifyReferralStatusChanged(lead.userId, {
+                parentName: lead.parentName,
+                leadId: lead.leadId
+            }, 'Rejected', 'New')
+        } catch (notifError) {
+            console.error('Revert rejection notification error:', notifError)
+        }
+
+        return { success: true }
+    } catch (e: any) {
+        console.error('Revert Rejection Error:', e)
+        return { success: false, error: e.message || 'Revert failed' }
+    }
+}
+
+/**
+ * Bulk reverts rejected referrals back to New status.
+ */
+export async function bulkRevertRejection(leadIds: number[]) {
+    const admin = await getCurrentUser()
+    if (!admin || !admin.role.includes('Admin')) {
+        return { success: false, error: 'Permission Denied' }
+    }
+
+    try {
+        const result = await prisma.referralLead.updateMany({
+            where: {
+                leadId: { in: leadIds },
+                leadStatus: 'Rejected'
+            },
+            data: {
+                leadStatus: 'New',
+                rejectionReason: null
+            }
+        })
+
+        // Send notifications (Surgical Addition)
+        try {
+            const revertedLeads = await prisma.referralLead.findMany({
+                where: { leadId: { in: leadIds }, leadStatus: 'New' },
+                select: { userId: true, parentName: true, leadId: true }
+            })
+            for (const lead of revertedLeads) {
+                await notifyReferralStatusChanged(lead.userId, {
+                    parentName: lead.parentName,
+                    leadId: lead.leadId
+                }, 'Rejected', 'New')
+            }
+        } catch (notifError) {
+            console.error('Bulk revert rejection notification error:', notifError)
+        }
+
+        revalidatePath('/admin')
+        revalidatePath('/superadmin/referrals')
+
+        await logAction('UPDATE', 'referral', `Bulk reverted rejection for ${result.count} leads`, leadIds.join(','))
+
+        return { success: true, count: result.count }
+    } catch (e: any) {
+        console.error('Bulk Revert Rejection Error:', e)
+        return { success: false, error: e.message || 'Bulk revert failed' }
+    }
+}
+
+
+
+/**
  * Fetches all users (ambassadors/parents/staff) for the admin dashboard.
  * Respects permission scope settings from the matrix.
  * @returns Object containing success status and array of user records.
