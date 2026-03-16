@@ -5,4 +5,5 @@ export const outfit = Outfit({
     display: "swap",
     variable: "--font-outfit",
     adjustFontFallback: false,
+    preload: false,
 });

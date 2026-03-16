@@ -109,9 +109,14 @@ export function FinanceClientTabs({
                 // Pass false for "Smart Mode"
                 const res = await syncMissingPayments(false)
                 if (res.success && res.count && res.count > 0) {
-                    // Only toast if we actually fixed something to avoid noise
                     toast.success(`Auto-sync: Fixed ${res.count} records`)
                     setTimeout(() => window.location.reload(), 1000)
+                } else if (!res.success && res.error?.includes('Authentication')) {
+                    // Specific toast for broken credentials
+                    toast.error("Cashfree sync failed: Authentication error. Please check your credentials.", {
+                        description: "Check CASHFREE_APP_ID and SECRET_KEY in .env.local",
+                        duration: 10000
+                    })
                 }
             } catch (err) {
                 console.error("Auto-sync failed", err)

@@ -83,7 +83,7 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
                 }
             },
             orderBy: { createdAt: 'desc' },
-            take: query ? 500 : 1000 // Optimized from 10000
+            take: query ? 500 : 1000 // Restored from optimization
         }))
 
         // Query 2: Get matching users without processed settlements
@@ -107,7 +107,7 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
                 }
             },
             orderBy: { createdAt: 'desc' },
-            take: query ? 500 : (filter === 'Recent' ? 10 : 1000) // Optimized from 10000
+            take: query ? 500 : (filter === 'Recent' ? 10 : 10000) // Reverted from optimization
         }))
 
 
@@ -241,8 +241,15 @@ export async function syncMissingPayments(force: boolean = false) {
                 // Add a small delay to avoid Cashfree rate limiting
                 await new Promise(resolve => setTimeout(resolve, 100))
             } catch (err: any) {
-                // 404 = order doesn't exist in Cashfree (old/expired order) — expected, skip silently
-                const is404 = err?.response?.status === 404 || err?.status === 404 || String(err?.message).includes('404')
+                const status = err?.response?.status || err?.status
+                const is401 = status === 401
+                const is404 = status === 404 || String(err?.message).includes('404')
+                
+                if (is401) {
+                    console.error('Sync Error: 401 Unauthorized. Check Cashfree credentials.')
+                    return { success: false, error: 'Cashfree Authentication failed. Please check your APP ID and Secret Key.' }
+                }
+
                 if (!is404) {
                     console.error(`Failed to sync order ${payment.orderId}:`, err?.message || err)
                 }
@@ -504,6 +511,7 @@ export async function getFinanceStats(academicYear?: string) {
             }
         }
     } catch (error) {
+        console.error('getFinanceStats error:', error)
         return { success: false, error: 'Failed to fetch stats' }
     }
 }
@@ -1387,7 +1395,8 @@ export async function getAccruedPayoutLiabilities(academicYear?: string, query?:
                             }
                         }
                     }
-                }
+                },
+                orderBy: { createdAt: 'desc' }
             }),
             prisma.benefitSlab.findMany({
                 orderBy: { referralCount: 'asc' }

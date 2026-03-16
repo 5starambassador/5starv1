@@ -1065,6 +1065,16 @@ export async function addUser(data: {
         // Generate Smart Referral Code using shared service
         const referralCode = await generateSmartReferralCode(data.role)
 
+        // Resolve campusId if assignedCampus is provided
+        let campusId: number | null = null
+        if (data.assignedCampus) {
+            const campus = await prisma.campus.findUnique({
+                where: { campusName: data.assignedCampus },
+                select: { id: true }
+            })
+            if (campus) campusId = campus.id
+        }
+
         const newUser = await prisma.user.create({
             data: {
                 fullName: data.fullName,
@@ -1075,6 +1085,7 @@ export async function addUser(data: {
                 childName: data.childName || null,
                 grade: data.grade || null,
                 assignedCampus: data.assignedCampus || null,
+                campusId, // Synchronized field
                 email: data.email || null,
                 address: data.address || null,
                 aadharNo: data.aadharNo || null,
@@ -1151,12 +1162,27 @@ export async function updateUser(userId: number, data: {
 
         const previousUser = await prisma.user.findUnique({ where: { userId } })
 
-        const filteredData = { ...data }
+        const filteredData: any = { ...data }
         // CRITICAL: Prevent overwriting actual data with masked placeholder values (e.g. ********1234)
         if (data.aadharNo && data.aadharNo.includes('*')) delete filteredData.aadharNo
         if (data.accountNumber && data.accountNumber.includes('*')) delete filteredData.accountNumber
         if (data.ifscCode && data.ifscCode.includes('*')) delete filteredData.ifscCode
         if (data.bankAccountDetails === '***MASKED***') delete filteredData.bankAccountDetails
+
+        // Resolve campusId if assignedCampus is being updated or exists in incoming data
+        if (data.assignedCampus) {
+            const campus = await prisma.campus.findUnique({
+                where: { campusName: data.assignedCampus },
+                select: { id: true }
+            })
+            if (campus) {
+                filteredData.campusId = campus.id
+            } else {
+                filteredData.campusId = null
+            }
+        } else if (data.assignedCampus === '') {
+            filteredData.campusId = null
+        }
 
         const updatedUser = await prisma.user.update({
             where: { userId },
@@ -1324,6 +1350,10 @@ export async function bulkAddUsers(users: Array<{
     let failed = 0
     const errors: string[] = []
 
+    // Pre-fetch campuses for efficient ID lookup
+    const allCampuses = await prisma.campus.findMany({ select: { id: true, campusName: true } })
+    const campusLookup = new Map(allCampuses.map(c => [c.campusName, c.id]))
+
     for (const userData of users) {
         try {
             // Validation
@@ -1387,6 +1417,7 @@ export async function bulkAddUsers(users: Array<{
                     referralCode,
                     childInAchariya: false,
                     assignedCampus: userData.assignedCampus,
+                    campusId: campusLookup.get(userData.assignedCampus) || null,
                     status: 'Pending',
                     yearFeeBenefitPercent: 0,
                     longTermBenefitPercent: 0,

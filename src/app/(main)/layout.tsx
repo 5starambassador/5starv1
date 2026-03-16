@@ -127,6 +127,11 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             }
             if (permissions.auditLog.access) navItems.push({ label: 'Audit Trail', href: '/superadmin?view=audit', icon: <GanttChartSquare /> })
             if (permissions.settings.access && !isSuperAdmin) navItems.push({ label: 'Settings', href: '/superadmin?view=settings', icon: <Settings /> })
+
+            // AS SENIOR EXPERT: Ensure Referral Pipeline is visible to Admission Admin/Non-SuperAdmins with permission
+            if (permissions.referralTracking.access && !isSuperAdmin && !isCampusLevel) {
+                navItems.push({ label: 'Referral Pipeline', href: `${baseAdminPath}?view=referrals`, icon: <GitFork /> })
+            }
         }
     }
 
