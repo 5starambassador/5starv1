@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { getCurrentUser } from '@/lib/auth-service'
 import { revalidatePath } from 'next/cache'
+import { logAction } from '@/lib/audit-logger'
 
 // Type for bulk upload
 export interface BulkFeeData {
@@ -99,6 +100,11 @@ export async function uploadFeeStructure(fees: BulkFeeData[]) {
             const sanitizedGrade = f.grade.trim()
             const sanitizedAY = (f.academicYear || '2026-2027').trim()
 
+            // --- 100% SAFETY: Handle Partial Updates ---
+            const updateData: any = {}
+            if (f.annualFee_otp !== undefined && f.annualFee_otp !== null) updateData.annualFee_otp = f.annualFee_otp
+            if (f.annualFee_wotp !== undefined && f.annualFee_wotp !== null) updateData.annualFee_wotp = f.annualFee_wotp
+
             await prisma.gradeFee.upsert({
                 where: {
                     campusId_grade_academicYear: {
@@ -107,18 +113,24 @@ export async function uploadFeeStructure(fees: BulkFeeData[]) {
                         academicYear: sanitizedAY
                     }
                 },
-                update: {
-                    annualFee_otp: f.annualFee_otp,
-                    annualFee_wotp: f.annualFee_wotp
-                } as any,
+                update: updateData,
                 create: {
                     campusId,
                     grade: sanitizedGrade,
                     academicYear: sanitizedAY,
-                    annualFee_otp: f.annualFee_otp,
-                    annualFee_wotp: f.annualFee_wotp
+                    annualFee_otp: f.annualFee_otp || 0,
+                    annualFee_wotp: f.annualFee_wotp || 0
                 } as any
             })
+
+            // Audit Trail
+            await logAction(
+                'UPDATE',
+                'FEE_STRUCTURE',
+                `Manual bulk upload fee for ${sanitizedGrade} (${sanitizedAY}): OTP=${f.annualFee_otp ?? 'UNCHANGED'}, WOTP=${f.annualFee_wotp ?? 'UNCHANGED'}`,
+                `${campusId}-${sanitizedGrade}`,
+                user.userId
+            )
             processed++
         }
 
@@ -216,6 +228,16 @@ export async function syncStudentFees(campusId?: number, academicYear?: string, 
         const BATCH_SIZE = 50
         for (let i = 0; i < updates.length; i += BATCH_SIZE) {
             await Promise.all(updates.slice(i, i + BATCH_SIZE))
+        }
+
+        if (updatedCount > 0) {
+            await logAction(
+                'SYNC',
+                'FEE_STRUCTURE',
+                `Synced fees for ${updatedCount} students. Campus=${campusId || 'ALL'}, AY=${academicYear || 'ALL'}, Grade=${grade || 'ALL'}`,
+                null,
+                user.userId
+            )
         }
 
         revalidatePath('/superadmin')

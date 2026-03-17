@@ -111,15 +111,36 @@ export async function importFees(csvData: string) {
         const campuses = await prisma.campus.findMany()
         const campusMap = new Map(campuses.map(c => [c.campusName.toLowerCase(), c.id]))
 
+        // Helper for partial updates
+        const parseFee = (val: any) => {
+            if (val === undefined || val === null || val === '') return null
+            const num = parseInt(val.toString().replace(/[^0-9]/g, ''))
+            return isNaN(num) ? null : num
+        }
+
+        if (rows.length > 0) {
+            console.log('[DEBUG] Fee Import Headers found:', Object.keys(rows[0]))
+        }
+
         for (const [index, row] of rows.entries()) {
-            const campusName = row.campusname || row.campusName || row['campus name']
-            const grade = row.grade
-            const academicYear = row.academicyear || row.academicYear || row['academic year'] || '2025-2026'
-            const annualFee_otp = parseInt(row.annualfee_otp || row.annualFee_otp || row['annual fee otp'] || row['annual fee (otp)']) || null
-            const annualFee_wotp = parseInt(row.annualfee_wotp || row.annualFee_wotp || row['annual fee wotp'] || row['annual fee (wotp)']) || null
+            if (!row || Object.keys(row).length === 0) continue
+
+            const campusName = (row.campus || row.campusname || row['campus name'] || row.branch || row.center)?.trim()
+            const grade = (row.grade || row.class || row['class name'])?.trim()
+            const academicYear = (row.academicyear || row['academic year'] || row.ay || row.year || '2025-2026')?.trim()
+
+            const rawOtp = row.annualfee_otp || row['annual fee otp'] || row['annual fee (otp)'] || row['otp fee'] || row.otp
+            const rawWotp = row.annualfee_wotp || row['annual fee wotp'] || row['annual fee (wotp)'] || row['wotp fee'] || row.wotp
+
+            const annualFee_otp = parseFee(rawOtp)
+            const annualFee_wotp = parseFee(rawWotp)
 
             if (!campusName || !grade || (annualFee_otp === null && annualFee_wotp === null)) {
-                const msg = `Missing required fields (Campus, Grade, or at least one Fee)`
+                let missing = []
+                if (!campusName) missing.push('Campus')
+                if (!grade) missing.push('Grade')
+                if (annualFee_otp === null && annualFee_wotp === null) missing.push('Fee Amounts')
+                const msg = `Missing: ${missing.join(', ')}`
                 errors.push(`Row ${index + 2}: ${msg}`)
                 results.push({ row: index + 2, data: row, status: 'Failed', reason: msg })
                 continue
@@ -133,6 +154,11 @@ export async function importFees(csvData: string) {
                 continue
             }
 
+            // --- 100% SAFETY: Handle Partial Updates ---
+            const updateData: any = {}
+            if (annualFee_otp !== null) updateData.annualFee_otp = annualFee_otp
+            if (annualFee_wotp !== null) updateData.annualFee_wotp = annualFee_wotp
+
             await prisma.gradeFee.upsert({
                 where: {
                     campusId_grade_academicYear: {
@@ -141,18 +167,25 @@ export async function importFees(csvData: string) {
                         academicYear
                     }
                 },
-                update: {
-                    annualFee_otp,
-                    annualFee_wotp
-                } as any,
+                update: updateData,
                 create: {
                     campusId,
                     grade,
                     academicYear,
-                    annualFee_otp,
-                    annualFee_wotp
+                    annualFee_otp: annualFee_otp || 0,
+                    annualFee_wotp: annualFee_wotp || 0
                 } as any
             })
+
+            // Audit Trail
+            await logAction(
+                'IMPORT',
+                'FEE_STRUCTURE',
+                `Bulk import fee for ${grade} (${academicYear}): OTP=${annualFee_otp ?? 'UNCHANGED'}, WOTP=${annualFee_wotp ?? 'UNCHANGED'}`,
+                `${campusId}-${grade}`,
+                (admin as any).adminId || admin.userId
+            )
+
             processed++
             results.push({ row: index + 2, data: row, status: 'Success', reason: 'Imported' })
         }
