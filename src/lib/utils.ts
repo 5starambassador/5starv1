@@ -79,3 +79,28 @@ export function normalizeScientificNotation(value: string | null | undefined): s
 
     return str
 }
+
+/**
+ * Normalizes an academic year string from YYYY-YY format to YYYY-YYYY format.
+ * Defaults to "2025-2026" if input is invalid.
+ * @param year - The year string to normalize.
+ * @returns Normalized academic year string.
+ */
+export function normalizeAcademicYear(year: string | null | undefined): string {
+    if (!year) return '2025-2026'
+    const trimmed = year.trim()
+
+    // Match YYYY-YY format (e.g., 2026-27)
+    const shortFormatRegex = /^(\d{4})-(\d{2})$/
+    const match = trimmed.match(shortFormatRegex)
+
+    if (match) {
+        const startYear = match[1]
+        const shortEndYear = match[2]
+        // Assuming we are in the 2000s, convert YY to 20YY
+        const fullEndYear = `20${shortEndYear}`
+        return `${startYear}-${fullEndYear}`
+    }
+
+    return trimmed
+}

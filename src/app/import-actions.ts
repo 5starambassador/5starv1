@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache"
 import { logAction } from "@/lib/audit-logger"
 import { syncUserStats, revalidateDashboard } from "./sync-actions"
 import { toUserRole, toLeadStatus } from "@/lib/enum-utils"
-import { normalizeScientificNotation } from "@/lib/utils"
+import { normalizeScientificNotation, normalizeAcademicYear } from "@/lib/utils"
 
 // --- Helper: Simple CSV Parser ---
 // --- Helper: Simple CSV Parser ---
@@ -127,7 +127,7 @@ export async function importFees(csvData: string) {
 
             const campusName = (row.campus || row.campusname || row['campus name'] || row.branch || row.center)?.trim()
             const grade = (row.grade || row.class || row['class name'])?.trim()
-            const academicYear = (row.academicyear || row['academic year'] || row.ay || row.year || '2025-2026')?.trim()
+            const academicYear = normalizeAcademicYear((row.academicyear || row['academic year'] || row.ay || row.year || '2025-2026')?.trim())
 
             const rawOtp = row.annualfee_otp || row['annual fee otp'] || row['annual fee (otp)'] || row['otp fee'] || row.otp
             const rawWotp = row.annualfee_wotp || row['annual fee wotp'] || row['annual fee (wotp)'] || row['wotp fee'] || row.wotp
@@ -222,7 +222,7 @@ export async function importAmbassadors(csvData: string) {
             const empId = row.empid || row['emp id'] || row.emp_id || ''
             const childEprNo = row.childeprno || row['child erp no'] || row['child erp'] || row['student erp'] || ''
             const referralCode = row.referralcode || row.referralCode || row['referral code'] || ''
-            const academicYear = row.academicyear || row.academicYear || row['academic year'] || '2025-2026'
+            const academicYear = normalizeAcademicYear(row.academicyear || row.academicYear || row['academic year'] || '2025-2026')
             const password = row.password || row.Password || null
             const childInAchariya = (row.childinachariya || row['child in achariya'])?.toLowerCase() === 'yes'
             const benefitStatus = row.benefitstatus || row.benefitStatus || row['benefit status'] || 'Pending'
@@ -341,7 +341,7 @@ export async function importStudents(csvData: string) {
                 const selectedFeeType = feeplanRaw.toString().trim().toUpperCase() === 'OTP' ? 'OTP' : 'WOTP'
 
                 const studentStatus = row.status || row['status'] || 'Active'
-                const academicYearForRecord = row.academicyear || row['academic year'] || row.academicYear || '2025-2026'
+                const academicYearForRecord = normalizeAcademicYear(row.academicyear || row['academic year'] || row.academicYear || '2025-2026')
 
                 if (!parentMobile || !fullName || !grade || !campusName) {
                     const msg = `Missing required fields`
@@ -541,7 +541,7 @@ export async function importStudents(csvData: string) {
                                 campus: campusName,
                                 leadStatus: 'Admitted',
                                 confirmedDate: new Date(),
-                                admittedYear: row.academicYear || '2025-2026',
+                                admittedYear: normalizeAcademicYear(row.academicYear || '2025-2026'),
                                 admissionNumber: admissionNumber,
                                 selectedFeeType: selectedFeeType,
                                 annualFee: annualFeeAmount,
@@ -872,11 +872,11 @@ export async function importReferrals(csvData: string) {
                     campus: campusName,
                     leadStatus: status, // Typically 'Confirmed'
                     confirmedDate: status === 'Confirmed' ? new Date() : null,
-                    admittedYear: row.academicyear || row.academicYear || row['academic year'] || '2025-2026',
+                    admittedYear: normalizeAcademicYear(row.academicyear || row.academicYear || row['academic year'] || '2025-2026'),
                     admissionNumber: admissionNumber, // Storing ERP No
                     selectedFeeType: selectedFeeType,
                     annualFee: annualFeeAmount,
-                    academicYear: row.academicyear || row.academicYear || row['academic year'] || '2026-2027'
+                    academicYear: normalizeAcademicYear(row.academicyear || row.academicYear || row['academic year'] || '2026-2027')
                 } as any
             })
 
