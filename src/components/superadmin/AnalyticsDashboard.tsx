@@ -16,19 +16,8 @@ const RetentionHeatmap = dynamic(() => import('@/components/analytics/RetentionH
 
 import { AnalyticsCharts } from '@/components/superadmin/AnalyticsCharts'
 import { toast } from 'sonner'
-import {
-    generateConversionFunnelData,
-    generateFinancialROIData,
-    generateTargetAchievementData,
-    generateStarMilestonesData,
-    generateAdmissionIntelligenceData,
-    generateRetentionAnalyticsData
-} from '@/app/report-actions'
-import { ROIYieldCard } from './analytics/ROIYieldCard'
-import { StrategicForecastCard } from './analytics/StrategicForecastCard'
-import { AmbassadorStarCard } from './analytics/AmbassadorStarCard'
-import { AmbassadorHealthCard } from './analytics/AmbassadorHealthCard'
-import { Calendar, Zap, Loader2, Sparkles, Activity } from 'lucide-react'
+
+import { Calendar, Loader2, Sparkles, Activity } from 'lucide-react'
 import { useEffect } from 'react'
 
 interface AnalyticsDashboardProps {
@@ -43,67 +32,10 @@ export function AnalyticsDashboard({ analyticsData: initialAnalytics, trendData,
     const [selectedCampus, setSelectedCampus] = useState<string>('all')
     const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' })
     const [isMounted, setIsMounted] = useState(false)
-    const [isLoadingVisual, setIsLoadingVisual] = useState(false)
-    const [visualData, setVisualData] = useState<{
-        funnel: any[],
-        roi: any,
-        achievement: any[],
-        velocity: string,
-        milestones: { distribution: any[], risingStars: any[] },
-        intelligence: { campuses: any[], totalPredicted: number, avgVelocity: string },
-        retention: { cohorts: any[], avgDaysToConfirm: string }
-    }>({
-        funnel: [],
-        roi: null,
-        achievement: [],
-        velocity: '0',
-        milestones: { distribution: [], risingStars: [] },
-        intelligence: { campuses: [], totalPredicted: 0, avgVelocity: '0' },
-        retention: { cohorts: [], avgDaysToConfirm: '0' }
-    })
 
     useEffect(() => {
         setIsMounted(true)
     }, [])
-
-    const fetchVisualData = async () => {
-        setIsLoadingVisual(true)
-        try {
-            const filters = {
-                startDate: dateRange.start || undefined,
-                endDate: dateRange.end || undefined,
-                campus: selectedCampus !== 'all' ? selectedCampus : undefined
-            }
-
-            const [funnelRes, roiRes, milestoneRes, intelligenceRes, retentionRes] = await Promise.all([
-                generateConversionFunnelData(filters),
-                generateFinancialROIData(filters),
-                generateStarMilestonesData({ campus: filters.campus }),
-                generateAdmissionIntelligenceData({ campus: filters.campus }),
-                generateRetentionAnalyticsData({ campus: filters.campus })
-            ])
-
-            setVisualData({
-                funnel: funnelRes.success ? (funnelRes.funnelData || []) : [],
-                roi: roiRes.success ? roiRes.roi : null,
-                achievement: [], // Placeholder if needed later
-                velocity: funnelRes.success ? (funnelRes.avgVelocity || '0') : '0',
-                milestones: (milestoneRes.success && milestoneRes.milestones) ? milestoneRes.milestones : { distribution: [], risingStars: [] },
-                intelligence: intelligenceRes.success ? (intelligenceRes.intelligence || { campuses: [], totalPredicted: 0, avgVelocity: '0' }) : { campuses: [], totalPredicted: 0, avgVelocity: '0' },
-                retention: retentionRes.success ? (retentionRes.retention || { cohorts: [], avgDaysToConfirm: '0' }) : { cohorts: [], avgDaysToConfirm: '0' }
-            })
-        } catch (error) {
-            console.error('Failed to load visual insights:', error)
-        } finally {
-            setIsLoadingVisual(false)
-        }
-    }
-
-    useEffect(() => {
-        if (isMounted) {
-            fetchVisualData()
-        }
-    }, [isMounted, selectedCampus, dateRange.start, dateRange.end])
 
     // Filter logic
     const displayedAnalytics = selectedCampus === 'all'
@@ -184,90 +116,7 @@ export function AnalyticsDashboard({ analyticsData: initialAnalytics, trendData,
 
             <StatsCards analytics={displayedAnalytics} growthTrend={trendData} />
 
-            {/* Strategic Command Center Section */}
-            <div className="space-y-8">
-                <div className="flex justify-between items-end border-b border-gray-100 pb-4">
-                    <div>
-                        <h2 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-                            <Zap className="text-amber-500" fill="currentColor" size={24} />
-                            Strategic Insights
-                        </h2>
-                        <p className="text-[13px] font-bold text-gray-400 mt-1 uppercase tracking-widest">Revenue, Velocity & Network Health</p>
-                    </div>
-                    {isLoadingVisual && (
-                        <div className="flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-4 py-2 rounded-full border border-blue-100 animate-pulse">
-                            <Loader2 size={12} className="animate-spin" />
-                            Synchronizing Intelligence...
-                        </div>
-                    )}
-                </div>
 
-                {!isMounted || isLoadingVisual ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        <div className="h-[450px] bg-white rounded-[32px] border border-gray-100 flex flex-col items-center justify-center p-8 text-center animate-pulse">
-                            <div className="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center mb-4">
-                                <Loader2 className="text-gray-300 animate-spin" size={32} />
-                            </div>
-                            <div className="h-4 w-32 bg-gray-100 rounded-full mb-2" />
-                            <div className="h-3 w-48 bg-gray-50 rounded-full" />
-                        </div>
-                        <div className="h-[450px] bg-white rounded-[32px] border border-gray-100 flex flex-col items-center justify-center p-8 text-center animate-pulse">
-                            <div className="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center mb-4">
-                                <Loader2 className="text-gray-300 animate-spin" size={32} />
-                            </div>
-                            <div className="h-4 w-32 bg-gray-100 rounded-full mb-2" />
-                            <div className="h-3 w-48 bg-gray-50 rounded-full" />
-                        </div>
-                        <div className="h-[450px] bg-white rounded-[32px] border border-gray-100 flex flex-col items-center justify-center p-8 text-center animate-pulse lg:col-span-1 md:col-span-2">
-                            <div className="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center mb-4">
-                                <Loader2 className="text-gray-300 animate-spin" size={32} />
-                            </div>
-                            <div className="h-4 w-32 bg-gray-100 rounded-full mb-2" />
-                            <div className="h-3 w-48 bg-gray-50 rounded-full" />
-                        </div>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {/* 1. ROI Card */}
-                        <ROIYieldCard roi={visualData.roi} />
-
-                        {/* 2. Forecast Card */}
-                        <StrategicForecastCard intelligence={visualData.intelligence} />
-
-                        {/* 3. Star Distribution */}
-                        <div className="lg:col-span-1 md:col-span-2">
-                            <AmbassadorStarCard milestones={visualData.milestones} />
-                        </div>
-
-                        {/* 4. Health & Velocity */}
-                        <div className="md:col-span-2 lg:col-span-2">
-                            <AmbassadorHealthCard retention={visualData.retention} />
-                        </div>
-
-                        {/* 5. Conversion Funnel (Refactored) */}
-                        <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-[0_10px_15px_-3px_rgba(0,0,0,0.05)] h-full">
-                            <div className="mb-6">
-                                <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-                                    <Activity className="text-blue-500" size={24} />
-                                    Conversion Funnel
-                                </h3>
-                                <p className="text-[13px] font-semibold text-gray-400">Yield breakdown by stage</p>
-                            </div>
-                            <div className="h-[300px]">
-                                <ConversionFunnelChart data={visualData.funnel.length > 0 ? visualData.funnel : [
-                                    { stage: 'Total Leads', count: displayedAnalytics.totalLeads || 0 },
-                                    { stage: 'Waitlist', count: (displayedAnalytics.totalLeads || 0) - (displayedAnalytics.totalConfirmed || 0) },
-                                    { stage: 'Confirmed', count: displayedAnalytics.totalConfirmed || 0 }
-                                ]} />
-                            </div>
-                            <div className="mt-6 pt-6 border-t border-gray-50 flex justify-between items-center text-[11px] font-black uppercase tracking-widest text-gray-400">
-                                <span>Network Avg. Velocity</span>
-                                <span className="text-emerald-500">{visualData.velocity} Days</span>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
 
             {/* Operational & Growth Trends Section */}
             <div className="pt-12 border-t border-gray-100 space-y-8">
