@@ -72,7 +72,6 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         // Specific management of dashboard types based on permissions
         if (permissions.engagementCentre?.access) navItems.push({ label: 'Engagement Center', href: `${baseAdminPath}?view=engagement`, icon: <Zap /> })
         if (isSuperAdmin) {
-            navItems.push({ label: 'System Overview', href: '/superadmin?view=analytics', icon: <LayoutDashboard /> })
             navItems.push({ label: 'Campus Control', href: '/superadmin/campuses', icon: <Building2 /> })
             navItems.push({ label: 'User Operations', href: '/superadmin/users', icon: <Users /> })
             navItems.push({ label: 'Student Records', href: '/superadmin/students', icon: <GraduationCap /> })

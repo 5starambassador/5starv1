@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import cashfree from "@/lib/cashfree";
 import { syncUserStats } from "@/app/sync-actions";
+import { encryptReferralCode } from "@/lib/crypto";
 
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
@@ -65,7 +66,8 @@ export async function GET(req: Request) {
             // 1. WhatsApp Welcome Message (Legacy Logic - Day 0)
             if (user?.mobileNumber) {
                 const { whatsappService } = await import('@/lib/whatsapp-service');
-                const marketingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://ambassador.achariya.in'}/marketing?ref=${referralCode || ''}`
+                const encryptedCode = encryptReferralCode(referralCode || '');
+                const marketingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://5starambassador.com'}/r/${encryptedCode}`
                 whatsappService.sendByEvent(user.mobileNumber, 'WELCOME_MESSAGE', [referralCode || 'PENDING', marketingUrl], 'ALERT')
                     .catch(err => console.error('Failed to send welcome whatsapp:', err))
             }
@@ -75,7 +77,8 @@ export async function GET(req: Request) {
                 // 1. WhatsApp Welcome Message (Legacy Logic - Day 0)
                 if (user?.mobileNumber) {
                     const { whatsappService } = await import('@/lib/whatsapp-service');
-                    const marketingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://ambassador.achariya.in'}/marketing?ref=${referralCode || ''}`
+                    const encryptedCode = encryptReferralCode(referralCode || '');
+                    const marketingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://5starambassador.com'}/r/${encryptedCode}`
                     whatsappService.sendByEvent(user.mobileNumber, 'WELCOME_MESSAGE', [referralCode || 'PENDING', marketingUrl], 'ALERT')
                         .catch(err => console.error('Failed to send welcome whatsapp:', err))
                 }
