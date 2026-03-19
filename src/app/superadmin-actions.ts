@@ -654,6 +654,7 @@ export async function getAllUsers(options: {
                     ifscCode: true,
                     academicYear: true,
                     childInAchariya: true,
+                    childCampusId: true,
                     benefitStatus: true,
                     yearFeeBenefitPercent: true,
                     longTermBenefitPercent: true
@@ -1029,6 +1030,7 @@ export async function addUser(data: {
     childInAchariya?: boolean
     childName?: string
     grade?: string
+    childCampusId?: number
     assignedCampus?: string
     email?: string
     address?: string
@@ -1091,6 +1093,7 @@ export async function addUser(data: {
                 aadharNo: data.aadharNo || null,
                 empId: data.empId || null,
                 childEprNo: data.childEprNo || null,
+                childCampusId: data.childCampusId || null,
                 status: data.status || 'Pending',
                 benefitStatus: data.benefitStatus || 'Pending',
                 accountNumber: data.accountNumber || null,
@@ -1151,6 +1154,7 @@ export async function updateUser(userId: number, data: {
     longTermBenefitPercent?: number
     childInAchariya?: boolean
     childName?: string
+    childCampusId?: number
 }) {
     try {
         const admin = await getCurrentUser()

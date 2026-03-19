@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache"
 import { logAction } from "@/lib/audit-logger"
 import { syncUserStats, revalidateDashboard } from "./sync-actions"
 import { toUserRole, toLeadStatus } from "@/lib/enum-utils"
-import { normalizeScientificNotation, normalizeAcademicYear } from "@/lib/utils"
+import { normalizeScientificNotation, normalizeAcademicYear, normalizeGrade } from "@/lib/utils"
 
 // --- Helper: Simple CSV Parser ---
 // --- Helper: Simple CSV Parser ---
@@ -57,44 +57,6 @@ function parseCSV(csvText: string) {
     })
 }
 
-// --- Helper: Normalize Grade Names for Matching ---
-function normalizeGrade(grade: string | null | undefined): string {
-    if (!grade) return ''
-
-    let normalized = grade
-        .toUpperCase()                    // Convert to uppercase
-        .replace(/\s+/g, ' ')             // Normalize multiple spaces to single space
-        .replace(/\s*-\s*/g, '-')         // Remove spaces around hyphens
-        .trim()
-
-    // Convert Roman numerals to Arabic numbers
-    const romanMap: { [key: string]: string } = {
-        'I': '1',
-        'II': '2',
-        'III': '3',
-        'IV': '4',
-        'V': '5',
-        'VI': '6',
-        'VII': '7',
-        'VIII': '8',
-        'IX': '9',
-        'X': '10',
-        'XI': '11',
-        'XII': '12'
-    }
-
-    // Replace roman numerals at the end of grade names
-    // e.g., "MONT-II" -> "MONT-2", "GRADE-XII" -> "GRADE-12"
-    Object.keys(romanMap).forEach(roman => {
-        const regex = new RegExp(`-${roman}$`, 'g')
-        normalized = normalized.replace(regex, `-${romanMap[roman]}`)
-        // Also handle space separator
-        const spaceRegex = new RegExp(` ${roman}$`, 'g')
-        normalized = normalized.replace(spaceRegex, `-${romanMap[roman]}`)
-    })
-
-    return normalized
-}
 
 // --- Import Fees ---
 export async function importFees(csvData: string) {
@@ -343,6 +305,10 @@ export async function importStudents(csvData: string) {
                 const studentStatus = row.status || row['status'] || 'Active'
                 const academicYearForRecord = normalizeAcademicYear(row.academicyear || row['academic year'] || row.academicYear || '2025-2026')
 
+                // SENIOR EXPERT: Capture Admission & Donation Fees from Import
+                const admissionFee = parseFloat(row.admissionfee || row['admission fee'] || row.admissionFee || row['admission collected'] || '0')
+                const donationFee = parseFloat(row.donationfee || row['donation fee'] || row.donationFee || row['donation collected'] || '0')
+
                 if (!parentMobile || !fullName || !grade || !campusName) {
                     const msg = `Missing required fields`
                     errors.push(`Row ${index + 2}: ${msg}`)
@@ -505,7 +471,9 @@ export async function importStudents(csvData: string) {
                             campus: campusName,
                             admissionNumber: admissionNumber,
                             selectedFeeType: selectedFeeType,
-                            annualFee: annualFeeAmount || (existingLead as any).annualFee
+                            annualFee: annualFeeAmount || (existingLead as any).annualFee,
+                            admissionFeeCollected: admissionFee || (existingLead as any).admissionFeeCollected,
+                            donationFeeCollected: donationFee || (existingLead as any).donationFeeCollected
                         }
                         if (existingLead.leadStatus !== 'Admitted' && existingLead.leadStatus !== 'Rejected') {
                             updateData.leadStatus = 'Admitted'
@@ -545,6 +513,8 @@ export async function importStudents(csvData: string) {
                                 admissionNumber: admissionNumber,
                                 selectedFeeType: selectedFeeType,
                                 annualFee: annualFeeAmount,
+                                admissionFeeCollected: admissionFee,
+                                donationFeeCollected: donationFee,
                                 academicYear: academicYearForRecord
                             } as any
                         })

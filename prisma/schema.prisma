@@ -45,16 +45,16 @@ model User {
   accountNumber          String?
   bankName               String?
   ifscCode               String?
-  registrationSource     String?
   fcmToken               String?
+  registrationSource     String?
   DeviceToken            DeviceToken[]
   notifications          Notification[]
   payments               Payment[]
   programLeads           ProgramLead[]
   referrals              ReferralLead[]
   settlements            Settlement[]
-  students               Student[]       @relation("StudentParent")
   referredStudents       Student[]       @relation("StudentAmbassador")
+  students               Student[]       @relation("StudentParent")
   supportTickets         SupportTicket[]
 
   @@index([role])
@@ -102,7 +102,7 @@ model Student {
 }
 
 model ReferralLead {
-  leadId                Int        @id @default(autoincrement())
+  leadId                Int          @id @default(autoincrement())
   userId                Int
   parentName            String
   parentMobile          String
@@ -111,9 +111,9 @@ model ReferralLead {
   gradeInterested       String?
   admittedYear          String?
   confirmedDate         DateTime?
-  createdAt             DateTime   @default(now())
+  createdAt             DateTime     @default(now())
   studentName           String?
-  leadStatus            LeadStatus @default(New)
+  leadStatus            LeadStatus   @default(New)
   admissionNumber       String?
   section               String?
   selectedFeeType       FeeType?
@@ -121,10 +121,10 @@ model ReferralLead {
   rejectionReason       String?
   admissionFeeCollected Float?
   donationFeeCollected  Float?
-  user                  User       @relation(fields: [userId], references: [userId], onDelete: Cascade)
-  student               Student?
-  academicYear          String     @default("2025-2026")
+  academicYear          String       @default("2025-2026")
+  user                  User         @relation(fields: [userId], references: [userId], onDelete: Cascade)
   settlements           Settlement[]
+  student               Student?
 
   @@index([userId, leadStatus])
   @@index([userId])
@@ -285,38 +285,30 @@ model RolePermissions {
   academicCyclesScope      String   @default("none")
   disasterRecoveryAccess   Boolean  @default(false)
   disasterRecoveryScope    String   @default("none")
-  whatsappConfigAccess     Boolean  @default(false)
-  whatsappConfigScope      String   @default("none")
   campaignsAccess          Boolean  @default(false)
   campaignsScope           String   @default("none")
   marketingManagerAccess   Boolean  @default(false)
   marketingManagerScope    String   @default("none")
+  whatsappConfigAccess     Boolean  @default(false)
+  whatsappConfigScope      String   @default("none")
 }
 
 model Settlement {
-  id            Int       @id @default(autoincrement())
-  userId        Int
-  amount        Float
-  status        String    @default("Pending")
-  paymentMethod String?
-  bankReference String?
-  payoutDate    DateTime?
-  processedBy   Int?
-  remarks       String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  benefitType   BenefitType?
+  id             Int           @id @default(autoincrement())
+  userId         Int
+  amount         Float
+  status         String        @default("Pending")
+  paymentMethod  String?
+  bankReference  String?
+  payoutDate     DateTime?
+  processedBy    Int?
+  remarks        String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  benefitType    BenefitType?
   referralLeadId Int?
-  user          User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
-  referralLead  ReferralLead? @relation(fields: [referralLeadId], references: [leadId])
-}
-
-enum BenefitType {
-  ADMISSION_SHARE
-  DONATION_SHARE
-  SLAB_SHARE
-  SPECIAL_BONUS
-  OTHER
+  referralLead   ReferralLead? @relation(fields: [referralLeadId], references: [leadId])
+  user           User          @relation(fields: [userId], references: [userId], onDelete: Cascade)
 }
 
 model Resource {
@@ -481,13 +473,13 @@ model Campaign {
   type           String              @default("EMAIL")
   status         String              @default("DRAFT")
   targetAudience Json?
-  waTemplateName String?
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
   lastRunAt      DateTime?
   schedule       String?
   batchSize      Int                 @default(500)
   channels       String[]            @default(["EMAIL"])
+  waTemplateName String?
   logs           CampaignLog[]
   recipients     CampaignRecipient[]
 }
@@ -651,10 +643,10 @@ model WhatsAppConfig {
   eventKey               String   @unique
   templateName           String
   isEnabled              Boolean  @default(true)
-  requiredVariablesCount Int      @default(0)
   description            String?
-  ruleConfig             Json?
   updatedAt              DateTime @updatedAt
+  requiredVariablesCount Int      @default(0)
+  ruleConfig             Json?
 }
 
 model WhatsAppLog {
@@ -665,14 +657,54 @@ model WhatsAppLog {
   type         String
   status       String
   errorMessage String?
-  refId        String?
   createdAt    DateTime @default(now())
   metadata     Json?
+  refId        String?
 
   @@index([type])
   @@index([createdAt])
   @@index([mobile])
   @@index([refId])
+}
+
+model AutomationRule {
+  id           Int      @id @default(autoincrement())
+  name         String
+  description  String?
+  triggerType  String
+  triggerEvent String?
+  conditions   Json?
+  actionType   String   @default("SEND_WHATSAPP")
+  actionTarget String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([triggerType, isActive])
+}
+
+model AutomationLog {
+  id           Int      @id @default(autoincrement())
+  ruleId       Int
+  userId       Int
+  triggerEvent String
+  status       String
+  reason       String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([ruleId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum BenefitType {
+  ADMISSION_SHARE
+  DONATION_SHARE
+  SLAB_SHARE
+  SPECIAL_BONUS
+  OTHER
 }
 
 enum FeeType {
@@ -720,36 +752,4 @@ enum ProgramRewardType {
   CASH
   POINTS
   NONE
-}
-
-model AutomationRule {
-  id              Int      @id @default(autoincrement())
-  name            String
-  description     String?
-  triggerType     String   // e.g., "CRON_DAILY", "EVENT"
-  triggerEvent    String?  // e.g., "PAYMENT_REMINDER"
-  conditions      Json?    // Stores the logical conditions
-  actionType      String   @default("SEND_WHATSAPP")
-  actionTarget    String?  
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([triggerType, isActive])
-}
-
-model AutomationLog {
-  id            Int      @id @default(autoincrement())
-  ruleId        Int
-  userId        Int
-  triggerEvent  String
-  status        String   // SUCCESS, SKIPPED, ERROR
-  reason        String?
-  metadata      Json?
-  createdAt     DateTime @default(now())
-
-  @@index([ruleId])
-  @@index([userId])
-  @@index([status])
-  @@index([createdAt])
 }

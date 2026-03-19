@@ -108,10 +108,10 @@ export function calculateTotalBenefit(
         const slabName = isFiveStar ? '5-Star Precision Slab (Linear)' : 'Standard Growth Slab'
 
         // B.1 WING A: Fee Discount TRACK (Parent, Staff with Child)
-        const isGroupAWaiver = user.role === 'Parent' || (user.role === 'Staff' && user.childInAchariya)
+        const isGroupAWaiver = (user.role === 'Parent' || user.role === 'Staff') && !!user.childInAchariya
 
         if (isGroupAWaiver) {
-            const amount = (safeStudentFee * tierPercent) / 100
+            const amount = Math.round((safeStudentFee * tierPercent) / 100)
             slabShare += amount
             breakdown.push(`⚡ FEE WAIVER: ${tierPercent}% Slab Reward (₹${amount.toLocaleString('en-IN')})`)
 
@@ -150,7 +150,7 @@ export function calculateTotalBenefit(
                 }
 
                 const g1Fee = ref.campusGrade1Fee || 0  // 0 when fee not seeded; UI shows N/A
-                const amount = (g1Fee * slicePercent) / 100
+                const amount = Math.round((g1Fee * slicePercent) / 100)
                 slabShare += amount
                 breakdown.push(`🔥 REF-${count}: ${slicePercent}% Slab Reward (₹${amount.toLocaleString('en-IN')})`)
             })
@@ -164,8 +164,8 @@ export function calculateTotalBenefit(
             const donFee = (ref as any).donationFeeCollected || 0
 
             if (admFee > 0 || donFee > 0) {
-                const admBonus = admFee * REWARD_RATES.ADMISSION_PROFIT_SHARE
-                const donBonus = donFee * REWARD_RATES.DONATION_PROFIT_SHARE
+                const admBonus = Math.round(admFee * REWARD_RATES.ADMISSION_PROFIT_SHARE)
+                const donBonus = Math.round(donFee * REWARD_RATES.DONATION_PROFIT_SHARE)
                 admissionShare += admBonus
                 donationShare += donBonus
 

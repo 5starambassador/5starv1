@@ -52,13 +52,14 @@ export async function syncUserStats(userId: number) {
         }
 
         // --- 2. SYNC AS PARENT: Check for children studying in Achariya ---
-        // AS SENIOR EXPERT RULE: We now match by Database Link (parentId) OR ERP Number (admissionNumber)
-        // This ensures users who register with an ERP but aren't yet linked in DB get synced properly.
+        // AS SENIOR EXPERT RULE: Layered priority matching (ERP -> Mobile -> ParentLink)
+        // We CRITICALLY avoid null-matching on admissionNumber to prevent data poisoning.
         const studentRecords = await prisma.student.findMany({
             where: {
                 OR: [
                     { parentId: user.userId },
-                    { admissionNumber: user.childEprNo }
+                    ...(user.childEprNo ? [{ admissionNumber: user.childEprNo }] : []),
+                    { parent: { mobileNumber: user.mobileNumber } }
                 ],
                 status: 'Active'
             }

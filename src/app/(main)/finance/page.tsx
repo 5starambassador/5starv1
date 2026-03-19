@@ -32,7 +32,7 @@ export default async function FinancePage({
 
     // Fetch Data
     const [settlementsRes, statsRes, registrationsRes, readyForRefundRes, liabilitiesRes, academicYears] = await Promise.all([
-        getSettlements('All', selectedYear),
+        getSettlements('All', selectedYear, search),
         getFinanceStats(selectedYear),
         getRegistrationTransactions('All', selectedYear, search),
         getUsersReadyForRefund(selectedYear),

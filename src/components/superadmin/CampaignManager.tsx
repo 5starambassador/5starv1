@@ -661,8 +661,8 @@ export function CampaignManager() {
                                                         </div>
                                                     </div>
                                                     <p className="text-[10px] font-bold text-gray-400 px-1 italic">
-                                                        ⚠️ The entire "Payload Content" text above will be sent as Variable 1 (&#123;&#123;1&#125;&#125;) to this template.
-                                                        To avoid duplication, use a "Pass-through" template in MSG91 that consists only of &#123;&#123;1&#125;&#125;.
+                                                        ℹ️ For WhatsApp: Variable 1 (&#123;&#123;1&#125;&#125;) is the <strong>Recipient Name</strong> and Variable 2 (&#123;&#123;2&#125;&#125;) is the <strong>Referral Code</strong>.
+                                                        The "Payload Content" above is used for Email/Push but ignored for WhatsApp to maintain template compliance.
                                                     </p>
                                                 </div>
                                             )}

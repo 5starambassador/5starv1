@@ -1,8 +1,6 @@
 
-import { PrismaClient } from '@prisma/client'
-import { createCampaign, runCampaign, getAudienceCount } from '@/app/campaign-actions'
-
-const prisma = new PrismaClient()
+import prisma from '../src/lib/prisma'
+import { createCampaign, runCampaign, getAudienceCount } from '../src/app/campaign-actions'
 
 async function main() {
     console.log('🧪 Starting Full Campaign Verification...')

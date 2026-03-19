@@ -104,3 +104,46 @@ export function normalizeAcademicYear(year: string | null | undefined): string {
 
     return trimmed
 }
+
+/**
+ * Normalizes grade names for consistent matching (e.g., Roman to Arabic).
+ * @param grade - The grade string to normalize.
+ * @returns Normalized grade string.
+ */
+export function normalizeGrade(grade: string | null | undefined): string {
+    if (!grade) return ''
+
+    let normalized = grade
+        .toUpperCase()                    // Convert to uppercase
+        .replace(/\s+/g, ' ')             // Normalize multiple spaces to single space
+        .replace(/\s*-\s*/g, '-')         // Remove spaces around hyphens
+        .trim()
+
+    // Convert Roman numerals to Arabic numbers
+    const romanMap: { [key: string]: string } = {
+        'I': '1',
+        'II': '2',
+        'III': '3',
+        'IV': '4',
+        'V': '5',
+        'VI': '6',
+        'VII': '7',
+        'VIII': '8',
+        'IX': '9',
+        'X': '10',
+        'XI': '11',
+        'XII': '12'
+    }
+
+    // Replace roman numerals at the end of grade names
+    // e.g., "MONT-II" -> "MONT-2", "GRADE-XII" -> "GRADE-12"
+    Object.keys(romanMap).forEach(roman => {
+        const regex = new RegExp(`-${roman}$`, 'g')
+        normalized = normalized.replace(regex, `-${romanMap[roman]}`)
+        // Also handle space separator
+        const spaceRegex = new RegExp(` ${roman}$`, 'g')
+        normalized = normalized.replace(spaceRegex, `-${romanMap[roman]}`)
+    })
+
+    return normalized
+}

@@ -201,6 +201,7 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
         longTermBenefitPercent: 0,
         childName: '',
         childInAchariya: false,
+        childCampusId: undefined as number | undefined,
         assignedCampus: ''
     })
 
@@ -227,7 +228,8 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
             yearFeeBenefitPercent: user.yearFeeBenefitPercent || 0,
             longTermBenefitPercent: user.longTermBenefitPercent || 0,
             childName: user.childName || '',
-            childInAchariya: user.childInAchariya || false
+            childInAchariya: user.childInAchariya || false,
+            childCampusId: user.childCampusId || undefined
         })
         setShowAddUserModal(true)
     }
@@ -264,7 +266,7 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
                 email: '', address: '', aadharNo: '', status: 'Pending' as any, benefitStatus: 'Pending' as any,
                 accountNumber: '', bankName: '', ifscCode: '', bankAccountDetails: '',
                 isFiveStarMember: false, yearFeeBenefitPercent: 0, longTermBenefitPercent: 0,
-                childName: '', childInAchariya: false
+                childName: '', childInAchariya: false, childCampusId: undefined
             })
             router.refresh()
         } else {
@@ -385,7 +387,7 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
                         email: '', address: '', aadharNo: '', status: 'Pending' as any, benefitStatus: 'Pending' as any,
                         accountNumber: '', bankName: '', ifscCode: '', bankAccountDetails: '',
                         isFiveStarMember: false, yearFeeBenefitPercent: 0, longTermBenefitPercent: 0,
-                        childName: '', childInAchariya: false
+                        childName: '', childInAchariya: false, childCampusId: undefined
                     });
                     setShowAddUserModal(true)
                 }}
@@ -472,26 +474,69 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
                                     </div>
                                 </section>
 
-                                {/* Section 2: Role Specific Meta */}
-                                <section style={{ background: '#F9FAFB', padding: '20px', borderRadius: '16px', border: '1px solid #F3F4F6' }}>
-                                    <h4 style={{ fontSize: '12px', fontWeight: '900', color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '16px' }}>{userForm.role} Profile Details</h4>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                                {/* Section 2: Role-Specific Details */}
+                                <section style={{ background: '#F9FAFB', padding: '24px', borderRadius: '20px', border: '1px solid #E5E7EB' }}>
+                                    <h4 style={{ fontSize: '12px', fontWeight: '900', color: '#1F2937', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <div style={{ width: '8px', height: '8px', background: '#3B82F6', borderRadius: '2px' }}></div>
+                                        {userForm.role} Details
+                                    </h4>
+                                    
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
                                         {userForm.role === 'Staff' && (
                                             <div>
-                                                <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Employee ID *</label>
+                                                <label style={{ fontSize: '12px', fontWeight: '700', color: '#4B5563', display: 'block', marginBottom: '6px' }}>Employee ID *</label>
                                                 <input
                                                     type="text"
                                                     value={userForm.empId}
                                                     onChange={(e) => setUserForm({ ...userForm, empId: e.target.value })}
-                                                    style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px' }}
+                                                    style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px', background: 'white' }}
                                                     placeholder="EMPXXXX"
                                                 />
                                             </div>
                                         )}
-                                        {userForm.role === 'Parent' && (
-                                            <>
+                                        
+                                        <div>
+                                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#4B5563', display: 'block', marginBottom: '6px' }}>{userForm.role === 'Staff' ? 'Working Campus' : 'Assigned Campus'}</label>
+                                            <select
+                                                value={userForm.assignedCampus}
+                                                onChange={(e) => {
+                                                    const campName = e.target.value;
+                                                    const updates: any = { assignedCampus: campName };
+                                                    if (userForm.role === 'Parent') {
+                                                        const camp = campuses.find(c => c.campusName === campName);
+                                                        if (camp) updates.childCampusId = camp.id;
+                                                    }
+                                                    setUserForm({ ...userForm, ...updates });
+                                                }}
+                                                style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px', background: 'white' }}
+                                            >
+                                                <option value="">Select Campus</option>
+                                                {campuses.map(c => <option key={c.id} value={c.campusName}>{c.campusName}</option>)}
+                                            </select>
+                                        </div>
+
+                                        {(userForm.role === 'Staff' || userForm.role === 'Parent') && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', gridColumn: '1 / -1', marginTop: '4px', background: 'white', padding: '12px 16px', borderRadius: '12px', border: '1px dashed #D1D5DB' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    id="childInAchariya"
+                                                    checked={userForm.childInAchariya}
+                                                    onChange={(e) => setUserForm({ ...userForm, childInAchariya: e.target.checked })}
+                                                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#3B82F6' }}
+                                                />
+                                                <label htmlFor="childInAchariya" style={{ fontSize: '14px', fontWeight: '700', color: '#1F2937', cursor: 'pointer' }}>My Child is studying in Achariya</label>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Sub-Section: Student Information */}
+                                    {userForm.childInAchariya && (
+                                        <div style={{ marginTop: '24px', padding: '20px', background: 'white', borderRadius: '16px', border: '1.5px solid #EBF5FF', position: 'relative' }}>
+                                            <div style={{ position: 'absolute', top: '-10px', left: '20px', background: '#3B82F6', color: 'white', fontSize: '10px', fontWeight: '900', padding: '2px 10px', borderRadius: '20px', textTransform: 'uppercase' }}>Student Information</div>
+                                            
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginTop: '8px' }}>
                                                 <div>
-                                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Childs Name</label>
+                                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#4B5563', display: 'block', marginBottom: '6px' }}>Child's Name</label>
                                                     <input
                                                         type="text"
                                                         value={userForm.childName}
@@ -501,7 +546,7 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Student ERP No</label>
+                                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#4B5563', display: 'block', marginBottom: '6px' }}>Student ERP No</label>
                                                     <input
                                                         type="text"
                                                         value={userForm.childEprNo}
@@ -511,7 +556,7 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Grade</label>
+                                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#4B5563', display: 'block', marginBottom: '6px' }}>Grade</label>
                                                     <input
                                                         type="text"
                                                         value={userForm.grade}
@@ -520,30 +565,26 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
                                                         placeholder="Class/Grade"
                                                     />
                                                 </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingTop: '32px' }}>
-                                                    <input
-                                                        type="checkbox"
-                                                        id="childInAchariya"
-                                                        checked={userForm.childInAchariya}
-                                                        onChange={(e) => setUserForm({ ...userForm, childInAchariya: e.target.checked })}
-                                                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                                                    />
-                                                    <label htmlFor="childInAchariya" style={{ fontSize: '14px', fontWeight: '600', color: '#374151', cursor: 'pointer' }}>Studying in Achariya?</label>
+                                                <div>
+                                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#4B5563', display: 'block', marginBottom: '6px' }}>{userForm.role === 'Staff' ? 'Student Campus' : 'Child Campus'}</label>
+                                                    {userForm.role === 'Staff' ? (
+                                                        <select
+                                                            value={userForm.childCampusId || ''}
+                                                            onChange={(e) => setUserForm({ ...userForm, childCampusId: parseInt(e.target.value) || undefined })}
+                                                            style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px', background: 'white' }}
+                                                        >
+                                                            <option value="">Select Student Campus</option>
+                                                            {campuses.map(c => <option key={c.id} value={c.id}>{c.campusName}</option>)}
+                                                        </select>
+                                                    ) : (
+                                                        <div style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #F3F4F6', borderRadius: '12px', fontSize: '14px', background: '#F9FAFB', color: '#6B7280' }}>
+                                                            {userForm.assignedCampus || 'Select Assigned Campus above'}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            </>
-                                        )}
-                                        <div>
-                                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#374151', display: 'block', marginBottom: '6px' }}>Assigned Campus</label>
-                                            <select
-                                                value={userForm.assignedCampus}
-                                                onChange={(e) => setUserForm({ ...userForm, assignedCampus: e.target.value })}
-                                                style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E5E7EB', borderRadius: '12px', fontSize: '14px', background: 'white' }}
-                                            >
-                                                <option value="">Select Campus</option>
-                                                {campuses.map(c => <option key={c.id} value={c.campusName}>{c.campusName}</option>)}
-                                            </select>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </section>
 
                                 {/* Section 3: Professional & Contact */}

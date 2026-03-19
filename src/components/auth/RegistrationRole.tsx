@@ -21,7 +21,7 @@ export const RegistrationRole = ({ formData, setFormData, campuses, onNext, onBa
     const isFormValid = () => {
         if (formData.role === 'Parent' && (!formData.childEprNo || !formData.grade || !formData.campusId)) return false
         if (formData.role === 'Staff' && (!formData.empId || !formData.campusId)) return false
-        if (formData.role === 'Staff' && formData.childInAchariya === 'Yes' && (!formData.childCampusId || !formData.grade)) return false
+        if (formData.role === 'Staff' && formData.childInAchariya === 'Yes' && (!formData.childCampusId || !formData.grade || !formData.childName || !formData.childEprNo)) return false
         if (formData.role === 'Alumni' && ((formData.aadharNo?.length !== 12) || !formData.passoutYear || !formData.campusId)) return false
         if (formData.role === 'Others' && (formData.aadharNo?.length !== 12)) return false
         if (!agreedToPrivacy) return false
@@ -160,6 +160,26 @@ export const RegistrationRole = ({ formData, setFormData, campuses, onNext, onBa
                                 {formData.childInAchariya === 'Yes' && (
                                     <div className="space-y-4 animate-in slide-in-from-top-2 fade-in duration-300 p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/10 mt-2">
                                         <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest text-center">Child Information</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-blue-200/70 text-[10px] font-bold uppercase tracking-[0.2em] mb-2 block ml-1">Child's Name</label>
+                                                <input
+                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 h-12 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-sm font-medium"
+                                                    placeholder="Enter Child's Name"
+                                                    value={formData.childName || ''}
+                                                    onChange={(e) => setFormData({ ...formData, childName: e.target.value })}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-blue-200/70 text-[10px] font-bold uppercase tracking-[0.2em] mb-2 block ml-1">Child ERP No</label>
+                                                <input
+                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 h-12 text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-transparent shadow-lg transition-all text-sm font-medium"
+                                                    placeholder="Enter Child ERP Number"
+                                                    value={formData.childEprNo || ''}
+                                                    onChange={(e) => setFormData({ ...formData, childEprNo: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
                                         <div>
                                             <label className="text-blue-200/70 text-[10px] font-bold uppercase tracking-[0.2em] mb-2 block ml-1">Child Campus</label>
                                             <select
