@@ -39,8 +39,9 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
         const paymentStatusFilter = [
             { paymentStatus: 'Completed' },
             { paymentStatus: 'Success' },
+            { paymentStatus: 'SUCCESS' },
             { transactionId: { not: null } },
-            { settlements: { some: { amount: 25, status: 'Processed' } } }
+            { settlements: { some: { amount: 25, status: { in: ['Processed', 'SUCCESS', 'Confirmed'] } as any } } }
         ]
 
         // Build where clause
@@ -318,7 +319,11 @@ export async function getSettlements(status: string = 'Pending', academicYear?: 
         const settlementsAll = await prisma.settlement.findMany({
             where: {
                 AND: [
-                    { status: status !== 'All' ? status : undefined },
+                    { 
+                        status: status === 'All' ? undefined : 
+                                status === 'Processed' ? { in: ['Processed', 'SUCCESS', 'Confirmed'] as any } : 
+                                { in: [status, status.toUpperCase()] as any } 
+                    },
                     ...(query ? [searchFilter] : []),
                     // Campus Head restriction: See own ambassadors OR any ambassador with referrals in this campus
                     ...(user.role.includes('Campus') && (user as any).campusId ? [{
