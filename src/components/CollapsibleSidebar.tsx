@@ -62,7 +62,7 @@ export function CollapsibleSidebar({ navItems, user, logoutAction }: Collapsible
             {/* Sidebar */}
             <aside
                 style={{ width: sidebarWidth, minWidth: sidebarWidth }}
-                className="desktop-sidebar hidden xl:flex flex-col border-r border-white/10 p-0 fixed top-0 left-0 bottom-0 z-20 bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#1e1b4b] shadow-[20px_0_80px_rgba(0,0,0,0.8)] transition-[width] duration-300 ease-in-out overflow-hidden"
+                className="desktop-sidebar hidden xl:flex flex-col border-r border-white/10 p-0 fixed top-0 left-0 bottom-0 z-20 bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#1e1b4b] shadow-[20px_0_80px_rgba(0,0,0,0.8)] transition-[width] duration-300 ease-in-out"
             >
                 {/* Royal accents */}
                 <div className="absolute top-0 right-0 w-[1px] h-full bg-gradient-to-b from-transparent via-white/20 to-transparent" />

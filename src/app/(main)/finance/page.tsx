@@ -10,13 +10,14 @@ import { FinanceClientTabs } from '@/components/finance/FinanceClientTabs'
 export default async function FinancePage({
     searchParams
 }: {
-    searchParams: Promise<{ year?: string; search?: string }>
+    searchParams: Promise<{ year?: string; search?: string; tab?: string }>
 }) {
     const user = await getCurrentUser()
     if (!user) redirect('/')
 
-    const { year, search } = await searchParams
+    const { year, search, tab } = await searchParams
     let selectedYear = year
+    const activeTab = tab || 'payouts' // Default to payouts
 
     if (!selectedYear) {
         const currentYearRecord = await prisma.academicYear.findFirst({
@@ -30,12 +31,17 @@ export default async function FinancePage({
         redirect('/dashboard')
     }
 
-    // Fetch Data
+    // Determine which data to fetch based on active tab to prevent lag
+    const isPayoutTab = ['payouts', 'payout_history', 'waiver_history'].includes(activeTab)
+    const isRegistrationTab = ['registrations', 'ready_refund', 'refund_history'].includes(activeTab)
+    const isLiabilityTab = ['liabilities_a', 'liabilities_b'].includes(activeTab)
+
+    // Fetch Data (Conditionalized to reduce payload and lag)
     const [settlementsRes, statsRes, registrationsRes, readyForRefundRes, liabilitiesRes, academicYears] = await Promise.all([
-        getSettlements('All', selectedYear, search),
-        getFinanceStats(selectedYear),
-        getRegistrationTransactions('All', selectedYear, search),
-        getUsersReadyForRefund(selectedYear),
+        isPayoutTab ? getSettlements('All', selectedYear, search) : Promise.resolve({ success: true, data: [] }),
+        getFinanceStats(selectedYear), // Always fetch stats for the header
+        isRegistrationTab ? getRegistrationTransactions('All', selectedYear, search) : Promise.resolve({ success: true, data: [] }),
+        isRegistrationTab ? getUsersReadyForRefund(selectedYear) : Promise.resolve({ success: true, data: [] }),
         getAccruedPayoutLiabilities(selectedYear, search),
         prisma.academicYear.findMany({
             orderBy: { year: 'desc' }
@@ -129,6 +135,7 @@ export default async function FinancePage({
                 availableYears={years}
                 selectedYear={selectedYear}
                 search={search}
+                activeTab={activeTab as any}
             />
 
         </div>

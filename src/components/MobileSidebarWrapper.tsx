@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 
@@ -22,11 +22,12 @@ export default function MobileSidebarWrapper({ children }: { children: React.Rea
     const [isOpen, setIsOpen] = useState(false)
     const [mounted, setMounted] = useState(false)
     const pathname = usePathname()
+    const searchParams = useSearchParams()
 
-    // Close sidebar on route change
+    // Close sidebar on route change (including search params)
     useEffect(() => {
         setIsOpen(false)
-    }, [pathname])
+    }, [pathname, searchParams])
 
     // Handle mounting and cleanup
     useEffect(() => {

@@ -1,15 +1,27 @@
 import { PrismaClient } from '@prisma/client'
-const p = new PrismaClient()
+const prisma = new PrismaClient()
 
 async function main() {
-    // Check recent settlements (last 5)
-    const s = await (p.settlement as any).findMany({
-        orderBy: { id: 'desc' },
-        take: 5,
-        select: { id: true, userId: true, amount: true, status: true, benefitType: true, referralLeadId: true, remarks: true }
+    console.log('--- SETTLEMENT CHECK ---')
+    const settlements = await prisma.settlement.findMany({
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+        select: {
+            id: true,
+            status: true,
+            remarks: true,
+            amount: true,
+            payoutDate: true,
+            createdAt: true
+        }
     })
-    console.log('--- Recent Settlements ---')
-    console.log(JSON.stringify(s, null, 2))
+    
+    console.table(settlements)
+    
+    const waiverCount = settlements.filter(s => s.remarks?.toLowerCase().includes('waiver')).length
+    console.log(`Waivers in last 20: ${waiverCount}`)
+    
+    await prisma.$disconnect()
 }
 
-main().catch(console.error).finally(() => p.$disconnect())
+main()

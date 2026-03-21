@@ -22,6 +22,7 @@ interface FinanceClientTabsProps {
     availableYears?: string[]
     selectedYear?: string
     search?: string
+    activeTab?: 'payouts' | 'payout_history' | 'waiver_history' | 'registrations' | 'ready_refund' | 'refund_history' | 'liabilities_a' | 'liabilities_b'
 }
 
 export function FinanceClientTabs({
@@ -31,14 +32,27 @@ export function FinanceClientTabs({
     liabilities,
     availableYears = [],
     selectedYear = '2026-2027',
-    search = ''
+    search = '',
+    activeTab: initialTab = 'payouts'
 }: FinanceClientTabsProps) {
 
-    const [activeTab, setActiveTab] = useState<'payouts' | 'payout_history' | 'waiver_history' | 'registrations' | 'ready_refund' | 'refund_history' | 'liabilities_a' | 'liabilities_b'>('payouts')
+    const [activeTab, setActiveTabState] = useState(initialTab)
     const [displaySearch, setDisplaySearch] = useState(search)
     const isTypingRef = useRef(false)
     const router = useRouter()
     const pathname = usePathname()
+
+    // Sync activeTab state with prop from server
+    useEffect(() => {
+        setActiveTabState(initialTab)
+    }, [initialTab])
+
+    const setActiveTab = (tab: typeof activeTab) => {
+        setActiveTabState(tab as any)
+        const params = new URLSearchParams(window.location.search)
+        params.set('tab', tab as string)
+        router.push(`${pathname}?${params.toString()}`, { scroll: false })
+    }
 
     useEffect(() => {
         // Only update local state from props if the user is NOT actively typing
@@ -82,22 +96,24 @@ export function FinanceClientTabs({
     // Filter refund history: either has 'REFUNDED' in remarks OR has a processed 25-rupee settlement
     const refundHistory = registrations.filter(r => {
         const hasRefundRemark = r.payments?.[0]?.adminRemarks?.includes('REFUNDED')
-        const hasProcessedSettlement = r.settlements?.some((s: any) => s.amount === 25 && s.status === 'Processed')
+        const hasProcessedSettlement = r.settlements?.some((s: any) => s.amount === 25 && ['Processed', 'SUCCESS', 'Confirmed'].includes(s.status))
         return hasRefundRemark || hasProcessedSettlement
     })
 
-    // Filter Payout History: Processed settlements that are NOT registration refunds AND NOT waivers
+    // Filter Payout History: Processed/SUCCESS settlements that are NOT registration refunds AND NOT waivers
     const payoutHistoryData = settlements.filter(s => {
         const remarks = (s.remarks || '').toLowerCase()
         const isRegistrationRefund = remarks.includes('registration') || remarks.includes('refund') || s.amount === 25
         const isWaiver = remarks.includes('waiver')
-        return s.status === 'Processed' && !isRegistrationRefund && !isWaiver
+        const isHistoricalStatus = ['Processed', 'SUCCESS', 'Confirmed'].includes(s.status)
+        return isHistoricalStatus && !isRegistrationRefund && !isWaiver
     })
 
-    // Filter Waiver History: Processed settlements that ARE waivers
+    // Filter Waiver History: Processed/SUCCESS/Confirmed settlements that ARE waivers
     const waiverHistoryData = settlements.filter(s => {
         const remarks = (s.remarks || '').toLowerCase()
-        return s.status === 'Processed' && remarks.includes('waiver')
+        const isHistoricalStatus = ['Processed', 'SUCCESS', 'Confirmed'].includes(s.status)
+        return isHistoricalStatus && remarks.includes('waiver')
     })
 
 

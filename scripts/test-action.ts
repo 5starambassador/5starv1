@@ -1,42 +1,24 @@
-
 import { getAccruedPayoutLiabilities } from '../src/app/finance-actions'
-import { PrismaClient } from '@prisma/client'
 
-const prisma = new PrismaClient()
-
-async function main() {
+async function testAction() {
+    console.log("--- CALLING SERVER ACTION DIRECTLY ---")
+    // Note: This script will fail if getCurrentUser() returns null in non-request context.
+    // I will mock the environment if needed, but first let's try direct call.
     try {
-        const year = "2026-2027"
-        console.log(`--- Testing getAccruedPayoutLiabilities for ${year} ---`)
-
-        const res = await getAccruedPayoutLiabilities(year)
-
-        if (!res.success) {
-            console.error('Action failed:', res.error)
-            return
-        }
-
-        const liabilities = res.data || []
-        console.log(`Total liabilities returned: ${liabilities.length}`)
-
-        const targetNames = ["Lochana", "Kavya Devi M", "Ramya", "Abinaya Bhasker", "Krithika"]
-
-        for (const name of targetNames) {
-            const found = liabilities.filter((l: any) => l.fullName.includes(name))
-            if (found.length > 0) {
-                console.log(`\nFound ${name} (${found.length} entries):`)
-                found.forEach((f: any) => {
-                    console.log(`- LedgerID: ${f.ledgerId} | Group: ${f.group} | Earned: ${f.totalEarned} | Rem: ${f.remainingAmount} | Refs: ${f.confirmedReferralCount}`)
-                    if (f.breakdown) console.log(`  Breakdown: ${f.breakdown.join(', ')}`)
-                })
+        const result = await getAccruedPayoutLiabilities('All', undefined, 'All')
+        if (result.success) {
+            console.log("SUCCESS! Total liabilities returned:", (result.data as any[]).length)
+            if ((result.data as any[]).length > 0) {
+                console.log("Example Record:", (result.data as any[])[0].fullName, "Group:", (result.data as any[])[0].group)
             } else {
-                console.log(`\nMISSING: ${name}`)
+                console.log("WARNING: 0 records returned for 'All' year.")
             }
+        } else {
+            console.error("FAILURE:", result.error)
         }
-
-    } catch (err) {
-        console.error(err)
+    } catch (e) {
+        console.error("CRASH:", e)
     }
 }
 
-main().finally(() => prisma.$disconnect())
+testAction().finally(() => process.exit())

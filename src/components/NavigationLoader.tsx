@@ -44,20 +44,37 @@ export function NavigationLoader() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none"
+                    className="fixed inset-0 z-[9999] pointer-events-none"
+                    transition={{ duration: 0.3 }}
                 >
-                    <motion.div
-                        className="h-[3px] bg-gradient-to-r from-blue-600 via-amber-500 to-red-600 shadow-[0_0_10px_rgba(245,158,11,0.5)]"
-                        initial={{ width: "0%", x: 0 }}
-                        animate={{
-                            width: ["0%", "30%", "70%", "90%"],
-                            transition: {
-                                duration: 10,
-                                times: [0, 0.1, 0.4, 1],
-                                ease: "easeOut"
-                            }
-                        }}
-                    />
+                    {/* Atmospheric Backdrop Blur - Premium Glass Feel */}
+                    <div className="absolute inset-0 bg-white/[0.01] backdrop-blur-[1.5px]" />
+
+                    {/* Radiant Progress Bar */}
+                    <div className="absolute top-0 left-0 right-0 h-1 overflow-hidden">
+                        <motion.div
+                            className="h-full bg-gradient-to-r from-blue-600 via-amber-500 to-red-600 relative"
+                            initial={{ width: "0%", x: "-100%" }}
+                            animate={{
+                                width: ["0%", "35%", "75%", "92%"],
+                                x: 0,
+                                transition: {
+                                    duration: 12,
+                                    times: [0, 0.1, 0.4, 1],
+                                    ease: [0.22, 1, 0.36, 1] // Custom cubic-bezier for "weighty" feel
+                                }
+                            }}
+                        >
+                            {/* Luminous Head - The "Spark" */}
+                            <div className="absolute top-0 right-0 bottom-0 w-24 bg-gradient-to-r from-transparent via-white/80 to-white shadow-[0_0_20px_rgba(255,255,255,0.8)] animate-pulse" />
+                            
+                            {/* Secondary Glow Trace */}
+                            <div className="absolute top-0 right-0 bottom-0 w-full bg-gradient-to-r from-transparent via-transparent to-white/10 blur-sm" />
+                        </motion.div>
+                    </div>
+
+                    {/* Subtle Top Shadow for Depth */}
+                    <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-black/5 to-transparent" />
                 </motion.div>
             )}
         </AnimatePresence>

@@ -303,6 +303,7 @@ export function LiabilityLedgerTable({ data, mode, academicYear, search = '', on
                                 }
                             }}
                             disabled={isProcessing}
+                            suppressHydrationWarning={true}
                             className="px-3 py-1 bg-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white rounded-md text-[10px] font-black transition-all border border-purple-200 uppercase tracking-tight"
                         >
                             Apply

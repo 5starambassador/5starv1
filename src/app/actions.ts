@@ -558,7 +558,15 @@ export async function registerUser(formData: any) {
                                     referralCode: upgradeCode,
                                     password: await bcrypt.hash(password, 10),
                                     bankAccountDetails: bankAccountDetails ? encrypt(bankAccountDetails) : existingUser.bankAccountDetails,
-                                    benefitStatus: 'Active' as any // Use string for safety if enum desyncs
+                                    benefitStatus: 'Active' as any, // Use string for safety if enum desyncs
+                                    assignedCampus: assignedCampusName,
+                                    campusId: campusId ? parseInt(campusId) : null,
+                                    grade: grade || existingUser.grade,
+                                    // Record the payment made during registration
+                                    paymentStatus: transactionId ? 'Success' : 'Pending',
+                                    transactionId: transactionId || null,
+                                    paymentAmount: transactionId ? 25 : 0,
+                                    status: transactionId ? AccountStatus.Active : AccountStatus.Pending
                                 }
                             })
 

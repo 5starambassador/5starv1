@@ -1,60 +1,36 @@
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
-async function main() {
-    const referralCode = 'ACH25-S00006';
-    const user: any = await prisma.user.findFirst({ where: { referralCode } });
-    const referrals = await prisma.referralLead.findMany({
-        where: { userId: user.userId },
-        include: { student: true }
-    });
+async function debug() {
+    console.log('--- Raw Prisma Counts ---')
+    const userCount = await prisma.user.count()
+    const settlementCount = await prisma.settlement.count()
+    const paymentCount = await prisma.payment.count()
+    const referralCount = await prisma.referral.count()
+    
+    console.log(`Users: ${userCount}`)
+    console.log(`Settlements: ${settlementCount}`)
+    console.log(`Payments: ${paymentCount}`)
+    console.log(`Referrals: ${referralCount}`)
 
-    const activeYears = await prisma.academicYear.findMany({ where: { isActive: true } });
-    const currentYearRecord = activeYears.find(y => y.isCurrent) || activeYears[0];
-    const prevYear = '2025-2026'; // Server logic usually picks this
-    const currentYear = currentYearRecord.year;
+    console.log('\n--- Testing Settlement Query ---')
+    const s1 = await prisma.settlement.findMany({
+        where: { status: 'Pending' },
+        take: 10
+    })
+    console.log(`Pending Settlements (take 10): ${s1.length}`)
 
-    const filterReferralsByYear = (refs: any[], yearRecord: any, CURRENT: string, PREV: string) => {
-        if (!yearRecord) return refs;
-        if (yearRecord.isCurrent) {
-            return refs.filter((r: any) => {
-                const s = r.student;
-                if (s?.academicYear) {
-                    if (s.academicYear === CURRENT || s.academicYear === '2026-2027') return true;
-                }
-                if (r.admittedYear) {
-                    if (r.admittedYear === PREV) return false;
-                    if (r.admittedYear === CURRENT || r.admittedYear === '2026-2027') return true;
-                }
-                if (s?.academicYear) {
-                    if (s.academicYear === PREV) return false;
-                }
-                const createdDate = new Date(r.createdAt);
-                const currentYearStart = new Date(yearRecord.startDate);
-                return createdDate >= currentYearStart;
-            });
-        }
-        return []; // simplified
-    };
-
-    const currentConfirmedIds = filterReferralsByYear(referrals, currentYearRecord, currentYear, prevYear)
-        .filter((r: any) => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted')
-        .map((r: any) => r.leadId);
-
-    const historicalReferrals = referrals
-        .filter((r: any) => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted')
-        .filter((r: any) => !currentConfirmedIds.includes(r.leadId));
-
-    console.log(`User: ${user.fullName}`);
-    console.log(`Current Confirmed IDs: ${JSON.stringify(currentConfirmedIds)}`);
-    console.log(`Historical Referrals Count: ${historicalReferrals.length}`);
-    historicalReferrals.forEach(r => {
-        console.log(`- ${r.studentName} | ${r.admittedYear} | Fee: ${r.student?.annualFee || r.annualFee}`);
-    });
-
-    const totalHistoricalFee = historicalReferrals.reduce((sum, r) => sum + (r.student?.annualFee || r.annualFee || 0), 0);
-    console.log(`Total Historical Fee: ₹${totalHistoricalFee}`);
-    console.log(`3% Bonus: ₹${Math.floor(totalHistoricalFee * 0.03)}`);
+    console.log('\n--- Testing Liability Query ---')
+    const l1 = await prisma.user.findMany({
+        where: {
+            OR: [
+                { referrals: { some: { leadStatus: 'Confirmed' } } },
+                { childInAchariya: true }
+            ]
+        },
+        take: 10
+    })
+    console.log(`Users with liability potential: ${l1.length}`)
 }
 
-main().finally(() => prisma.$disconnect());
+debug().catch(console.error).finally(() => prisma.$disconnect())

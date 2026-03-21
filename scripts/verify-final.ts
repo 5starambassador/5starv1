@@ -1,34 +1,52 @@
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 
-import { PrismaClient } from '@prisma/client'
-import { getRegistrationTransactions } from '../src/app/finance-actions'
-
-const prisma = new PrismaClient()
-
-async function main() {
+async function verifyFixedQuery() {
+    console.log('--- VERIFYING FIXED QUERY ---');
+    const academicYear = '2026-2027';
+    
     try {
-        const year = "2026-2027"
-        console.log(`--- Final Verification for ${year} ---`)
+        const user = await prisma.user.findFirst({
+            where: {
+                userId: 19,
+                status: 'Active', // Strict Enum
+                OR: [
+                    { 
+                        referrals: { 
+                            some: { 
+                                leadStatus: { in: ['Confirmed', 'Admitted'] }, // Strict Enum
+                                OR: [
+                                    { academicYear: academicYear },
+                                    { admittedYear: academicYear },
+                                    { createdAt: { gte: new Date('2026-01-01') } }
+                                ]
+                            } 
+                        } 
+                    },
+                    { childInAchariya: true }
+                ]
+            },
+            include: {
+                referrals: { 
+                    where: { 
+                        leadStatus: { in: ['Confirmed', 'Admitted'] } 
+                    } 
+                }
+            }
+        });
 
-        // 1. Check a known user from the screenshot
-        const lRes = await getRegistrationTransactions('All', year, 'Lochana')
-        if (lRes.success && lRes.data) {
-            console.log(`Lochana visible: Yes | Count: ${lRes.data.length}`)
-            lRes.data.forEach((u: any) => console.log(`- User: ${u.fullName} | Role: ${u.role} | Year: ${u.academicYear}`))
+        if (user) {
+            console.log(`SUCCESS: Fetched ${user.fullName} with ${user.referrals.length} referrals.`);
         } else {
-            console.log('Lochana visible: NO')
+            console.log('User 19 not found (might be status mismatch).');
+            const raw = await prisma.user.findUnique({ where: { userId: 19 } });
+            console.log('Raw status:', raw?.status);
         }
-
-        const kRes = await getRegistrationTransactions('All', year, 'Kavya')
-        if (kRes.success && kRes.data) {
-            console.log(`Kavya visible: Yes | Count: ${kRes.data.length}`)
-            kRes.data.forEach((u: any) => console.log(`- User: ${u.fullName} | Role: ${u.role} | Year: ${u.academicYear}`))
-        } else {
-            console.log('Kavya visible: NO')
-        }
-
-    } catch (err) {
-        console.error('Verification failed:', err)
+    } catch (e: any) {
+        console.error('STILL CRASHING:', e.message);
     }
+
+    await prisma.$disconnect();
 }
 
-main().finally(() => prisma.$disconnect())
+verifyFixedQuery();
