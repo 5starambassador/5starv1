@@ -72,7 +72,7 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
         const syncedUsersPromise = withRetry(() => prisma.user.findMany({
             where: {
                 ...baseWhere,
-                settlements: { some: { amount: 25, status: 'Processed' } }
+                settlements: { some: { amount: 25, status: { in: ['Processed', 'SUCCESS', 'Confirmed'] } as any } }
             },
             select: {
                 userId: true, fullName: true, role: true, mobileNumber: true, paymentAmount: true,
@@ -84,7 +84,7 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
                     take: 1
                 },
                 settlements: {
-                    where: { amount: 25, status: 'Processed' },
+                    where: { amount: 25, status: { in: ['Processed', 'SUCCESS', 'Confirmed'] } as any },
                     select: { amount: true, status: true, bankReference: true, payoutDate: true, remarks: true }
                 }
             },
@@ -96,7 +96,7 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
         const recentSuccessPromise = withRetry(() => prisma.user.findMany({
             where: {
                 ...baseWhere,
-                NOT: { settlements: { some: { amount: 25, status: 'Processed' } } }
+                NOT: { settlements: { some: { amount: 25, status: { in: ['Processed', 'SUCCESS', 'Confirmed'] } as any } } }
             },
             select: {
                 userId: true, fullName: true, role: true, mobileNumber: true, paymentAmount: true,
@@ -108,7 +108,7 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
                     take: 1
                 },
                 settlements: {
-                    where: { amount: 25, status: 'Processed' },
+                    where: { amount: 25, status: { in: ['Processed', 'SUCCESS', 'Confirmed'] } as any },
                     select: { amount: true, status: true, bankReference: true, payoutDate: true, remarks: true }
                 }
             },
