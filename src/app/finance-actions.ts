@@ -112,7 +112,7 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
                 }
             },
             orderBy: { createdAt: 'desc' },
-            take: query ? 500 : (filter === 'Recent' ? 10 : 10000) // Reverted from optimization
+            take: query ? 500 : (filter === 'Recent' ? 10 : 2000) // SAFETY CAP: Prevents memory crash
         }))
 
 
@@ -338,7 +338,8 @@ export async function getSettlements(status: string = 'Pending', academicYear?: 
                 },
                 referralLead: true
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 2000
         })
 
         // 2. Fetch Active Years for the heuristic
