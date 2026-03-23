@@ -17,6 +17,7 @@ import { notifyRefundProcessed } from '@/lib/notification-helper'
 import { hasPermission, getScopeFilter } from '@/lib/permission-service'
 import { calculateTotalBenefit, ReferralData } from '@/lib/benefit-calculator'
 import { getSpecialBonusRate } from '@/lib/reward-constants'
+import { normalizeGrade } from '@/lib/utils'
 import { syncUserStats } from "./sync-actions"
 import { format } from 'date-fns'
 // Removed redundant normalizeGrade import to avoid shadowing/mismatch with local helper
@@ -1827,6 +1828,7 @@ export async function getAccruedPayoutLiabilities(
                         admissionFeeCollected: Number(r.admissionFeeCollected) || 0,
                         donationFeeCollected: Number(r.donationFeeCollected) || 0,
                         specialBonusRate: Number(specialBonusRate) || 0,
+                        createdAt: r.createdAt,
                         // Fix (Senior Audit): Differentiate missing data by Group
                         feeDataMissing: (isGroupAEligible && !actualChildFee && !specialBonusRate) || 
                                        (!isGroupAEligible && !gFeeFromTable && !specialBonusRate)
