@@ -38,10 +38,13 @@ interface Registration {
 
 interface RefundHistoryTableProps {
     data: Registration[]
+    totalResults?: number
+    currentPage?: number
+    onPageChange?: (page: number) => void
     academicYear?: string
 }
 
-export function RefundHistoryTable({ data, academicYear }: RefundHistoryTableProps) {
+export function RefundHistoryTable({ data, totalResults = 0, currentPage = 1, onPageChange, academicYear }: RefundHistoryTableProps) {
     const [showExportModal, setShowExportModal] = useState(false)
 
     const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
@@ -173,7 +176,12 @@ export function RefundHistoryTable({ data, academicYear }: RefundHistoryTablePro
                     columns={columns as any}
                     searchKey={["fullName", "mobileNumber"]}
                     searchPlaceholder="Search by name or mobile..."
-                    pageSize={10}
+                    pageSize={20}
+                    rowCount={totalResults}
+                    pageCount={Math.ceil((totalResults || 0) / 20)}
+                    currentPage={currentPage}
+                    onPageChange={onPageChange}
+                    manualPagination={true}
                 />
             </div>
 

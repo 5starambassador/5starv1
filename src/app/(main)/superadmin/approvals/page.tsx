@@ -45,7 +45,7 @@ export default async function ApprovalsPage(props: { searchParams: Promise<{ pag
         })
     }
 
-    const [allPayments, totalCount] = await Promise.all([
+    const [allPayments, totalCount, pendingCount] = await Promise.all([
         prisma.payment.findMany({
             where,
             include: {
@@ -57,16 +57,16 @@ export default async function ApprovalsPage(props: { searchParams: Promise<{ pag
             skip: skip,
             orderBy: { createdAt: 'desc' }
         }),
-        prisma.payment.count({ where })
+        prisma.payment.count({ where }),
+        prisma.payment.count({
+            where: {
+                orderStatus: 'PENDING_APPROVAL',
+                paymentMethod: 'MANUAL_QR'
+            }
+        })
     ])
 
     const totalPages = Math.ceil(totalCount / limit)
-    const pendingCount = await prisma.payment.count({
-        where: {
-            orderStatus: 'PENDING_APPROVAL',
-            paymentMethod: 'MANUAL_QR'
-        }
-    })
 
     return (
         <div className="p-8 max-w-7xl mx-auto">

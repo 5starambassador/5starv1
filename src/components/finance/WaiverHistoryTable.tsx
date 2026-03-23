@@ -26,10 +26,13 @@ interface Settlement {
 
 interface WaiverHistoryTableProps {
     data: Settlement[]
+    totalResults?: number
+    currentPage?: number
+    onPageChange?: (page: number) => void
     academicYear?: string
 }
 
-export function WaiverHistoryTable({ data, academicYear }: WaiverHistoryTableProps) {
+export function WaiverHistoryTable({ data, totalResults = 0, currentPage = 1, onPageChange, academicYear }: WaiverHistoryTableProps) {
     const [showExportModal, setShowExportModal] = useState(false)
 
     const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
@@ -167,7 +170,12 @@ export function WaiverHistoryTable({ data, academicYear }: WaiverHistoryTablePro
                     columns={columns as any}
                     searchKey={["user.fullName", "user.mobileNumber", "remarks", "bankReference"] as any}
                     searchPlaceholder="Search waivers..."
-                    pageSize={10}
+                    pageSize={20}
+                    rowCount={totalResults}
+                    pageCount={Math.ceil((totalResults || 0) / 20)}
+                    currentPage={currentPage}
+                    onPageChange={onPageChange}
+                    manualPagination={true}
                     uniqueKey="id"
                 />
             </div>

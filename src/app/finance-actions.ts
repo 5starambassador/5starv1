@@ -4,64 +4,34 @@ import prisma, { withRetry } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-service'
 import { EmailService } from '@/lib/email-service'
 import { logAction } from '@/lib/audit-logger'
+import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+// --- PERFORMANCE CACHE (Senior Expert Architecture) ---
+let studentCache: any[] | null = null
+let lastStudentCacheUpdate: number = 0
+const STUDENT_CACHE_TTL = 10 * 60 * 1000 // 10 minutes cache
+// -----------------------------------------------------
 import cashfree from '@/lib/cashfree'
 import { decrypt } from '@/lib/encryption'
 import { notifyRefundProcessed } from '@/lib/notification-helper'
 import { hasPermission, getScopeFilter } from '@/lib/permission-service'
 import { calculateTotalBenefit, ReferralData } from '@/lib/benefit-calculator'
 import { getSpecialBonusRate } from '@/lib/reward-constants'
+import { normalizeGrade } from '@/lib/utils'
 import { syncUserStats } from "./sync-actions"
 import { format } from 'date-fns'
 // Removed redundant normalizeGrade import to avoid shadowing/mismatch with local helper
 
-// --- Shared Caching for Large Datasets (Performance Fix) ---
-let cachedStudentMaps: {
-    eprMap: Map<string, any>;
-    nameMap: Map<string, any>;
-    mobileMap: Map<string, any[]>;
-    timestamp: number;
-} | null = null;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-async function getStudentMaps() {
-    const now = Date.now();
-    if (cachedStudentMaps && (now - cachedStudentMaps.timestamp < CACHE_TTL)) {
-        return cachedStudentMaps;
-    }
-
-    const allStudents = await prisma.student.findMany({
-        where: { status: { in: ['Active', 'ACTIVE'] } as any },
-        include: { campus: { select: { campusName: true } }, parent: { select: { mobileNumber: true } } }
-    });
-
-    const eprMap = new Map();
-    const nameMap = new Map();
-    const mobileMap = new Map();
-
-    allStudents.forEach(s => {
-        if (s.admissionNumber?.trim()) {
-            eprMap.set(s.admissionNumber.trim().toUpperCase(), s);
-        }
-        if (s.fullName?.trim()) {
-            nameMap.set(s.fullName.trim().toUpperCase(), s);
-        }
-        if (s.parent?.mobileNumber) {
-            const mob = (s.parent.mobileNumber || '').replace(/\s+/g, '');
-            if (mob) {
-                if (!mobileMap.has(mob)) mobileMap.set(mob, []);
-                mobileMap.get(mob).push(s);
-            }
-        }
-    });
-
-    cachedStudentMaps = { eprMap, nameMap, mobileMap, timestamp: now };
-    return cachedStudentMaps;
-}
-
 // --- Registration Transactions ---
 
-export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'All', academicYear?: string, query?: string) {
+export async function getRegistrationTransactions(
+    filter: 'All' | 'Recent' = 'All', 
+    academicYear?: string, 
+    query?: string,
+    page: number = 1,
+    pageSize: number = 20,
+    tab?: string // NEW: Specific tab filtering
+) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
 
@@ -83,9 +53,17 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
         const paymentStatusFilter = [
             { paymentStatus: 'Completed' },
             { paymentStatus: 'Success' },
+            { paymentStatus: 'SUCCESS' },
             { transactionId: { not: null } },
-            { settlements: { some: { amount: 25, status: 'Processed' } } }
-        ]
+            { settlements: { some: { amount: 25, status: { in: ['Processed', 'SUCCESS', 'Confirmed'] } as any } } }
+        ];
+
+        // Ensure users with referrals in the selected year are visible, even without their own payment
+        if (academicYear && academicYear !== 'All') {
+            paymentStatusFilter.push({ referrals: { some: { academicYear: academicYear } } } as any);
+        } else {
+            paymentStatusFilter.push({ referrals: { some: {} } } as any);
+        }
 
         // Build where clause
         const baseWhere: any = {
@@ -96,15 +74,22 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
         }
 
 
-        // Project-wide Year Filter (RELAXED to show active referrers from previous cycles)
+        // Project-wide Year Filter (Robust: Includes explicit academicYear, referrals, and date-based payments)
         if (academicYear && academicYear !== 'All') {
+            const yr = await prisma.academicYear.findUnique({ where: { year: academicYear } })
+
             baseWhere.AND.push({
                 OR: [
                     { academicYear: academicYear },
                     { referrals: { some: { admittedYear: academicYear } } },
-                    // 100% SAFETY: Also include users with settlements/payments in this year 
-                    // or historical ones if they are "Paid"
-                    { paymentStatus: { in: ['Success', 'SUCCESS', 'Completed'] } }
+                    ...(yr ? [{
+                        payments: {
+                            some: {
+                                createdAt: { gte: yr.startDate, lte: yr.endDate },
+                                NOT: { paymentStatus: 'FAILED' }
+                            }
+                        }
+                    }] : [])
                 ]
             });
         }
@@ -114,65 +99,66 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
             baseWhere.campusId = (admin as any).campusId
         }
 
-        // Query 1: Get ALL users who match and have processed settlements
-        const syncedUsersPromise = withRetry(() => prisma.user.findMany({
-            where: {
-                ...baseWhere,
-                settlements: { some: { amount: 25, status: { in: ['Processed', 'SUCCESS', 'Confirmed'] } as any } }
-            },
+        // --- NEW: Tab-Specific Strict Filters (Server-Side) ---
+        if (tab === 'ready_refund') {
+            // Find users who PAID 25 but have NO settlement of 25 yet
+            baseWhere.AND.push({
+                paymentStatus: { in: ['Success', 'Completed', 'SUCCESS'] },
+                paymentAmount: { gt: 0 },
+                NOT: {
+                    OR: [
+                        { bankName: null }, { bankName: '' },
+                        { accountNumber: null }, { accountNumber: '' },
+                        { ifscCode: null }, { ifscCode: '' }
+                    ]
+                },
+                settlements: {
+                    none: {
+                        amount: 25,
+                        status: { in: ['Processed', 'Pending', 'SUCCESS', 'Confirmed', 'paid', 'PAID'] as any }
+                    }
+                }
+            })
+        } else if (tab === 'refund_history') {
+            // Find users who have a settlement of 25 that is PROCESSED
+            baseWhere.AND.push({
+                settlements: {
+                    some: {
+                        amount: 25,
+                        status: { in: ['Processed', 'SUCCESS', 'Confirmed', 'paid', 'PAID'] as any }
+                    }
+                }
+            })
+        }
+
+        // Query 1: Get data (We simplify the dual-query logic since tab filtering makes it more focused)
+        const transactionsPromise = withRetry(() => prisma.user.findMany({
+            where: baseWhere,
             select: {
                 userId: true, fullName: true, role: true, mobileNumber: true, paymentAmount: true,
                 transactionId: true, createdAt: true, assignedCampus: true, referralCode: true, campusId: true,
+                accountNumber: true, bankName: true, ifscCode: true, // MISSING BANK FIELDS ADDED
                 payments: {
                     select: { paymentMethod: true, transactionId: true, bankReference: true, paidAt: true, settlementDate: true, adminRemarks: true },
-                    where: { paymentStatus: 'Success' },
                     orderBy: { createdAt: 'desc' },
                     take: 1
                 },
                 settlements: {
-                    where: { amount: 25, status: { in: ['Processed', 'SUCCESS', 'Confirmed'] } as any },
+                    where: tab === 'refund_history' || tab === 'ready_refund' ? { amount: 25 } : { amount: 25, status: { in: ['Processed', 'SUCCESS', 'Confirmed'] } as any },
                     select: { amount: true, status: true, bankReference: true, payoutDate: true, remarks: true }
                 }
             },
             orderBy: { createdAt: 'desc' },
-            take: query ? 500 : 1000 // Restored from optimization
+            skip: (page - 1) * pageSize,
+            take: pageSize
         }))
 
-        // Query 2: Get matching users without processed settlements
-        const recentSuccessPromise = withRetry(() => prisma.user.findMany({
-            where: {
-                ...baseWhere,
-                NOT: { settlements: { some: { amount: 25, status: { in: ['Processed', 'SUCCESS', 'Confirmed'] } as any } } }
-            },
-            select: {
-                userId: true, fullName: true, role: true, mobileNumber: true, paymentAmount: true,
-                transactionId: true, createdAt: true, assignedCampus: true, referralCode: true, campusId: true,
-                payments: {
-                    select: { paymentMethod: true, transactionId: true, bankReference: true, paidAt: true, settlementDate: true, adminRemarks: true },
-                    where: { paymentStatus: 'Success' },
-                    orderBy: { createdAt: 'desc' },
-                    take: 1
-                },
-                settlements: {
-                    where: { amount: 25, status: { in: ['Processed', 'SUCCESS', 'Confirmed'] } as any },
-                    select: { amount: true, status: true, bankReference: true, payoutDate: true, remarks: true }
-                }
-            },
-            orderBy: { createdAt: 'desc' },
-            take: filter === 'Recent' ? 10 : 10000
-        }))
+        const [transactions, totalCount] = await Promise.all([
+            transactionsPromise,
+            withRetry(() => prisma.user.count({ where: baseWhere }))
+        ])
 
-
-
-
-        const [syncedUsers, recentSuccess] = await Promise.all([syncedUsersPromise, recentSuccessPromise])
-
-        // Merge and re-sort by ACTUAL payment date (or creation date if no payment date found)
-        const transactions = [...syncedUsers, ...recentSuccess].sort((a, b) => {
-            const dateA = a.payments?.[0]?.paidAt || a.createdAt
-            const dateB = b.payments?.[0]?.paidAt || b.createdAt
-            return new Date(dateB).getTime() - new Date(dateA).getTime()
-        })
+        // No longer need manual sorting/merging as the single query handles ordering
 
 
         // Manual populate campusName
@@ -186,12 +172,16 @@ export async function getRegistrationTransactions(filter: 'All' | 'Recent' = 'Al
 
         const campusMap = new Map(campuses.map(c => [c.id, c.campusName]))
 
-        const mappedTransactions = transactions.map(t => ({
-            ...t,
-            campus: t.campusId ? { campusName: campusMap.get(t.campusId) || '' } : undefined
-        }))
+        const mappedTransactions = transactions.map(t => {
+            const campusName = (t.campusId ? campusMap.get(t.campusId) : null) || t.assignedCampus || 'Not Assigned'
+            return {
+                ...t,
+                campusName, // FLAT FIELD for Refund tables
+                campus: t.campusId ? { campusName } : { campusName: 'Not Assigned' } as any // NESTED for RegistrationTable
+            }
+        })
 
-        return { success: true, data: mappedTransactions }
+        return { success: true, data: mappedTransactions, totalCount }
     } catch (error: any) {
         console.error('Error fetching registration transactions:', error)
         return { success: false, error: `Failed to fetch transactions: ${error?.message || 'Unknown error'}` }
@@ -236,7 +226,7 @@ export async function syncMissingPayments(force: boolean = false) {
         // @ts-ignore: Payment property exists but IDE cache is stale
         const targetPayments = await prisma.payment.findMany({
             where: whereClause,
-            take: force ? 50 : 20, // Smart sync takes fewer to be lighter
+            take: force ? 100 : 80, // Increased from 50/20 to ensure we catch buried successful payments
             orderBy: { createdAt: 'desc' }
         })
 
@@ -284,27 +274,6 @@ export async function syncMissingPayments(force: boolean = false) {
                         }
                     })
 
-                    // 100% SAFETY: Ensure a Settlement record exists for the 25-rupee registration fee.
-                    // This allows the user to immediately appear in 'Synced' and 'Refund Ready' history.
-                    const existingSettlement = await prisma.settlement.findFirst({
-                        where: { userId: payment.userId, amount: 25 }
-                    })
-
-                    if (!existingSettlement) {
-                        await prisma.settlement.create({
-                            data: {
-                                userId: payment.userId,
-                                amount: 25,
-                                status: 'SUCCESS',
-                                benefitType: 'OTHER',
-                                remarks: `Auto-synced via Cashfree | Ref: ${txId}`,
-                                bankReference: txId,
-                                payoutDate: paidAt,
-                                processedBy: 0 // System automated
-                            }
-                        })
-                    }
-
                     // 5. Sync benefits and status (Ensures status moves to 'Active' and counts update)
                     await syncUserStats(payment.userId)
 
@@ -329,7 +298,8 @@ export async function syncMissingPayments(force: boolean = false) {
             }
         }
 
-        revalidatePath('/finance')
+        // Only revalidate when called as a server action (not during SSR render)
+        try { revalidatePath('/finance') } catch { /* silently skip if called during render */ }
 
         if (updatedCount > 0) {
             await logAction('BULK_UPDATE', 'finance', `Synced ${updatedCount} missing payments from Cashfree.`, 'Sync')
@@ -347,12 +317,29 @@ export async function syncMissingPayments(force: boolean = false) {
 }
 
 
-export async function getSettlements(status: string = 'Pending', academicYear?: string, query?: string) {
+export async function getSettlements(
+    status: string = 'Pending',
+    academicYear?: string,
+    query?: string,
+    page: number = 1,
+    pageSize: number = 20,
+    tab?: string
+) {
     const user = await getCurrentUser()
     if (!user) return { success: false, error: 'Unauthorized' }
 
+    console.log(`[AUDIT] getSettlements requested: status=${status}, year=${academicYear}, page=${page}`)
+
     try {
-        // 0. Build search filter
+        // 1. Fetch Year Record for date-based heuristic (for generic settlements)
+        let yearRecord = null
+        if (academicYear && academicYear !== 'All' && academicYear !== 'All Time') {
+            yearRecord = await prisma.academicYear.findUnique({
+                where: { year: academicYear }
+            })
+        }
+
+        // 2. Build search filter
         const searchFilter = query ? {
             OR: [
                 { bankReference: { contains: query, mode: 'insensitive' as any } },
@@ -381,96 +368,102 @@ export async function getSettlements(status: string = 'Pending', academicYear?: 
             ]
         } : {}
 
-        // 1. Fetch ALL settlements that might match basic status filter
-        // We filter in JS for precise attribution parity with the Ambassador Dashboard
-        const settlementsAll = await prisma.settlement.findMany({
-            where: {
-                AND: [
-                    { 
-                        status: status === 'All' ? undefined : 
-                                status === 'Processed' ? { in: ['Processed', 'SUCCESS', 'Confirmed'] as any } : 
-                                { in: [status, status.toUpperCase()] as any } 
-                    },
-                    ...(query ? [searchFilter] : []),
-                    // Campus Head restriction: See own ambassadors OR any ambassador with referrals in this campus
-                    ...(user.role.includes('Campus') && (user as any).campusId ? [{
-                        OR: [
-                            { user: { campusId: (user as any).campusId } },
-                            { referralLead: { campusId: (user as any).campusId } }
-                        ]
-                    }] : [])
-                ]
-            },
-            include: {
-                user: {
-                    select: {
-                        fullName: true, role: true, mobileNumber: true, bankAccountDetails: true,
-                        bankName: true, accountNumber: true, ifscCode: true, referralCode: true, campusId: true
-                    }
-                },
-                referralLead: true
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 10000
-        })
-        console.log(`[getSettlements] DB Fetch: ${settlementsAll.length} records for status: ${status}`)
-
-        // 2. Fetch Active Years for the heuristic
-        const activeYears = await prisma.academicYear.findMany({
-            orderBy: { year: 'desc' }
-        })
-
-        // 3. Apply Heuristic Filtering in JS
-        const filteredSettlements = settlementsAll.filter((s: any) => {
-            if (academicYear === 'All' || academicYear === 'All Time') return true
-            if (s.status === 'Pending') return true // Pending always visible in selected cycle
-
-            const pDate = s.payoutDate ? new Date(s.payoutDate) : new Date(s.createdAt)
-            const type = s.benefitType
-            
-            // Heuristic: Feb-March 2026 records are often for the upcoming 2026-2027 cycle
-            const isFebMarchFuture = (type === 'ADMISSION_SHARE' || type === 'OTHER' || !type) && 
-                                    pDate.getFullYear() === 2026 && pDate.getMonth() <= 2
-
-            let yearOfAttribution = ''
-            if (s.referralLead) {
-                yearOfAttribution = s.referralLead.academicYear || s.referralLead.admittedYear
-            } else if (isFebMarchFuture) {
-                yearOfAttribution = '2026-2027'
-            } else {
-                // Find matching year by date
-                const matchedYear = activeYears.find(y => {
-                    const sDate = new Date(y.startDate)
-                    const eDate = new Date(y.endDate)
-                    return pDate >= sDate && pDate <= eDate
-                })
-                yearOfAttribution = matchedYear?.year || '2025-2026'
+        // --- NEW: Heuristic for Jan-March 2026 Admission Shares in 2026-2027 ---
+        const febMarch2026Heuristic = academicYear === '2026-2027' ? {
+            benefitType: 'ADMISSION_SHARE' as any,
+            createdAt: {
+                gte: new Date('2026-02-01'),
+                lte: new Date('2026-04-30')
             }
+        } : null
 
-            return yearOfAttribution === academicYear
-        })
+        // 3. Consolidated Query Logic (100% database-level sync)
+        const isHistory = status === 'Processed'
+        
+        const finalWhere: any = {
+            AND: [
+                { 
+                    status: status === 'All' ? undefined : 
+                            status === 'Processed' ? { in: ['Processed', 'SUCCESS', 'Confirmed', 'paid', 'PAID'] as any } : 
+                            { in: [status, status.toUpperCase()] as any } 
+                },
+                // --- NEW: Tab-specific Benefit Type Filtering (Ensures only slab rewards are Waivers) ---
+                ...(tab === 'waiver_history' ? [{
+                    benefitType: { in: ['SLAB_SHARE'] as any }
+                }] : tab === 'payout_history' ? [{
+                    benefitType: { in: ['ADMISSION_SHARE', 'DONATION_SHARE', 'SPECIAL_BONUS', 'OTHER'] as any },
+                    amount: { not: 25 }
+                }] : []),
+                ...(query ? [searchFilter] : []),
+                // --- ENHANCED: History vs Pending Logic ---
+                ...(academicYear && academicYear !== 'All' && academicYear !== 'All Time' ? [{
+                    OR: isHistory ? [
+                        // For History, we strictly look at the Date Range of the cycle (payment date)
+                        ...(yearRecord ? [{
+                            createdAt: { gte: yearRecord.startDate, lte: yearRecord.endDate }
+                        }] : []),
+                        ...(febMarch2026Heuristic ? [febMarch2026Heuristic] : [])
+                    ] : [
+                        // For Pending, we look at lead cycle OR date range (requested date)
+                        { referralLead: { academicYear } },
+                        { referralLead: { admittedYear: academicYear } },
+                        ...(yearRecord ? [{
+                            createdAt: { gte: yearRecord.startDate, lte: yearRecord.endDate },
+                            referralLeadId: null
+                        }] : []),
+                        ...(febMarch2026Heuristic ? [febMarch2026Heuristic] : [])
+                    ]
+                }] : []),
+                // Campus Head restriction
+                ...(user.role.includes('Campus') && (user as any).campusId ? [{
+                    OR: [
+                        { user: { campusId: (user as any).campusId } },
+                        { referralLead: { campusId: (user as any).campusId } }
+                    ]
+                }] : [])
+            ]
+        }
 
-        const settlements = filteredSettlements
+        const [settlementsAll, totalCount] = await Promise.all([
+            prisma.settlement.findMany({
+                where: finalWhere,
+                include: {
+                    user: {
+                        select: {
+                            fullName: true, role: true, mobileNumber: true, bankAccountDetails: true,
+                            bankName: true, accountNumber: true, ifscCode: true, referralCode: true, campusId: true
+                        }
+                    },
+                    referralLead: true
+                },
+                orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * pageSize,
+                take: pageSize
+            }),
+            prisma.settlement.count({
+                where: finalWhere
+            })
+        ])
 
-        // Decrypt bank details before returning
-        // Prefer the new individual fields if fully present, otherwise fallback to legacy encrypted blob
-        const decryptedSettlements = settlements.map(s => {
+        // 4. Decrypt bank details (No more JS filtering here to ensure pagination integrity)
+        const decryptedSettlements = settlementsAll.map((s: any) => {
             const hasNewDetails = s.user.bankName && s.user.accountNumber && s.user.ifscCode
-
-            // Construct a display string for backward compatibility or ease of use in UI
             let bankDetailsStr = ''
             if (hasNewDetails) {
                 bankDetailsStr = `${s.user.bankName} - ${s.user.accountNumber} (${s.user.ifscCode})`
             } else if (s.user.bankAccountDetails) {
-                bankDetailsStr = decrypt(s.user.bankAccountDetails) || ''
+                try {
+                    bankDetailsStr = decrypt(s.user.bankAccountDetails) || ''
+                } catch (e) {
+                    bankDetailsStr = 'Encrypted Details'
+                }
             }
 
             return {
                 ...s,
                 user: {
                     ...s.user,
-                    bankAccountDetails: bankDetailsStr, // Keep compatibility with UI that expects this string
-                    // Also pass raw fields if needed by new UI logic
+                    bankAccountDetails: bankDetailsStr,
                     bankName: s.user.bankName,
                     accountNumber: s.user.accountNumber,
                     ifscCode: s.user.ifscCode
@@ -478,7 +471,7 @@ export async function getSettlements(status: string = 'Pending', academicYear?: 
             }
         })
 
-        return { success: true, data: decryptedSettlements }
+        return { success: true, data: decryptedSettlements, totalCount }
     } catch (error: any) {
         console.error('getSettlements error:', error)
         return { success: false, error: `Failed to fetch settlements: ${error?.message || ''}` }
@@ -490,154 +483,54 @@ export async function getFinanceStats(academicYear?: string) {
     if (!admin) return { success: false, error: 'Unauthorized' }
 
     try {
-        const whereUserRevenue: any = {
-            AND: [
-                {
+        const year = academicYear && academicYear !== 'All' ? academicYear : undefined;
+
+        // OPTIMIZED: Use database aggregations instead of fetching all records
+        // Note: Settlement doesn't have academicYear, so we use its relation or date
+        const [settlementStats, revenueStats] = await Promise.all([
+            prisma.settlement.aggregate({
+                where: { 
                     OR: [
-                        { paymentStatus: 'Completed' },
-                        { paymentStatus: 'Success' },
-                        { transactionId: { not: null } }
-                    ]
-                },
-                ...(academicYear && academicYear !== 'All' ? [{
-                    OR: [
-                        { academicYear },
-                        { referrals: { some: { admittedYear: academicYear } } }
-                    ]
-                }] : [])
-            ]
-        }
-
-        // Activity-Anchored User Filter for counting active participants
-        const yearActivityFilter = academicYear && academicYear !== 'All' ? {
-            OR: [
-                { academicYear },
-                { referrals: { some: { admittedYear: academicYear } } }
-            ]
-        } : {};
-
-        let dateFilter: any = {};
-        if (academicYear && academicYear !== 'All') {
-            const yearRecord = await prisma.academicYear.findUnique({
-                where: { year: academicYear }
-            });
-            if (yearRecord) {
-                dateFilter = {
-                    createdAt: {
-                        gte: yearRecord.startDate,
-                        lte: yearRecord.endDate
-                    }
-                };
-            }
-        }
-
-        const whereSettlement: any = { ...dateFilter }
-
-        if (admin.role.includes('Campus') && (admin as any).campusId) {
-            // Fetch users in this campus to filter settlements
-            const campusUsers = await prisma.user.findMany({
-                where: { campusId: (admin as any).campusId },
-                select: { userId: true }
-            })
-            const userIds = campusUsers.map(u => u.userId)
-            whereSettlement.userId = { in: userIds }
-            whereUserRevenue.campusId = (admin as any).campusId
-        }
-
-        // 1. Fetch settlements for this campus/status
-        const settlementsAll = await prisma.settlement.findMany({
-            where: {
-                // Campus Head restriction
-                ...(admin.role.includes('Campus') && (admin as any).campusId ? {
-                    user: { campusId: (admin as any).campusId }
-                } : {})
-            },
-            include: { referralLead: true }
-        })
-        console.log(`[getFinanceStats] DB Fetch: ${settlementsAll.length} settlements`)
-
-        // 2. Fetch Active Years for the heuristic
-        const activeYears = await prisma.academicYear.findMany({
-            orderBy: { year: 'desc' }
-        })
-
-        // 3. Filter manually for the selected year
-        const yearSettlements = settlementsAll.filter((s: any) => {
-            if (academicYear === 'All' || academicYear === 'All Time') return true
-            if (s.status === 'Pending') return true // Pending always visible
-
-            const pDate = s.payoutDate ? new Date(s.payoutDate) : new Date(s.createdAt)
-            const type = s.benefitType
-            
-            // Heuristic: Feb-March 2026 records are often for the upcoming 2026-2027 cycle
-            const isFebMarchFuture = (type === 'ADMISSION_SHARE' || type === 'OTHER' || !type) && 
-                                    pDate.getFullYear() === 2026 && pDate.getMonth() <= 2
-
-            let yearOfAttribution = ''
-            if (s.referralLead) {
-                yearOfAttribution = s.referralLead.academicYear || s.referralLead.admittedYear
-            } else if (isFebMarchFuture) {
-                yearOfAttribution = '2026-2027'
-            } else {
-                // Find matching year by date
-                const matchedYear = activeYears.find(y => {
-                    const sDate = new Date(y.startDate)
-                    const eDate = new Date(y.endDate)
-                    return pDate >= sDate && pDate <= eDate
-                })
-                yearOfAttribution = matchedYear?.year || '2025-2026'
-            }
-
-            return yearOfAttribution === academicYear
-        })
-
-        // 4. Aggregate manual results
-        const pendingSum = yearSettlements
-            .filter(s => s.status === 'Pending')
-            .reduce((sum, s) => sum + (s.amount || 0), 0)
-            
-        const processedSum = yearSettlements
-            .filter(s => s.status === 'Processed' || s.status === 'SUCCESS' || s.status === 'Confirmed')
-            .reduce((sum, s) => sum + (s.amount || 0), 0)
-
-        // NEW: Calculate Lifetime Processed (Ignoring Year Filter)
-        const processedLifetime = settlementsAll
-            .filter(s => s.status === 'Processed' || s.status === 'SUCCESS' || s.status === 'Confirmed')
-            .reduce((sum, s) => sum + (s.amount || 0), 0)
-
-        // Revenue and Ambassadors still use Prisma
-        const [totalAmbassadors, revenueAgg, lifetimeRevenueAgg] = await Promise.all([
-            prisma.user.count({
-                where: {
-                    ...(admin.role.includes('Campus') && (admin as any).campusId ? { campusId: (admin as any).campusId } : {}),
-                    ...yearActivityFilter
-                }
-            }),
-            prisma.user.aggregate({
-                where: whereUserRevenue,
-                _sum: { paymentAmount: true }
-            }),
-            prisma.user.aggregate({ // TRUE Lifetime Revenue
-                where: {
-                    OR: [
-                        { paymentStatus: 'Completed' },
-                        { paymentStatus: 'Success' },
-                        { transactionId: { not: null } }
+                        { referralLead: { academicYear: year } },
+                        { remarks: { contains: year || "" } }
                     ],
-                    ...(admin.role.includes('Campus') && (admin as any).campusId ? { campusId: (admin as any).campusId } : {})
+                    status: { not: 'Refunded' } 
                 },
-                _sum: { paymentAmount: true }
+                _sum: { amount: true },
+                _count: { id: true }
+            }),
+            prisma.referralLead.aggregate({
+                where: { 
+                    academicYear: year, 
+                    OR: [
+                        { admissionFeeCollected: { gt: 0 } },
+                        { donationFeeCollected: { gt: 0 } }
+                    ]
+                },
+                _sum: { admissionFeeCollected: true, donationFeeCollected: true }
             })
         ])
+
+        const pendingPayouts = await prisma.settlement.aggregate({
+            where: { 
+                OR: [
+                    { referralLead: { academicYear: year } },
+                    { remarks: { contains: year || "" } }
+                ],
+                status: 'Pending' 
+            },
+            _sum: { amount: true }
+        })
+
+        const totalRevenue = (revenueStats._sum.admissionFeeCollected || 0) + (revenueStats._sum.donationFeeCollected || 0)
 
         return {
             success: true,
             stats: {
-                pending: pendingSum,
-                processed: processedLifetime, // Return LIFETIME as requested by UI label 
-                totalCount: yearSettlements.length,
-                totalRevenue: lifetimeRevenueAgg._sum.paymentAmount || 0, // TRUE Lifetime Revenue
-                currentProcessed: processedSum
+                totalRevenue,
+                pending: pendingPayouts._sum?.amount || 0,
+                processed: (settlementStats._sum?.amount || 0) - (pendingPayouts._sum?.amount || 0),
+                totalCount: settlementStats._count?.id || 0
             }
         }
     } catch (error) {
@@ -1171,7 +1064,8 @@ export async function getUsersReadyForRefund(academicYear?: string) {
                     take: 1
                 }
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 1000 // SAFETY GUARD: Prevent SuperAdmin timeouts
         })
 
         // Filter out users who already have a settlement
@@ -1260,7 +1154,8 @@ export async function syncPastRefunds(records: {
     ifscCode?: string,
     date?: string,
     remarks?: string,
-    amount?: number
+    amount?: number,
+    childEprNo?: string
 }[]) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
@@ -1280,28 +1175,28 @@ export async function syncPastRefunds(records: {
         const chunkSize = 100
         for (let i = 0; i < records.length; i += chunkSize) {
             const chunk = records.slice(i, i + chunkSize)
-            // Normalize inputs: Strip spaces
-            const inputMap = new Map<string, typeof chunk[0]>()
-            chunk.forEach(r => {
-                const normalizedMobile = r.mobile.replace(/\s+/g, '').trim()
-                inputMap.set(normalizedMobile, r)
-            })
-            const searchMobiles = Array.from(inputMap.keys())
+
+            // Collect unique mobiles so we can batch-fetch users once per chunk
+            const searchMobiles = Array.from(new Set(
+                chunk.map(r => r.mobile.replace(/\s+/g, '').trim()).filter(Boolean)
+            ))
 
             // 1. Fetch all users for this chunk at once
             const users = await prisma.user.findMany({
                 where: { mobileNumber: { in: searchMobiles } },
                 include: {
                     settlements: {
-                        where: { status: { not: 'Rejected' } }
+                        where: { status: { not: 'Rejected' } },
+                        include: { referralLead: true }
                     }
                 }
             })
 
             const userMap = new Map(users.map(u => [u.mobileNumber.replace(/\s+/g, '').trim(), u]))
 
-            // 2. Perform updates record-by-record for robustness
-            for (const [normalizedMobile, record] of inputMap.entries()) {
+            // 2. Perform updates record-by-record (allows multiple rows per mobile)
+            for (const record of chunk) {
+                const normalizedMobile = record.mobile.replace(/\s+/g, '').trim()
                 const mobile = record.mobile.trim()
                 const utr = record.utr?.trim() || `REF-MANUAL-${Date.now()}`
                 const remarks = record.remarks?.trim() || ''
@@ -1362,20 +1257,28 @@ export async function syncPastRefunds(records: {
 
                     // High Precision Match: Look for pending first, then processed by type and amount
                     // We prioritize records that EXACTLY match the type and amount if possible
-                    const pendingMatch = user.settlements.find(s => 
-                        s.status === 'Pending' && 
-                        Math.abs(s.amount - amount) < 1 && 
-                        (s.benefitType === detectedType || (!s.benefitType && detectedType === 'OTHER'))
-                    )
+                    // NEW: If Child EPR is provided, prioritize matching the specific referral
+                    const targetErp = record.childEprNo?.trim().toUpperCase()
+
+                    const pendingMatch = user.settlements.find(s => {
+                        if (s.status !== 'Pending' || Math.abs(s.amount - amount) >= 1) return false;
+                        if (s.benefitType !== detectedType && s.benefitType && detectedType !== 'OTHER') return false;
+                        if (targetErp && s.referralLead?.admissionNumber?.toUpperCase() === targetErp) return true;
+                        if (targetErp) return false; // Strict match mode
+                        return true;
+                    })
                     
-                    const processedMatch = user.settlements.find(s => 
-                        (s.status === 'Processed' || s.bankReference === utr) && 
-                        Math.abs(s.amount - amount) < 1 && 
-                        (s.benefitType === detectedType || (!s.benefitType && detectedType === 'OTHER'))
-                    )
+                    const processedMatch = user.settlements.find(s => {
+                        if (s.status !== 'Processed' && s.bankReference !== utr) return false;
+                        if (Math.abs(s.amount - amount) >= 1) return false;
+                        if (s.benefitType !== detectedType && s.benefitType && detectedType !== 'OTHER') return false;
+                        if (targetErp && s.referralLead?.admissionNumber?.toUpperCase() === targetErp) return true;
+                        if (targetErp) return false; // Strict match mode
+                        return true;
+                    })
 
                     // Fallback: Just look for ANY pending if amount is 25 (legacy support)
-                    const legacyMatch = (amount === 25 && !pendingMatch) ? user.settlements.find(s => s.status === 'Pending' && s.amount === 25) : null
+                    const legacyMatch = (amount === 25 && !pendingMatch && !targetErp) ? user.settlements.find(s => s.status === 'Pending' && s.amount === 25) : null
 
                     const targetSettlement = pendingMatch || legacyMatch || processedMatch
 
@@ -1400,7 +1303,7 @@ export async function syncPastRefunds(records: {
                                     status: 'Processed',
                                     bankReference: utr,
                                     payoutDate: payoutDate,
-                                    remarks: remarks || 'Sync processed payout',
+                                    remarks: remarks || (targetErp ? `Synced processed payout for ERP: ${targetErp}` : 'Sync processed payout'),
                                     benefitType: detectedType as any
                                 }
                             })
@@ -1443,121 +1346,330 @@ export async function syncPastRefunds(records: {
  * Identifies ambassadors with earned benefits that have not yet been settled.
  * Distinguishes between Group A (Waiver) and Group B (Payout).
  */
-export async function getAccruedPayoutLiabilities(academicYear?: string, query?: string) {
+export async function getAccruedPayoutLiabilities(
+    yearFilter: string = 'All', 
+    search?: string, 
+    adminCampusId?: number,
+    page: number = 1,
+    pageSize: number = 20,
+    mode?: 'A' | 'B'
+) {
     try {
         const admin = await getCurrentUser()
         if (!admin) return { success: false, error: 'Unauthorized' }
 
-        const adminCampusId = admin.role.includes('Campus') ? (admin as any).campusId : null
+        // 0. Fetch campuses first for scope and name mapping
+        const campuses = await prisma.campus.findMany({
+            select: { id: true, campusName: true }
+        })
+        
+        const campusNameMap = new Map()
+        campuses.forEach(c => campusNameMap.set(c.id, c.campusName))
 
-        const yearFilter = academicYear || '2026-2027'
+        // SENIOR EXPERT: In Finance, Campus Heads MUST see any ambassador who has a referral in their campus
+        // even if the ambassador themselves belongs to a different campus (e.g. Staff/Global).
+        const effectiveAdminCampusId = admin.role.includes('Campus') ? (admin as any).campusId : null
 
+        const financeScopeFilter = effectiveAdminCampusId ? {
+            OR: [
+                { campusId: Number(effectiveAdminCampusId) }, // Ambassadors assigned to this campus (ID match)
+                { assignedCampus: campusNameMap.get(Number(effectiveAdminCampusId)) }, // Ambassadors assigned by name (string match)
+                { referrals: { some: { campusId: Number(effectiveAdminCampusId) } } } // Ambassadors with referrals TO this campus
+            ]
+        } : {}
+
+        // 0. Build search filter
+        const searchFilter = search ? {
+            OR: [
+                { fullName: { contains: search, mode: 'insensitive' as any } },
+                { mobileNumber: { contains: search, mode: 'insensitive' as any } },
+                { referralCode: { contains: search, mode: 'insensitive' as any } },
+                { childName: { contains: search, mode: 'insensitive' as any } },
+                { childEprNo: { contains: search, mode: 'insensitive' as any } },
+                {
+                    referrals: {
+                        some: {
+                            OR: [
+                                { studentName: { contains: search, mode: 'insensitive' as any } },
+                                { admissionNumber: { contains: search, mode: 'insensitive' as any } },
+                                { parentName: { contains: search, mode: 'insensitive' as any } },
+                                { parentMobile: { contains: search, mode: 'insensitive' as any } },
+                                { campus: { contains: search, mode: 'insensitive' as any } }
+                            ]
+                        }
+                    }
+                }
+            ]
+        } : {}
+
+        // 1. Fetch AcademicYear record for date boundaries
         let dateRangeFilter: any = {}
+
         if (yearFilter !== 'All') {
             const yearRecord = await prisma.academicYear.findUnique({
                 where: { year: yearFilter }
             })
+
             dateRangeFilter = yearRecord ? {
-                createdAt: { gte: yearRecord.startDate, lte: yearRecord.endDate }
-            } : { createdAt: { gte: new Date('2025-01-01') } }
+                createdAt: {
+                    gte: yearRecord.startDate,
+                    lte: yearRecord.endDate
+                }
+            } : {
+                createdAt: { gte: new Date('2025-01-01') } // Fallback
+            }
         }
 
-        const financeScopeFilter = adminCampusId ? {
-            OR: [
-                { campusId: adminCampusId }, 
-                // We'll filter on campusId primarily, names are fallbacks
-                { referrals: { some: { campusId: adminCampusId } } }
-            ]
-        } : {}
-
+        // SENIOR FIX (Data Restoration): Use a simpler but more inclusive filter
+        // If query is for a specific year, prioritize academicYear/admittedYear fields first.
         const referralYearFilter = yearFilter !== 'All' ? {
-            OR: [
-                { academicYear: yearFilter },
-                { admittedYear: yearFilter },
-                dateRangeFilter
-            ]
+            academicYear: yearFilter
         } : {}
 
-        // 100% SAFETY: Prune early with take: 1000
-        const [users, slabs, gradeFees, allCampuses] = await Promise.all([
+        // --- NEW: DOUBLE-DECOUPLED STRATEGY (P1017 ELIMINATION) ---
+        // Step A: Get IDs matching conditions (Year Filter & Mode)
+        // SENIOR EXPERT NOTE: Mode MUST be strict.
+        const [refUsers, achariyaUsers] = await Promise.all([
+            prisma.referralLead.findMany({
+                where: {
+                    leadStatus: { in: ['Confirmed', 'Admitted'] },
+                    ...referralYearFilter,
+                    // Apply Mode Filter early to identifiers
+                    ...(mode === 'A' ? { user: { role: { in: ['Parent', 'Staff'] } as any, childInAchariya: true } } : {}),
+                    ...(mode === 'B' ? { user: { NOT: { role: { in: ['Parent', 'Staff'] } as any, childInAchariya: true } } } : {})
+                },
+                select: { userId: true },
+                distinct: ['userId']
+            }),
             prisma.user.findMany({
+                where: { 
+                    role: { in: ['Parent', 'Staff'] } as any,
+                    childInAchariya: true,
+                    // If mode is B, this pool is irrelevant
+                    ...(mode === 'B' ? { userId: -1 } : {})
+                },
+                select: { userId: true },
+                take: mode === 'B' ? 1 : 5000 // Only fetch for Group A or general view
+            })
+        ])
+
+        let eligibleUserIds: number[] = Array.from(new Set([
+            ...refUsers.map(r => r.userId)
+            // achariyaUsers REMOVED: Ledger should only show people with activities (referrals/settlements).
+        ]))
+
+        // Step A.5: Add users who already have settlements (even if they have no referrals in current year)
+        if (yearFilter === 'All') {
+            const usersWithSettlements = await prisma.settlement.findMany({
                 where: {
                     AND: [
-                        financeScopeFilter as any,
-                        ...(query ? [{
-                            OR: [
-                                { fullName: { contains: query, mode: 'insensitive' } },
-                                { mobileNumber: { contains: query, mode: 'insensitive' } },
-                                { referralCode: { contains: query, mode: 'insensitive' } }
-                            ]
-                        }] : []),
-                        {
-                            OR: [
-                                {
-                                    referrals: {
-                                        some: {
-                                            leadStatus: { in: ['Confirmed', 'Admitted'] } as any,
-                                            ...referralYearFilter
-                                        }
-                                    }
-                                },
-                                { childInAchariya: true }
-                            ]
-                        }
+                        mode === 'A' ? 
+                            { user: { role: { in: ['Parent', 'Staff'] } as any, childInAchariya: true } } :
+                            { user: { NOT: { role: { in: ['Parent', 'Staff'] } as any, childInAchariya: true } } },
+                        { amount: { gt: 25 } } // Exclude registration refunds
                     ]
                 },
-                include: {
-                    settlements: true,
-                    students: {
-                        where: { status: { in: ['Active', 'ACTIVE'] } as any },
-                        select: { studentId: true, fullName: true, grade: true, annualFee: true, baseFee: true, campus: { select: { campusName: true } } }
+                select: { userId: true },
+                distinct: ['userId']
+            })
+            eligibleUserIds = Array.from(new Set([...eligibleUserIds, ...usersWithSettlements.map(s => s.userId)]))
+        } else {
+             // For a specific year, we might want to see those who were paid in this cycle
+             const yearRecord = await prisma.academicYear.findUnique({ where: { year: yearFilter } })
+             if (yearRecord) {
+                 const usersPaidInCycle = await prisma.settlement.findMany({
+                     where: {
+                         createdAt: { gte: yearRecord.startDate, lte: yearRecord.endDate },
+                         amount: { gt: 25 }, // Exclude registration refunds
+                         ...(mode === 'A' ? 
+                            { user: { role: { in: ['Parent', 'Staff'] } as any, childInAchariya: true } } :
+                            { user: { NOT: { role: { in: ['Parent', 'Staff'] } as any, childInAchariya: true } } }
+                         )
+                     },
+                     select: { userId: true },
+                     distinct: ['userId']
+                 })
+                 eligibleUserIds = Array.from(new Set([...eligibleUserIds, ...usersPaidInCycle.map(s => s.userId)]))
+             }
+        }
+
+        // Step B: Handle Search (Decoupled & Strict)
+        if (search) {
+            const [userSearchIds, referralSearchIds] = await Promise.all([
+                prisma.user.findMany({
+                    where: {
+                        userId: { in: eligibleUserIds },
+                        OR: [
+                            { fullName: { contains: search, mode: 'insensitive' as any } },
+                            { mobileNumber: { contains: search, mode: 'insensitive' as any } },
+                            { referralCode: { contains: search, mode: 'insensitive' as any } },
+                            { childName: { contains: search, mode: 'insensitive' as any } },
+                            { childEprNo: { contains: search, mode: 'insensitive' as any } }
+                        ]
                     },
-                    referredStudents: {
-                        where: { status: { in: ['Active', 'ACTIVE'] } as any },
-                        select: { studentId: true, fullName: true, grade: true, annualFee: true, baseFee: true, campus: { select: { campusName: true } } }
+                    select: { userId: true }
+                }),
+                prisma.referralLead.findMany({
+                    where: {
+                        userId: { in: eligibleUserIds },
+                        OR: [
+                            { studentName: { contains: search, mode: 'insensitive' as any } },
+                            { admissionNumber: { contains: search, mode: 'insensitive' as any } },
+                            { parentName: { contains: search, mode: 'insensitive' as any } },
+                            { parentMobile: { contains: search, mode: 'insensitive' as any } },
+                            { campus: { contains: search, mode: 'insensitive' as any } }
+                        ]
                     },
-                    referrals: {
-                        where: {
-                            leadStatus: { in: ['Confirmed', 'Admitted'] }
-                        },
-                        include: {
-                            student: { select: { studentId: true } }
-                        }
-                    }
-                },
-                orderBy: { createdAt: 'desc' },
-                take: 1000
-            }),
-            prisma.benefitSlab.findMany({
-                orderBy: { referralCount: 'asc' }
-            }),
-            prisma.gradeFee.findMany({
+                    select: { userId: true },
+                    distinct: ['userId']
+                })
+            ])
+
+            eligibleUserIds = Array.from(new Set([
+                ...userSearchIds.map(u => u.userId),
+                ...referralSearchIds.map(r => r.userId)
+            ]))
+        }
+
+        // Step C: Handle Finance Scope (Campus Admin filter)
+        if (effectiveAdminCampusId) {
+            const campusAmbassadors = await prisma.user.findMany({
                 where: {
-                    ...(yearFilter !== 'All' ? { academicYear: yearFilter } : {})
-                }
-            }),
+                    userId: { in: eligibleUserIds },
+                    OR: [
+                        { campusId: effectiveAdminCampusId }, // Ambassadors assigned to this campus (ID match)
+                        { assignedCampus: campusNameMap.get(effectiveAdminCampusId) },
+                        { referrals: { some: { campusId: effectiveAdminCampusId } } }
+                    ]
+                },
+                select: { userId: true }
+            })
+            eligibleUserIds = campusAmbassadors.map(u => u.userId)
+        }
+
+        // --- FINAL RESTRAINT: If mode is specified, verify current set remains strictly in mode ---
+        // This prevents "dirty" data if the Step A identifications were too broad.
+        if (mode === 'A' || mode === 'B') {
+            const strictUsers = await prisma.user.findMany({
+                where: {
+                    userId: { in: eligibleUserIds },
+                    ...(mode === 'A' ? { role: { in: ['Parent', 'Staff'] } as any, childInAchariya: true } : {}),
+                    ...(mode === 'B' ? { NOT: { role: { in: ['Parent', 'Staff'] } as any, childInAchariya: true } } : {})
+                },
+                select: { userId: true }
+            })
+            eligibleUserIds = strictUsers.map(u => u.userId)
+        }
+
+        const allLeads = await prisma.referralLead.findMany({
+            where: { 
+                leadStatus: { in: ['Confirmed', 'Admitted'] },
+                ...(yearFilter && yearFilter !== 'All' ? { academicYear: yearFilter } : {}),
+                ...(eligibleUserIds.length > 0 ? { userId: { in: eligibleUserIds } } : { userId: -1 }) // -1 ensures empty if no matches
+            },
+            select: { userId: true },
+            take: 10000, // Expanded limit for SuperAdmin totals
+            orderBy: { createdAt: 'desc' }
+        })
+
+        // 1. PAGING: Total Count & Clamped Set (Group-Aware)
+        // Use eligibleUserIds for count if they represent the ambassadors, 
+        // but we need those with Confirmed leads (or Group A base pool).
+        const ambassadorsWithLeads = Array.from(new Set(allLeads.map(l => l.userId)))
+        
+        // Group A also includes Parent/Staff with childInAchariya even if 0 referrals (potential waivers)
+        const finalPool = mode === 'A' ? 
+            Array.from(new Set([...ambassadorsWithLeads, ...eligibleUserIds])) : 
+            ambassadorsWithLeads
+
+        const totalAmbassadorsWithRewards = finalPool.length
+        const uniqueUserIds = finalPool.slice((page - 1) * pageSize, page * pageSize)
+        
+        // 2. Fetch Detailed User Objects
+        const [users, slabs, gradeFees, allCampuses] = await Promise.all([
+            prisma.user.findMany({ where: { userId: { in: uniqueUserIds } } }),
+            prisma.benefitSlab.findMany({ orderBy: { referralCount: 'asc' } }),
+            prisma.gradeFee.findMany({ where: { academicYear: yearFilter && yearFilter !== 'All' ? yearFilter : '2026-2027' } }),
             prisma.campus.findMany({ select: { id: true, campusName: true } })
         ])
 
-        const campusMap = new Map<number, string>(allCampuses.map(c => [c.id, c.campusName]))
+        const userIds = users.map(u => u.userId)
+        
+        // 3. BULK FETCH RELATED DATA
+        const [allSettlements, allReferrals] = await Promise.all([
+            prisma.settlement.findMany({
+                where: { userId: { in: userIds } }
+            }),
+            prisma.referralLead.findMany({
+                where: {
+                    userId: { in: userIds },
+                    leadStatus: { in: ['Confirmed', 'Admitted'] },
+                    ...referralYearFilter,
+                    ...(effectiveAdminCampusId ? { campusId: effectiveAdminCampusId } : {})
+                },
+                include: {
+                    student: {
+                        select: { studentId: true, fullName: true, grade: true, campusId: true, annualFee: true, baseFee: true, campus: { select: { campusName: true } } }
+                    }
+                }
+            })
+        ])
 
-        // 2. Fetch all students for fuzzy matching (EPR or Mobile fallback)
+              // Collect all IDs for the surgical student lookup pool
+        const studentIdsToFetch = new Set<number>()
+        allReferrals.forEach((r: any) => { 
+            if (r.student?.studentId) studentIdsToFetch.add(r.student.studentId) 
+        })
+        users.forEach((u: any) => { 
+            if (u.students) u.students.forEach((s: any) => studentIdsToFetch.add(s.studentId)) 
+        })
+        const childEprs = users.map(u => u.childEprNo?.trim()?.toUpperCase()).filter(Boolean) as string[]
+
+        // Surgical Student Fetch: Only fetch students linked to these ambassadors
         const allStudents = await prisma.student.findMany({
-            where: { status: { in: ['Active', 'ACTIVE'] } as any },
-            include: { campus: { select: { campusName: true } }, parent: { select: { mobileNumber: true } } }
+            where: { 
+                OR: [
+                    { parentId: { in: userIds } },
+                    { admissionNumber: { in: childEprs } },
+                    { studentId: { in: Array.from(studentIdsToFetch) } }
+                ],
+                status: { in: ['Active', 'ACTIVE'] } as any 
+            },
+            include: { campus: { select: { id: true, campusName: true } }, parent: { select: { mobileNumber: true } } }
         })
 
-        // Create fast lookup maps
-        const eprMap = new Map()
-        const mobileMap = new Map()
-        const gradeFeeMap = new Map()
+        // 4. PREPARE LOOKUP MAPS (O(1) Complexity)
+        const campusMap = new Map<number, string>(allCampuses.map(c => [c.id, c.campusName]))
+        const settlementMap = new Map<number, any[]>()
+        const referralMap = new Map<number, any[]>()
+        const eprMap = new Map<string, any>()
+        const mobileMap = new Map<string, any[]>()
+        const gradeFeeMap = new Map<string, number>()
 
+        allSettlements.forEach(s => {
+            if (!settlementMap.has(s.userId)) settlementMap.set(s.userId, [])
+            settlementMap.get(s.userId)!.push(s)
+        })
+
+        allReferrals.forEach(r => {
+            if (!referralMap.has(r.userId)) referralMap.set(r.userId, [])
+            referralMap.get(r.userId)!.push(r)
+        })
+
+        const studentByParentMap = new Map<number, any[]>()
+        const studentByNameMap = new Map<string, any>()
+        
         allStudents.forEach(s => {
             if (s.admissionNumber) eprMap.set(s.admissionNumber.toUpperCase(), s)
             if (s.parent?.mobileNumber) {
                 if (!mobileMap.has(s.parent.mobileNumber)) mobileMap.set(s.parent.mobileNumber, [])
-                mobileMap.get(s.parent.mobileNumber).push(s)
+                mobileMap.get(s.parent.mobileNumber)!.push(s)
             }
+            if (s.parentId) {
+                if (!studentByParentMap.has(s.parentId)) studentByParentMap.set(s.parentId, [])
+                studentByParentMap.get(s.parentId)!.push(s)
+            }
+            studentByNameMap.set(s.fullName.trim().toUpperCase(), s)
         })
 
         const normalizeGrade = (g: string) => {
@@ -1584,7 +1696,7 @@ export async function getAccruedPayoutLiabilities(academicYear?: string, query?:
         gradeFees.forEach(gf => {
             const fee = gf.annualFee_otp || gf.annualFee_wotp || 0
             if (fee > 0) {
-                const key = gf.campusId + '-' + normalizeGrade(gf.grade || '')
+                const key = gf.campusId + '-' + normalizeGrade(gf.grade)
                 gradeFeeMap.set(key, fee)
             }
         })
@@ -1592,249 +1704,369 @@ export async function getAccruedPayoutLiabilities(academicYear?: string, query?:
         const liabilities: any[] = []
 
         for (const u of (users as any[])) {
-            try {
-                if (!u.role) continue
+            // OPTIMIZED: Use Map for O(1) lookup
+            const myStudents = studentByParentMap.get(u.userId) || []
+            u.students = myStudents
+            
+            // 1. INTEL LOGIC: Identify Ambassador's own child first 
+            // (Used for Group A fee source AND as a guard to exclude self-referrals)
+            let actualChildFee = u.studentFee || 0 // Used for benefit calculation
+            let displayChildFee: number | undefined = undefined // Used for UI display
+            let childName = undefined
+            let childGrade = undefined
+            let childCampus = undefined
+            let linkedStudent = undefined
 
-                // 1. INTEL LOGIC: Identify Ambassador's own child first 
-                let actualChildFee = u.studentFee || 0 
-                let displayChildFee: number | undefined = undefined 
-                let childName = undefined
-                let childGrade = undefined
-                let childCampus = undefined
-                let linkedStudent = undefined
+            if (u.childInAchariya) {
+                // Priority 1: Verified EPR Number (Source of Truth after verification)
+                if (u.childEprNo) {
+                    linkedStudent = eprMap.get(u.childEprNo.toUpperCase())
+                }
 
-                if (u.childInAchariya) {
-                    if (u.childEprNo) {
-                        linkedStudent = eprMap.get(u.childEprNo.toUpperCase())
-                    }
-                    if (!linkedStudent && u.students && u.students.length > 0) {
-                        linkedStudent = u.students[0]
-                    }
-                    if (!linkedStudent && u.mobileNumber) {
-                        const mobileMatches = mobileMap.get(u.mobileNumber)
-                        if (mobileMatches && mobileMatches.length > 0) {
-                            linkedStudent = mobileMatches[0]
-                        }
-                    }
-                    if (!linkedStudent && u.childName) {
-                        const normalizedTarget = u.childName.trim().toUpperCase()
-                        linkedStudent = allStudents.find(s => s.fullName.trim().toUpperCase() === normalizedTarget)
-                    }
+                // Priority 2: Direct parent-child link (Database relation)
+                if (!linkedStudent && u.students && u.students.length > 0) {
+                    linkedStudent = u.students[0]
+                }
 
-                    if (linkedStudent) {
-                        const key = linkedStudent.campusId + '-' + normalizeGrade(linkedStudent.grade)
-                        const studentFee = (linkedStudent as any).annualFee || (linkedStudent as any).baseFee || gradeFeeMap.get(key) || actualChildFee
-                        actualChildFee = studentFee
-                        displayChildFee = studentFee
-                        childName = linkedStudent.fullName
-                        childGrade = linkedStudent.grade
-                        childCampus = (linkedStudent.campus as any)?.campusName || undefined
-                    } else {
-                        childName = u.childName || undefined
-                        childGrade = u.grade || undefined
-                        const cId = (u as any).childCampusId || (u as any).campusId
-                        childCampus = cId ? campusMap.get(cId) : undefined
-                        const rawGrade = u.grade || 'Grade-1'
-                        const normGrade = normalizeGrade(rawGrade)
-                        const key = cId + '-' + normGrade
-                        let profileFee = gradeFeeMap.get(key)
-                        displayChildFee = profileFee || u.studentFee || 0
-                        actualChildFee = displayChildFee
+                // Priority 3: Mobile Number Match (Diagnostic Fallback)
+                if (!linkedStudent && u.mobileNumber) {
+                    const mobileMatches = mobileMap.get(u.mobileNumber)
+                    if (mobileMatches && mobileMatches.length > 0) {
+                        linkedStudent = mobileMatches[0]
                     }
                 }
 
-                // 2. Self-Referral Guard
-                const ownStudentIds = (u.students || []).map((s: any) => s.studentId)
-                if (linkedStudent) ownStudentIds.push(linkedStudent.studentId)
-                const normalizedOwnChild = childName?.trim().toUpperCase() || u.childName?.trim().toUpperCase()
-
-                // 3. Filter and Category Referrals (Current vs Previous)
-                const allRawReferrals = u.referrals || []
-                
-                // Helper to check if a referral belongs to the SELECTED academic year
-                const isCurrentYear = (r: any) => {
-                    if (yearFilter === 'All') return true
-                    const refDate = r.createdAt ? new Date(r.createdAt) : new Date(0)
-                    const refYear = r.academicYear || r.admittedYear
-                    // Fallback to date range if academicYear field is missing
-                    if (refYear) return refYear === yearFilter
-                    const startDate = (dateRangeFilter as any).createdAt?.gte || new Date('2025-01-01')
-                    const endDate = (dateRangeFilter as any).createdAt?.lte || new Date()
-                    return refDate >= startDate && refDate <= endDate
+                // Priority 4: Fuzzy Name Match (Fallback for split-accounts/mislinked parents)
+                if (!linkedStudent && u.childName) {
+                    linkedStudent = studentByNameMap.get(u.childName.trim().toUpperCase())
                 }
 
-                const currentReferrals = allRawReferrals
-                    .filter((r: any) => isCurrentYear(r))
-                    .filter((r: any) => {
-                        // Admin Campus Scoping
-                        if (adminCampusId && r.campusId !== adminCampusId) return false
-                        // Self-Referral Guard
-                        if (r.parentMobile === u.mobileNumber) return false
-                        if (r.student?.studentId && ownStudentIds.includes(r.student.studentId)) return false
-                        if (normalizedOwnChild && r.studentName?.trim().toUpperCase() === normalizedOwnChild) return false
-                        if (r.admissionNumber && u.childEprNo && r.admissionNumber.trim().toUpperCase() === u.childEprNo.trim().toUpperCase()) return false
-                        return true
-                    })
-                    .map((r: any) => {
-                        const campusName = r.campus || (r.campusId ? campusMap.get(r.campusId) : null)
-                        const normGradeValue = normalizeGrade(r.gradeInterested || 'Grade-1')
-                        const isMontOrPreMont = normGradeValue.includes('MONT') || normGradeValue.includes('PREMONT');
-                        const gradeLookup = isMontOrPreMont ? normGradeValue : normalizeGrade('Grade-1');
-                        
-                        const gradeKey = r.campusId + '-' + gradeLookup
-                        const gFeeFromTable = gradeFeeMap.get(gradeKey) 
-                        const specialBonusRate = getSpecialBonusRate(campusName)
-                        
-                        return {
-                            id: r.leadId,
-                            leadId: r.leadId,
-                            studentName: r.studentName,
-                            admissionNumber: r.admissionNumber,
-                            campusId: r.campusId || 0,
-                            campusName: campusName || undefined,
-                            grade: r.gradeInterested || 'Grade-1',
-                            actualFee: r.student?.annualFee || 0,
-                            campusGrade1Fee: gFeeFromTable,  
-                            admissionFeeCollected: r.admissionFeeCollected || 0,
-                            donationFeeCollected: r.donationFeeCollected || 0,
-                            specialBonusRate: specialBonusRate,
-                            createdAt: r.createdAt,
-                            leadStatus: r.leadStatus
-                        }
-                    })
+                if (linkedStudent) {
+                    const studentFee = (linkedStudent as any).annualFee || (linkedStudent as any).baseFee || gradeFeeMap.get(linkedStudent.campusId + '-' + normalizeGrade(linkedStudent.grade)) || actualChildFee
+                    actualChildFee = studentFee
+                    displayChildFee = studentFee
+                    childName = linkedStudent.fullName
+                    childGrade = linkedStudent.grade
+                    childCampus = (linkedStudent.campus as any)?.campusName || undefined
+                } else {
+                    // FALLBACK: Use data from User Profile if no Student record is linked
+                    childName = u.childName || undefined
+                    childGrade = u.grade || undefined
+                    
+                    const cId = (u as any).childCampusId || (u as any).campusId
+                    childCampus = cId ? campusMap.get(cId) : undefined
+                    
+                    // Try to resolve the fee based on the profile grade/campus
+                    const rawGrade = u.grade || 'Grade-1'
+                    const normGrade = normalizeGrade(rawGrade)
+                    const key = cId + '-' + normGrade
+                    let profileFee = gradeFeeMap.get(key)
+                    
+                    // AUDIT GUARD: Handle "MONT" naming split manually if direct key fails
+                    if (!profileFee && normGrade.startsWith('MONT')) {
+                        // Attempt lookup with and without hyphen if table naming is inconsistent
+                        const altKey = cId + '-' + normGrade.replace('-', '')
+                        profileFee = gradeFeeMap.get(altKey)
+                    }
+                    
+                    displayChildFee = profileFee || u.studentFee || 0
+                    actualChildFee = displayChildFee
+                }
+            }
 
-                const previousYearReferrals = allRawReferrals
-                    .filter((r: any) => !isCurrentYear(r))
-                    .map((r: any) => ({
-                        id: r.leadId,
-                        actualFee: r.student?.annualFee || 0
-                    }))
+            // 2. Self-Referral Guard: Identify student IDs and names already linked to this ambassador
+            const ownStudentIds = (u.students || []).map((s: any) => s.studentId)
+            if (linkedStudent) ownStudentIds.push(linkedStudent.studentId)
 
-                const calcResult = calculateTotalBenefit(currentReferrals, {
-                    role: u.role as any,
-                    childInAchariya: u.childInAchariya,
-                    studentFee: actualChildFee,
-                    isFiveStarLastYear: u.isFiveStarMember,
-                    previousYearReferrals: previousYearReferrals as any[]
-                }, slabs as any)
+            const normalizedOwnChild = childName?.trim().toUpperCase() || u.childName?.trim().toUpperCase()
+            const isGroupAEligible = (u.role === 'Parent' || u.role === 'Staff') && u.childInAchariya === true
 
-                // 4. FIFO SETTLEMENT POOLS
-                const validSettlements = u.settlements.filter((s: any) => {
-                    const status = s.status?.toUpperCase()
-                    if (status !== 'PROCESSED' && status !== 'SUCCESS' && status !== 'CONFIRMED') return false
-                    const remarks = (s.remarks || '').toLowerCase()
-                    const isRefund = remarks.includes('registration') || remarks.includes('refund') || s.amount === 25
-                    return !isRefund
+            // 3. Map ReferralLeads to ReferralData for the calculator
+            const userReferrals = referralMap.get(u.userId) || []
+            const currentReferrals: (ReferralData & { feeDataMissing?: boolean })[] = userReferrals
+                .filter((r: any) => {
+                    // 🚨 SENIOR AUDIT GUARD: Exclude Self-Referrals (Own Children)
+                    // Policy: Own children not allowed as referrals.
+                    // REFINED: We only skip if the student record is ALREADY linked to this parent as their child.
+                    // This allows NEW admissions (even siblings) to count for the current cycle.
+
+                    // 1. [RELAXED] Allowing mobile match as many ambassadors register for their leads.
+                    // if (r.parentMobile === u.mobileNumber) return false
+
+                    // 2. STAGE 2 GUARD: Check if the referred student is already linked to the ambassador as THEIR child.
+                    if (r.student?.studentId && ownStudentIds.includes(r.student.studentId)) return false
+
+                    // 3. [RELAXED] Potential false positives on name match.
+                    // if (normalizedOwnChild && r.studentName?.trim().toUpperCase() === normalizedOwnChild) return false
+
+                    // 4. [RELAXED] ERP check handled by studentId above for admitted students.
+                    // if (r.admissionNumber && u.childEprNo && r.admissionNumber.trim().toUpperCase() === u.childEprNo.trim().toUpperCase()) return false
+
+                    return true
                 })
-
-                const genericSettlements = validSettlements.filter((s: any) => !s.referralLeadId)
-                let runningAdm = genericSettlements.filter((s: any) => s.benefitType === 'ADMISSION_SHARE').reduce((acc: number, s: any) => acc + (s.amount || 0), 0)
-                let runningDon = genericSettlements.filter((s: any) => s.benefitType === 'DONATION_SHARE').reduce((acc: number, s: any) => acc + (s.amount || 0), 0)
-                let runningSlab = genericSettlements.filter((s: any) => s.benefitType === 'SLAB_SHARE').reduce((acc: number, s: any) => acc + (s.amount || 0), 0)
-                let runningGreedy = genericSettlements.filter((s: any) => !s.benefitType || s.benefitType === 'OTHER' || s.benefitType === 'SPECIAL_BONUS').reduce((acc: number, s: any) => acc + (s.amount || 0), 0)
-
-                const isGroupAEligible = (u.role === 'Parent' || u.role === 'Staff') && u.childInAchariya === true
-                const sortedRef = [...currentReferrals].sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-
-                const enrichedReferrals = sortedRef.map((r: any, idx: number) => {
-                    const count = idx + 1
-                    const admFee = r.admissionFeeCollected || 0
-                    const donFee = r.donationFeeCollected || 0
-
-                    const isAdmissionSettled = u.settlements.some((s: any) => s.referralLeadId === r.id && s.benefitType === 'ADMISSION_SHARE' && ['PROCESSED', 'SUCCESS', 'CONFIRMED'].includes(String(s.status).toUpperCase()))
-                    const isDonationSettled = u.settlements.some((s: any) => s.referralLeadId === r.id && s.benefitType === 'DONATION_SHARE' && ['PROCESSED', 'SUCCESS', 'CONFIRMED'].includes(String(s.status).toUpperCase()))
-                    const isSlabSettled = u.settlements.some((s: any) => s.referralLeadId === r.id && s.benefitType === 'SLAB_SHARE' && ['PROCESSED', 'SUCCESS', 'CONFIRMED'].includes(String(s.status).toUpperCase()))
-
-                    const isAdmissionPending = u.settlements.some((s: any) => s.referralLeadId === r.id && s.benefitType === 'ADMISSION_SHARE' && String(s.status).toUpperCase() === 'PENDING')
-                    const isDonationPending = u.settlements.some((s: any) => s.referralLeadId === r.id && s.benefitType === 'DONATION_SHARE' && String(s.status).toUpperCase() === 'PENDING')
-                    const isSlabPending = u.settlements.some((s: any) => s.referralLeadId === r.id && s.benefitType === 'SLAB_SHARE' && String(s.status).toUpperCase() === 'PENDING')
-
-                    const getSlabPercent = (c: number) => {
-                        const slab = slabs.find((s: any) => s.referralCount === Math.min(c, 5)) || slabs[slabs.length - 1]
-                        return slab?.yearFeeBenefitPercent || 0
-                    }
-                    const totalSlabTillNow = getSlabPercent(count)
-                    const totalSlabPrev = count === 1 ? 0 : getSlabPercent(count - 1)
-                    const slabPercent = u.isFiveStarMember ? 5 : Math.max(0, totalSlabTillNow - totalSlabPrev)
-
-                    const slabBase = isGroupAEligible ? (actualChildFee || 0) : (r.campusGrade1Fee || 0)
-                    const referralSlabValue = Math.round((slabBase * slabPercent) / 100)
-                    const admShareValue = Math.round(admFee * 0.8)
-                    const donShareValue = Math.round(donFee * 0.5)
-
-                    const admVirtual = !isAdmissionSettled ? Math.min(admShareValue, runningAdm) : 0; runningAdm -= admVirtual
-                    const donVirtual = !isDonationSettled ? Math.min(donShareValue, runningDon) : 0; runningDon -= donVirtual
-                    const slabVirtual = !isSlabSettled ? Math.min(referralSlabValue, runningSlab) : 0; runningSlab -= slabVirtual
-
-                    let virtuallyPaidAmount = admVirtual + donVirtual + slabVirtual
-                    const referralTotal = admShareValue + donShareValue + referralSlabValue + (r.specialBonusRate || 0)
-                    const greedyVal = Math.min(Math.max(0, referralTotal - virtuallyPaidAmount), runningGreedy); runningGreedy -= greedyVal
-                    virtuallyPaidAmount += greedyVal
-
-                    let payoutStatus = 'PENDING'
-                    if (virtuallyPaidAmount >= referralTotal && referralTotal > 0) payoutStatus = 'PAID'
-                    else if (virtuallyPaidAmount > 0) payoutStatus = 'PARTIAL'
-
+                .map((r: any) => {
+                    const campusName = r.campus || (r.campusId ? campusNameMap.get(r.campusId) : null)
+                    const normGradeValue = normalizeGrade(r.gradeInterested || 'Grade-1')
+                    const isMontOrPreMont = normGradeValue.includes('MONT') || normGradeValue.includes('PREMONT');
+                    const gradeLookup = isMontOrPreMont ? normGradeValue : normalizeGrade('Grade-1');
+                    
+                    const gradeKey = r.campusId + '-' + gradeLookup
+                    const gFeeFromTable = gradeFeeMap.get(gradeKey) 
+                    const specialBonusRate = getSpecialBonusRate(campusName)
+                    
                     return {
-                        ...r,
-                        slabPercent,
-                        admShareValue,
-                        donShareValue,
-                        referralSlabValue,
-                        isAdmissionReady: admShareValue > 0 && !isAdmissionSettled && !isAdmissionPending && admVirtual <= 0 && (r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted'),
-                        isDonationReady: donShareValue > 0 && !isDonationSettled && !isDonationPending && donVirtual <= 0 && (r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted'),
-                        isSlabReady: referralSlabValue > 0 && !isSlabSettled && !isSlabPending && slabVirtual <= 0 && (r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted'),
-                        isAdmissionSettled: isAdmissionSettled || (admVirtual > 0 && admVirtual >= admShareValue),
-                        isDonationSettled: isDonationSettled || (donVirtual > 0 && donVirtual >= donShareValue),
-                        isSlabSettled: isSlabSettled || (slabVirtual > 0 && slabVirtual >= referralSlabValue),
-                        virtuallyPaidAmount,
-                        payoutStatus
+                        id: r.leadId,
+                        studentName: r.studentName,
+                        admissionNumber: r.admissionNumber,
+                        campusId: r.campusId || 0,
+                        campusName: campusName || undefined,
+                        campus: campusName || undefined, // Added for frontend compatibility
+                        grade: r.gradeInterested || 'Grade-1',
+                        gradeInterested: r.gradeInterested || 'Grade-1', // Added for frontend compatibility
+                        actualFee: Number(r.annualFee) || 0,
+                        campusGrade1Fee: Number(gFeeFromTable) || 0,  // Renamed in logic to use the specific grade fee
+                        admissionFeeCollected: Number(r.admissionFeeCollected) || 0,
+                        donationFeeCollected: Number(r.donationFeeCollected) || 0,
+                        specialBonusRate: Number(specialBonusRate) || 0,
+                        createdAt: r.createdAt,
+                        // Fix (Senior Audit): Differentiate missing data by Group
+                        feeDataMissing: (isGroupAEligible && !actualChildFee && !specialBonusRate) || 
+                                       (!isGroupAEligible && !gFeeFromTable && !specialBonusRate)
                     }
                 })
 
-                const totalAllEarnings = calcResult.totalAmount
-                const totalSettled = validSettlements.reduce((acc: number, s: any) => acc + (s.amount || 0), 0)
+            const calcResult = calculateTotalBenefit(currentReferrals, {
+                role: u.role as any,
+                childInAchariya: u.childInAchariya,
+                studentFee: actualChildFee,
+                isFiveStarLastYear: u.isFiveStarMember
+            }, slabs as any)
 
-                if (totalAllEarnings > 0 || totalSettled > 0) {
+            // FIX (Audit P0-#2): Split settled amounts by settlement type
+            // Cash payouts (Admission + Donation) must NOT reduce the waiver balance and vice versa.
+            const userSettlements = settlementMap.get(u.userId) || []
+            const validSettlements = userSettlements.filter((s: any) => {
+                if (s.status !== 'Processed') return false
+                const remarks = (s.remarks || '').toLowerCase()
+                const isRefund = remarks.includes('registration') || remarks.includes('refund') || s.amount === 25
+                return !isRefund
+            })
+
+            // 4. PREPARE TYPE-AWARE FIFO POOLS (Unlinked Settlements)
+            const genericSettlements = validSettlements.filter((s: any) => !s.referralLeadId)
+            let runningAdm = genericSettlements.filter((s: any) => s.benefitType === 'ADMISSION_SHARE').reduce((acc: number, s: any) => acc + (s.amount || 0), 0)
+            let runningDon = genericSettlements.filter((s: any) => s.benefitType === 'DONATION_SHARE').reduce((acc: number, s: any) => acc + (s.amount || 0), 0)
+            let runningSlab = genericSettlements.filter((s: any) => s.benefitType === 'SLAB_SHARE').reduce((acc: number, s: any) => acc + (s.amount || 0), 0)
+            let runningGreedy = genericSettlements.filter((s: any) => !s.benefitType || s.benefitType === 'OTHER' || s.benefitType === 'SPECIAL_BONUS').reduce((acc: number, s: any) => acc + (s.amount || 0), 0)
+
+            const specialBonus = calcResult.specialBonusShare
+            const profitShares = calcResult.admissionShare + calcResult.donationShare
+            const slabRewards = calcResult.slabShare + (calcResult as any).longTermBaseAmount || 0
+            const totalAllEarnings = specialBonus + profitShares + slabRewards
+
+            let finalPayoutEarned = 0
+            let finalWaiverEarned = 0
+            const isGroupAEligible_OldPlace = true; // Placeholder for clean diff
+
+            if (isGroupAEligible && childName && (displayChildFee ?? 0) > 0) {
+                finalWaiverEarned = slabRewards || 0
+                finalPayoutEarned = (totalAllEarnings || 0) - finalWaiverEarned
+            } else {
+                finalPayoutEarned = totalAllEarnings || 0
+            }
+
+            const totalSettled = validSettlements.reduce((acc: number, s: any) => acc + (s.amount || 0), 0)
+            let rem = totalSettled
+            const payoutSettled = Math.min(finalPayoutEarned, rem); rem -= payoutSettled
+            const waiverSettled = Math.min(finalWaiverEarned, rem)
+
+            const payoutOutstanding = finalPayoutEarned - payoutSettled
+            const waiverOutstanding = finalWaiverEarned - waiverSettled
+
+            const sortedRef = [...currentReferrals].sort((a: any, b: any) =>
+                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            )
+
+            let stdRunningCount = 0
+            // ONE PASS FOR ENRICHMENT AND FIFO
+            const enrichedReferrals = sortedRef.map((r: any, idx: number) => {
+                const count = idx + 1
+                const admFee = r.admissionFeeCollected || 0
+                const donFee = r.donationFeeCollected || 0
+
+                const isAdmissionSettled = userSettlements.some((s: any) => s.referralLeadId === r.id && s.benefitType === 'ADMISSION_SHARE' && s.status === 'Processed')
+                const isDonationSettled = userSettlements.some((s: any) => s.referralLeadId === r.id && s.benefitType === 'DONATION_SHARE' && s.status === 'Processed')
+                const isSlabSettled = userSettlements.some((s: any) => s.referralLeadId === r.id && s.benefitType === 'SLAB_SHARE' && s.status === 'Processed')
+                const isSpecialBonusSettled = userSettlements.some((s: any) => s.referralLeadId === r.id && s.benefitType === 'SPECIAL_BONUS' && s.status === 'Processed')
+
+                const isAdmissionPending = userSettlements.some((s: any) => s.referralLeadId === r.id && s.benefitType === 'ADMISSION_SHARE' && s.status === 'Pending')
+                const isDonationPending = userSettlements.some((s: any) => s.referralLeadId === r.id && s.benefitType === 'DONATION_SHARE' && s.status === 'Pending')
+                const isSlabPending = userSettlements.some((s: any) => s.referralLeadId === r.id && s.benefitType === 'SLAB_SHARE' && s.status === 'Pending')
+                const isSpecialBonusPending = userSettlements.some((s: any) => s.referralLeadId === r.id && s.benefitType === 'SPECIAL_BONUS' && s.status === 'Pending')
+
+                let slabPercent = 0
+                const hasSpecialBonus = (r.specialBonusRate || 0) > 0
+                
+                if (hasSpecialBonus) {
+                    slabPercent = 0
+                } else {
+                    stdRunningCount++
+                    const currentStdCount = stdRunningCount
+                    
+                    if (u.isFiveStarMember) {
+                        slabPercent = 5
+                    } else {
+                        const getSlabPercent = (c: number) => {
+                            const slab = slabs.find((s: any) => s.referralCount === Math.min(c, 5)) || slabs[slabs.length - 1]
+                            return slab?.yearFeeBenefitPercent || 0
+                        }
+                        slabPercent = Math.max(0, getSlabPercent(currentStdCount) - (currentStdCount === 1 ? 0 : getSlabPercent(currentStdCount - 1)))
+                    }
+                }
+
+                const slabBase = isGroupAEligible ? (actualChildFee || 0) : (r.campusGrade1Fee || 0)
+                const referralSlabValue = Math.round((slabBase * slabPercent) / 100)
+                const admShareValue = hasSpecialBonus ? 0 : Math.round(admFee * 0.8)
+                const donShareValue = hasSpecialBonus ? 0 : Math.round(donFee * 0.5)
+
+                // Virtual FIFO consumption
+                const admVirtual = !isAdmissionSettled ? Math.min(admShareValue, runningAdm) : 0
+                runningAdm -= admVirtual
+                const donVirtual = !isDonationSettled ? Math.min(donShareValue, runningDon) : 0
+                runningDon -= donVirtual
+                const slabVirtual = !isSlabSettled ? Math.min(referralSlabValue, runningSlab) : 0
+                runningSlab -= slabVirtual
+
+                const specialBonusValue = r.specialBonusRate || 0
+                const specialVirtual = !isSpecialBonusSettled ? Math.min(specialBonusValue, runningGreedy) : 0
+                runningGreedy -= specialVirtual
+
+                const referralTotal = admShareValue + donShareValue + referralSlabValue + specialBonusValue
+                let virtuallyPaidAmount = admVirtual + donVirtual + slabVirtual + specialVirtual
+
+                // Count DB-settled amounts (e.g. paid via Release button) that virtual FIFO didn't cover
+                const dbSettledValue =
+                    (isAdmissionSettled ? admShareValue : 0) +
+                    (isDonationSettled ? donShareValue : 0) +
+                    (isSlabSettled ? referralSlabValue : 0) +
+                    (isSpecialBonusSettled ? specialBonusValue : 0)
+                const totalEffectivePaid = virtuallyPaidAmount + dbSettledValue
+
+                let payoutStatus = 'PENDING'
+                if (totalEffectivePaid >= referralTotal && referralTotal > 0) payoutStatus = 'PAID'
+                else if (totalEffectivePaid > 0) payoutStatus = 'PARTIAL'
+
+                return {
+                    ...r,
+                    slabPercent,
+                    admShareValue,
+                    donShareValue,
+                    referralSlabValue,
+                    specialBonusValue,
+                    virtuallyPaidAmount,
+                    dbSettledValue,
+                    totalEffectivePaid,
+                    payoutStatus,
+                    // BUTTONS: Disable if database settled OR virtually settled
+                    isAdmissionReady: admShareValue > 0 && !isAdmissionSettled && !isAdmissionPending && admVirtual <= 0,
+                    isDonationReady: donShareValue > 0 && !isDonationSettled && !isDonationPending && donVirtual <= 0,
+                    isSlabReady: referralSlabValue > 0 && !isSlabSettled && !isSlabPending && slabVirtual <= 0,
+                    isSpecialBonusReady: specialBonusValue > 0 && !isSpecialBonusSettled && !isSpecialBonusPending && specialVirtual <= 0,
+                    isAdmissionSettled: isAdmissionSettled || (admVirtual > 0 && admVirtual >= admShareValue),
+                    isDonationSettled: isDonationSettled || (donVirtual > 0 && donVirtual >= donShareValue),
+                    isSlabSettled: isSlabSettled || (slabVirtual > 0 && slabVirtual >= referralSlabValue),
+                    isSpecialBonusSettled: isSpecialBonusSettled || (specialVirtual > 0 && specialVirtual >= specialBonusValue),
+                    isAdmissionPending,
+                    isDonationPending,
+                    isSlabPending,
+                    isSpecialBonusPending
+                }
+            })
+
+            const missingFeeReferrals = currentReferrals.filter((r: any) => r.feeDataMissing)
+            const hasMissingFeeData = (missingFeeReferrals.length > 0) || (isGroupAEligible && !displayChildFee && slabs.length > 0)
+            const missingFeeCampuses = Array.from(new Set(missingFeeReferrals.map((r: any) => r.campusName || `Campus ID ${r.campusId}`)))
+
+            if (isGroupAEligible) {
+                // Unified record for Group A (Staff/Parents)
+                // Only show if they have referrals in THIS specific year (prevents year bleed-through)
+                if (currentReferrals.length > 0) {
+                    const totalOutstanding = totalAllEarnings - totalSettled
                     liabilities.push({
                         userId: u.userId,
-                        ledgerId: `${u.userId}-${isGroupAEligible ? 'A' : 'B'}`,
-                        user: { userId: u.userId, fullName: u.fullName, role: u.role, mobileNumber: u.mobileNumber },
+                        ledgerId: `${u.userId}-A`,
+                        // user: u, // REMOVED: Potential circular ref / serialization overhead
                         fullName: u.fullName,
                         mobileNumber: u.mobileNumber,
-                        referralCode: u.referralCode,
+                        referralCode: u.referralCode || undefined,
                         role: u.role,
-                        campusName: u.assignedCampus || campusMap.get(u.campusId) || 'Global',
-                        group: isGroupAEligible ? 'Group A' : 'Group B',
                         confirmedReferralCount: currentReferrals.length,
                         benefitPercent: (calcResult as any).tierPercent || 0,
-                        slabShare: calcResult.slabShare + (calcResult as any).longTermBaseAmount,
-                        admissionShare: calcResult.admissionShare,
-                        donationShare: calcResult.donationShare,
-                        specialBonusShare: calcResult.specialBonusShare,
+                        campusName: (u as any).assignedCampus || 'N/A',
                         totalEarned: totalAllEarnings,
                         totalSettled: totalSettled,
-                        remainingAmount: Math.max(0, totalAllEarnings - totalSettled),
-                        mode: isGroupAEligible ? 'WAIVER' : 'CASH',
+                        outstanding: totalOutstanding,
+                        remainingAmount: totalOutstanding,
                         childName,
+                        childEprNo: (u as any).childEprNo || undefined,
                         childGrade,
                         childCampus,
                         childFee: displayChildFee,
-                        childEprNo: (u as any).childEprNo || undefined,
-                        referrals: enrichedReferrals
+                        breakdown: calcResult.breakdown,
+                        referrals: enrichedReferrals,
+                        slabShare: slabRewards,
+                        admissionShare: calcResult.admissionShare,
+                        donationShare: calcResult.donationShare,
+                        specialBonusShare: calcResult.specialBonusShare,
+                        appBonusPercent: calcResult.appBonusPercent,
+                        hasMissingFeeData,
+                        missingFeeCampuses,
+                        type: 'Unified',
+                        group: 'Group A'
                     })
                 }
-            } catch (err) {
-                console.error(`Skipping user ${u.userId}:`, err)
+            } else if (currentReferrals.length > 0) {
+                // Group B for others (Friends/Alumni/Others) - only if they have referrals this year
+                liabilities.push({
+                    userId: u.userId,
+                    ledgerId: `${u.userId}-B`,
+                    // user: u, // REMOVED: Potential circular ref / serialization overhead
+                    fullName: u.fullName,
+                    mobileNumber: u.mobileNumber,
+                    referralCode: u.referralCode || undefined,
+                    role: u.role,
+                    confirmedReferralCount: currentReferrals.length,
+                    benefitPercent: (calcResult as any).tierPercent || 0,
+                    campusName: (u as any).assignedCampus || 'N/A',
+                    totalEarned: finalPayoutEarned,
+                    totalSettled: payoutSettled,
+                    outstanding: payoutOutstanding,
+                    remainingAmount: payoutOutstanding,
+                    childName: undefined,
+                    childEprNo: undefined,
+                    childGrade: undefined,
+                    childCampus: undefined,
+                    childFee: undefined,
+                    breakdown: calcResult.breakdown,
+                    referrals: enrichedReferrals,
+                    slabShare: slabRewards,
+                    admissionShare: calcResult.admissionShare,
+                    donationShare: calcResult.donationShare,
+                    specialBonusShare: calcResult.specialBonusShare,
+                    appBonusPercent: calcResult.appBonusPercent,
+                    hasMissingFeeData,
+                    missingFeeCampuses,
+                    type: 'Payout',
+                    group: 'Group B'
+                })
             }
         }
 
-        console.log(`[V7-STABLE] FINANCE REVERT SUCCESS: Generated ${liabilities.length} records for ${yearFilter}`)
-        return { success: true, data: liabilities }
+        return { success: true, data: liabilities, totalCount: totalAmbassadorsWithRewards }
 
-    } catch (criticalError: any) {
-        console.error('CRITICAL: Finance Action Failure:', criticalError)
-        return { success: false, error: `Critical Failure: ${criticalError.message}` }
+    } catch (error: any) {
+        console.error('Error fetching accrued liabilities:', error)
+        return { success: false, error: error.message || 'Failed to fetch liabilities' }
     }
 }
 

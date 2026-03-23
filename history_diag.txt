@@ -1,0 +1,86 @@
+--- DIAGNOSTIC: PROCESSED SETTLEMENTS BY YEAR ---
+Total Processed with Leads: [ { _count: { _all: 1 }, status: 'Processed' } ]
+Recent Processed Samples: [
+  {
+    "id": 573,
+    "createdAt": "2026-04-01T00:00:01.000Z",
+    "referralLead": null
+  },
+  {
+    "id": 2826,
+    "createdAt": "2026-03-23T10:30:04.944Z",
+    "referralLead": null
+  },
+  {
+    "id": 2825,
+    "createdAt": "2026-03-23T10:30:04.934Z",
+    "referralLead": null
+  },
+  {
+    "id": 2824,
+    "createdAt": "2026-03-23T10:30:04.924Z",
+    "referralLead": null
+  },
+  {
+    "id": 2823,
+    "createdAt": "2026-03-23T10:30:04.913Z",
+    "referralLead": null
+  },
+  {
+    "id": 2822,
+    "createdAt": "2026-03-23T10:30:04.904Z",
+    "referralLead": null
+  },
+  {
+    "id": 2821,
+    "createdAt": "2026-03-23T10:30:04.894Z",
+    "referralLead": null
+  },
+  {
+    "id": 2820,
+    "createdAt": "2026-03-23T10:30:04.883Z",
+    "referralLead": null
+  },
+  {
+    "id": 2819,
+    "createdAt": "2026-03-23T10:30:04.871Z",
+    "referralLead": null
+  },
+  {
+    "id": 2818,
+    "createdAt": "2026-03-23T10:30:04.859Z",
+    "referralLead": null
+  }
+]
+Academic Year Ranges: [
+  {
+    "id": 2,
+    "year": "2024-2025",
+    "startDate": "2024-06-01T00:00:00.000Z",
+    "endDate": "2025-05-31T00:00:00.000Z",
+    "isActive": true,
+    "isCurrent": false,
+    "createdAt": "2026-01-05T07:25:26.502Z",
+    "updatedAt": "2026-03-21T07:20:50.664Z"
+  },
+  {
+    "id": 1,
+    "year": "2025-2026",
+    "startDate": "2025-06-01T00:00:00.000Z",
+    "endDate": "2026-03-31T23:59:59.000Z",
+    "isActive": true,
+    "isCurrent": false,
+    "createdAt": "2026-01-05T07:23:26.592Z",
+    "updatedAt": "2026-03-21T07:20:50.664Z"
+  },
+  {
+    "id": 4,
+    "year": "2026-2027",
+    "startDate": "2025-11-01T00:00:00.000Z",
+    "endDate": "2027-03-31T00:00:00.000Z",
+    "isActive": true,
+    "isCurrent": true,
+    "createdAt": "2026-01-05T08:06:54.798Z",
+    "updatedAt": "2026-03-21T07:28:57.527Z"
+  }
+]

@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { DataTable } from '@/components/ui/DataTable'
 import { CheckCircle, Info, Send, AlertTriangle, Download, Search } from 'lucide-react'
+import { formatIndianCurrency } from '@/lib/currency-utils'
 import { bulkInitiateSettlements, bulkRecordWaiverAdjustments, releaseGranularBenefit } from '@/app/finance-actions'
 import { toast } from 'sonner'
 import { FileDown } from 'lucide-react'
@@ -48,10 +49,34 @@ interface LiabilityLedgerTableProps {
     academicYear?: string
     search?: string
     onSearchChange?: (val: string) => void
+    totalResults?: number
+    currentPage?: number
+    onPageChange?: (page: number) => void
 }
 
-export function LiabilityLedgerTable({ data, mode, academicYear, search = '', onSearchChange }: LiabilityLedgerTableProps) {
+export function LiabilityLedgerTable({ 
+    data, 
+    mode, 
+    academicYear, 
+    search = '', 
+    onSearchChange, 
+    totalResults = 0, 
+    currentPage = 1,
+    onPageChange
+}: LiabilityLedgerTableProps) {
+    const router = useRouter()
+    const pathname = usePathname()
     const [showExportModal, setShowExportModal] = useState(false)
+
+    const handlePageChange = (page: number) => {
+        if (onPageChange) {
+            onPageChange(page)
+        } else {
+            const params = new URLSearchParams(window.location.search)
+            params.set('page', page.toString())
+            router.push(`${pathname}?${params.toString()}`, { scroll: false })
+        }
+    }
 
     const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
         const res = await exportLiabilities(start, end, selectedColumns, academicYear, mode)
@@ -94,15 +119,14 @@ export function LiabilityLedgerTable({ data, mode, academicYear, search = '', on
         { id: 'childFee', label: 'Child Fee', defaultChecked: mode === 'A' },
         { id: 'group', label: 'Ledger Group', defaultChecked: true }
     ]
-    const router = useRouter()
     const [selectedIds, setSelectedIds] = useState<string[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
 
-    // Filter data based on mode
-    const filteredData = data.filter(l => mode === 'A' ? (l.group || '').includes('A') : (l.group || '').includes('B'))
+    // Data is now pre-filtered by Group (A/B) on the server side
+    const displayData = data
 
     const handleBulkInitiate = async () => {
-        const groupBSelected = filteredData.filter(l => selectedIds.includes(l.ledgerId))
+        const groupBSelected = displayData.filter(l => selectedIds.includes(l.ledgerId))
 
         if (groupBSelected.length === 0) {
             toast.error("Please select Group B ambassadors to initiate payouts.")
@@ -140,6 +164,7 @@ export function LiabilityLedgerTable({ data, mode, academicYear, search = '', on
         }
     }
 
+
     const columns = [
         {
             header: 'Ambassador',
@@ -157,6 +182,7 @@ export function LiabilityLedgerTable({ data, mode, academicYear, search = '', on
             header: 'Role',
             accessorKey: 'role',
             filterable: true,
+            filterOptions: ['Parent', 'Staff', 'Alumni', 'Others'],
             cell: (row: Liability) => (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600 font-bold uppercase tracking-wider border border-gray-200">{row.role}</span>
             )
@@ -180,7 +206,7 @@ export function LiabilityLedgerTable({ data, mode, academicYear, search = '', on
                     <div className="w-[150px]">
                         <div className="text-xs font-black text-blue-700 leading-tight">{row.childName || 'N/A'}</div>
                         <div className="text-[10px] text-gray-500">{row.childGrade} • {row.childCampus}</div>
-                        <div className="text-[10px] font-bold text-gray-400">Fee: {row.childFee ? `₹${row.childFee.toLocaleString()}` : 'N/A'}</div>
+                        <div className="text-[10px] font-bold text-gray-400">Fee: {row.childFee ? `₹${formatIndianCurrency(row.childFee)}` : 'N/A'}</div>
                         {row.childEprNo && <div className="text-[9px] text-gray-400 font-mono">ERP: {row.childEprNo}</div>}
                     </div>
                 )
@@ -192,10 +218,10 @@ export function LiabilityLedgerTable({ data, mode, academicYear, search = '', on
             sortable: true,
             cell: (row: Liability) => (
                 <div className="flex flex-col gap-0.5">
-                    {row.hasMissingFeeData ? (
-                        <span className="text-[11px] font-bold text-gray-400">N/A</span>
+                    {row.hasMissingFeeData && (row.slabShare || 0) <= 0 ? (
+                        <span className="text-[11px] font-bold text-gray-400 text-center">N/A</span>
                     ) : (
-                        <span className="font-mono text-xs font-bold">₹{(row.slabShare || 0).toLocaleString()}</span>
+                        <span className="font-mono text-xs font-bold">₹{formatIndianCurrency(row.slabShare || 0)}</span>
                     )}
                     <span className="text-[10px] text-gray-400">Tier: {row.benefitPercent}%</span>
                 </div>
@@ -206,7 +232,7 @@ export function LiabilityLedgerTable({ data, mode, academicYear, search = '', on
             accessorKey: 'admissionShare',
             cell: (row: Liability) => (
                 <span className="font-mono text-xs text-blue-600 font-bold">
-                    ₹{(row.admissionShare || 0).toLocaleString()}
+                    ₹{formatIndianCurrency(row.admissionShare || 0)}
                 </span>
             )
         },
@@ -215,7 +241,7 @@ export function LiabilityLedgerTable({ data, mode, academicYear, search = '', on
             accessorKey: 'donationShare',
             cell: (row: Liability) => (
                 <span className="font-mono text-xs text-orange-600 font-bold">
-                    ₹{(row.donationShare || 0).toLocaleString()}
+                    ₹{formatIndianCurrency(row.donationShare || 0)}
                 </span>
             )
         },
@@ -224,7 +250,7 @@ export function LiabilityLedgerTable({ data, mode, academicYear, search = '', on
             accessorKey: 'specialBonusShare',
             cell: (row: Liability) => (
                 <span className="font-mono text-xs font-bold text-teal-700">
-                    ₹{(row.specialBonusShare || 0).toLocaleString()}
+                    ₹{formatIndianCurrency(row.specialBonusShare || 0)}
                 </span>
             )
         },
@@ -246,7 +272,7 @@ export function LiabilityLedgerTable({ data, mode, academicYear, search = '', on
             header: 'Total Yield',
             accessorKey: 'totalEarned',
             sortable: true,
-            cell: (row: Liability) => <span className="font-black text-sm text-gray-900">₹{(row.totalEarned || 0).toLocaleString()}</span>
+            cell: (row: Liability) => <span className="font-black text-sm text-gray-900">₹{formatIndianCurrency(row.totalEarned || 0)}</span>
         },
         {
             header: mode === 'A' ? 'Current Payout' : 'Rem. Payout',
@@ -254,11 +280,11 @@ export function LiabilityLedgerTable({ data, mode, academicYear, search = '', on
             cell: (row: Liability) => (
                 <div className="bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100 min-w-[80px] text-center">
                     <span className="font-black text-xs text-emerald-700">
-                        ₹{(row.remainingAmount || 0).toLocaleString()}
+                        ₹{formatIndianCurrency(row.remainingAmount || 0)}
                     </span>
                     {(row.totalSettled || 0) > 0 && (
                         <div className="text-[8px] text-emerald-600/60 font-medium">
-                            Settled: ₹{(row.totalSettled || 0).toLocaleString()}
+                            Settled: ₹{formatIndianCurrency(row.totalSettled || 0)}
                         </div>
                     )}
                 </div>
@@ -273,7 +299,7 @@ export function LiabilityLedgerTable({ data, mode, academicYear, search = '', on
                     {row.remainingAmount > 0 && (
                         <button
                             onClick={async () => {
-                                if (!confirm(`Apply ₹${row.remainingAmount.toLocaleString()} Institutional Fee Waiver for ${row.fullName}?`)) return
+                                if (!confirm(`Apply ₹${formatIndianCurrency(row.remainingAmount)} Institutional Fee Waiver for ${row.fullName}?`)) return
 
                                 setIsProcessing(true)
                                 const tid = toast.loading(`Applying waiver for ${row.fullName}...`)
@@ -362,7 +388,7 @@ export function LiabilityLedgerTable({ data, mode, academicYear, search = '', on
                             const tid = toast.loading('Recording waiver adjustments...')
 
                             try {
-                                const selectedItems = filteredData.filter(l => selectedIds.includes(l.ledgerId))
+                                const selectedItems = displayData.filter(l => selectedIds.includes(l.ledgerId))
                                 const requests = selectedItems.map(l => {
                                     const unsettled = (l.referrals || []).filter(r => r.payoutStatus !== 'PAID')
                                     const breakdownStr = unsettled.map(r => `${r.studentName || r.fullName}`).join(', ')
@@ -404,181 +430,230 @@ export function LiabilityLedgerTable({ data, mode, academicYear, search = '', on
                 <DataTable
                     uniqueKey="ledgerId"
                     columns={columns as any}
-                    data={filteredData}
+                    data={displayData}
                     searchKey={["fullName", "mobileNumber", "referralCode", "campusName", "role"]}
                     searchPlaceholder={`Search ${mode === 'A' ? 'Group A' : 'Group B'} (Name, Mobile, ID, Campus)...`}
-                    pageSize={10}
+                    pageSize={20}
                     searchValue={search}
                     onSearchChange={onSearchChange}
                     enableMultiSelection={true}
                     onSelectionChange={(selected) => {
-                        setSelectedIds(selected.map(s => s.ledgerId))
+                        setSelectedIds(selected.map(s => (s as any).ledgerId))
                     }}
-                    renderExpandedRow={(row) => (
-                        <div className="bg-gray-50/50 p-4 rounded-xl border border-dashed border-gray-200">
-                            <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-2">
-                                <Search size={12} />
-                                Granular Audit: Student Referrals (FIFO Order)
-                            </h5>
+                    rowCount={totalResults}
+                    pageCount={Math.ceil((totalResults || 0) / 20)}
+                    currentPage={currentPage}
+                    onPageChange={handlePageChange}
+                    manualPagination={true}
+                    renderExpandedRow={(row: any) => {
+                        const r = row as Liability;
+                        return (
+                            <div className="bg-gray-50/50 p-4 rounded-xl border border-dashed border-gray-200">
+                                <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-2">
+                                    <Search size={12} />
+                                    Granular Audit: Student Referrals (FIFO Order)
+                                </h5>
 
-                            {row.referrals && row.referrals.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                    {row.referrals.map((ref: any, idx: number) => (
-                                        <div key={idx} className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <div className="text-xs font-black text-gray-900 leading-tight">{ref.studentName || ref.fullName}</div>
-                                                    <div className="text-[10px] text-gray-500 font-medium">
-                                                        {ref.gradeInterested} • {ref.campus}
-                                                        {ref.admissionNumber && <span className="ml-2 text-indigo-600 font-bold bg-indigo-50 px-1 rounded uppercase tracking-tighter">({ref.admissionNumber})</span>}
+                                {r.referrals && r.referrals.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {r.referrals.map((ref: any, idx: number) => (
+                                            <div key={idx} className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <div className="text-xs font-black text-gray-900 leading-tight">{ref.studentName || ref.fullName}</div>
+                                                        <div className="text-[10px] text-gray-500 font-medium">
+                                                            {ref.gradeInterested} • {ref.campus}
+                                                            {ref.admissionNumber && <span className="ml-2 text-indigo-600 font-bold bg-indigo-50 px-1 rounded uppercase tracking-tighter">({ref.admissionNumber})</span>}
+                                                        </div>
                                                     </div>
+                                                    <span className={`text-[9px] px-2 py-0.5 rounded-md font-black uppercase tracking-wider ${ref.payoutStatus === 'PAID' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                                                        ref.payoutStatus === 'PARTIAL' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                                                            'bg-gray-50 text-gray-400 border border-gray-100'
+                                                        }`}>
+                                                        {ref.payoutStatus}
+                                                    </span>
                                                 </div>
-                                                <span className={`text-[9px] px-2 py-0.5 rounded-md font-black uppercase tracking-wider ${ref.payoutStatus === 'PAID' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
-                                                    ref.payoutStatus === 'PARTIAL' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
-                                                        'bg-gray-50 text-gray-400 border border-gray-100'
-                                                    }`}>
-                                                    {ref.payoutStatus}
-                                                </span>
+                                                <div className="flex flex-col gap-2 mt-3 border-t border-gray-50 pt-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[10px] font-bold text-blue-600">Admission Share (80%)</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] font-mono font-bold">₹{formatIndianCurrency(ref.admShareValue || 0)}</span>
+                                                            {ref.isAdmissionSettled ? (
+                                                                <span className="text-[8px] bg-emerald-50 text-emerald-600 px-1 rounded border border-emerald-100 font-bold uppercase">Paid</span>
+                                                            ) : ref.isAdmissionPending ? (
+                                                                <span className="text-[8px] bg-amber-50 text-amber-600 px-1 rounded border border-amber-200 font-bold uppercase">Pending</span>
+                                                            ) : ref.isAdmissionReady ? (
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        if (!confirm(`Release Admission Share of ₹${formatIndianCurrency(ref.admShareValue || 0)} for ${ref.studentName || ref.fullName}?`)) return
+                                                                        setIsProcessing(true)
+                                                                        const res = await releaseGranularBenefit({
+                                                                            userId: r.userId,
+                                                                            amount: ref.admShareValue,
+                                                                            benefitType: 'ADMISSION_SHARE',
+                                                                            referralLeadId: ref.id,
+                                                                            remarks: `Admission Share for ${ref.studentName || ref.fullName}`
+                                                                        })
+                                                                        if (res.success) {
+                                                                            toast.success("Admission share payout initiated")
+                                                                            router.refresh()
+                                                                        } else {
+                                                                            toast.error(res.error)
+                                                                        }
+                                                                        setIsProcessing(false)
+                                                                    }}
+                                                                    disabled={isProcessing}
+                                                                    className="text-[9px] bg-blue-600 text-white px-2 py-0.5 rounded shadow-sm hover:bg-blue-700 font-bold"
+                                                                >
+                                                                    Release
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-[8px] text-gray-400 font-medium italic">Wait for Fee</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[10px] font-bold text-orange-600">Donation Share (50%)</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] font-mono font-bold">₹{formatIndianCurrency(ref.donShareValue || 0)}</span>
+                                                            {ref.isDonationSettled ? (
+                                                                <span className="text-[8px] bg-emerald-50 text-emerald-600 px-1 rounded border border-emerald-100 font-bold uppercase">Paid</span>
+                                                            ) : ref.isDonationPending ? (
+                                                                <span className="text-[8px] bg-amber-50 text-amber-600 px-1 rounded border border-amber-200 font-bold uppercase">Pending</span>
+                                                            ) : ref.isDonationReady ? (
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        if (!confirm(`Release Donation Share of ₹${formatIndianCurrency(ref.donShareValue || 0)} for ${ref.studentName || ref.fullName}?`)) return
+                                                                        setIsProcessing(true)
+                                                                        const res = await releaseGranularBenefit({
+                                                                            userId: r.userId,
+                                                                            amount: ref.donShareValue,
+                                                                            benefitType: 'DONATION_SHARE',
+                                                                            referralLeadId: ref.id,
+                                                                            remarks: `Donation Share for ${ref.studentName || ref.fullName}`
+                                                                        })
+                                                                        if (res.success) {
+                                                                            toast.success("Donation share payout initiated")
+                                                                            router.refresh()
+                                                                        } else {
+                                                                            toast.error(res.error)
+                                                                        }
+                                                                        setIsProcessing(false)
+                                                                    }}
+                                                                    disabled={isProcessing}
+                                                                    className="text-[9px] bg-orange-600 text-white px-2 py-0.5 rounded shadow-sm hover:bg-orange-700 font-bold"
+                                                                >
+                                                                    Release
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-[8px] text-gray-400 font-medium italic">Wait for Fee</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[10px] font-bold text-purple-600">Slab Reward ({ref.slabPercent ?? r.benefitPercent}%)</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] font-mono font-bold">₹{formatIndianCurrency(ref.referralSlabValue || 0)}</span>
+                                                            {ref.isSlabSettled ? (
+                                                                <span className="text-[8px] bg-emerald-50 text-emerald-600 px-1 rounded border border-emerald-100 font-bold uppercase">Paid</span>
+                                                            ) : ref.isSlabPending ? (
+                                                                <span className="text-[8px] bg-amber-50 text-amber-600 px-1 rounded border border-amber-200 font-bold uppercase">Pending</span>
+                                                            ) : ref.isSlabReady ? (
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        if (!confirm(`Release Slab Reward of ₹${formatIndianCurrency(ref.referralSlabValue || 0)} for ${ref.studentName || ref.fullName}?`)) return
+                                                                        setIsProcessing(true)
+                                                                        const res = await releaseGranularBenefit({
+                                                                            userId: r.userId,
+                                                                            amount: ref.referralSlabValue,
+                                                                            benefitType: 'SLAB_SHARE',
+                                                                            referralLeadId: ref.id,
+                                                                            remarks: `Slab Reward for ${ref.studentName || ref.fullName}`
+                                                                        })
+                                                                        if (res.success) {
+                                                                            toast.success("Slab reward payout initiated")
+                                                                            router.refresh()
+                                                                        } else {
+                                                                            toast.error(res.error)
+                                                                        }
+                                                                        setIsProcessing(false)
+                                                                    }}
+                                                                    disabled={isProcessing}
+                                                                    className="text-[9px] bg-purple-600 text-white px-2 py-0.5 rounded shadow-sm hover:bg-purple-700 font-bold"
+                                                                >
+                                                                    {r.group === 'Group A' ? 'Apply Waiver' : 'Release'}
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-[8px] text-gray-400 font-medium italic">Wait for Fee</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {ref.specialBonusValue > 0 && (
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-[10px] font-bold text-emerald-600">Special Campus Bonus</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[10px] font-mono font-bold">₹{formatIndianCurrency(ref.specialBonusValue)}</span>
+                                                                {ref.isSpecialBonusSettled ? (
+                                                                    <span className="text-[8px] bg-emerald-50 text-emerald-600 px-1 rounded border border-emerald-100 font-bold uppercase">Paid</span>
+                                                                ) : ref.isSpecialBonusPending ? (
+                                                                    <span className="text-[8px] bg-amber-50 text-amber-600 px-1 rounded border border-amber-200 font-bold uppercase">Pending</span>
+                                                                ) : ref.isSpecialBonusReady ? (
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            if (!confirm(`Release Special Campus Bonus of ₹${formatIndianCurrency(ref.specialBonusValue)} for ${ref.studentName || ref.fullName}?`)) return
+                                                                            setIsProcessing(true)
+                                                                            const res = await releaseGranularBenefit({
+                                                                                userId: r.userId,
+                                                                                amount: ref.specialBonusValue,
+                                                                                benefitType: 'SPECIAL_BONUS',
+                                                                                referralLeadId: ref.id,
+                                                                                remarks: `Special Campus Bonus for ${ref.studentName || ref.fullName}`
+                                                                            })
+                                                                            if (res.success) {
+                                                                                toast.success("Special bonus payout initiated")
+                                                                                router.refresh()
+                                                                            } else {
+                                                                                toast.error(res.error)
+                                                                            }
+                                                                            setIsProcessing(false)
+                                                                        }}
+                                                                        disabled={isProcessing}
+                                                                        className="text-[9px] bg-emerald-600 text-white px-2 py-0.5 rounded shadow-sm hover:bg-emerald-700 font-bold"
+                                                                    >
+                                                                        Release
+                                                                    </button>
+                                                                ) : (
+                                                                    <span className="text-[8px] text-gray-400 font-medium italic">Wait for Fee</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex justify-between items-end border-t border-gray-50 pt-2 mt-3 italic">
+                                                    <div className="text-[9px] text-gray-400 font-mono">
+                                                        Lead Status: {ref.leadStatus} • ID: {ref.leadId}
+                                                    </div>
+                                                    {ref.virtuallyPaidAmount > 0 && (
+                                                        <div className="text-[10px] font-black text-emerald-600">
+                                                            Legacy Settled: ₹{formatIndianCurrency(ref.virtuallyPaidAmount || 0)}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="flex flex-col gap-2 mt-3 border-t border-gray-50 pt-3">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-[10px] font-bold text-blue-600">Admission Share (80%)</span>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-mono font-bold">₹{ref.admShareValue?.toLocaleString()}</span>
-                                                        {ref.isAdmissionSettled ? (
-                                                            <span className="text-[8px] bg-emerald-50 text-emerald-600 px-1 rounded border border-emerald-100 font-bold uppercase">Paid</span>
-                                                        ) : ref.isAdmissionPending ? (
-                                                            <span className="text-[8px] bg-amber-50 text-amber-600 px-1 rounded border border-amber-200 font-bold uppercase">Pending</span>
-                                                        ) : ref.isAdmissionReady ? (
-                                                            <button
-                                                                onClick={async () => {
-                                                                    if (!confirm(`Release Admission Share of ₹${ref.admShareValue.toLocaleString()} for ${ref.studentName || ref.fullName}?`)) return
-                                                                    setIsProcessing(true)
-                                                                    const res = await releaseGranularBenefit({
-                                                                        userId: row.userId,
-                                                                        amount: ref.admShareValue,
-                                                                        benefitType: 'ADMISSION_SHARE',
-                                                                        referralLeadId: ref.id,
-                                                                        remarks: `Admission Share for ${ref.studentName || ref.fullName}`
-                                                                    })
-                                                                    if (res.success) {
-                                                                        toast.success("Admission share payout initiated")
-                                                                        router.refresh()
-                                                                    } else {
-                                                                        toast.error(res.error)
-                                                                    }
-                                                                    setIsProcessing(false)
-                                                                }}
-                                                                disabled={isProcessing}
-                                                                className="text-[9px] bg-blue-600 text-white px-2 py-0.5 rounded shadow-sm hover:bg-blue-700 font-bold"
-                                                            >
-                                                                Release
-                                                            </button>
-                                                        ) : (
-                                                            <span className="text-[8px] text-gray-400 font-medium italic">Wait for Fee</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-[10px] font-bold text-orange-600">Donation Share (50%)</span>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-mono font-bold">₹{ref.donShareValue?.toLocaleString()}</span>
-                                                        {ref.isDonationSettled ? (
-                                                            <span className="text-[8px] bg-emerald-50 text-emerald-600 px-1 rounded border border-emerald-100 font-bold uppercase">Paid</span>
-                                                        ) : ref.isDonationPending ? (
-                                                            <span className="text-[8px] bg-amber-50 text-amber-600 px-1 rounded border border-amber-200 font-bold uppercase">Pending</span>
-                                                        ) : ref.isDonationReady ? (
-                                                            <button
-                                                                onClick={async () => {
-                                                                    if (!confirm(`Release Donation Share of ₹${ref.donShareValue.toLocaleString()} for ${ref.studentName || ref.fullName}?`)) return
-                                                                    setIsProcessing(true)
-                                                                    const res = await releaseGranularBenefit({
-                                                                        userId: row.userId,
-                                                                        amount: ref.donShareValue,
-                                                                        benefitType: 'DONATION_SHARE',
-                                                                        referralLeadId: ref.id,
-                                                                        remarks: `Donation Share for ${ref.studentName || ref.fullName}`
-                                                                    })
-                                                                    if (res.success) {
-                                                                        toast.success("Donation share payout initiated")
-                                                                        router.refresh()
-                                                                    } else {
-                                                                        toast.error(res.error)
-                                                                    }
-                                                                    setIsProcessing(false)
-                                                                }}
-                                                                disabled={isProcessing}
-                                                                className="text-[9px] bg-orange-600 text-white px-2 py-0.5 rounded shadow-sm hover:bg-orange-700 font-bold"
-                                                            >
-                                                                Release
-                                                            </button>
-                                                        ) : (
-                                                            <span className="text-[8px] text-gray-400 font-medium italic">Wait for Fee</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-[10px] font-bold text-purple-600">Slab Reward ({ref.slabPercent ?? row.benefitPercent}%)</span>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-mono font-bold">₹{ref.referralSlabValue?.toLocaleString()}</span>
-                                                        {ref.isSlabSettled ? (
-                                                            <span className="text-[8px] bg-emerald-50 text-emerald-600 px-1 rounded border border-emerald-100 font-bold uppercase">Paid</span>
-                                                        ) : ref.isSlabPending ? (
-                                                            <span className="text-[8px] bg-amber-50 text-amber-600 px-1 rounded border border-amber-200 font-bold uppercase">Pending</span>
-                                                        ) : ref.isSlabReady ? (
-                                                            <button
-                                                                onClick={async () => {
-                                                                    if (!confirm(`Release Slab Reward of ₹${ref.referralSlabValue.toLocaleString()} for ${ref.studentName || ref.fullName}?`)) return
-                                                                    setIsProcessing(true)
-                                                                    const res = await releaseGranularBenefit({
-                                                                        userId: row.userId,
-                                                                        amount: ref.referralSlabValue,
-                                                                        benefitType: 'SLAB_SHARE',
-                                                                        referralLeadId: ref.id,
-                                                                        remarks: `Slab Reward for ${ref.studentName || ref.fullName}`
-                                                                    })
-                                                                    if (res.success) {
-                                                                        toast.success("Slab reward payout initiated")
-                                                                        router.refresh()
-                                                                    } else {
-                                                                        toast.error(res.error)
-                                                                    }
-                                                                    setIsProcessing(false)
-                                                                }}
-                                                                disabled={isProcessing}
-                                                                className="text-[9px] bg-purple-600 text-white px-2 py-0.5 rounded shadow-sm hover:bg-purple-700 font-bold"
-                                                            >
-                                                                {row.group === 'Group A' ? 'Apply Waiver' : 'Release'}
-                                                            </button>
-                                                        ) : (
-                                                            <span className="text-[8px] text-gray-400 font-medium italic">Wait for Fee</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex justify-between items-end border-t border-gray-50 pt-2 mt-3 italic">
-                                                <div className="text-[9px] text-gray-400 font-mono">
-                                                    Lead Status: {ref.leadStatus} • ID: {ref.leadId}
-                                                </div>
-                                                {ref.virtuallyPaidAmount > 0 && (
-                                                    <div className="text-[10px] font-black text-emerald-600">
-                                                        Legacy Settled: ₹{ref.virtuallyPaidAmount.toLocaleString()}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-center py-6 text-gray-400">
-                                    <p className="text-xs font-bold uppercase tracking-widest">No detailed referral data linked</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-6 text-gray-400">
+                                        <p className="text-xs font-bold uppercase tracking-widest">No detailed referral data linked</p>
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    }}
                 />
             </div>
 

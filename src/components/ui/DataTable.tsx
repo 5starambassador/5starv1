@@ -10,6 +10,7 @@ interface Column<T> {
     cell?: (row: T) => React.ReactNode
     sortable?: boolean
     filterable?: boolean
+    filterOptions?: string[]
 }
 
 interface DataTableProps<T> {
@@ -92,6 +93,7 @@ export function DataTable<T>({
 
     // Get unique values for a column (for filter dropdown)
     const getUniqueValues = (column: Column<T>) => {
+        if (column.filterOptions) return column.filterOptions;
         const values = new Set<string>()
         data.forEach(item => {
             const val = getRawValue(item, column)
@@ -133,7 +135,7 @@ export function DataTable<T>({
     const filteredData = useMemo(() => {
         return data.filter(item => {
             // 1. Global Search
-            if (searchKey && searchTerm) {
+            if (!manualPagination && searchKey && searchTerm) {
                 const lowerTerm = searchTerm.toLowerCase()
                 if (Array.isArray(searchKey)) {
                     const hasMatch = searchKey.some(key => {
@@ -272,6 +274,7 @@ export function DataTable<T>({
                                 }}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 hover:bg-gray-200 rounded-full transition-all"
                                 title="Clear search"
+                                suppressHydrationWarning
                             >
                                 <X size={14} />
                             </button>
@@ -512,7 +515,7 @@ export function DataTable<T>({
                         {(currentPage - 1) * pageSize + 1}
                         {' '}TO{' '}
                         {manualPagination ? Math.min(currentPage * pageSize, (rowCount || pageCount! * pageSize)) : Math.min(currentPage * pageSize, sortedData.length)}
-                    </span> OF <span className="text-gray-900 mx-1">{manualPagination ? (rowCount || 'MANY') : sortedData.length}</span> RESULTS
+                    </span> OF <span className="text-gray-900 mx-1">{(manualPagination || (rowCount && rowCount > sortedData.length)) ? rowCount : sortedData.length}</span> RESULTS
                 </p>
 
                 <div className="flex items-center gap-3">

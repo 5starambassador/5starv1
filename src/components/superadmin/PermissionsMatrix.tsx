@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { BarChart3, Users, BookOpen, ShieldCheck, Building2, Download, IndianRupee, Database, GanttChartSquare, MessageSquare, Settings, UserPlus, Edit, Trash, List, Wallet, ChevronDown, ChevronRight, CheckCircle2, Eye, Key, RotateCcw, ExternalLink, Globe, CreditCard, Percent, Calendar, RefreshCw, FileText, ShieldAlert } from 'lucide-react'
+import { BarChart3, Users, BookOpen, ShieldCheck, Building2, Download, IndianRupee, Database, GanttChartSquare, MessageSquare, Settings, UserPlus, Edit, Trash, List, Wallet, ChevronDown, ChevronRight, CheckCircle2, Eye, Key, RotateCcw, ExternalLink, Globe, CreditCard, Percent, Calendar, RefreshCw, FileText, ShieldAlert, Search, Copy } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { RolePermissions } from '@/types'
 
@@ -84,6 +85,12 @@ export function PermissionsMatrix({
 }: PermissionsMatrixProps) {
     const [hoveredRole, setHoveredRole] = useState<string | null>(null)
     const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
+    const [searchQuery, setSearchQuery] = useState('')
+
+    const filteredSections = SECTIONS.map(section => ({
+        ...section,
+        modules: section.modules.filter(m => m.label.toLowerCase().includes(searchQuery.toLowerCase()))
+    })).filter(section => section.modules.length > 0)
 
     const toggleSection = (sectionId: string) => {
         setCollapsedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }))
@@ -140,7 +147,7 @@ export function PermissionsMatrix({
     }
 
     return (
-        <div className="space-y-6 animate-fade-in pb-20 w-full xl:max-w-[calc(100vw-340px)] mx-auto">
+        <div className="space-y-6 animate-fade-in pb-10 w-full">
             <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #f0f0f0', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>
                 {/* Header Actions */}
                 <div style={{ padding: '24px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to right, #ffffff, #f9fafb)' }}>
@@ -151,6 +158,32 @@ export function PermissionsMatrix({
                         </h3>
                         <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>Manage granular permissions and data visibility scopes across all system roles.</p>
                     </div>
+
+                    <div style={{ flex: 1, maxWidth: '400px', margin: '0 24px', position: 'relative' }}>
+                        <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }}>
+                            <Search size={16} />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search permissions..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '10px 16px 10px 40px',
+                                background: '#F3F4F6',
+                                border: '1px solid #E5E7EB',
+                                borderRadius: '10px',
+                                fontSize: '14px',
+                                outline: 'none',
+                                fontWeight: '500',
+                                transition: 'all 0.2s'
+                            }}
+                            onFocus={(e) => { e.target.style.background = 'white'; e.target.style.borderColor = '#CC0000'; e.target.style.boxShadow = '0 0 0 3px rgba(204, 0, 0, 0.1)' }}
+                            onBlur={(e) => { e.target.style.background = '#F3F4F6'; e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none' }}
+                        />
+                    </div>
+
                     <button
                         onClick={onSave}
                         disabled={isLoading}
@@ -177,67 +210,116 @@ export function PermissionsMatrix({
                 </div>
 
                 {/* Matrix Table */}
-                <div style={{ overflowX: 'auto', maxHeight: '75vh', overflowY: 'auto', maxWidth: '100%' }}>
+                <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
                     <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
-                        <thead style={{ position: 'sticky', top: 0, zIndex: 20 }}>
+                        <thead style={{ position: 'sticky', top: '0', zIndex: 20 }}>
                             <tr>
                                 <th style={{
                                     padding: '16px', textAlign: 'left',
-                                    background: 'rgba(255, 255, 255, 0.95)',
-                                    backdropFilter: 'blur(8px)',
+                                    background: 'rgba(255, 255, 255, 1)', // Solid background for sticky
+                                    position: 'sticky', left: 0, zIndex: 30, // Higher than role headers
                                     borderBottom: '1px solid #E5E7EB',
-                                    minWidth: '240px',
-                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                                    borderRight: '1px solid #F3F4F6',
+                                    minWidth: '320px',
+                                    boxShadow: '4px 0 8px -4px rgba(0, 0, 0, 0.1)' // Shadow for scrolling effect
                                 }}>
-                                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Module / Capability</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <span style={{ fontSize: '11px', fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Module / Capability</span>
+                                        {searchQuery && <span style={{ fontSize: '10px', background: '#FEF2F2', color: '#991B1B', padding: '1px 6px', borderRadius: '4px' }}>Filtered</span>}
+                                    </div>
                                 </th>
-                                {ROLES.map(role => (
-                                    <th
-                                        key={role}
-                                        onMouseEnter={() => setHoveredRole(role)}
-                                        onMouseLeave={() => setHoveredRole(null)}
-                                        style={{
-                                            padding: '16px 8px', textAlign: 'center',
-                                            background: hoveredRole === role ? '#FEF2F2' : 'rgba(255, 255, 255, 0.95)', // Subtle rde tint on hover
-                                            backdropFilter: 'blur(8px)',
-                                            borderBottom: '1px solid #E5E7EB',
-                                            minWidth: '130px',
-                                            transition: 'background-color 0.2s',
-                                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                                            <div style={{ fontSize: '13px', fontWeight: '800', color: '#111827' }}>{role}</div>
-                                            <button
-                                                onClick={() => onReset(role)}
-                                                title={`Reset ${role} to defaults`}
-                                                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                                style={{
-                                                    background: 'none', border: 'none', cursor: 'pointer',
-                                                    color: '#9CA3AF', padding: '4px', borderRadius: '50%',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    visibility: hoveredRole === role ? 'visible' : 'hidden'
-                                                }}
-                                            >
-                                                <RotateCcw size={12} />
-                                            </button>
-                                        </div>
-                                    </th>
-                                ))}
+                                {ROLES.map(role => {
+                                    // Calculate active permissions count
+                                    const rolePerms = rolePermissionsMatrix[role] || {}
+                                    const activeCount = Object.values(rolePerms).filter((p: any) => p && typeof p === 'object' && p.access === true).length
+                                    const totalCount = SECTIONS.reduce((acc, s) => acc + s.modules.filter((m: any) => !m.isSub).length, 0)
+
+                                    return (
+                                        <th
+                                            key={role}
+                                            onMouseEnter={() => setHoveredRole(role)}
+                                            onMouseLeave={() => setHoveredRole(null)}
+                                            style={{
+                                                padding: '16px 8px', textAlign: 'center',
+                                                background: hoveredRole === role ? '#FEF2F2' : 'rgba(255, 255, 255, 0.95)',
+                                                backdropFilter: 'blur(8px)',
+                                                borderBottom: '1px solid #E5E7EB',
+                                                minWidth: '180px',
+                                                transition: 'background-color 0.2s',
+                                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                                <div style={{ fontSize: '13px', fontWeight: '800', color: '#111827' }}>{role}</div>
+                                                <div style={{
+                                                    fontSize: '9px', fontWeight: '700',
+                                                    padding: '2px 6px', borderRadius: '6px',
+                                                    background: activeCount > 0 ? '#ECFDF5' : '#F9FAFB',
+                                                    color: activeCount > 0 ? '#059669' : '#6B7280',
+                                                    border: activeCount > 0 ? '1px solid #10B98133' : '1px solid #E5E7EB'
+                                                }}>
+                                                    {activeCount} / {totalCount} ACTIVE
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '4px' }}>
+                                                    <button
+                                                        onClick={() => {
+                                                            const sourceRole = window.prompt(`Copy permissions TO ${role} FROM which role? (${ROLES.filter(r => r !== role).join(', ')})`)
+                                                            if (sourceRole && ROLES.includes(sourceRole)) {
+                                                                const newMatrix = { ...rolePermissionsMatrix }
+                                                                newMatrix[role] = JSON.parse(JSON.stringify(rolePermissionsMatrix[sourceRole]))
+                                                                onChange(newMatrix)
+                                                                toast.success(`Copied permissions from ${sourceRole} to ${role}`)
+                                                            } else if (sourceRole) {
+                                                                toast.error('Invalid role name')
+                                                            }
+                                                        }}
+                                                        title={`Copy from another role to ${role}`}
+                                                        style={{
+                                                            background: 'none', border: 'none', cursor: 'pointer',
+                                                            color: '#9CA3AF', padding: '2px', borderRadius: '50%',
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            visibility: hoveredRole === role ? 'visible' : 'hidden'
+                                                        }}
+                                                    >
+                                                        <Copy size={10} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => onReset(role)}
+                                                        title={`Reset ${role} to defaults`}
+                                                        style={{
+                                                            background: 'none', border: 'none', cursor: 'pointer',
+                                                            color: '#9CA3AF', padding: '2px', borderRadius: '50%',
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            visibility: hoveredRole === role ? 'visible' : 'hidden'
+                                                        }}
+                                                    >
+                                                        <RotateCcw size={10} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </th>
+                                    )
+                                })}
                             </tr>
                         </thead>
                         <tbody>
-                            {SECTIONS.map((section, sectionIdx) => (
+                            {filteredSections.map((section, sectionIdx) => (
                                 <TableSection
                                     key={section.id}
                                     section={section}
                                     rolePermissionsMatrix={rolePermissionsMatrix}
                                     hoveredRole={hoveredRole}
-                                    isCollapsed={collapsedSections[section.id]}
+                                    isCollapsed={collapsedSections[section.id] || (searchQuery !== '' && !section.modules.some(m => m.label.toLowerCase().includes(searchQuery.toLowerCase())))}
                                     onToggleCollapse={() => toggleSection(section.id)}
                                     onTogglePermission={handleToggle}
                                     onCycleScope={handleScopeCycle}
                                     setHoveredRole={setHoveredRole}
+                                    onDuplicateRole={(source: string, target: string) => {
+                                        const newMatrix = { ...rolePermissionsMatrix }
+                                        newMatrix[target] = JSON.parse(JSON.stringify(rolePermissionsMatrix[source]))
+                                        onChange(newMatrix)
+                                        toast.success(`Permissions copied from ${source} to ${target}`)
+                                    }}
                                 />
                             ))}
                         </tbody>
@@ -282,8 +364,16 @@ function TableSection({
                     borderBottom: '1px dashed #F3F4F6',
                     transition: 'background-color 0.1s'
                 }}>
-                    {/* Module Name Column */}
-                    <td style={{ padding: '12px 16px', borderRight: '1px solid #F9FAFB' }}>
+                    {/* Module Name Column - Sticky */}
+                    <td style={{
+                        padding: '16px 16px',
+                        borderRight: '1px solid #F9FAFB',
+                        background: 'white',
+                        position: 'sticky',
+                        left: 0,
+                        zIndex: 10,
+                        boxShadow: '4px 0 8px -4px rgba(0, 0, 0, 0.05)'
+                    }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: module.isSub ? '32px' : '8px' }}>
                             <div style={{
                                 padding: '6px',
@@ -333,7 +423,7 @@ function TableSection({
                                 onMouseEnter={() => setHoveredRole(role)}
                                 onMouseLeave={() => setHoveredRole(null)}
                                 style={{
-                                    padding: '12px 4px',
+                                    padding: '16px 4px',
                                     background: hoveredRole === role ? '#FEF2F2' : 'transparent', // Highlight column
                                     borderRight: '1px solid #F9FAFB',
                                     transition: 'background-color 0.2s',

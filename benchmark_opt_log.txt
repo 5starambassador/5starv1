@@ -1,0 +1,8 @@
+--- STARTING OPTIMIZED BENCHMARK (Targeted Logic) ---
+Fetching initial data (users, slabs, etc.)...
+Fetched 4026 users.
+Running TARGETED student fetch...
+Fetched only 4535 relevant students (compared to 4668 in baseline).
+
+OPTIMIZED EXECUTION COMPLETE
+Total Time: 17.88 seconds

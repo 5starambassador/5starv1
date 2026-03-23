@@ -470,7 +470,7 @@ export async function registerUser(formData: any) {
                     mobileNumber,
                     password: await bcrypt.hash(password, 10), // Hash password
                     role: userRole,
-                    childInAchariya: childInAchariya === 'Yes',
+                    childInAchariya: role === 'Parent' ? true : (childInAchariya === 'Yes'),
                     childName: childName || null,
                     grade: grade || null,
                     campusId: campusId ? parseInt(campusId) : null,
@@ -673,7 +673,7 @@ export async function createPendingUser(formData: any) {
                     mobileNumber,
                     password: await bcrypt.hash(password || '123456', 10),
                     role: userRole,
-                    childInAchariya: childInAchariya === 'Yes',
+                    childInAchariya: role === 'Parent' ? true : (childInAchariya === 'Yes'),
                     childName: childName || null,
                     grade: grade || null,
                     campusId: campusId ? parseInt(campusId) : null,

@@ -25,10 +25,13 @@ interface RefundUser {
 
 interface RefundReadyTableProps {
     data: RefundUser[]
+    totalResults?: number
+    currentPage?: number
+    onPageChange?: (page: number) => void
     academicYear?: string
 }
 
-export function RefundReadyTable({ data, academicYear }: RefundReadyTableProps) {
+export function RefundReadyTable({ data, totalResults = 0, currentPage = 1, onPageChange, academicYear }: RefundReadyTableProps) {
     const [showExportModal, setShowExportModal] = useState(false)
 
     const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
@@ -191,7 +194,12 @@ export function RefundReadyTable({ data, academicYear }: RefundReadyTableProps) 
                     data={data}
                     columns={columns as any}
                     searchKey="fullName"
-                    pageSize={10}
+                    pageSize={20}
+                    rowCount={totalResults}
+                    pageCount={Math.ceil((totalResults || 0) / 20)}
+                    currentPage={currentPage}
+                    onPageChange={onPageChange}
+                    manualPagination={true}
                     enableMultiSelection={true}
                     onSelectionChange={(selectedItems) => {
                         setSelectedUsers(selectedItems.map((u: any) => u.userId))

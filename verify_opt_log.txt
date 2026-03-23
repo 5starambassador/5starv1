@@ -1,0 +1,12 @@
+--- FINAL VERIFICATION (Decoupled Logic) ---
+Step 1: Fetching users...
+Fetched 4026 users.
+Step 2: Fetching settlements and referrals in bulk...
+Bulk Fetched: 674 settlements, 123 referrals, 4668 students.
+Step 3: Processing and calculating...
+
+DECOUPLED EXECUTION COMPLETE
+Total Time: 13.77 seconds
+
+Verification: Darshni (8675762030) successfully retrieved.
+Referrals for Darshni: 0

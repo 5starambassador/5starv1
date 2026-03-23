@@ -1083,7 +1083,7 @@ export async function addUser(data: {
                 mobileNumber: data.mobileNumber,
                 role: data.role,
                 referralCode,
-                childInAchariya: data.childInAchariya || false,
+                childInAchariya: data.role === 'Parent' ? true : (data.childInAchariya || false),
                 childName: data.childName || null,
                 grade: data.grade || null,
                 assignedCampus: data.assignedCampus || null,
@@ -1172,6 +1172,12 @@ export async function updateUser(userId: number, data: {
         if (data.accountNumber && data.accountNumber.includes('*')) delete filteredData.accountNumber
         if (data.ifscCode && data.ifscCode.includes('*')) delete filteredData.ifscCode
         if (data.bankAccountDetails === '***MASKED***') delete filteredData.bankAccountDetails
+ 
+        // --- 100% SAFETY: Enforce childInAchariya = true for Parent role ---
+        const finalRole = data.role || previousUser?.role
+        if (finalRole === 'Parent') {
+            filteredData.childInAchariya = true
+        }
 
         // Resolve campusId if assignedCampus is being updated or exists in incoming data
         if (data.assignedCampus) {
@@ -1419,7 +1425,7 @@ export async function bulkAddUsers(users: Array<{
                     role: userData.role,
                     email: userData.email,
                     referralCode,
-                    childInAchariya: false,
+                    childInAchariya: userData.role === 'Parent' ? true : false,
                     assignedCampus: userData.assignedCampus,
                     campusId: campusLookup.get(userData.assignedCampus) || null,
                     status: 'Pending',

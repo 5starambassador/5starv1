@@ -46,24 +46,6 @@ Ambassadors can now be searched using any of the following fields:
 - **Mobile Number**
 - **Referral Code**
 
-#### 2. Truly Global Results
-The search now queries the **entire database** regardless of which page of the list you are currently viewing. The "Current Page Only" limitation has been removed by disabling redundant client-side filtering that was conflicting with server-side results.
-
----
-
-## Verification Results
-- **Page Search**: Confirmed searching for a name on Page 1 now correctly pulls results from across all pages.
-- **ERP Search**: Confirmed that entering a student's ERP number into the ambassador search field correctly finds the parent ambassador.
-- **EMP ID Search**: Confirmed searching by Employee ID now works for Staff ambassadors.
-- **Pending/Verified Counts**: Verified that tab counts remain accurate after search filters are applied.
-
-### 4. 2FA Verification Flow
-**File:** `src/app/auth/verify-2fa/page.tsx`
-- Reduced state array from 6 empty strings to 4.
-- Updated valid code length check to 4.
-- Adjusted input rendering loop to generate 4 input boxes.
-
-**File:** `src/app/auth/verify-2fa/actions.ts`
 - Updated Mock OTP logic from `123456` to `1234`.
 
 ### 5. Referral Flow
