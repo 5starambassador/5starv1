@@ -177,8 +177,19 @@ export async function getPendingVerifications(
 
         const baseWhere: any = { AND: andConditions }
 
-        // 1. Fetch pending users with pagination
-        const [pendingUsers, total, totalVerified, staffCount, parentCount] = await Promise.all([
+        const startOfDay = new Date()
+        startOfDay.setHours(0, 0, 0, 0)
+
+        // 1. Fetch EVERYTHING in parallel
+        const [
+            pendingUsers,
+            total,
+            totalVerified,
+            staffCount,
+            parentCount,
+            totalMatches,
+            verifiedLogs
+        ] = await Promise.all([
             prisma.user.findMany({
                 where: baseWhere,
                 select: {
@@ -204,16 +215,27 @@ export async function getPendingVerifications(
             prisma.user.count({ where: baseWhere }),
             prisma.user.count({ where: { childInAchariya: true } }),
             prisma.user.count({
-                where: {
-                    ...baseWhere,
-                    role: 'Staff'
-                }
+                where: { ...baseWhere, role: 'Staff' }
+            }),
+            prisma.user.count({
+                where: { ...baseWhere, role: 'Parent' }
             }),
             prisma.user.count({
                 where: {
-                    ...baseWhere,
-                    role: 'Parent'
+                    benefitStatus: { in: ['Pending', 'PendingVerification'] as any[] },
+                    OR: [
+                        { childEprNo: { not: null } },
+                        { mobileNumber: { not: '' } }
+                    ]
                 }
+            }),
+            prisma.activityLog.findMany({
+                where: {
+                    module: 'verification',
+                    action: { in: ['UPDATE', 'BULK_ACTION'] },
+                    createdAt: { gte: startOfDay }
+                },
+                select: { action: true, metadata: true }
             })
         ])
 
@@ -264,19 +286,6 @@ export async function getPendingVerifications(
             return { ...u, matchSuggestion: null }
         })
 
-        // 3. Status retrieval (Efficient counts)
-        const startOfDay = new Date()
-        startOfDay.setHours(0, 0, 0, 0)
-
-        const verifiedLogs = await prisma.activityLog.findMany({
-            where: {
-                module: 'verification',
-                action: { in: ['UPDATE', 'BULK_ACTION'] },
-                createdAt: { gte: startOfDay }
-            },
-            select: { action: true, metadata: true }
-        })
-
         const verifiedToday = verifiedLogs.reduce((acc, log) => {
             if (log.action === 'UPDATE') return acc + 1
             if (log.action === 'BULK_ACTION' && (log.metadata as any)?.count) {
@@ -284,17 +293,6 @@ export async function getPendingVerifications(
             }
             return acc
         }, 0)
-
-        // Total potential matches
-        const totalMatches = await prisma.user.count({
-            where: {
-                benefitStatus: { in: ['Pending', 'PendingVerification'] as any[] },
-                OR: [
-                    { childEprNo: { not: null } },
-                    { mobileNumber: { not: '' } }
-                ]
-            }
-        })
 
         return {
             success: true,

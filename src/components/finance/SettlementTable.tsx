@@ -6,6 +6,7 @@ import { DataTable } from '@/components/ui/DataTable'
 import { PaymentModal } from './PaymentModal'
 import { CheckCircle, Clock, Download, Upload, Loader2, FileDown } from 'lucide-react'
 import { format } from 'date-fns'
+import { formatIndianCurrency } from '@/lib/currency-utils'
 import { processBulkPayouts, syncPastRefunds, bulkProcessPayoutsById, processPayout } from '@/app/finance-actions'
 import { toast } from 'sonner'
 import { exportPayouts } from '@/app/export-actions'
@@ -32,9 +33,19 @@ interface Settlement {
 
 interface SettlementTableProps {
     data: Settlement[]
+    totalResults?: number
+    currentPage?: number
+    isHistory?: boolean
+    onPageChange?: (page: number) => void
 }
 
-export function SettlementTable({ data }: SettlementTableProps) {
+export function SettlementTable({ 
+    data, 
+    totalResults = 0, 
+    currentPage = 1,
+    isHistory = false,
+    onPageChange
+}: SettlementTableProps) {
     const router = useRouter()
     const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
@@ -329,7 +340,8 @@ export function SettlementTable({ data }: SettlementTableProps) {
                         ifscCode: r.ifscCode,
                         date: r.date,
                         remarks: r.remarks,
-                        amount: r.amount
+                        amount: r.amount,
+                        childEprNo: r.eprNo || undefined   // ← optional ERP for precise matching
                     })))
                     setShowBulkConfirm(true)
                 } else {
@@ -468,7 +480,7 @@ export function SettlementTable({ data }: SettlementTableProps) {
             header: 'Amount',
             accessorKey: 'amount',
             sortable: true,
-            cell: (row: Settlement) => <span suppressHydrationWarning className="font-bold font-mono text-primary-red dark:text-red-400">₹{row.amount.toLocaleString()}</span>
+            cell: (row: Settlement) => <span suppressHydrationWarning className="font-bold font-mono text-primary-red dark:text-red-400">₹{formatIndianCurrency(row.amount)}</span>
         },
         {
             header: 'Status',
@@ -628,7 +640,16 @@ export function SettlementTable({ data }: SettlementTableProps) {
                     columns={columns as any}
                     searchKey={["user.fullName", "user.mobileNumber"] as any}
                     searchPlaceholder="Search by name or mobile..."
-                    pageSize={10}
+                    pageSize={20}
+                    manualPagination={true}
+                    rowCount={totalResults}
+                    pageCount={Math.ceil((totalResults || 0) / 20)}
+                    currentPage={currentPage}
+                    onPageChange={(page) => {
+                        const params = new URLSearchParams(window.location.search)
+                        params.set('page', page.toString())
+                        router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
+                    }}
                     enableMultiSelection={true}
                     onSelectionChange={(items) => {
                         setSelectedIds(items.map((i: any) => i.id))

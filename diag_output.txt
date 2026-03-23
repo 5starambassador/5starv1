@@ -1,0 +1,64 @@
+--- DIAGNOSTIC: SETTLEMENT STATUS DISTRIBUTION ---
+[
+  {
+    "_count": {
+      "_all": 183
+    },
+    "status": "Pending"
+  },
+  {
+    "_count": {
+      "_all": 1632
+    },
+    "status": "Processed"
+  }
+]
+
+--- DIAGNOSTIC: TARGET DATA CHECK (Pending) ---
+Pending Samples: [
+  {
+    "id": 1032,
+    "status": "Pending",
+    "benefitType": null,
+    "createdAt": "2026-02-23T08:07:04.424Z"
+  },
+  {
+    "id": 1033,
+    "status": "Pending",
+    "benefitType": null,
+    "createdAt": "2026-02-23T08:07:04.424Z"
+  },
+  {
+    "id": 1035,
+    "status": "Pending",
+    "benefitType": null,
+    "createdAt": "2026-02-23T08:07:04.424Z"
+  }
+]
+
+--- DIAGNOSTIC: TARGET DATA CHECK (Processed) ---
+Processed Samples: [
+  {
+    "id": 573,
+    "status": "Processed",
+    "benefitType": null,
+    "createdAt": "2026-04-01T00:00:01.000Z"
+  },
+  {
+    "id": 991,
+    "status": "Processed",
+    "benefitType": "OTHER",
+    "createdAt": "2026-02-23T08:07:04.424Z"
+  },
+  {
+    "id": 992,
+    "status": "Processed",
+    "benefitType": "OTHER",
+    "createdAt": "2026-02-23T08:07:04.424Z"
+  }
+]
+
+--- DIAGNOSTIC: GROUP A/B USER COUNTS ---
+Group A Count: 4303
+Group B Count: 5194
+Sample Group A User: { fullName: 'JAGADISH', role: 'Parent', childInAchariya: true }

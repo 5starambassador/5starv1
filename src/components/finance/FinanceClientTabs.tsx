@@ -19,9 +19,15 @@ interface FinanceClientTabsProps {
     registrations: any[]
     eligibleRefunds: any[]
     liabilities: any[]
+    totalRegistrations?: number
+    readyRefundCount?: number
+    totalLiabilities?: number
+    totalSettlements?: number
+    currentPage?: number
     availableYears?: string[]
     selectedYear?: string
     search?: string
+    activeTabProp?: 'payouts' | 'payout_history' | 'waiver_history' | 'registrations' | 'ready_refund' | 'refund_history' | 'liabilities_a' | 'liabilities_b'
 }
 
 export function FinanceClientTabs({
@@ -29,43 +35,87 @@ export function FinanceClientTabs({
     registrations,
     eligibleRefunds,
     liabilities,
+    totalRegistrations = 0,
+    readyRefundCount = 0,
+    totalLiabilities = 0,
+    totalSettlements = 0,
+    currentPage = 1,
     availableYears = [],
     selectedYear = '2026-2027',
-    search = ''
+    search = '',
+    activeTabProp
 }: FinanceClientTabsProps) {
 
-    const [activeTab, setActiveTab] = useState<'payouts' | 'payout_history' | 'waiver_history' | 'registrations' | 'ready_refund' | 'refund_history' | 'liabilities_a' | 'liabilities_b'>('payouts')
+    const activeTab = activeTabProp || 'payouts'
     const [displaySearch, setDisplaySearch] = useState(search)
     const isTypingRef = useRef(false)
     const router = useRouter()
     const pathname = usePathname()
 
+    // Sync search input to prop
     useEffect(() => {
-        // Only update local state from props if the user is NOT actively typing
-        // This prevents the search box from jumping back to a previous partial value
-        // while the server is still catching up.
         if (!isTypingRef.current) {
             setDisplaySearch(search)
         }
     }, [search])
 
+    // Derive Categories for Navigation UI
+    const currentCategory = ['registrations', 'ready_refund', 'refund_history'].includes(activeTab) 
+        ? 'registrations' 
+        : ['payouts', 'payout_history'].includes(activeTab) 
+        ? 'payouts' 
+        : 'waivers'
+
+    // Handle Tab Navigation (Centralized URL Source of Truth)
+    const handleTabChange = (newTab: string) => {
+        const getCategory = (t: string) => {
+            if (['payouts', 'payout_history'].includes(t)) return 'payouts'
+            if (['liabilities_a', 'liabilities_b', 'waiver_history'].includes(t)) return 'waivers'
+            if (['registrations', 'ready_refund', 'refund_history'].includes(t)) return 'registrations'
+            return 'other'
+        }
+
+        const oldCategory = getCategory(activeTab)
+        const newCategory = getCategory(newTab)
+
+        const params = new URLSearchParams(window.location.search)
+        params.set('tab', newTab)
+        params.set('page', '1') // Reset page on tab change
+
+        // Unconditionally clear search on ANY tab change for a clean slate
+        params.delete('search')
+        setDisplaySearch('')
+
+        router.push(`${pathname}?${params.toString()}`, { scroll: false })
+    }
+
+    // Debounced Search Sync
     useEffect(() => {
         const timer = setTimeout(() => {
             if (displaySearch !== search) {
                 const params = new URLSearchParams(window.location.search)
                 if (displaySearch) params.set('search', displaySearch)
                 else params.delete('search')
+                params.set('tab', activeTab)
+                params.set('page', '1')
                 router.push(`${pathname}?${params.toString()}`, { scroll: false })
             }
             isTypingRef.current = false
-        }, 500)
+        }, 600)
         return () => clearTimeout(timer)
-    }, [displaySearch, search, pathname, router])
+    }, [displaySearch, search, pathname, router, activeTab])
 
     const handleYearChange = (year: string) => {
         const params = new URLSearchParams(window.location.search)
         params.set('year', year)
+        params.set('page', '1')
         router.push(`${pathname}?${params.toString()}`)
+    }
+
+    const handlePageChange = (page: number) => {
+        const params = new URLSearchParams(window.location.search)
+        params.set('page', page.toString())
+        router.push(`${pathname}?${params.toString()}`, { scroll: false })
     }
 
     const handleSearchChange = (val: string) => {
@@ -73,59 +123,16 @@ export function FinanceClientTabs({
         setDisplaySearch(val)
     }
 
-
-
     const [isSyncing, setIsSyncing] = useState(false)
-    const [isAutoSyncing, setIsAutoSyncing] = useState(false)
 
-    // Filter refund history from registrations
-    // Filter refund history: either has 'REFUNDED' in remarks OR has a processed 25-rupee settlement
-    const refundHistory = registrations.filter(r => {
-        const hasRefundRemark = r.payments?.[0]?.adminRemarks?.includes('REFUNDED')
-        const hasProcessedSettlement = r.settlements?.some((s: any) => s.amount === 25 && s.status === 'Processed')
-        return hasRefundRemark || hasProcessedSettlement
-    })
-
-    // Filter Payout History: Processed settlements that are NOT registration refunds AND NOT waivers
-    const payoutHistoryData = settlements.filter(s => {
-        const remarks = (s.remarks || '').toLowerCase()
-        const isRegistrationRefund = remarks.includes('registration') || remarks.includes('refund') || s.amount === 25
-        const isWaiver = remarks.includes('waiver')
-        return s.status === 'Processed' && !isRegistrationRefund && !isWaiver
-    })
-
-    // Filter Waiver History: Processed settlements that ARE waivers
-    const waiverHistoryData = settlements.filter(s => {
-        const remarks = (s.remarks || '').toLowerCase()
-        return s.status === 'Processed' && remarks.includes('waiver')
-    })
+    // Filter secondary data (Now strictly handled by server)
+    const refundHistory = activeTab === 'refund_history' ? registrations : [] 
+    const payoutHistoryData = activeTab === 'payout_history' ? settlements : []
+    const waiverHistoryData = activeTab === 'waiver_history' ? settlements : []
 
 
-    // Auto-Sync on Mount (Smart Mode)
-    useEffect(() => {
-        const runAutoSync = async () => {
-            setIsAutoSyncing(true)
-            try {
-                // Pass false for "Smart Mode"
-                const res = await syncMissingPayments(false)
-                if (res.success && res.count && res.count > 0) {
-                    toast.success(`Auto-sync: Fixed ${res.count} records`)
-                    setTimeout(() => window.location.reload(), 1000)
-                } else if (!res.success && res.error?.includes('Authentication')) {
-                    // Specific toast for broken credentials
-                    toast.error("Cashfree sync failed: Authentication error. Please check your credentials.", {
-                        description: "Check CASHFREE_APP_ID and SECRET_KEY in .env.local",
-                        duration: 10000
-                    })
-                }
-            } catch (err) {
-                console.error("Auto-sync failed", err)
-            } finally {
-                setIsAutoSyncing(false)
-            }
-        }
-        runAutoSync()
-    }, [])
+    // Removed Auto-Sync on Mount to resolve 'MaxListenersExceededWarning' and improve page load speed.
+    // Users can still trigger manually via 'Sync Cashfree' button.
 
 
     // Removed handleDownloadReport as per user request
@@ -137,7 +144,7 @@ export function FinanceClientTabs({
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex flex-wrap items-center gap-2 p-1 bg-white/50 border border-gray-200/50 rounded-2xl w-fit">
                         <button
-                            onClick={() => setActiveTab('payouts')}
+                            onClick={() => handleTabChange('payouts')}
                             suppressHydrationWarning={true}
                             className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-black transition-all duration-300 ${['payouts', 'liabilities_b', 'payout_history'].includes(activeTab)
                                 ? 'bg-gradient-to-br from-gray-900 to-gray-800 text-white shadow-lg shadow-gray-900/20 scale-105'
@@ -148,7 +155,7 @@ export function FinanceClientTabs({
                             Cash Settlements
                         </button>
                         <button
-                            onClick={() => setActiveTab('liabilities_a')}
+                            onClick={() => handleTabChange('liabilities_a')}
                             suppressHydrationWarning={true}
                             className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-black transition-all duration-300 ${['liabilities_a', 'waiver_history'].includes(activeTab)
                                 ? 'bg-gradient-to-br from-purple-600 to-purple-800 text-white shadow-lg shadow-purple-900/20 scale-105'
@@ -159,7 +166,7 @@ export function FinanceClientTabs({
                             Fee Waivers
                         </button>
                         <button
-                            onClick={() => setActiveTab('registrations')}
+                            onClick={() => handleTabChange('registrations')}
                             suppressHydrationWarning={true}
                             className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-black transition-all duration-300 ${['registrations', 'ready_refund', 'refund_history'].includes(activeTab)
                                 ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg shadow-emerald-900/20 scale-105'
@@ -223,7 +230,7 @@ export function FinanceClientTabs({
                     {['payouts', 'liabilities_b', 'payout_history'].includes(activeTab) && (
                         <>
                             <button
-                                onClick={() => setActiveTab('payouts')}
+                                onClick={() => handleTabChange('payouts')}
                                 suppressHydrationWarning={true}
                                 className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'payouts'
                                     ? 'bg-gray-100 border-gray-300 text-gray-900'
@@ -233,7 +240,7 @@ export function FinanceClientTabs({
                                 Payout Requests
                             </button>
                             <button
-                                onClick={() => setActiveTab('liabilities_b')}
+                                onClick={() => handleTabChange('liabilities_b')}
                                 suppressHydrationWarning={true}
                                 className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'liabilities_b'
                                     ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
@@ -243,7 +250,7 @@ export function FinanceClientTabs({
                                 Group B Ledger
                             </button>
                             <button
-                                onClick={() => setActiveTab('payout_history')}
+                                onClick={() => handleTabChange('payout_history')}
                                 suppressHydrationWarning={true}
                                 className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'payout_history'
                                     ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
@@ -258,7 +265,7 @@ export function FinanceClientTabs({
                     {['liabilities_a', 'waiver_history'].includes(activeTab) && (
                         <>
                             <button
-                                onClick={() => setActiveTab('liabilities_a')}
+                                onClick={() => handleTabChange('liabilities_a')}
                                 suppressHydrationWarning={true}
                                 className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'liabilities_a'
                                     ? 'bg-purple-50 border-purple-200 text-purple-700'
@@ -268,7 +275,7 @@ export function FinanceClientTabs({
                                 Group A Ledger (Target)
                             </button>
                             <button
-                                onClick={() => setActiveTab('waiver_history')}
+                                onClick={() => handleTabChange('waiver_history')}
                                 suppressHydrationWarning={true}
                                 className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'waiver_history'
                                     ? 'bg-purple-50 border-purple-200 text-purple-700'
@@ -283,7 +290,7 @@ export function FinanceClientTabs({
                     {['registrations', 'ready_refund', 'refund_history'].includes(activeTab) && (
                         <>
                             <button
-                                onClick={() => setActiveTab('registrations')}
+                                onClick={() => handleTabChange('registrations')}
                                 suppressHydrationWarning={true}
                                 className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'registrations'
                                     ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
@@ -293,7 +300,7 @@ export function FinanceClientTabs({
                                 All Registrations
                             </button>
                             <button
-                                onClick={() => setActiveTab('ready_refund')}
+                                onClick={() => handleTabChange('ready_refund')}
                                 suppressHydrationWarning={true}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'ready_refund'
                                     ? 'bg-amber-50 border-amber-200 text-amber-700'
@@ -301,14 +308,14 @@ export function FinanceClientTabs({
                                     }`}
                             >
                                 Ready for Refund
-                                {eligibleRefunds.length > 0 && (
+                                {readyRefundCount > 0 && (
                                     <span className="bg-amber-100 text-amber-800 text-[10px] px-1.5 rounded-full">
-                                        {eligibleRefunds.length}
+                                        {readyRefundCount}
                                     </span>
                                 )}
                             </button>
                             <button
-                                onClick={() => setActiveTab('refund_history')}
+                                onClick={() => handleTabChange('refund_history')}
                                 suppressHydrationWarning={true}
                                 className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${activeTab === 'refund_history'
                                     ? 'bg-blue-50 border-blue-200 text-blue-700'
@@ -324,27 +331,84 @@ export function FinanceClientTabs({
 
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {activeTab === 'payouts' ? (
-                    <SettlementTable data={settlements.filter(s => s.status !== 'Processed')} />
+                    <SettlementTable 
+                        key={`pending-${selectedYear}-${currentPage}`}
+                        data={settlements} 
+                        totalResults={totalSettlements}
+                        currentPage={currentPage}
+                        onPageChange={handlePageChange}
+                    />
                 ) : activeTab === 'payout_history' ? (
-                    <PayoutHistoryTable data={payoutHistoryData} academicYear={selectedYear} />
+                    <PayoutHistoryTable 
+                        key={`payout-hist-${selectedYear}-${currentPage}`} 
+                        data={settlements} 
+                        totalResults={totalSettlements}
+                        currentPage={currentPage}
+                        onPageChange={handlePageChange}
+                        academicYear={selectedYear} 
+                    />
                 ) : activeTab === 'registrations' ? (
                     <RegistrationTable
+                        key={`reg-${selectedYear}-${currentPage}`}
                         data={registrations || []}
+                        totalResults={totalRegistrations}
                         search={displaySearch}
                         onSearchChange={handleSearchChange}
                         academicYear={selectedYear}
+                        currentPage={currentPage}
+                        onPageChange={handlePageChange}
                     />
-
                 ) : activeTab === 'ready_refund' ? (
-                    <RefundReadyTable data={eligibleRefunds} academicYear={selectedYear} />
+                    <RefundReadyTable 
+                        key={`refund-ready-${selectedYear}-${currentPage}`} 
+                        data={eligibleRefunds} 
+                        totalResults={totalRegistrations} 
+                        currentPage={currentPage}
+                        onPageChange={handlePageChange}
+                        academicYear={selectedYear} 
+                    />
                 ) : activeTab === 'refund_history' ? (
-                    <RefundHistoryTable data={refundHistory} academicYear={selectedYear} />
+                    <RefundHistoryTable 
+                        key={`refund-hist-${selectedYear}-${currentPage}`} 
+                        data={refundHistory} 
+                        totalResults={totalRegistrations}
+                        currentPage={currentPage}
+                        onPageChange={handlePageChange}
+                        academicYear={selectedYear} 
+                    />
                 ) : activeTab === 'liabilities_a' ? (
-                    <LiabilityLedgerTable key="ledger-a" data={liabilities} mode="A" academicYear={selectedYear} search={displaySearch} onSearchChange={handleSearchChange} />
+                    <LiabilityLedgerTable 
+                        key={`ledger-a-${selectedYear}-${currentPage}`} 
+                        data={liabilities} 
+                        mode="A" 
+                        academicYear={selectedYear} 
+                        search={displaySearch} 
+                        onSearchChange={handleSearchChange} 
+                        totalResults={totalLiabilities} 
+                        currentPage={currentPage}
+                        onPageChange={handlePageChange}
+                    />
                 ) : activeTab === 'waiver_history' ? (
-                    <WaiverHistoryTable data={waiverHistoryData} academicYear={selectedYear} />
+                    <WaiverHistoryTable 
+                        key={`waiver-hist-${selectedYear}-${currentPage}`} 
+                        data={settlements} 
+                        totalResults={totalSettlements}
+                        currentPage={currentPage}
+                        onPageChange={handlePageChange}
+                        academicYear={selectedYear} 
+                    />
                 ) : (
-                    <LiabilityLedgerTable key="ledger-b" data={liabilities} mode="B" academicYear={selectedYear} search={displaySearch} onSearchChange={handleSearchChange} />
+                    <LiabilityLedgerTable 
+                        key={`ledger-b-${selectedYear}-${currentPage}`} 
+                        data={liabilities} 
+                        mode="B" 
+                        academicYear={selectedYear} 
+                        search={displaySearch} 
+                        onSearchChange={handleSearchChange} 
+                        totalResults={totalLiabilities} 
+                        currentPage={currentPage}
+                        onPageChange={handlePageChange}
+                    />
                 )}
             </div>
         </div>

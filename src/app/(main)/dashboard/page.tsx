@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 }
 
 export default async function DashboardPage() {
-    const user = await getCurrentUser()
+    const user = await getCurrentUser({ includeCount: true })
     if (!user) redirect('/')
 
     // Admin redirects

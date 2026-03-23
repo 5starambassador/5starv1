@@ -1,0 +1,11 @@
+=== USER ===
+ID: 8851 Name: Sachin Kumar jain
+
+=== SETTLEMENTS AT USER LEVEL ===
+ID: 1321 | Amount: 25 | Status: Processed | Date: Tue Feb 24 2026 05:30:00 GMT+0530 (India Standard Time) | Remarks: Registration Fee Refund | Ref: AXISP00771859199
+ID: 2818 | Amount: 10000 | Status: Processed | Date: Tue Mar 17 2026 05:30:00 GMT+0530 (India Standard Time) | Remarks: Donation fee Share | Ref: AXISP00779538225
+ID: 2827 | Amount: 50000 | Status: Processed | Date: Tue Mar 17 2026 05:30:00 GMT+0530 (India Standard Time) | Remarks: Donation fee Share and Donation share | Ref: AXISP00779538225
+
+=== REFERRALS & THEIR SETTLEMENTS ===
+Referral: Ridhi Jain (Lead ID: 742)
+Referral: Harshita Jain (Lead ID: 743)

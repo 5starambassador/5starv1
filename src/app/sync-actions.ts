@@ -36,6 +36,35 @@ export async function syncUserStats(userId: number) {
             hasPaid = true
             updatedUserDetails.paymentStatus = 'Success'
             updatedUserDetails.paymentAmount = successPayment.orderAmount
+
+            // PROACTIVE SYNC: If transaction details are missing (webhook failure), fetch from Cashfree API
+            if (successPayment.orderId && (!successPayment.paymentMethod || successPayment.paymentMethod === 'null' || !successPayment.bankReference)) {
+                try {
+                    const { default: cashfree } = await import('@/lib/cashfree')
+                    if (cashfree) {
+                        const response = await (cashfree as any).PGOrderFetchPayments("v21_13", successPayment.orderId)
+                        const cfPayment = response?.data?.[0]
+                        if (cfPayment && (cfPayment.payment_status === 'SUCCESS' || cfPayment.payment_status === 'COMPLETED')) {
+                            // Update the payment record with real metadata from the bank
+                            const updatedPayment = await prisma.payment.update({
+                                where: { id: successPayment.id },
+                                data: {
+                                    paymentMethod: cfPayment.payment_group,
+                                    transactionId: cfPayment.cf_payment_id.toString(),
+                                    bankReference: cfPayment.bank_reference || cfPayment.cf_payment_id.toString(),
+                                    paidAt: cfPayment.payment_time ? new Date(cfPayment.payment_time) : successPayment.paidAt
+                                }
+                            })
+                            // Update the data we'll use for the User record below
+                            successPayment.transactionId = updatedPayment.transactionId
+                            console.log(`[Sync] Restored metadata for Order ${successPayment.orderId}`)
+                        }
+                    }
+                } catch (cfError) {
+                    console.error(`[Sync] Failed to fetch Cashfree metadata for ${successPayment.orderId}:`, cfError)
+                }
+            }
+
             if (successPayment.transactionId) {
                 updatedUserDetails.transactionId = successPayment.transactionId
             }

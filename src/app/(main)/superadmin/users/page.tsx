@@ -48,21 +48,22 @@ export default async function SuperAdminUsersPage({ searchParams }: PageProps) {
     const source = Array.isArray(params.source) ? params.source[0] : params.source
     const campusFilter = Array.isArray(params.campus) ? params.campus[0] : params.campus
 
-    // Parallel Fetching: Using lightweight getCampusNames
-    const campusesResponse = await getCampusNames()
+    // Parallel Fetching: Using lightweight getCampusNames and getAllUsers together
+    const [campusesResponse, usersResponse] = await Promise.all([
+        getCampusNames(),
+        getAllUsers({
+            academicYear: year as string,
+            page,
+            pageSize,
+            search: search as string,
+            status: status as string,
+            role: role as string,
+            source: source as string,
+            campusFilter: campusFilter as string
+        })
+    ])
+    
     const campuses = campusesResponse.success ? campusesResponse.campuses || [] : []
-
-    const usersResponse = await getAllUsers({
-        academicYear: year as string,
-        page,
-        pageSize,
-        search: search as string,
-        status: status as string,
-        role: role as string,
-        source: source as string,
-        campusFilter: campusFilter as string,
-        campuses: campuses as any
-    })
 
     const { users, pagination } = typeof usersResponse === 'object' && 'users' in usersResponse
         ? usersResponse

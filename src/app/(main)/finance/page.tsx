@@ -3,56 +3,74 @@ import { hasPermission } from '@/lib/permission-service'
 import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 
-import { getSettlements, getFinanceStats, getRegistrationTransactions, getUsersReadyForRefund, getAccruedPayoutLiabilities } from '@/app/finance-actions'
+import { getSettlements, getFinanceStats, getRegistrationTransactions, getUsersReadyForRefund, getAccruedPayoutLiabilities, syncMissingPayments } from '@/app/finance-actions'
 import { Wallet, CheckCircle, Clock, CreditCard } from 'lucide-react'
 import { FinanceClientTabs } from '@/components/finance/FinanceClientTabs'
 
 export default async function FinancePage({
-    searchParams
+    searchParams: searchParamsPromise
 }: {
-    searchParams: Promise<{ year?: string; search?: string }>
+    searchParams: Promise<{ year?: string; search?: string; tab?: string; page?: string }>
 }) {
     const user = await getCurrentUser()
     if (!user) redirect('/')
 
-    const { year, search } = await searchParams
-    let selectedYear = year
-
-    if (!selectedYear) {
-        const currentYearRecord = await prisma.academicYear.findFirst({
-            where: { isCurrent: true }
-        })
-        selectedYear = currentYearRecord?.year || '2026-2027'
-    }
+    const searchParams = await searchParamsPromise
 
     // RBAC: Only roles with Finance & Settlements access
     if (!await hasPermission('settlements')) {
         redirect('/dashboard')
     }
 
-    // Fetch Data
-    const [settlementsRes, statsRes, registrationsRes, readyForRefundRes, liabilitiesRes, academicYears] = await Promise.all([
-        getSettlements('All', selectedYear, search),
-        getFinanceStats(selectedYear),
-        getRegistrationTransactions('All', selectedYear, search),
-        getUsersReadyForRefund(selectedYear),
-        getAccruedPayoutLiabilities(selectedYear, search),
-        prisma.academicYear.findMany({
-            orderBy: { year: 'desc' }
-        })
+    // Determine active tab from URL (Standardized source of truth)
+    const activeTab = searchParams.tab || 'registrations'
+
+    const currentPage = Number(searchParams.page) || 1
+    const search = searchParams.search || ''
+    const selectedYear = searchParams.year || '2026-2027'
+
+    // 1. Data Category Logic (Strict Isolation)
+    const isRegistrationsCategory = ['registrations', 'ready_refund', 'refund_history'].includes(activeTab)
+    const isPayoutsCategory = ['payouts', 'payout_history'].includes(activeTab)
+    const isWaiversCategory = ['liabilities_a', 'liabilities_b', 'waiver_history'].includes(activeTab)
+
+    // 2. Status Mapping for Server Action
+    const settlementStatus = (activeTab === 'payout_history' || activeTab === 'waiver_history') ? 'Processed' : 'Pending'
+
+    // 3. Parallel Data Fetching with Category-Based Guarding
+    const [academicYears, liabilitiesRes, registrationsRes, settlementsRes, readyRefundCountRes] = await Promise.all([
+        prisma.academicYear.findMany({ orderBy: { year: 'desc' } }),
+
+        (isWaiversCategory || (isPayoutsCategory && activeTab === 'payouts')) // Fetch liabilities for Groups A/B AND Payout Requests
+            ? getAccruedPayoutLiabilities(selectedYear, search, undefined, currentPage, 20, activeTab === 'liabilities_a' ? 'A' : activeTab === 'liabilities_b' ? 'B' : undefined)
+            : Promise.resolve({ success: true, data: [] }),
+
+        (isRegistrationsCategory)
+            ? getRegistrationTransactions('All', selectedYear, search, currentPage, 20, activeTab)
+            : Promise.resolve({ success: true, data: [] }),
+
+        (isPayoutsCategory || activeTab === 'waiver_history')
+            ? getSettlements(settlementStatus, selectedYear, search, currentPage, 20, activeTab)
+            : Promise.resolve({ success: true, data: [] }),
+
+        // Dedicated fetch for the "Ready for Refund" badge count (Always persistent)
+        getRegistrationTransactions('All', selectedYear, '', 1, 1, 'ready_refund')
     ])
 
+    const availableYears = academicYears.map(y => y.year)
 
     const settlements = (settlementsRes.success && settlementsRes.data) ? settlementsRes.data : []
+    const totalSettlements = (settlementsRes.success && (settlementsRes as any).totalCount) ? (settlementsRes as any).totalCount : 0
     const registrations = (registrationsRes.success && registrationsRes.data) ? registrationsRes.data : []
-    const eligibleRefunds = (readyForRefundRes.success && readyForRefundRes.data) ? readyForRefundRes.data : []
+    const totalRegistrations = (registrationsRes.success && (registrationsRes as any).totalCount) ? (registrationsRes as any).totalCount : 0
+    const readyRefundCount = (readyRefundCountRes.success && (readyRefundCountRes as any).totalCount) ? (readyRefundCountRes as any).totalCount : 0
+    const eligibleRefunds = activeTab === 'ready_refund' ? registrations : [] 
     const liabilities = (liabilitiesRes.success && liabilitiesRes.data) ? liabilitiesRes.data : []
+    const totalLiabilities = (liabilitiesRes.success && (liabilitiesRes as any).totalCount) ? (liabilitiesRes as any).totalCount : 0
     const years = academicYears.map(y => y.year)
-    const stats: any = statsRes.success ? statsRes.stats : { pending: 0, processed: 0, totalCount: 0, totalRevenue: 0 }
 
     return (
         <div className="space-y-8 animate-fade-in pb-10">
-            {/* ... existing header and stats ... */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <div className="flex items-center gap-4">
                     <div className="p-3 bg-emerald-50 text-emerald-700 rounded-xl shadow-sm border border-emerald-100">
@@ -65,70 +83,20 @@ export default async function FinancePage({
                 </div>
             </div>
 
-            {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider">Total Revenue</h3>
-                        <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600">
-                            <CreditCard size={24} />
-                        </div>
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                        <h2 className="text-3xl font-black text-gray-900">₹{(stats.totalRevenue || 0).toLocaleString()}</h2>
-                    </div>
-                    <p className="text-xs text-emerald-600 font-bold mt-2 uppercase tracking-wide">Incoming Fees</p>
-                </div>
-
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider">Pending Payouts</h3>
-                        <div className="p-2 rounded-lg bg-amber-50 text-amber-600">
-                            <Clock size={24} />
-                        </div>
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                        <h2 className="text-3xl font-black text-gray-900">₹{stats?.pending?.toLocaleString() ?? 0}</h2>
-                    </div>
-                    <p className="text-xs text-amber-600 font-bold mt-2 uppercase tracking-wide">Requires Action</p>
-                </div>
-
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider">Processed (Total)</h3>
-                        <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
-                            <CheckCircle size={24} />
-                        </div>
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                        <h2 className="text-3xl font-black text-gray-900">₹{stats?.processed?.toLocaleString() ?? 0}</h2>
-                    </div>
-                    <p className="text-xs text-blue-600 font-bold mt-2 uppercase tracking-wide">Lifetime Disbursed</p>
-                </div>
-
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-gray-500 font-bold text-sm uppercase tracking-wider">Transactions</h3>
-                        <div className="p-2 rounded-lg bg-purple-50 text-purple-600">
-                            <Wallet size={24} />
-                        </div>
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                        <h2 className="text-3xl font-black text-gray-900">{stats?.totalCount ?? 0}</h2>
-                    </div>
-                    <p className="text-xs text-purple-600 font-bold mt-2 uppercase tracking-wide">Total Volume</p>
-                </div>
-            </div>
-
-            {/* Client Tabs Section */}
             <FinanceClientTabs
                 settlements={settlements}
                 registrations={registrations}
                 eligibleRefunds={eligibleRefunds}
                 liabilities={liabilities}
-                availableYears={years}
+                totalRegistrations={totalRegistrations}
+                readyRefundCount={readyRefundCount}
+                totalLiabilities={totalLiabilities}
+                totalSettlements={totalSettlements}
+                availableYears={availableYears}
                 selectedYear={selectedYear}
                 search={search}
+                activeTabProp={activeTab as any}
+                currentPage={currentPage}
             />
 
         </div>

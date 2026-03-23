@@ -50,10 +50,10 @@ export function NavigationLoader() {
                         className="h-[3px] bg-gradient-to-r from-blue-600 via-amber-500 to-red-600 shadow-[0_0_10px_rgba(245,158,11,0.5)]"
                         initial={{ width: "0%", x: 0 }}
                         animate={{
-                            width: ["0%", "30%", "70%", "90%"],
+                            width: ["0%", "40%", "85%", "95%"],
                             transition: {
-                                duration: 10,
-                                times: [0, 0.1, 0.4, 1],
+                                duration: 3,
+                                times: [0, 0.1, 0.5, 1],
                                 ease: "easeOut"
                             }
                         }}

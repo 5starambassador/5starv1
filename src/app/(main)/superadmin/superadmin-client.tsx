@@ -294,7 +294,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
 
     return (
         <div className="bg-slate-50/50 min-h-screen">
-            <div className={`${selectedView === 'program-leads' ? 'max-w-full' : 'max-w-[1800px]'} mx-auto px-4 sm:px-6 lg:px-10 py-10 space-y-10`}>
+            <div className={`${['program-leads', 'permissions'].includes(selectedView) ? 'max-w-full px-2' : 'max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-10'} py-10 space-y-10`}>
 
                 {(selectedView === 'analytics' || selectedView === 'home') && (
                     <div className="space-y-10">

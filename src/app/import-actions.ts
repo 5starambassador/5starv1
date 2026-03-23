@@ -224,7 +224,7 @@ export async function importAmbassadors(csvData: string) {
                 referralCode: finalReferralCode,
                 empId,
                 childEprNo,
-                childInAchariya: childInAchariya,
+                childInAchariya: role === 'Parent' ? true : childInAchariya,
                 childName,
                 grade,
                 benefitStatus: benefitStatus as any,

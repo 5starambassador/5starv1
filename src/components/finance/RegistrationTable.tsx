@@ -1,11 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { DataTable } from '@/components/ui/DataTable'
+
 
 import { BadgeCheck, CreditCard, Download, FileText, History as HistoryIcon } from 'lucide-react'
 
 import { format } from 'date-fns'
+import { formatIndianCurrency } from '@/lib/currency-utils'
 // PDF logic moved to dynamic import inside generateReceipt to fix Turbopack chunk errors
 import { exportToCSV } from '@/lib/export-utils'
 import { toast } from 'sonner'
@@ -44,12 +47,25 @@ interface Registration {
 
 interface RegistrationTableProps {
     data: Registration[]
+    totalResults?: number
+    currentPage?: number
     search?: string
     onSearchChange?: (val: string) => void
     academicYear?: string
+    onPageChange?: (page: number) => void
 }
 
-export function RegistrationTable({ data, search = '', onSearchChange, academicYear }: RegistrationTableProps) {
+export function RegistrationTable({ 
+    data, 
+    totalResults = 0, 
+    currentPage = 1, 
+    search = '', 
+    onSearchChange, 
+    academicYear,
+    onPageChange
+}: RegistrationTableProps) {
+    const router = useRouter()
+    const pathname = usePathname()
     const [filter, setFilter] = useState('All')
 
     const [showExportModal, setShowExportModal] = useState(false)
@@ -65,6 +81,12 @@ export function RegistrationTable({ data, search = '', onSearchChange, academicY
             settlementDate: null,
             adminRemarks: null
         }
+    }
+
+    const handlePageChange = (page: number) => {
+        const params = new URLSearchParams(window.location.search)
+        params.set('page', page.toString())
+        router.push(`${pathname}?${params.toString()}`, { scroll: false })
     }
 
     // Columns Definition
@@ -87,7 +109,8 @@ export function RegistrationTable({ data, search = '', onSearchChange, academicY
                     {row.role}
                 </span>
             ),
-            filterable: true
+            filterable: true,
+            filterOptions: ['Parent', 'Staff', 'Alumni', 'Others']
         },
         {
             header: 'Campus',
@@ -102,7 +125,7 @@ export function RegistrationTable({ data, search = '', onSearchChange, academicY
             cell: (row: Registration) => (
                 <div suppressHydrationWarning className="flex items-center gap-1.5 text-emerald-600 font-bold font-mono">
                     <span className="text-xs">₹</span>
-                    {row.paymentAmount?.toLocaleString() || 0}
+                    {formatIndianCurrency(row.paymentAmount || 0)}
                 </div>
             )
         },
@@ -290,6 +313,7 @@ export function RegistrationTable({ data, search = '', onSearchChange, academicY
 
                 <button
                     onClick={() => setShowExportModal(true)}
+                    suppressHydrationWarning
                     className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-all shadow-lg shadow-gray-900/20"
                 >
                     <Download size={14} />
@@ -303,9 +327,14 @@ export function RegistrationTable({ data, search = '', onSearchChange, academicY
                     columns={columns as any}
                     searchKey={["fullName", "mobileNumber", "transactionId"]}
                     searchPlaceholder="Search by name, mobile or UTR (Server-side)..."
-                    pageSize={10}
+                    pageSize={20}
                     searchValue={search}
                     onSearchChange={onSearchChange}
+                    rowCount={totalResults}
+                    pageCount={Math.ceil((totalResults || 0) / 20)}
+                    currentPage={currentPage}
+                    onPageChange={handlePageChange}
+                    manualPagination={true}
                 />
 
             </div>

@@ -1,0 +1,9 @@
+--- STARTING BASELINE BENCHMARK (Standalone Logic) ---
+Fetching initial data (users, slabs, etc.)...
+Fetched 4026 users.
+Fetching ALL active students (the bottleneck)...
+Fetched 4668 students.
+Processing users and calculating benefits...
+
+BASELINE EXECUTION COMPLETE
+Total Time: 14.55 seconds
