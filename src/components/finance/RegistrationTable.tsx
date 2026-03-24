@@ -83,11 +83,6 @@ export function RegistrationTable({
         }
     }
 
-    const handlePageChange = (page: number) => {
-        const params = new URLSearchParams(window.location.search)
-        params.set('page', page.toString())
-        router.push(`${pathname}?${params.toString()}`, { scroll: false })
-    }
 
     // Columns Definition
     const columns = [
@@ -257,7 +252,7 @@ export function RegistrationTable({
     }
 
     const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
-        const res = await exportRegistrations(start, end, selectedColumns, academicYear)
+        const res = await exportRegistrations(start, end, selectedColumns, academicYear, search)
         if (res.success && res.csv) {
             // Trigger Download
             const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
@@ -333,7 +328,7 @@ export function RegistrationTable({
                     rowCount={totalResults}
                     pageCount={Math.ceil((totalResults || 0) / 20)}
                     currentPage={currentPage}
-                    onPageChange={handlePageChange}
+                    onPageChange={onPageChange}
                     manualPagination={true}
                 />
 

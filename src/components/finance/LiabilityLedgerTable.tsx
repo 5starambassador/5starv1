@@ -68,18 +68,9 @@ export function LiabilityLedgerTable({
     const pathname = usePathname()
     const [showExportModal, setShowExportModal] = useState(false)
 
-    const handlePageChange = (page: number) => {
-        if (onPageChange) {
-            onPageChange(page)
-        } else {
-            const params = new URLSearchParams(window.location.search)
-            params.set('page', page.toString())
-            router.push(`${pathname}?${params.toString()}`, { scroll: false })
-        }
-    }
 
     const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
-        const res = await exportLiabilities(start, end, selectedColumns, academicYear, mode)
+        const res = await exportLiabilities(start, end, selectedColumns, academicYear, mode, search)
         if (res.success && res.csv) {
             const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
             const link = document.createElement('a')
@@ -443,7 +434,7 @@ export function LiabilityLedgerTable({
                     rowCount={totalResults}
                     pageCount={Math.ceil((totalResults || 0) / 20)}
                     currentPage={currentPage}
-                    onPageChange={handlePageChange}
+                    onPageChange={onPageChange}
                     manualPagination={true}
                     renderExpandedRow={(row: any) => {
                         const r = row as Liability;

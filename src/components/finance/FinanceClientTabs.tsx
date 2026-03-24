@@ -337,6 +337,7 @@ export function FinanceClientTabs({
                         totalResults={totalSettlements}
                         currentPage={currentPage}
                         onPageChange={handlePageChange}
+                        search={displaySearch}
                     />
                 ) : activeTab === 'payout_history' ? (
                     <PayoutHistoryTable 
@@ -346,6 +347,7 @@ export function FinanceClientTabs({
                         currentPage={currentPage}
                         onPageChange={handlePageChange}
                         academicYear={selectedYear} 
+                        search={displaySearch}
                     />
                 ) : activeTab === 'registrations' ? (
                     <RegistrationTable
@@ -366,6 +368,7 @@ export function FinanceClientTabs({
                         currentPage={currentPage}
                         onPageChange={handlePageChange}
                         academicYear={selectedYear} 
+                        search={displaySearch}
                     />
                 ) : activeTab === 'refund_history' ? (
                     <RefundHistoryTable 
@@ -375,6 +378,7 @@ export function FinanceClientTabs({
                         currentPage={currentPage}
                         onPageChange={handlePageChange}
                         academicYear={selectedYear} 
+                        search={displaySearch}
                     />
                 ) : activeTab === 'liabilities_a' ? (
                     <LiabilityLedgerTable 
@@ -396,6 +400,7 @@ export function FinanceClientTabs({
                         currentPage={currentPage}
                         onPageChange={handlePageChange}
                         academicYear={selectedYear} 
+                        search={displaySearch}
                     />
                 ) : (
                     <LiabilityLedgerTable 

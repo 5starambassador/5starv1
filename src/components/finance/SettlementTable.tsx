@@ -37,6 +37,7 @@ interface SettlementTableProps {
     currentPage?: number
     isHistory?: boolean
     onPageChange?: (page: number) => void
+    search?: string
 }
 
 export function SettlementTable({ 
@@ -44,7 +45,8 @@ export function SettlementTable({
     totalResults = 0, 
     currentPage = 1,
     isHistory = false,
-    onPageChange
+    onPageChange,
+    search = ''
 }: SettlementTableProps) {
     const router = useRouter()
     const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null)
@@ -531,7 +533,7 @@ export function SettlementTable({
     ]
 
     const handleServerExport = async (start: Date, end: Date, status?: string) => {
-        const res = await exportPayouts(start, end, status)
+        const res = await exportPayouts(start, end, status, undefined, undefined, search)
         if (res.success && res.csv) {
             const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
             const link = document.createElement('a')
@@ -645,11 +647,7 @@ export function SettlementTable({
                     rowCount={totalResults}
                     pageCount={Math.ceil((totalResults || 0) / 20)}
                     currentPage={currentPage}
-                    onPageChange={(page) => {
-                        const params = new URLSearchParams(window.location.search)
-                        params.set('page', page.toString())
-                        router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
-                    }}
+                    onPageChange={onPageChange}
                     enableMultiSelection={true}
                     onSelectionChange={(items) => {
                         setSelectedIds(items.map((i: any) => i.id))

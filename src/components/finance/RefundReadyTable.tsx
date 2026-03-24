@@ -29,13 +29,14 @@ interface RefundReadyTableProps {
     currentPage?: number
     onPageChange?: (page: number) => void
     academicYear?: string
+    search?: string
 }
 
-export function RefundReadyTable({ data, totalResults = 0, currentPage = 1, onPageChange, academicYear }: RefundReadyTableProps) {
+export function RefundReadyTable({ data, totalResults = 0, currentPage = 1, onPageChange, academicYear, search = '' }: RefundReadyTableProps) {
     const [showExportModal, setShowExportModal] = useState(false)
 
     const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
-        const res = await exportRefunds(start, end, selectedColumns, academicYear, 'Ready')
+        const res = await exportRefunds(start, end, selectedColumns, academicYear, 'Ready', search)
         if (res.success && res.csv) {
             const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
             const link = document.createElement('a')
@@ -57,134 +58,92 @@ export function RefundReadyTable({ data, totalResults = 0, currentPage = 1, onPa
         { id: 'mobile', label: 'Mobile Number', defaultChecked: true },
         { id: 'campus', label: 'Campus', defaultChecked: true },
         { id: 'amount', label: 'Refund Amount', defaultChecked: true },
-        { id: 'status', label: 'Refund Status', defaultChecked: true },
-        { id: 'payoutDate', label: 'Registration Date', defaultChecked: true },
-        { id: 'bankName', label: 'Bank Name', defaultChecked: true },
-        { id: 'accountNo', label: 'Account Number', defaultChecked: true },
-        { id: 'ifsc', label: 'IFSC Code', defaultChecked: true }
+        { id: 'status', label: 'Refund Status', defaultChecked: true }
     ]
+
     const router = useRouter()
-    const [selectedUsers, setSelectedUsers] = useState<number[]>([])
-    const [isProcessing, setIsProcessing] = useState(false)
+    const [isInitiating, setIsInitiating] = useState(false)
 
-    const toggleUser = (userId: number) => {
-        setSelectedUsers(prev =>
-            prev.includes(userId)
-                ? prev.filter(id => id !== userId)
-                : [...prev, userId]
-        )
-    }
-
-    const toggleAll = () => {
-        if (selectedUsers.length === data.length) {
-            setSelectedUsers([])
-        } else {
-            setSelectedUsers(data.map(u => u.userId))
-        }
-    }
-
-    const handleInitiateRefunds = async (userIds: number[]) => {
-        if (userIds.length === 0) return
-
-        setIsProcessing(true)
-        const tid = toast.loading(`Initiating ${userIds.length} refund request(s)...`)
-
+    const handleBulkRefund = async () => {
+        if (data.length === 0) return
+        
+        setIsInitiating(true)
         try {
+            const userIds = data.map(u => u.userId)
             const res = await initiateBulkRefunds(userIds)
             if (res.success) {
-                toast.success(res.message, { id: tid })
-                setSelectedUsers([])
+                toast.success(res.message || "Refunds initiated successfully")
                 router.refresh()
             } else {
-                toast.error(res.error || 'Failed to initiate refunds', { id: tid })
+                toast.error(res.error || "Failed to initiate refunds")
             }
-        } catch (err) {
-            toast.error('Processing failed', { id: tid })
+        } catch (error) {
+            toast.error("An error occurred while initiating refunds")
         } finally {
-            setIsProcessing(false)
+            setIsInitiating(false)
         }
     }
 
     const columns = [
         {
-            header: 'Ambassador',
+            header: 'Full Name',
             accessorKey: 'fullName',
-            cell: (row: RefundUser) => (
-                <div>
-                    <div className="font-bold text-gray-900 dark:text-white">{row.fullName}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">{row.mobileNumber} • {row.role}</div>
+            cell: (u: RefundUser) => (
+                <div className="flex flex-col">
+                    <span className="font-bold text-gray-900">{u.fullName}</span>
+                    <span className="text-xs text-gray-500">{u.mobileNumber}</span>
                 </div>
             )
         },
         {
             header: 'Campus',
             accessorKey: 'campusName',
-            cell: (row: RefundUser) => (
-                <span className="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-100">
-                    {row.campusName}
-                </span>
-            ),
-            filterable: true
         },
         {
-            header: 'Bank Details',
-            accessorKey: 'accountNumber',
-            cell: (row: RefundUser) => (
-                <div className="flex flex-col text-xs">
-                    <span className="font-bold text-gray-700 dark:text-gray-300">{row.bankName || 'Bank'}</span>
-                    <span className="font-mono text-gray-500">{row.accountNumber}</span>
-                    <span className="text-[10px] text-gray-400 font-mono">{row.ifscCode}</span>
+            header: 'Refund Amount',
+            accessorKey: 'paymentAmount',
+            cell: () => <span className="font-bold text-gray-900">₹25</span>
+        },
+        {
+            header: 'Bank Info',
+            accessorKey: 'bankName',
+            cell: (u: RefundUser) => (
+                <div className="text-[10px] text-gray-500">
+                    <div>{u.bankName}</div>
+                    <div>A/C: {u.accountNumber}</div>
+                    <div>IFSC: {u.ifscCode}</div>
                 </div>
-            )
-        },
-        {
-            header: 'Reg. Date',
-            accessorKey: 'createdAt',
-            cell: (row: RefundUser) => new Date(row.createdAt).toLocaleDateString()
-        },
-        {
-            header: 'Action',
-            cell: (row: RefundUser) => (
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation() // Prevent row selection if any
-                        handleInitiateRefunds([row.userId])
-                    }}
-                    disabled={isProcessing}
-                    className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50"
-                >
-                    Request Refund
-                </button>
             )
         }
     ]
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <div className="flex justify-between items-center px-1">
-                <div>
-                    <h3 className="text-lg font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                        <Sparkles size={18} className="text-emerald-500" />
-                        Ready for Refund
-                    </h3>
-                    <p className="text-xs text-gray-500">Users who paid Rs. 25 and updated bank details.</p>
-                </div>
                 <div className="flex items-center gap-2">
+                    <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+                        <CreditCard size={18} />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-black text-gray-900">Eligible for Refund</h3>
+                        <p className="text-xs text-gray-500">Ambassadors who paid ₹25 and have bank info ready</p>
+                    </div>
+                </div>
+                <div className="flex gap-2">
                     <button
                         onClick={() => setShowExportModal(true)}
-                        suppressHydrationWarning={true}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all shadow-sm"
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-200 transition-all border border-gray-200"
                     >
-                        <FileDown size={16} />
-                        Download Report
+                        <FileDown size={14} />
+                        <span>Download List</span>
                     </button>
                     <button
-                        onClick={() => handleInitiateRefunds(selectedUsers)}
-                        disabled={isProcessing || selectedUsers.length === 0}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-black hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50"
+                        onClick={handleBulkRefund}
+                        disabled={isInitiating || data.length === 0}
+                        className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-all disabled:opacity-50 shadow-lg shadow-gray-200"
                     >
-                        {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
-                        Bulk Request ({selectedUsers.length})
+                        {isInitiating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                        <span>Initiate All ({data.length})</span>
                     </button>
                 </div>
             </div>
@@ -193,17 +152,14 @@ export function RefundReadyTable({ data, totalResults = 0, currentPage = 1, onPa
                 <DataTable
                     data={data}
                     columns={columns as any}
-                    searchKey="fullName"
+                    searchKey={["fullName", "mobileNumber"] as any}
+                    searchPlaceholder="Search eligible users..."
                     pageSize={20}
+                    manualPagination={true}
                     rowCount={totalResults}
                     pageCount={Math.ceil((totalResults || 0) / 20)}
                     currentPage={currentPage}
                     onPageChange={onPageChange}
-                    manualPagination={true}
-                    enableMultiSelection={true}
-                    onSelectionChange={(selectedItems) => {
-                        setSelectedUsers(selectedItems.map((u: any) => u.userId))
-                    }}
                     uniqueKey="userId"
                 />
             </div>
@@ -212,8 +168,7 @@ export function RefundReadyTable({ data, totalResults = 0, currentPage = 1, onPa
                 isOpen={showExportModal}
                 onClose={() => setShowExportModal(false)}
                 onExport={handleServerExport}
-                title="Export Ready Refunds"
-                showStatusFilter={false}
+                title="Export Ready for Refund"
                 columns={exportColumns}
             />
         </div>

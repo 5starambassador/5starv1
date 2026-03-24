@@ -94,6 +94,7 @@ export default async function FinancePage({
                 availableYears={availableYears}
                 selectedYear={selectedYear}
                 search={search}
+                currentPage={currentPage}
                 activeTabProp={activeTab as any}
             />
         </div>

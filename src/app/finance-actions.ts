@@ -1065,7 +1065,7 @@ export async function getUsersReadyForRefund(academicYear?: string) {
                 }
             },
             orderBy: { createdAt: 'desc' },
-            take: 1000 // SAFETY GUARD: Prevent SuperAdmin timeouts
+            take: 50000 // SAFETY GUARD: Increased to support large exports
         })
 
         // Filter out users who already have a settlement
@@ -1568,7 +1568,7 @@ export async function getAccruedPayoutLiabilities(
                 ...(eligibleUserIds.length > 0 ? { userId: { in: eligibleUserIds } } : { userId: -1 }) // -1 ensures empty if no matches
             },
             select: { userId: true },
-            take: 10000, // Expanded limit for SuperAdmin totals
+            take: 50000, // Expanded limit for SuperAdmin totals and large exports
             orderBy: { createdAt: 'desc' }
         })
 

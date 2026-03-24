@@ -8,7 +8,7 @@ import { logAction } from '@/lib/audit-logger'
 import { getAccruedPayoutLiabilities, getUsersReadyForRefund } from './finance-actions'
 import { getScopeFilter } from '@/lib/permission-service'
 
-export async function exportRegistrations(startDate: Date, endDate: Date, selectedColumns?: string[], academicYear?: string) {
+export async function exportRegistrations(startDate: Date, endDate: Date, selectedColumns?: string[], academicYear?: string, search?: string) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
 
@@ -26,7 +26,18 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
                     gte: startDate,
                     lte: end
                 },
-                ...(academicYear && academicYear !== 'All' ? { academicYear } : {})
+                ...(academicYear && academicYear !== 'All' ? { academicYear } : {}),
+                ...(search ? {
+                    OR: [
+                        { fullName: { contains: search, mode: 'insensitive' } },
+                        { mobileNumber: { contains: search, mode: 'insensitive' } },
+                        { referralCode: { contains: search, mode: 'insensitive' } },
+                        { transactionId: { contains: search, mode: 'insensitive' } },
+                        { childName: { contains: search, mode: 'insensitive' } },
+                        { childEprNo: { contains: search, mode: 'insensitive' } },
+                        { assignedCampus: { contains: search, mode: 'insensitive' } }
+                    ]
+                } : {})
             },
             include: {
                 students: true,
@@ -169,7 +180,7 @@ export async function exportRegistrations(startDate: Date, endDate: Date, select
     }
 }
 
-export async function exportPayouts(startDate: Date, endDate: Date, status?: string, selectedColumns?: string[], academicYear?: string) {
+export async function exportPayouts(startDate: Date, endDate: Date, status?: string, selectedColumns?: string[], academicYear?: string, search?: string) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
 
@@ -202,6 +213,23 @@ export async function exportPayouts(startDate: Date, endDate: Date, status?: str
 
         if (status && status !== 'All') {
             whereClause.status = status
+        }
+
+        if (search) {
+            whereClause.OR = [
+                { bankReference: { contains: search, mode: 'insensitive' } },
+                {
+                    user: {
+                        OR: [
+                            { fullName: { contains: search, mode: 'insensitive' } },
+                            { mobileNumber: { contains: search, mode: 'insensitive' } },
+                            { referralCode: { contains: search, mode: 'insensitive' } },
+                            { childName: { contains: search, mode: 'insensitive' } },
+                            { childEprNo: { contains: search, mode: 'insensitive' } }
+                        ]
+                    }
+                }
+            ]
         }
 
         const settlements = await prisma.settlement.findMany({
@@ -395,7 +423,7 @@ export async function exportRejectedPayments(search?: string) {
     }
 }
 
-export async function exportRefunds(startDate: Date, endDate: Date, selectedColumns?: string[], academicYear?: string, type: 'Ready' | 'History' = 'History') {
+export async function exportRefunds(startDate: Date, endDate: Date, selectedColumns?: string[], academicYear?: string, type: 'Ready' | 'History' = 'History', search?: string) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
 
@@ -427,7 +455,16 @@ export async function exportRefunds(startDate: Date, endDate: Date, selectedColu
                     OR: [
                         { payments: { some: { adminRemarks: { contains: 'REFUNDED', mode: 'insensitive' } } } },
                         { settlements: { some: { amount: 25, status: 'Processed' } } }
-                    ]
+                    ],
+                    ...(search ? {
+                        OR: [
+                            { fullName: { contains: search, mode: 'insensitive' } },
+                            { mobileNumber: { contains: search, mode: 'insensitive' } },
+                            { referralCode: { contains: search, mode: 'insensitive' } },
+                            { childName: { contains: search, mode: 'insensitive' } },
+                            { childEprNo: { contains: search, mode: 'insensitive' } }
+                        ]
+                    } : {})
                 },
                 include: {
                     payments: {
@@ -496,7 +533,7 @@ export async function exportRefunds(startDate: Date, endDate: Date, selectedColu
     }
 }
 
-export async function exportWaivers(startDate: Date, endDate: Date, selectedColumns?: string[], academicYear?: string) {
+export async function exportWaivers(startDate: Date, endDate: Date, selectedColumns?: string[], academicYear?: string, search?: string) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
 
@@ -524,7 +561,21 @@ export async function exportWaivers(startDate: Date, endDate: Date, selectedColu
                 user: scopeFilter as any,
                 status: 'Processed',
                 remarks: { contains: 'waiver', mode: 'insensitive' },
-                createdAt: { gte: finalStart, lte: finalEnd }
+                createdAt: { gte: finalStart, lte: finalEnd },
+                ...(search ? {
+                    OR: [
+                        { bankReference: { contains: search, mode: 'insensitive' } },
+                        {
+                            user: {
+                                OR: [
+                                    { fullName: { contains: search, mode: 'insensitive' } },
+                                    { mobileNumber: { contains: search, mode: 'insensitive' } },
+                                    { referralCode: { contains: search, mode: 'insensitive' } }
+                                ]
+                            }
+                        }
+                    ]
+                } : {})
             },
             include: {
                 user: {
@@ -598,12 +649,13 @@ export async function exportWaivers(startDate: Date, endDate: Date, selectedColu
     }
 }
 
-export async function exportLiabilities(startDate: Date, endDate: Date, selectedColumns?: string[], academicYear?: string, group?: 'A' | 'B') {
+export async function exportLiabilities(startDate: Date, endDate: Date, selectedColumns?: string[], academicYear?: string, group?: 'A' | 'B', search?: string) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
 
     try {
-        const res = await getAccruedPayoutLiabilities(academicYear)
+        // Fix: Pass pageSize: 10000 and the group (mode) to getAccruedPayoutLiabilities
+        const res = await getAccruedPayoutLiabilities(academicYear, search, undefined, 1, 50000, group)
         if (!res.success || !res.data) {
             return { success: false, error: res.error || 'Failed to fetch liabilities' }
         }
