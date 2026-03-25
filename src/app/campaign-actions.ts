@@ -411,7 +411,7 @@ export async function exportCampaignData(campaignId: number) {
         }
 
         // Generate CSV
-        const headers = ['Name', 'Mobile', 'Role', 'Campus', 'Channel', 'Status', 'Sent At', 'Delivered At', 'Read At']
+        const headers = ['Name', 'Mobile', 'Role', 'Campus', 'Channel', 'Status', 'Failure Reason', 'Sent At', 'Delivered At', 'Read At']
         const rows = recipients.map((r: any) => [
             r.name || 'User',
             r.mobile,
@@ -419,6 +419,7 @@ export async function exportCampaignData(campaignId: number) {
             r.campus || '',
             r.channel,
             r.status,
+            r.errorCode || '',
             r.sentAt ? new Date(r.sentAt).toISOString() : '',
             r.deliveredAt ? new Date(r.deliveredAt).toISOString() : '',
             r.readAt ? new Date(r.readAt).toISOString() : ''

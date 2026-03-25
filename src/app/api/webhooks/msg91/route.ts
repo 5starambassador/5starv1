@@ -158,7 +158,7 @@ export async function POST(request: Request) {
                         },
                         data: {
                             status: normalizedStatus,
-                            errorMessage: error ? error.toString() : undefined,
+                            errorCode: error ? error.toString() : undefined,
                             [normalizedStatus === 'DELIVERED' ? 'deliveredAt' : (normalizedStatus === 'READ' ? 'readAt' : 'updatedAt')]: new Date()
                         }
                     }).catch((e: any) => console.error('[MSG91 Webhook] Recipient update error:', e.message))

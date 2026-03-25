@@ -373,6 +373,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
             await Promise.all(promises)
 
             // Execute WhatsApp (Batched)
+            let waBatchSuccess = true
             if (whatsappRecipients.length > 0 && waService) {
                 const waRes = await waService.sendBulkTemplateMessage(
                     whatsappRecipients,
@@ -383,6 +384,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 if (waRes.success) {
                     stats.whatsappSent += whatsappRecipients.length
                 } else {
+                    waBatchSuccess = false
                     stats.whatsappFailed += whatsappRecipients.length
                 }
             }
@@ -425,34 +427,54 @@ export async function dispatchCampaignBatch(campaignId: number) {
             const recipientsToCreate: any[] = []
 
             users.forEach((user: any) => {
+                const mobile = user.mobileNumber ? user.mobileNumber.toString().replace(/\D/g, '') : ''
                 const baseRecipient = {
                     campaignId: campaignId,
-                    // Store normalized mobile (just digits) for better matching
-                    mobile: user.mobileNumber ? user.mobileNumber.toString().replace(/\D/g, '') : '',
+                    mobile,
                     name: user.fullName || 'User',
                     role: user.role,
-                    campus: user.assignedCampus,
-                    status: 'SENT'
+                    campus: user.assignedCampus
                 }
 
                 // WhatsApp
                 if (isWhatsapp && user.mobileNumber) {
-                    recipientsToCreate.push({ ...baseRecipient, channel: 'WHATSAPP' })
+                    const cleanMobile = user.mobileNumber.toString().replace(/\D/g, '')
+                    let status = 'SENT'
+                    let errorCode = null
+
+                    if (cleanMobile.length < 10) {
+                        status = 'FAILED'
+                        errorCode = 'Invalid Mobile Number'
+                    } else if (!waBatchSuccess) {
+                        status = 'FAILED'
+                        errorCode = 'API Dispatch Failed'
+                    }
+
+                    recipientsToCreate.push({ 
+                        ...baseRecipient, 
+                        channel: 'WHATSAPP', 
+                        status,
+                        errorCode
+                    })
                 }
 
-                // Email — store mobile as the identifier (all Users have mobileNumber @unique)
+                // Email
                 if (isEmail && user.email) {
-                    recipientsToCreate.push({ ...baseRecipient, channel: 'EMAIL' })
+                    recipientsToCreate.push({ 
+                        ...baseRecipient, 
+                        channel: 'EMAIL', 
+                        status: 'SENT' 
+                    })
                 }
 
                 // Push
                 if (isPush && user.DeviceToken?.length > 0) {
-                    recipientsToCreate.push({ ...baseRecipient, channel: 'PUSH' })
+                    recipientsToCreate.push({ ...baseRecipient, channel: 'PUSH', status: 'SENT' })
                 }
 
                 // In-App
                 if (isInApp && user.userId) {
-                    recipientsToCreate.push({ ...baseRecipient, channel: 'IN_APP' })
+                    recipientsToCreate.push({ ...baseRecipient, channel: 'IN_APP', status: 'SENT' })
                 }
             })
 
