@@ -67,7 +67,7 @@ export async function createCampaign(data: {
                 status: 'DRAFT',
                 waTemplateName: data.waTemplateName || null,
                 waVariableMapping: data.waVariableMapping || null
-            }
+            } as any
         })
 
         await logAction('Create Campaign', 'Marketing', `Created campaign: ${data.name}`, undefined)
@@ -93,7 +93,7 @@ export async function updateCampaign(id: number, data: Partial<{
         await checkCampaignAccess()
         const campaign = await prisma.campaign.update({
             where: { id },
-            data
+            data: data as any
         })
 
         await logAction('Update Campaign', 'Marketing', `Updated campaign: ${id}`, undefined)
@@ -108,6 +108,29 @@ export async function updateCampaign(id: number, data: Partial<{
 export async function deleteCampaign(id: number) {
     try {
         await checkCampaignAccess()
+
+        // 1. Delete granular recipient history
+        await (prisma as any).campaignRecipient.deleteMany({
+            where: { campaignId: id }
+        })
+
+        // 2. Delete aggregate logs (this was the primary blocker)
+        await prisma.campaignLog.deleteMany({
+            where: { campaignId: id }
+        })
+
+        // 3. Cleanup ANY background jobs for this campaign to prevent worker errors
+        await (prisma as any).job.deleteMany({
+            where: {
+                type: 'CAMPAIGN_BATCH',
+                payload: { path: ['campaignId'], equals: id }
+            }
+        }).catch(() => {
+            // Fallback for older Prisma versions or different JSON structures
+            console.warn('[Campaign Action] Standard JSON job deletion failed, continuing...')
+        })
+
+        // 4. Finally delete the campaign itself
         await prisma.campaign.delete({
             where: { id }
         })
@@ -117,7 +140,7 @@ export async function deleteCampaign(id: number) {
         return { success: true }
     } catch (error) {
         console.error('deleteCampaign error:', error)
-        return { success: false, error: 'Failed to delete campaign' }
+        return { success: false, error: 'Failed to delete campaign. Ensure all related logs are cleared.' }
     }
 }
 
