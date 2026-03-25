@@ -35,11 +35,13 @@ class WhatsAppService {
             const configs = await prisma.whatsAppConfig.findMany()
             this.configCache.clear()
             configs.forEach(c => {
-                this.configCache.set(c.eventKey, {
+                const config = {
                     templateName: c.templateName,
                     isEnabled: c.isEnabled,
-                    requiredVariablesCount: (c as any).requiredVariablesCount
-                })
+                    requiredVariablesCount: c.requiredVariablesCount
+                }
+                this.configCache.set(c.eventKey, config)
+                this.configCache.set(c.templateName, config) // Also index by templateName for direct campaign lookups
             })
             this.lastCacheUpdate = now
         } catch (error) {
@@ -119,22 +121,13 @@ class WhatsAppService {
         }
 
         try {
+            await this.refreshConfigCache()
             const sanitizedMobile = this.sanitizeMobile(mobile)
             const integratedNumber = this.sanitizeMobile(MSG91_WHATSAPP_NUMBER)
             const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/bulk/`
 
             console.log(`[WhatsApp] Sending to ${sanitizedMobile} via integrated number: ${integratedNumber || 'EMPTY'}`)
             console.log(`[WhatsApp] Using Namespace: ${MSG91_WHATSAPP_NAMESPACE}`)
-
-            const components: any = {}
-            variables.forEach((v, i) => {
-                // MSG91 does NOT allow newlines in variable values — strip them
-                const cleanValue = (v || '').toString().replace(/[\r\n]+/g, ' ').trim()
-                components[`body_${i + 1}`] = {
-                    type: "text",
-                    value: cleanValue
-                }
-            })
 
             const payload: any = {
                 integrated_number: MSG91_WHATSAPP_NUMBER,
@@ -152,7 +145,7 @@ class WhatsAppService {
                         to_and_components: [
                             {
                                 to: [this.sanitizeMobile(mobile)],
-                                components
+                                components: this.prepareComponents(templateName, variables)
                             }
                         ]
                     }
@@ -213,22 +206,26 @@ class WhatsAppService {
         }
 
         try {
+            await this.refreshConfigCache()
+
+            // Filter out recipients with fundamentally invalid numbers that would result in `to: [""]`
+            const validRecipients = recipients.filter(r => this.sanitizeMobile(r.mobile) !== '')
+
+            if (validRecipients.length === 0) {
+                return { success: false, error: 'No valid mobile numbers in batch' }
+            }
+
             const CHUNK_SIZE = 100
             const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/bulk/`
             let mainResponse: WhatsAppResponse = { success: true }
 
-            for (let i = 0; i < recipients.length; i += CHUNK_SIZE) {
-                const chunk = recipients.slice(i, i + CHUNK_SIZE)
+            for (let i = 0; i < validRecipients.length; i += CHUNK_SIZE) {
+                const chunk = validRecipients.slice(i, i + CHUNK_SIZE)
                 
                 const to_and_components = chunk.map(r => {
-                    const components: any = {}
-                    r.variables.forEach((v, i) => {
-                        const cleanValue = (v || '').toString().replace(/[\r\n]+/g, ' ').trim()
-                        components[`body_${i + 1}`] = { type: "text", value: cleanValue }
-                    })
                     return {
                         to: [this.sanitizeMobile(r.mobile)],
-                        components
+                        components: this.prepareComponents(templateName, r.variables)
                     }
                 })
 
@@ -398,6 +395,27 @@ class WhatsAppService {
         console.log(`\n💬 [WHATSAPP MOCK] To: ${mobile} | Template: ${template} | Type: ${type} | Vars: ${vars.join(', ')}\n`)
         await this.logMessage(mobile, template, vars.join(', '), type, 'SENT')
         return { success: true, messageId: 'mock-wa-' + Date.now() }
+    }
+
+    private prepareComponents(templateName: string, variables: string[]): any {
+        const components: any = {}
+        const config = this.configCache.get(templateName)
+        
+        // Strictly trim or pad to match requiredVariablesCount if known
+        let finalVars = [...variables]
+        if (config && config.requiredVariablesCount !== undefined) {
+            if (finalVars.length > config.requiredVariablesCount) {
+                finalVars = finalVars.slice(0, config.requiredVariablesCount)
+            } else while (finalVars.length < config.requiredVariablesCount) {
+                finalVars.push("") // Pad with empty strings if missing
+            }
+        }
+
+        finalVars.forEach((v, i) => {
+            const cleanValue = (v || '').toString().replace(/[\r\n]+/g, ' ').trim()
+            components[`body_${i + 1}`] = { type: "text", value: cleanValue }
+        })
+        return components
     }
 
     private sanitizeMobile(mobile: string): string {

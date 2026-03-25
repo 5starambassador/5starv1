@@ -5,6 +5,7 @@ import { getFirebaseAdmin } from '@/lib/firebase-admin'
 import { EmailService } from '@/lib/email-service'
 import { logAction } from '@/lib/audit-logger'
 import { getAmbassadorQuery, getStudentQuery } from '@/lib/campaign-utils'
+import { encryptReferralCode } from '@/lib/crypto'
 
 /**
  * Dispatches a campaign to a large audience using Batching.
@@ -101,39 +102,68 @@ export async function dispatchCampaignBatch(campaignId: number) {
         const type = audienceType || audience.type || 'AMBASSADORS'
 
         if (type === 'STUDENTS') {
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://5starambassador.com'
+            const referralLink = user.referralCode ? `${baseUrl}/r/${encryptReferralCode(user.referralCode)}` : ''
+
             return text
-                .replace(/{studentName}/gi, user.fullName || 'Student')
-                .replace(/{campus}/gi, user.assignedCampus || 'Global')
-                .replace(/{grade}/gi, user.grade || '')
-                .replace(/{mobile}/gi, user.mobileNumber || '')
+                .replace(/{studentName}|{Name}/gi, user.fullName || 'Student')
+                .replace(/{campus}|{Campus}/gi, user.assignedCampus || 'Global')
+                .replace(/{grade}|{Grade}/gi, user.grade || '')
+                .replace(/{mobile}|{Mobile}/gi, user.mobileNumber || '')
                 .replace(/{admissionDate}/gi, user.admissionDate || '')
+                .replace(/{referralLink}|{ReferralLink}/gi, referralLink)
         }
         if (type === 'REFERRALS') {
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://5starambassador.com'
+            const referralLink = user.referralCode ? `${baseUrl}/r/${encryptReferralCode(user.referralCode)}` : ''
+
             return text
-                .replace(/{parentName}/gi, user.fullName || 'Parent')
-                .replace(/{parentMobile}/gi, user.mobileNumber || '')
-                .replace(/{campus}/gi, user.assignedCampus || 'Global')
-                .replace(/{grade}/gi, user.grade || '')
+                .replace(/{parentName}|{Name}/gi, user.fullName || 'Parent')
+                .replace(/{parentMobile}|{mobile}|{Mobile}/gi, user.mobileNumber || '')
+                .replace(/{campus}|{Campus}/gi, user.assignedCampus || 'Global')
+                .replace(/{grade}|{Grade}/gi, user.grade || '')
                 .replace(/{leadStatus}/gi, user.leadStatus || '')
                 .replace(/{ambassadorName}/gi, user.ambassadorName || '')
+                .replace(/{referralLink}|{ReferralLink}/gi, referralLink)
         }
         if (type === 'PROGRAM_LEADS') {
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://5starambassador.com'
+            const referralLink = user.referralCode ? `${baseUrl}/r/${encryptReferralCode(user.referralCode)}` : ''
+
             return text
-                .replace(/{leadName}/gi, user.fullName || 'Friend')
-                .replace(/{mobile}/gi, user.mobileNumber || '')
-                .replace(/{campus}/gi, user.assignedCampus || '')
+                .replace(/{leadName}|{Name}/gi, user.fullName || 'Friend')
+                .replace(/{mobile}|{Mobile}/gi, user.mobileNumber || '')
+                .replace(/{campus}|{Campus}/gi, user.assignedCampus || '')
                 .replace(/{source}/gi, user.source || '')
                 .replace(/{enquiryDate}/gi, user.enquiryDate || '')
+                .replace(/{referralLink}|{ReferralLink}/gi, referralLink)
         }
         // Default: AMBASSADORS
-        return text
-            .replace(/{userName}|{Ambassador}/gi, user.fullName || 'User')
-            .replace(/{referralCode}|{code}/gi, user.referralCode || '')
-            .replace(/{campus}/gi, user.assignedCampus || 'Global')
-            .replace(/{role}/gi, user.role)
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://5starambassador.com'
+        const referralLink = user.referralCode ? `${baseUrl}/r/${encryptReferralCode(user.referralCode)}` : ''
+
+        let resolvedText = text
+            .replace(/{userName}|{Ambassador}|{Name}/gi, user.fullName || 'User')
+            .replace(/{referralCode}|{code}|{ReferralCode}/gi, user.referralCode || '')
+            .replace(/{referralLink}|{ReferralLink}/gi, referralLink)
+            .replace(/{campus}|{Campus}/gi, user.assignedCampus || 'Global')
+            .replace(/{role}|{Role}/gi, user.role)
             .replace(/{referralCount}/gi, (user.confirmedReferralCount || 0).toString())
             .replace(/{pendingReferrals}/gi, (user.pendingReferralCount || 0).toString())
-            .replace(/{mobile}/gi, user.mobileNumber || '')
+            .replace(/{mobile}|{Mobile}/gi, user.mobileNumber || '')
+
+        // Handle Dynamic Program Links (e.g. {ProgramLink:slug})
+        if (resolvedText.includes('{ProgramLink:')) {
+            const programRegex = /{ProgramLink:([^}]+)}/gi
+            resolvedText = resolvedText.replace(programRegex, (match, slug) => {
+                if (user.referralCode) {
+                    return `${baseUrl}/offer/${slug}?ref=${user.referralCode}`
+                }
+                return `${baseUrl}/offer/${slug}`
+            })
+        }
+
+        return resolvedText
     }
 
     try {
@@ -179,7 +209,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                         visitorName: true,
                         visitorMobile: true,
                         clickedAt: true,
-                        referrer: { select: { assignedCampus: true, fullName: true } }
+                        referrer: { select: { assignedCampus: true, fullName: true, referralCode: true } }
                     },
                     skip: skip,
                     take: BATCH_SIZE
@@ -191,6 +221,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     mobileNumber: l.visitorMobile,
                     assignedCampus: l.referrer?.assignedCampus || '',
                     source: l.referrer?.fullName || 'Program',
+                    referralCode: l.referrer?.referralCode || '',
                     enquiryDate: l.clickedAt ? new Date(l.clickedAt).toLocaleDateString('en-IN') : '',
                     role: 'Lead', confirmedReferralCount: 0, DeviceToken: []
                 }))
@@ -201,7 +232,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     select: {
                         parentName: true, parentMobile: true, campus: true,
                         gradeInterested: true, leadStatus: true,
-                        user: { select: { fullName: true } }
+                        user: { select: { fullName: true, referralCode: true } }
                     },
                     skip: skip,
                     take: BATCH_SIZE
@@ -215,6 +246,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     grade: r.gradeInterested || '',
                     leadStatus: r.leadStatus || '',
                     ambassadorName: r.user?.fullName || '',
+                    referralCode: r.user?.referralCode || '',
                     role: 'Referral', confirmedReferralCount: 0, DeviceToken: []
                 }))
             }
@@ -229,7 +261,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                         createdAt: true,
                         campus: { select: { campusName: true } },
                         parent: {
-                            select: { fullName: true, mobileNumber: true, email: true, DeviceToken: { select: { token: true } } }
+                            select: { fullName: true, mobileNumber: true, email: true, referralCode: true, DeviceToken: { select: { token: true } } }
                         }
                     },
                     skip: skip,
@@ -242,6 +274,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     mobileNumber: s.parent.mobileNumber,
                     assignedCampus: s.campus.campusName,
                     grade: s.grade || '',
+                    referralCode: s.parent.referralCode || '',
                     admissionDate: s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-IN') : '',
                     role: 'Parent', confirmedReferralCount: 0, DeviceToken: s.parent.DeviceToken
                 }))
@@ -281,16 +314,36 @@ export async function dispatchCampaignBatch(campaignId: number) {
                         continue
                     }
 
-                    // MSG91 template variables should NOT include the full message body.
-                    // The template on MSG91 already has the message — we only pass personalisation tokens.
-                    // Convention: {{1}} = Name, {{2}} = Referral Code, {{3}} = Campus, {{4}} = Grade/Source, {{5}} = Role
-                    const waVars: string[] = [
-                        (user.fullName || 'User').toString().replace(/[\r\n]+/g, ' ').trim(),
-                        (user.referralCode || '').toString().replace(/[\r\n]+/g, ' ').trim(),
-                        (user.assignedCampus || '').toString().replace(/[\r\n]+/g, ' ').trim(),
-                        (user.grade || user.source || '').toString().replace(/[\r\n]+/g, ' ').trim(),
-                        (user.role || '').toString().replace(/[\r\n]+/g, ' ').trim()
-                    ]
+                    // Resolve Variables dynamically based on User Selection in Campaign Manager
+                    const mapping = (campaign as any).waVariableMapping || {}
+                    const waVars: string[] = []
+                    
+                    // Determine how many variables to resolve. 
+                    // We use the count from the template config if possible, or fallback to the mapping keys.
+                    const mappingKeys = Object.keys(mapping).filter(k => !isNaN(Number(k)))
+                    const varCount = mappingKeys.length > 0 ? Math.max(...mappingKeys.map(Number)) : 5
+
+                    if (mappingKeys.length > 0) {
+                        for (let i = 1; i <= varCount; i++) {
+                            const key = i.toString()
+                            const mappedValue = mapping[key]
+                            if (mappedValue === 'STATIC') {
+                                waVars.push((mapping[`static_${key}`] || '').toString().replace(/[\r\n]+/g, ' ').trim())
+                            } else if (mappedValue) {
+                                // Placeholder resolution (e.g. {userName} -> "John Doe")
+                                waVars.push(aliasTokens(mappedValue, user, audience.type).toString().replace(/[\r\n]+/g, ' ').trim())
+                            } else {
+                                waVars.push('')
+                            }
+                        }
+                    } else {
+                        // BACKWARD COMPATIBILITY: Fallback to original static defaults if no mapping is defined
+                        waVars.push((user.fullName || 'User').toString().replace(/[\r\n]+/g, ' ').trim())
+                        waVars.push((user.referralCode || '').toString().replace(/[\r\n]+/g, ' ').trim())
+                        waVars.push((user.assignedCampus || '').toString().replace(/[\r\n]+/g, ' ').trim())
+                        waVars.push((user.grade || user.source || '').toString().replace(/[\r\n]+/g, ' ').trim())
+                        waVars.push((user.role || '').toString().replace(/[\r\n]+/g, ' ').trim())
+                    }
                     
                     whatsappRecipients.push({
                         mobile: cleanMobile,

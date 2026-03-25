@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getAudienceCount, exportCampaignData, runCampaign, resetStuckCampaign, syncCampaignMetrics, sendIndividualWhatsApp, getWhatsAppTemplates } from '@/app/campaign-actions'
 import { dispatchCampaignBatch } from '@/app/campaign-dispatcher'
 import { getCampuses } from '@/app/campus-actions'
+import { getActivePrograms } from '@/app/program-actions'
 import { toast } from 'sonner'
 import { Plus, Play, Edit, Trash2, Mail, Clock, CheckCircle2, AlertTriangle, Loader2, Users, Building2, Eye, Filter, Sparkles, Send, Target, ChevronRight, Activity, X, Save, Smartphone, Bell, Download, Database, RefreshCw, MessageSquare } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -21,6 +22,7 @@ export function CampaignManager() {
     const [previewCampaign, setPreviewCampaign] = useState<any>(null)
     const [editingCampaign, setEditingCampaign] = useState<any>(null)
     const [campuses, setCampuses] = useState<any[]>([])
+    const [programs, setPrograms] = useState<any[]>([])
     const [viewMode, setViewMode] = useState<'list' | 'analytics'>('list')
     const [showIndividualModal, setShowIndividualModal] = useState(false)
     const [isIndividualProcessing, setIsIndividualProcessing] = useState(false)
@@ -57,7 +59,8 @@ export function CampaignManager() {
             missingInfo: 'None'
         },
         channels: ['EMAIL'],
-        waTemplateName: ''
+        waTemplateName: '',
+        waVariableMapping: {} as Record<string, string>
     })
 
     // Helper to toggle channels
@@ -114,6 +117,9 @@ export function CampaignManager() {
         })
         getWhatsAppTemplates().then(res => {
             if (res.success) setAvailableTemplates(res.templates || [])
+        })
+        getActivePrograms().then(res => {
+            if (res.success) setPrograms((res as any).programs || [])
         })
     }, [])
 
@@ -180,7 +186,8 @@ export function CampaignManager() {
                 templateBody: '',
                 targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', missingInfo: 'None' },
                 channels: ['EMAIL'],
-                waTemplateName: ''
+                waTemplateName: '',
+                waVariableMapping: {}
             })
             loadCampaigns()
         } else {
@@ -260,7 +267,8 @@ export function CampaignManager() {
             templateBody: c.templateBody,
             targetAudience: c.targetAudience || { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', missingInfo: 'None' },
             channels: c.channels || ['EMAIL'],
-            waTemplateName: c.waTemplateName || ''
+            waTemplateName: c.waTemplateName || '',
+            waVariableMapping: c.waVariableMapping || {}
         })
         setShowModal(true)
     }
@@ -367,7 +375,8 @@ export function CampaignManager() {
                                 templateBody: '',
                                 targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', missingInfo: 'None' },
                                 channels: ['EMAIL'],
-                                waTemplateName: ''
+                                waTemplateName: '',
+                                waVariableMapping: {}
                             })
                             setShowModal(true)
                         }}
@@ -704,33 +713,114 @@ export function CampaignManager() {
                                                     </div>
                                                     
                                                     {form.waTemplateName && (
-                                                        <div className="p-4 bg-green-50/50 rounded-2xl border border-green-100 space-y-2">
+                                                        <div className="p-4 bg-green-50/50 rounded-2xl border border-green-100 space-y-4">
                                                             <div className="flex items-center gap-2 text-[10px] font-black text-green-700 uppercase tracking-widest">
-                                                                <Sparkles size={12} /> Blueprint Insights
+                                                                <Sparkles size={12} /> Variable Precision Mapping
                                                             </div>
                                                             <p className="text-[11px] font-medium text-green-800 leading-relaxed italic">
                                                                 &ldquo;{availableTemplates.find(t => t.templateName === form.waTemplateName)?.description || 'Approved business communication blueprint.'}&rdquo;
                                                             </p>
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
-                                                                {((): { label: string; desc: string }[] => {
+                                                            
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                                                                {((): { label: string; variableKey: string }[] => {
                                                                     const count = availableTemplates.find(t => t.templateName === form.waTemplateName)?.requiredVariablesCount || 0;
-                                                                    const mappings = [
-                                                                        { label: 'Variable 1 ({{1}})', desc: 'Recipient Name' },
-                                                                        { label: 'Variable 2 ({{2}})', desc: 'Referral Code / Link' },
-                                                                        { label: 'Variable 3 ({{3}})', desc: 'Campus Node' },
-                                                                        { label: 'Variable 4 ({{4}})', desc: 'Role / Grade' }
-                                                                    ];
-                                                                    return mappings.slice(0, count);
-                                                                })().map((v, i) => (
-                                                                    <div key={i} className="bg-white/60 p-2 rounded-xl border border-green-100/50 shadow-sm border-dashed">
-                                                                        <p className="text-[8px] font-black text-green-600 uppercase mb-1">{v.label}</p>
-                                                                        <p className="text-[10px] font-bold text-gray-700">{v.desc}</p>
+                                                                    const fields = [];
+                                                                    for (let i = 1; i <= count; i++) {
+                                                                        fields.push({ label: `Variable ${i} ({{${i}}})`, variableKey: i.toString() });
+                                                                    }
+                                                                    return fields;
+                                                                })().map((v) => (
+                                                                    <div key={v.variableKey} className="bg-white/60 p-3 rounded-2xl border border-green-100 shadow-sm transition-all hover:border-green-300">
+                                                                        <p className="text-[9px] font-black text-green-600 uppercase mb-2 px-1 tracking-wider">{v.label}</p>
+                                                                        <select
+                                                                            value={form.waVariableMapping[v.variableKey]?.startsWith('{ProgramLink') ? '{ProgramLink}' : (form.waVariableMapping[v.variableKey] || '')}
+                                                                            onChange={e => setForm({ 
+                                                                                ...form, 
+                                                                                waVariableMapping: { ...form.waVariableMapping, [v.variableKey]: e.target.value } 
+                                                                            })}
+                                                                            className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-[11px] font-bold text-gray-700 focus:ring-2 focus:ring-green-100 transition-all outline-none"
+                                                                        >
+                                                                            <option value="">Select Field...</option>
+                                                                            {((): { value: string; label: string }[] => {
+                                                                                const type = form.targetAudience.type || 'AMBASSADORS'
+                                                                                const fieldMap: Record<string, { value: string; label: string }[]> = {
+                                                                                        AMBASSADORS: [
+                                                                                        { value: 'Name', label: 'Name' },
+                                                                                        { value: 'ReferralCode', label: 'Referral Code' },
+                                                                                        { value: 'ReferralLink', label: 'Referral Link' },
+                                                                                        { value: 'ProgramLink', label: 'External Program Link' },
+                                                                                        { value: 'Campus', label: 'Campus' },
+                                                                                        { value: 'Role', label: 'Role' },
+                                                                                        { value: 'Mobile', label: 'Mobile Number' },
+                                                                                        { value: 'referralCount', label: 'Confirmed Referrals' },
+                                                                                        { value: 'pendingReferrals', label: 'Pending Referrals' }
+                                                                                    ],
+                                                                                    STUDENTS: [
+                                                                                        { value: 'Name', label: 'Student Name' },
+                                                                                        { value: 'Campus', label: 'Campus' },
+                                                                                        { value: 'Grade', label: 'Grade' },
+                                                                                        { value: 'Mobile', label: 'Parent Mobile' },
+                                                                                        { value: 'admissionDate', label: 'Admission Date' }
+                                                                                    ],
+                                                                                    REFERRALS: [
+                                                                                        { value: 'Name', label: 'Parent Name' },
+                                                                                        { value: 'Mobile', label: 'Mobile Number' },
+                                                                                        { value: 'Campus', label: 'Campus' },
+                                                                                        { value: 'Grade', label: 'Grade' },
+                                                                                        { value: 'leadStatus', label: 'Lead Status' },
+                                                                                        { value: 'ambassadorName', label: 'Ambassador Name' }
+                                                                                    ],
+                                                                                    PROGRAM_LEADS: [
+                                                                                        { value: 'Name', label: 'Lead Name' },
+                                                                                        { value: 'Mobile', label: 'Mobile Number' },
+                                                                                        { value: 'Campus', label: 'Campus' },
+                                                                                        { value: 'source', label: 'Source' },
+                                                                                        { value: 'enquiryDate', label: 'Enquiry Date' }
+                                                                                    ]
+                                                                                }
+                                                                                return fieldMap[type] || fieldMap['AMBASSADORS']
+                                                                            })().map(field => (
+                                                                                <option key={field.value} value={`{${field.value}}`}>{field.label}</option>
+                                                                            ))}
+                                                                            <option value="STATIC">Custom / Static Text</option>
+                                                                        </select>
+                                                                        {form.waVariableMapping[v.variableKey]?.startsWith('{ProgramLink') && (
+                                                                            <select
+                                                                                className="w-full mt-2 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1.5 text-[10px] font-bold text-indigo-700 focus:outline-none focus:ring-1 focus:ring-indigo-200"
+                                                                                value={form.waVariableMapping[v.variableKey]?.match(/:([^}]+)/)?.[1] || ''}
+                                                                                onChange={e => setForm({
+                                                                                    ...form,
+                                                                                    waVariableMapping: { ...form.waVariableMapping, [v.variableKey]: `{ProgramLink:${e.target.value}}` }
+                                                                                })}
+                                                                            >
+                                                                                <option value="">Select Target Program...</option>
+                                                                                {programs.map(p => (
+                                                                                    <option key={p.id} value={p.slug}>{p.title}</option>
+                                                                                ))}
+                                                                            </select>
+                                                                        )}
+                                                                        {form.waVariableMapping[v.variableKey] === 'STATIC' && (
+                                                                            <input 
+                                                                                className="w-full mt-2 bg-white border border-gray-100 rounded-lg px-2 py-1 text-[10px] font-semibold text-gray-600 focus:outline-none focus:ring-1 focus:ring-green-200"
+                                                                                placeholder="Type static value..."
+                                                                                value={form.waVariableMapping[`static_${v.variableKey}`] || ''}
+                                                                                onChange={e => setForm({ 
+                                                                                    ...form, 
+                                                                                    waVariableMapping: { ...form.waVariableMapping, [`static_${v.variableKey}`]: e.target.value } 
+                                                                                })}
+                                                                            />
+                                                                        )}
                                                                     </div>
                                                                 ))}
                                                             </div>
-                                                            <p className="text-[9px] font-bold text-green-600/70 pt-1">
-                                                                ℹ️ Our precision dispatcher will automatically merge these variables for all {estimatedReach || 0} recipients.
-                                                            </p>
+                                                            <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 flex items-center gap-2">
+                                                                <div className="w-6 h-6 bg-white rounded-lg flex items-center justify-center text-indigo-500 shadow-sm border border-indigo-100">
+                                                                    <Database size={12} />
+                                                                </div>
+                                                                <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">
+                                                                    Aligning App Data for {estimatedReach || 0} Recipients
+                                                                </p>
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>

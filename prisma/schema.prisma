@@ -478,10 +478,11 @@ model Campaign {
   lastRunAt      DateTime?
   schedule       String?
   batchSize      Int                 @default(500)
-  channels       String[]            @default(["EMAIL"])
-  waTemplateName String?
-  logs           CampaignLog[]
-  recipients     CampaignRecipient[]
+  channels           String[]            @default(["EMAIL"])
+  waTemplateName     String?
+  waVariableMapping  Json?
+  logs               CampaignLog[]
+  recipients         CampaignRecipient[]
 }
 
 model DeviceToken {

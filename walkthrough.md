@@ -54,7 +54,9 @@ Ambassadors can now be searched using any of the following fields:
 - Updated state handling to slice input at 4 characters.
 
 ## Verification
-1.  **Login Flow:** verified that entering a 4-digit OTP triggers verification.
+1.  **Login Flow:**  - [/] Final end-to-end testing of dynamic mappings.
+  - [x] Fix MSG91 Bulk empty mobile processing silent error.
+  - [x] Fix React pagination key duplication issue in WhatsAppLogTable.it OTP triggers verification.
 2.  **Forgot Password:** verified that the same logic applies since it shares the `handleVerifyOtp` function.
 3.  **2FA:** Verified the UI shows 4 boxes and accepts 4 digits.
 4.  **Mock OTP:** In development mode, mock OTP is now `1234` for 2FA.

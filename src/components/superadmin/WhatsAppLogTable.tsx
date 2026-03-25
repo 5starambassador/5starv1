@@ -200,13 +200,16 @@ export function WhatsAppLogTable({ defaultType = 'All', refId }: { defaultType?:
                         <ChevronLeft className="h-5 w-5 text-slate-600" />
                     </button>
                     <div className="flex items-center gap-2">
-                        {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                            let pageNum = page <= 3 ? i + 1 : page + (i - 2);
-                            if (pageNum > totalPages) pageNum = totalPages - (4 - i);
-                            if (pageNum < 1) pageNum = i + 1;
-                            if (pageNum > totalPages) return null;
+                        {(() => {
+                            let start = Math.max(1, page - 2);
+                            let end = Math.min(totalPages, start + 4);
+                            if (end - start < 4) {
+                                start = Math.max(1, end - 4);
+                            }
+                            const pages = [];
+                            for (let i = start; i <= end; i++) pages.push(i);
                             
-                            return (
+                            return pages.map(pageNum => (
                                 <button
                                     key={pageNum}
                                     onClick={() => setPage(pageNum)}
@@ -214,8 +217,8 @@ export function WhatsAppLogTable({ defaultType = 'All', refId }: { defaultType?:
                                 >
                                     {pageNum}
                                 </button>
-                            );
-                        })}
+                            ));
+                        })()}
                     </div>
                     <button 
                         disabled={page === totalPages || loading}
