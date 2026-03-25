@@ -108,7 +108,9 @@ Ambassadors can now be searched using any of the following fields:
 1.  **Login Flow:**  - [/] Final end-to-end testing of dynamic mappings.
   - [x] Fix MSG91 Bulk empty mobile processing silent error.
   - [x] Fix React pagination key duplication issue in WhatsAppLogTable.
-  - [x] Fix MSG91 Webhook dropping Campaign updates due to missing CRQID in bulk webhook payloads.it OTP triggers verification.
+  - [x] Fix MSG91 Webhook dropping Campaign updates due to missing CRQID in bulk webhook payloads.
+  - [x] Fix Webhook race condition where MSG91 hits our server before the background log is saved in the database (added 3 retries with wait).
+  - [x] Fix empty status labels in UI by mapping 'eventName' from MSG91 payload to the application status.it OTP triggers verification.
 2.  **Forgot Password:** verified that the same logic applies since it shares the `handleVerifyOtp` function.
 3.  **2FA:** Verified the UI shows 4 boxes and accepts 4 digits.
 4.  **Mock OTP:** In development mode, mock OTP is now `1234` for 2FA.

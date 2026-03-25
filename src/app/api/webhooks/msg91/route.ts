@@ -28,8 +28,9 @@ export async function POST(request: Request) {
 
         for (const event of events) {
             // MSG91 sends varied field names for references
-            const rawId = event.CRQID || event.request_id || event.requestId || event.custom_ref || event.ref_id || event.externalId
-            const status = event.status ? event.status.toUpperCase() : ''
+            const rawId = event.CRQID || event.request_id || event.requestId || event.custom_ref || event.ref_id || event.externalId || event.messageId
+            const rawStatus = event.status || event.eventName || event.event || ''
+            const status = rawStatus.toUpperCase()
             const rawMobile = event.mobile || event.customerNumber || event.destination
             const error = event.error || event.reason || event.message || null
 
@@ -48,26 +49,36 @@ export async function POST(request: Request) {
                 : (status === 'READ' ? 'READ' : status)
 
             // --- 1. Universal Update for WhatsAppLog (Unified Feed) ---
-            // First try to find by refId directly
-            let log = await prisma.whatsAppLog.findFirst({
-                where: { refId: refStr },
-                orderBy: { createdAt: 'desc' }
-            })
-
-            // If MSG91 omitted the refId and returned the request_id, 
-            // search recent logs by mobile and match inside the JSON metadata memory
-            if (!log && mobile) {
-                const recentLogs = await prisma.whatsAppLog.findMany({
-                    where: {
-                        OR: [
-                            { mobile: mobile },
-                            { mobile: '91' + mobile }
-                        ]
-                    },
-                    take: 20,
+            // RACE CONDITION FIX: MSG91 fires webhooks so fast, they often beat our background 
+            // database inserts. If not found, wait and retry up to 3 times (max 2 seconds).
+            let log: any = null;
+            
+            for (let retry = 0; retry < 3; retry++) {
+                // First try to find by refId directly
+                log = await prisma.whatsAppLog.findFirst({
+                    where: { refId: refStr },
                     orderBy: { createdAt: 'desc' }
                 })
-                log = recentLogs.find((l: any) => l.metadata && l.metadata.messageId === refStr) || null
+
+                // If MSG91 omitted the refId and returned the request_id, 
+                // search recent logs by mobile and match inside the JSON metadata memory
+                if (!log && mobile) {
+                    const recentLogs = await prisma.whatsAppLog.findMany({
+                        where: {
+                            OR: [
+                                { mobile: mobile },
+                                { mobile: '91' + mobile }
+                            ]
+                        },
+                        take: 30, // Increased scope for higher volume sends
+                        orderBy: { createdAt: 'desc' }
+                    })
+                    log = recentLogs.find((l: any) => l.metadata && l.metadata.messageId === refStr) || null
+                }
+                
+                if (log) break;
+                // Wait 800ms before retrying to give the sending thread time to save to DB
+                await new Promise(r => setTimeout(r, 800));
             }
 
             // Determine the true reference string. If MSG91 only sent request_id, 
