@@ -48,19 +48,31 @@ export async function POST(request: Request) {
                 : (status === 'READ' ? 'READ' : status)
 
             // --- 1. Universal Update for WhatsAppLog (Unified Feed) ---
-            // We update for ANY status update now, not just success
-            const log = await prisma.whatsAppLog.findFirst({
-                where: {
-                    refId: refStr,
-                    ...(refStr.startsWith('AUT_') ? {} : {
+            // First try to find by refId directly
+            let log = await prisma.whatsAppLog.findFirst({
+                where: { refId: refStr },
+                orderBy: { createdAt: 'desc' }
+            })
+
+            // If MSG91 omitted the refId and returned the request_id, 
+            // search recent logs by mobile and match inside the JSON metadata memory
+            if (!log && mobile) {
+                const recentLogs = await prisma.whatsAppLog.findMany({
+                    where: {
                         OR: [
                             { mobile: mobile },
                             { mobile: '91' + mobile }
                         ]
-                    })
-                },
-                orderBy: { createdAt: 'desc' }
-            })
+                    },
+                    take: 20,
+                    orderBy: { createdAt: 'desc' }
+                })
+                log = recentLogs.find((l: any) => l.metadata && l.metadata.messageId === refStr) || null
+            }
+
+            // Determine the true reference string. If MSG91 only sent request_id, 
+            // we use the refId from the matched database log to find the campaign.
+            const actualRefStr = log?.refId || refStr
 
             if (log) {
                 const currentMetadata = (log.metadata as any) || {}
@@ -81,30 +93,35 @@ export async function POST(request: Request) {
             }
 
             // --- 2. Campaign Specific Logic ---
-            if (refStr.startsWith('AUT_')) {
+            if (actualRefStr.startsWith('AUT_')) {
                 continue // Skip campaign-specific processing for automation messages
             }
 
             let campaignId: number | null = null
-            let targetLogId: number | null = null
 
-            if (refStr.startsWith('camp_')) {
-                const parts = refStr.split('_')
+            if (actualRefStr.startsWith('camp_')) {
+                const parts = actualRefStr.split('_')
                 campaignId = parseInt(parts[1])
-            } else if (!isNaN(parseInt(refStr))) {
-                campaignId = parseInt(refStr)
+            } else if (!isNaN(parseInt(actualRefStr))) {
+                campaignId = parseInt(actualRefStr)
             }
 
-            if (!campaignId) {
-                console.warn('[MSG91 Webhook] Could not determine campaign ID from ref:', refStr)
+            if (!campaignId && !actualRefStr.startsWith('camp_')) {
+                console.warn('[MSG91 Webhook] Could not determine campaign ID from ref:', actualRefStr)
                 continue
+            }
+
+            // Build dynamic where clause to satisfy TypeScript strict requirements
+            const campaignLogWhere: any = {};
+            if (actualRefStr.startsWith('camp_')) {
+                campaignLogWhere.refId = actualRefStr;
+            } else if (campaignId) {
+                campaignLogWhere.campaignId = campaignId;
             }
 
             // Find the specific log by refId, or fall back to the latest log for this campaign
             const campaignLog = await prisma.campaignLog.findFirst({
-                where: refStr.startsWith('camp_') 
-                    ? { refId: refStr } 
-                    : { campaignId: campaignId },
+                where: campaignLogWhere,
                 orderBy: { runAt: 'desc' }
             })
 
