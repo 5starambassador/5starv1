@@ -11,11 +11,12 @@ async function checkData(year: string) {
         registrations: await prisma.referralLead.count({ 
             where: { academicYear: year } 
         }),
-        liabilities: await prisma.ambassador.count({ 
+        liabilities: await prisma.user.count({ 
             where: { 
-                referrals: { some: { academicYear: year, isConfirmed: true } } 
+                referrals: { some: { academicYear: year, leadStatus: 'Confirmed' } } 
             } 
         })
+
     }
     console.log(`Data counts for ${year}:`, JSON.stringify(counts, null, 2))
 }

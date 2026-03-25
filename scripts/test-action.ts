@@ -5,8 +5,9 @@ async function testAction() {
     // Note: This script will fail if getCurrentUser() returns null in non-request context.
     // I will mock the environment if needed, but first let's try direct call.
     try {
-        const result = await getAccruedPayoutLiabilities('All', undefined, 'All')
+        const result = await getAccruedPayoutLiabilities('All', undefined, undefined)
         if (result.success) {
+
             console.log("SUCCESS! Total liabilities returned:", (result.data as any[]).length)
             if ((result.data as any[]).length > 0) {
                 console.log("Example Record:", (result.data as any[])[0].fullName, "Group:", (result.data as any[])[0].group)

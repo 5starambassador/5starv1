@@ -6,7 +6,7 @@ async function debug() {
     const userCount = await prisma.user.count()
     const settlementCount = await prisma.settlement.count()
     const paymentCount = await prisma.payment.count()
-    const referralCount = await prisma.referral.count()
+    const referralCount = await prisma.referralLead.count()
     
     console.log(`Users: ${userCount}`)
     console.log(`Settlements: ${settlementCount}`)

@@ -25,8 +25,9 @@ async function main() {
   
   // Check if any Confirmed leads have a userId
   const confirmedWithUser = await prisma.referralLead.count({
-    where: { academicYear: '2026-2027', leadStatus: 'Confirmed', userId: { not: null } }
+    where: { academicYear: '2026-2027', leadStatus: 'Confirmed' }
   })
+
   
   console.log(`Confirmed Leads with User ID (Should be in Ledger): ${confirmedWithUser}`)
 }

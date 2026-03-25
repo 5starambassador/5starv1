@@ -130,8 +130,21 @@ export function CampaignManager() {
     }, [campaigns])
 
     const handleSubmit = async () => {
-        if (!form.name || !form.subject || !form.templateBody) {
-            toast.error('All fields are required')
+        const isWhatsAppEnabled = form.channels.includes('WHATSAPP')
+        const hasOtherChannels = form.channels.some(c => c !== 'WHATSAPP')
+
+        if (!form.name || !form.subject) {
+            toast.error('Campaign Name and Subject are required')
+            return
+        }
+
+        if (hasOtherChannels && !form.templateBody) {
+            toast.error('Email / Push template body is required')
+            return
+        }
+
+        if (isWhatsAppEnabled && !form.waTemplateName) {
+            toast.error('WhatsApp Messaging Blueprint is required')
             return
         }
         setIsProcessing(true)
@@ -661,25 +674,65 @@ export function CampaignManager() {
                                             </div>
 
                                             {form.channels.includes('WHATSAPP') && (
-                                                <div className="space-y-2 col-span-2 animate-in slide-in-from-top-2 duration-300">
-                                                    <label className="block text-[10px] font-black text-green-600 uppercase tracking-widest px-1 flex items-center gap-2">
-                                                        <Smartphone size={12} /> WhatsApp Template ID (from MSG91)
-                                                    </label>
+                                                <div className="space-y-4 col-span-2 animate-in slide-in-from-top-2 duration-300">
+                                                    <div className="flex items-center justify-between px-1">
+                                                        <label className="block text-[10px] font-black text-green-600 uppercase tracking-widest flex items-center gap-2">
+                                                            <Smartphone size={12} /> WhatsApp Messaging Blueprint
+                                                        </label>
+                                                        {form.waTemplateName && (
+                                                            <span className="text-[9px] font-black text-green-500 bg-green-50 px-2 py-0.5 rounded-full border border-green-100 uppercase tracking-tight">
+                                                                Template Locked
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <div className="relative">
-                                                        <input
-                                                            className="w-full bg-green-50/30 border border-green-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-green-50 focus:border-green-200 transition-all placeholder:text-green-200"
-                                                            placeholder="e.g. welcome_message"
+                                                        <select
+                                                            className="w-full bg-green-50/30 border border-green-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-green-50 focus:border-green-200 transition-all appearance-none cursor-pointer"
                                                             value={form.waTemplateName}
                                                             onChange={e => setForm({ ...form, waTemplateName: e.target.value })}
-                                                        />
-                                                        <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                                                            <CheckCircle2 size={16} className={form.waTemplateName ? 'text-green-500' : 'text-gray-300'} />
+                                                        >
+                                                            <option value="">Select an approved MSG91 Template...</option>
+                                                            {availableTemplates.map(t => (
+                                                                <option key={t.id} value={t.templateName}>
+                                                                    {t.templateName.replace(/_/g, ' ')} ({t.requiredVariablesCount} variables)
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                                                            <ChevronRight size={18} className="text-green-500 rotate-90" />
                                                         </div>
                                                     </div>
-                                                    <p className="text-[10px] font-bold text-gray-400 px-1 italic">
-                                                        ℹ️ For WhatsApp: Variable 1 (&#123;&#123;1&#125;&#125;) is the <strong>Recipient Name</strong> and Variable 2 (&#123;&#123;2&#125;&#125;) is the <strong>Referral Code</strong>.
-                                                        The "Payload Content" above is used for Email/Push but ignored for WhatsApp to maintain template compliance.
-                                                    </p>
+                                                    
+                                                    {form.waTemplateName && (
+                                                        <div className="p-4 bg-green-50/50 rounded-2xl border border-green-100 space-y-2">
+                                                            <div className="flex items-center gap-2 text-[10px] font-black text-green-700 uppercase tracking-widest">
+                                                                <Sparkles size={12} /> Blueprint Insights
+                                                            </div>
+                                                            <p className="text-[11px] font-medium text-green-800 leading-relaxed italic">
+                                                                &ldquo;{availableTemplates.find(t => t.templateName === form.waTemplateName)?.description || 'Approved business communication blueprint.'}&rdquo;
+                                                            </p>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+                                                                {((): { label: string; desc: string }[] => {
+                                                                    const count = availableTemplates.find(t => t.templateName === form.waTemplateName)?.requiredVariablesCount || 0;
+                                                                    const mappings = [
+                                                                        { label: 'Variable 1 ({{1}})', desc: 'Recipient Name' },
+                                                                        { label: 'Variable 2 ({{2}})', desc: 'Referral Code / Link' },
+                                                                        { label: 'Variable 3 ({{3}})', desc: 'Campus Node' },
+                                                                        { label: 'Variable 4 ({{4}})', desc: 'Role / Grade' }
+                                                                    ];
+                                                                    return mappings.slice(0, count);
+                                                                })().map((v, i) => (
+                                                                    <div key={i} className="bg-white/60 p-2 rounded-xl border border-green-100/50 shadow-sm border-dashed">
+                                                                        <p className="text-[8px] font-black text-green-600 uppercase mb-1">{v.label}</p>
+                                                                        <p className="text-[10px] font-bold text-gray-700">{v.desc}</p>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                            <p className="text-[9px] font-bold text-green-600/70 pt-1">
+                                                                ℹ️ Our precision dispatcher will automatically merge these variables for all {estimatedReach || 0} recipients.
+                                                            </p>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -790,91 +843,89 @@ export function CampaignManager() {
                                             )}
                                         </div>
 
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between px-1">
-                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Payload Content</label>
-                                                <div className="flex flex-wrap gap-x-3 gap-y-2 justify-end">
-                                                    {((): { tag: string; label: string }[] => {
-                                                        const type = form.targetAudience.type || 'AMBASSADORS'
-                                                        const varMap: Record<string, { tag: string; label: string }[]> = {
-                                                            AMBASSADORS: [
-                                                                { tag: '{userName}', label: 'Name' },
-                                                                { tag: '{referralCode}', label: 'Code' },
-                                                                { tag: '{campus}', label: 'Campus' },
-                                                                { tag: '{role}', label: 'Role' },
-                                                                { tag: '{referralCount}', label: 'Confirmed' },
-                                                                { tag: '{pendingReferrals}', label: 'Pending' },
-                                                                { tag: '{mobile}', label: 'Mobile' }
-                                                            ],
-                                                            STUDENTS: [
-                                                                { tag: '{studentName}', label: 'Name' },
-                                                                { tag: '{campus}', label: 'Campus' },
-                                                                { tag: '{grade}', label: 'Grade' },
-                                                                { tag: '{mobile}', label: 'Mobile' },
-                                                                { tag: '{admissionDate}', label: 'Admission Date' }
-                                                            ],
-                                                            REFERRALS: [
-                                                                { tag: '{parentName}', label: 'Parent Name' },
-                                                                { tag: '{parentMobile}', label: 'Mobile' },
-                                                                { tag: '{campus}', label: 'Campus' },
-                                                                { tag: '{grade}', label: 'Grade' },
-                                                                { tag: '{leadStatus}', label: 'Lead Status' },
-                                                                { tag: '{ambassadorName}', label: 'Ambassador' }
-                                                            ],
-                                                            PROGRAM_LEADS: [
-                                                                { tag: '{leadName}', label: 'Lead Name' },
-                                                                { tag: '{mobile}', label: 'Mobile' },
-                                                                { tag: '{campus}', label: 'Campus' },
-                                                                { tag: '{source}', label: 'Source' },
-                                                                { tag: '{enquiryDate}', label: 'Enquiry Date' }
-                                                            ]
-                                                        }
-                                                        return varMap[type] || varMap['AMBASSADORS']
-                                                    })().map(item => (
-                                                        <button
-                                                            key={item.tag}
-                                                            onClick={() => {
-                                                                const textarea = document.getElementById('payload-textarea') as HTMLTextAreaElement;
-                                                                if (textarea) {
-                                                                    const start = textarea.selectionStart;
-                                                                    const end = textarea.selectionEnd;
-                                                                    const text = form.templateBody;
-                                                                    const before = text.substring(0, start);
-                                                                    const after = text.substring(end, text.length);
-                                                                    const newText = before + item.tag + after;
-                                                                    setForm({ ...form, templateBody: newText });
-                                                                    setTimeout(() => {
-                                                                        textarea.focus();
-                                                                        textarea.setSelectionRange(start + item.tag.length, start + item.tag.length);
-                                                                    }, 0);
-                                                                }
-                                                            }}
-                                                            className="text-[9px] font-black text-gray-400 hover:text-gray-700 uppercase tracking-widest font-mono transition-colors px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 rounded"
-                                                        >
-                                                            {item.tag}
-                                                        </button>
-                                                    ))}
+                                        {/* Payload Content - Only show if Email, Push, or In-App are active */}
+                                        {(form.channels.includes('EMAIL') || form.channels.includes('PUSH') || form.channels.includes('IN_APP')) && (
+                                            <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-500">
+                                                <div className="flex justify-between px-1">
+                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Multi-Channel Payload</label>
+                                                    <div className="flex flex-wrap gap-x-3 gap-y-2 justify-end">
+                                                        {((): { tag: string; label: string }[] => {
+                                                            const type = form.targetAudience.type || 'AMBASSADORS'
+                                                            const varMap: Record<string, { tag: string; label: string }[]> = {
+                                                                AMBASSADORS: [
+                                                                    { tag: '{userName}', label: 'Name' },
+                                                                    { tag: '{referralCode}', label: 'Code' },
+                                                                    { tag: '{campus}', label: 'Campus' },
+                                                                    { tag: '{role}', label: 'Role' },
+                                                                    { tag: '{referralCount}', label: 'Confirmed' },
+                                                                    { tag: '{pendingReferrals}', label: 'Pending' },
+                                                                    { tag: '{mobile}', label: 'Mobile' }
+                                                                ],
+                                                                STUDENTS: [
+                                                                    { tag: '{studentName}', label: 'Name' },
+                                                                    { tag: '{campus}', label: 'Campus' },
+                                                                    { tag: '{grade}', label: 'Grade' },
+                                                                    { tag: '{mobile}', label: 'Mobile' },
+                                                                    { tag: '{admissionDate}', label: 'Admission Date' }
+                                                                ],
+                                                                REFERRALS: [
+                                                                    { tag: '{parentName}', label: 'Parent Name' },
+                                                                    { tag: '{parentMobile}', label: 'Mobile' },
+                                                                    { tag: '{campus}', label: 'Campus' },
+                                                                    { tag: '{grade}', label: 'Grade' },
+                                                                    { tag: '{leadStatus}', label: 'Lead Status' },
+                                                                    { tag: '{ambassadorName}', label: 'Ambassador' }
+                                                                ],
+                                                                PROGRAM_LEADS: [
+                                                                    { tag: '{leadName}', label: 'Lead Name' },
+                                                                    { tag: '{mobile}', label: 'Mobile' },
+                                                                    { tag: '{campus}', label: 'Campus' },
+                                                                    { tag: '{source}', label: 'Source' },
+                                                                    { tag: '{enquiryDate}', label: 'Enquiry Date' }
+                                                                ]
+                                                            }
+                                                            return varMap[type] || varMap['AMBASSADORS']
+                                                        })().map(item => (
+                                                            <button
+                                                                key={item.tag}
+                                                                onClick={() => {
+                                                                    const textarea = document.getElementById('payload-textarea') as HTMLTextAreaElement;
+                                                                    if (textarea) {
+                                                                        const start = textarea.selectionStart;
+                                                                        const end = textarea.selectionEnd;
+                                                                        const text = form.templateBody;
+                                                                        const before = text.substring(0, start);
+                                                                        const after = text.substring(end, text.length);
+                                                                        const newText = before + item.tag + after;
+                                                                        setForm({ ...form, templateBody: newText });
+                                                                        setTimeout(() => {
+                                                                            textarea.focus();
+                                                                            textarea.setSelectionRange(start + item.tag.length, start + item.tag.length);
+                                                                        }, 0);
+                                                                    }
+                                                                }}
+                                                                className="text-[9px] font-black text-gray-400 hover:text-gray-700 uppercase tracking-widest font-mono transition-colors px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 rounded"
+                                                            >
+                                                                {item.tag}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <textarea
+                                                    id="payload-textarea"
+                                                    className="w-full bg-gray-50 border border-gray-100 rounded-[32px] px-6 py-5 text-sm font-bold text-gray-900 h-48 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all font-mono leading-relaxed resize-none shadow-inner"
+                                                    placeholder="Inject HTML or standard text template here..."
+                                                    value={form.templateBody}
+                                                    onChange={e => setForm({ ...form, templateBody: e.target.value })}
+                                                />
+                                                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
+                                                    <AlertTriangle size={18} className="text-amber-600 shrink-0" />
+                                                    <div className="space-y-1">
+                                                        <p className="text-[10px] font-bold text-amber-700 leading-normal">Precision Dispatch ensures variables are merged server-side. Validate syntax before deploying.</p>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <textarea
-                                                id="payload-textarea"
-                                                className="w-full bg-gray-50 border border-gray-100 rounded-[32px] px-6 py-5 text-sm font-bold text-gray-900 h-48 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all font-mono leading-relaxed resize-none shadow-inner"
-                                                placeholder="Inject HTML or standard text template here..."
-                                                value={form.templateBody}
-                                                onChange={e => setForm({ ...form, templateBody: e.target.value })}
-                                            />
-                                            <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
-                                                <AlertTriangle size={18} className="text-amber-600 shrink-0" />
-                                                <div className="space-y-1">
-                                                    <p className="text-[10px] font-bold text-amber-700 leading-normal">Precision Dispatch ensures variables are merged server-side. Validate syntax before deploying.</p>
-                                                    {form.channels.includes('WHATSAPP') && (
-                                                        <p className="text-[10px] font-bold text-green-700 leading-normal pt-2 border-t border-amber-200/50">
-                                                            WhatsApp Enabled: Ensure your template body matches a pre-approved MSG91 template structure.
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
+                                        )}
                                     </div>
 
                                     {/* Modal Footer */}

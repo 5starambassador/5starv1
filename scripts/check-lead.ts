@@ -8,7 +8,7 @@ async function main() {
         })
         
         if (leads.length > 0) {
-            console.log(`Lead ID: ${leads[0].leadId} | Status: ${leads[0].status} | Student: ${leads[0].studentName}`)
+            console.log(`Lead ID: ${leads[0].leadId} | Status: ${leads[0].leadStatus} | Student: ${leads[0].studentName}`)
         } else {
             console.log('Lead 1235 not found in referralLead table')
             // Check student table?

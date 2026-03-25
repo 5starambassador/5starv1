@@ -14,7 +14,7 @@ async function debugUser19() {
                 { 
                     referrals: { 
                         some: { 
-                            leadStatus: { in: ['Confirmed', 'Admitted', 'CONFIRMED', 'ADMITTED'] },
+                            leadStatus: { in: ['Confirmed', 'Admitted'] },
                             OR: [
                                 { academicYear: academicYear },
                                 { admittedYear: academicYear },
@@ -29,7 +29,7 @@ async function debugUser19() {
         include: {
             referrals: {
                 where: {
-                    leadStatus: { in: ['Confirmed', 'Admitted', 'CONFIRMED', 'ADMITTED'] }
+                    leadStatus: { in: ['Confirmed', 'Admitted'] }
                 }
             }
         }
