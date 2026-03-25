@@ -240,6 +240,7 @@ class WhatsAppService {
                         type: "template",
                         template: {
                             name: templateName,
+                            namespace: MSG91_WHATSAPP_NAMESPACE,
                             language: { code: "en", policy: "deterministic" },
                             to_and_components
                         }
