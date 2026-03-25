@@ -5,10 +5,12 @@ import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getAudien
 import { dispatchCampaignBatch } from '@/app/campaign-dispatcher'
 import { getCampuses } from '@/app/campus-actions'
 import { toast } from 'sonner'
-import { Plus, Play, Edit, Trash2, Mail, Clock, CheckCircle2, AlertTriangle, Loader2, Users, Building2, Eye, Filter, Sparkles, Send, Target, ChevronRight, Activity, X, Save, Smartphone, Bell, Download, Database, RefreshCw } from 'lucide-react'
+import { Plus, Play, Edit, Trash2, Mail, Clock, CheckCircle2, AlertTriangle, Loader2, Users, Building2, Eye, Filter, Sparkles, Send, Target, ChevronRight, Activity, X, Save, Smartphone, Bell, Download, Database, RefreshCw, MessageSquare } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CampaignAnalytics } from './CampaignAnalytics'
+import { WhatsAppLogTable } from './WhatsAppLogTable'
+import { Modal } from '@/components/ui/Modal'
 
 export function CampaignManager() {
     const [campaigns, setCampaigns] = useState<any[]>([])
@@ -23,6 +25,8 @@ export function CampaignManager() {
     const [showIndividualModal, setShowIndividualModal] = useState(false)
     const [isIndividualProcessing, setIsIndividualProcessing] = useState(false)
     const [availableTemplates, setAvailableTemplates] = useState<any[]>([])
+    const [showLogsModal, setShowLogsModal] = useState(false)
+    const [selectedRefId, setSelectedRefId] = useState<string | null>(null)
 
     // Confirmation State
     const [confirmState, setConfirmState] = useState<{
@@ -418,6 +422,18 @@ export function CampaignManager() {
                                                     title="Sync Live Metrics"
                                                 >
                                                     <Database size={16} />
+                                                </button>
+                                            )}
+                                            {c.channels?.includes('WHATSAPP') && c.logs?.[0]?.refId && (
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedRefId(c.logs[0].refId);
+                                                        setShowLogsModal(true);
+                                                    }}
+                                                    className="p-2.5 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-600 hover:bg-emerald-600 hover:text-white hover:shadow-sm transition-all"
+                                                    title="Delivery Logs"
+                                                >
+                                                    <MessageSquare size={16} />
                                                 </button>
                                             )}
                                             <button onClick={() => handleDelete(c.id)} className="p-2.5 bg-rose-50 border border-rose-100 rounded-xl text-rose-400 hover:bg-rose-600 hover:text-white hover:shadow-sm transition-all" title="Purge Artifact"><Trash2 size={16} /></button>
@@ -1143,6 +1159,26 @@ export function CampaignManager() {
                     </AnimatePresence>
                 </div>
             )}
+
+            <Modal
+                isOpen={showLogsModal}
+                onClose={() => setShowLogsModal(false)}
+                title="WhatsApp Delivery Status"
+                subtitle="Granular performance tracking for this campaign run"
+                icon={<MessageSquare size={20} />}
+                variant="indigo"
+                maxWidth="5xl"
+            >
+                <div className="py-4">
+                    {selectedRefId ? (
+                        <WhatsAppLogTable refId={selectedRefId} defaultType="CAMPAIGN" />
+                    ) : (
+                        <div className="p-12 text-center text-slate-400 font-bold italic">
+                            No request ID found for this campaign run.
+                        </div>
+                    )}
+                </div>
+            </Modal>
         </div>
     )
 }

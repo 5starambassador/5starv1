@@ -85,26 +85,37 @@ export async function POST(request: Request) {
                 continue // Skip campaign-specific processing for automation messages
             }
 
-            const campaignId = parseInt(refStr)
-            if (isNaN(campaignId)) {
-                console.error('[MSG91 Webhook] Invalid numeric ID:', rawId)
+            let campaignId: number | null = null
+            let targetLogId: number | null = null
+
+            if (refStr.startsWith('camp_')) {
+                const parts = refStr.split('_')
+                campaignId = parseInt(parts[1])
+            } else if (!isNaN(parseInt(refStr))) {
+                campaignId = parseInt(refStr)
+            }
+
+            if (!campaignId) {
+                console.warn('[MSG91 Webhook] Could not determine campaign ID from ref:', refStr)
                 continue
             }
 
-            // Update recipient status for ALL incoming status changes
-            const latestLog = await prisma.campaignLog.findFirst({
-                where: { campaignId: campaignId },
+            // Find the specific log by refId, or fall back to the latest log for this campaign
+            const campaignLog = await prisma.campaignLog.findFirst({
+                where: refStr.startsWith('camp_') 
+                    ? { refId: refStr } 
+                    : { campaignId: campaignId },
                 orderBy: { runAt: 'desc' }
             })
 
-            if (latestLog) {
+            if (campaignLog) {
                 const updateData: any = {}
                 if (normalizedStatus === 'DELIVERED') updateData.whatsappDelivered = { increment: 1 }
                 if (normalizedStatus === 'READ') updateData.whatsappRead = { increment: 1 }
                 if (normalizedStatus === 'FAILED' || normalizedStatus === 'REJECTED') updateData.failedCount = { increment: 1 }
 
                 await prisma.campaignLog.update({
-                    where: { id: latestLog.id },
+                    where: { id: campaignLog.id },
                     data: updateData
                 })
 

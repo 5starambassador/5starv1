@@ -122,7 +122,20 @@ export async function getPaginatedWhatsAppLogs(page: number = 1, pageSize: numbe
     try {
         const whereClause: any = {}
         if (filters?.status && filters.status !== 'All') whereClause.status = filters.status
-        if (filters?.type && filters.type !== 'All') whereClause.type = filters.type
+        
+        if (filters?.type && filters.type !== 'All') {
+            if (filters.type === 'AUTOMATION') {
+                whereClause.type = { in: ['SYSTEM', 'REMINDER'] }
+            } else {
+                whereClause.type = filters.type
+            }
+        } else if (filters?.type === 'All' && (filters as any).excludeCampaigns) {
+            whereClause.type = { not: 'CAMPAIGN' }
+        }
+
+        if ((filters as any)?.refId) {
+            whereClause.refId = (filters as any).refId
+        }
 
         const [logs, total] = await Promise.all([
             db.whatsAppLog.findMany({

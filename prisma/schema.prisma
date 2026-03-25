@@ -515,6 +515,7 @@ model CampaignLog {
   whatsappSent      Int      @default(0)
   whatsappDelivered Int      @default(0)
   whatsappRead      Int      @default(0)
+  refId             String?
   campaign          Campaign @relation(fields: [campaignId], references: [id])
 }
 

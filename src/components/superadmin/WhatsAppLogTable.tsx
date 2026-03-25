@@ -15,20 +15,25 @@ interface WhatsAppLog {
     createdAt: Date
 }
 
-export function WhatsAppLogTable() {
+export function WhatsAppLogTable({ defaultType = 'All', refId }: { defaultType?: string, refId?: string }) {
     const [logs, setLogs] = useState<WhatsAppLog[]>([])
     const [page, setPage] = useState(1)
     const [total, setTotal] = useState(0)
     const [totalPages, setTotalPages] = useState(0)
     const [loading, setLoading] = useState(true)
-    const [filters, setFilters] = useState({ status: 'All', type: 'All' })
+    const [filters, setFilters] = useState({ 
+        status: 'All', 
+        type: defaultType,
+        refId,
+        excludeCampaigns: defaultType === 'All' && !refId // If All and no refId, exclude campaigns
+    })
 
     const pageSize = 15
 
     const fetchLogs = async () => {
         setLoading(true)
         try {
-            const res = await getPaginatedWhatsAppLogs(page, pageSize, filters)
+            const res = await getPaginatedWhatsAppLogs(page, pageSize, filters as any)
             if (res.success && res.logs) {
                 setLogs(res.logs)
                 setTotal(res.total || 0)
@@ -76,10 +81,11 @@ export function WhatsAppLogTable() {
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</span>
                         <select 
                             value={filters.type}
-                            onChange={(e) => { setFilters({ ...filters, type: e.target.value }); setPage(1); }}
+                            onChange={(e) => { setFilters({ ...filters, type: e.target.value, excludeCampaigns: e.target.value === 'All' }); setPage(1); }}
                             className="bg-white border-none rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm focus:ring-2 focus:ring-indigo-100"
                         >
                             <option value="All">All Types</option>
+                            <option value="AUTOMATION">Automation Only</option>
                             <option value="SYSTEM">System</option>
                             <option value="CAMPAIGN">Campaign</option>
                             <option value="REMINDER">Reminder</option>

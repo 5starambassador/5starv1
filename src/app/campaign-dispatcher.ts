@@ -49,6 +49,8 @@ export async function dispatchCampaignBatch(campaignId: number) {
 
     // Initialize Log
     let logId: number | null = null
+    const campaignRequestId = `camp_${campaignId}_${Date.now()}`
+
     try {
         const log = await prisma.campaignLog.create({
             data: {
@@ -57,7 +59,8 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 recipientCount: 0,
                 sentCount: 0,
                 failedCount: 0,
-                runAt: new Date()
+                runAt: new Date(),
+                refId: campaignRequestId
             } as any
         })
         logId = log.id
@@ -322,7 +325,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     whatsappRecipients,
                     (campaign as any).waTemplateName || 'welcome_message',
                     'CAMPAIGN',
-                    campaignId.toString()
+                    campaignRequestId
                 )
                 if (waRes.success) {
                     stats.whatsappSent += whatsappRecipients.length

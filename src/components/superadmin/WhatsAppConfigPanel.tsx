@@ -221,7 +221,7 @@ export default function WhatsAppConfigPanel() {
                                 Export Full Log
                             </button>
                         </div>
-                        <WhatsAppLogTable />
+                        <WhatsAppLogTable defaultType="AUTOMATION" />
                     </div>
                 </div>
             ) : (
