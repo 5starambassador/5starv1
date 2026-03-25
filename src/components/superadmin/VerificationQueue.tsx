@@ -216,24 +216,29 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
 
     const handleExport = async () => {
         setLoading(true)
-        const res = await getVerificationsForExport(activeTab, searchTerm, filterCampus, filterRole, filterGrade)
-        if (res.success && res.data) {
-            exportToCSV(res.data, `Verification_${activeTab}`, [
-                { header: 'Full Name', accessor: (u) => u.fullName },
-                { header: 'Mobile Number', accessor: (u) => u.mobileNumber },
-                { header: 'Child Name', accessor: (u) => u.childName || 'N/A' },
-                { header: 'ERP No', accessor: (u) => u.childEprNo || 'N/A' },
-                { header: 'Grade', accessor: (u) => u.grade || 'N/A' },
-                { header: 'Campus', accessor: (u) => u.assignedCampus || 'N/A' },
-                { header: 'Role', accessor: (u) => u.role },
-                { header: 'Benefit Status', accessor: (u) => u.benefitStatus },
-                { header: 'Registered On', accessor: (u) => new Date(u.createdAt).toLocaleDateString() }
-            ])
-            toast.success('Export started')
-        } else {
-            toast.error(res.error || 'Export failed')
+        try {
+            const res = await getVerificationsForExport(activeTab, searchTerm, filterCampus, filterRole, filterGrade)
+            if (res.success && res.data) {
+                exportToCSV(res.data, `Verification_${activeTab}`, [
+                    { header: 'Full Name', accessor: (r) => r.fullName },
+                    { header: 'Mobile', accessor: (r) => r.mobileNumber },
+                    { header: 'Role', accessor: (r) => r.role },
+                    { header: 'Campus', accessor: (r) => r.assignedCampus || '-' },
+                    { header: 'Grade', accessor: (r) => r.grade || '-' },
+                    { header: 'ERP No', accessor: (r) => r.childEprNo || '-' },
+                    { header: 'Child Name', accessor: (r) => r.childName || '-' },
+                    { header: 'Applied Date', accessor: (r) => new Date(r.createdAt).toLocaleDateString() }
+                ])
+                toast.success('Export started')
+            } else {
+                toast.error(res.error || 'Export failed')
+            }
+        } catch (error) {
+            console.error('Export error:', error)
+            toast.error('An unexpected error occurred during export')
+        } finally {
+            setLoading(false)
         }
-        setLoading(false)
     }
 
     const startEdit = (user: any) => {

@@ -59,6 +59,7 @@ export function StudentTable({
     const [deleteId, setDeleteId] = useState<number | null>(null)
     const [showColumnMenu, setShowColumnMenu] = useState(false)
     const [liveMode, setLiveMode] = useState(false)
+    const [isExporting, setIsExporting] = useState(false)
 
     // Filters
     const [filters, setFilters] = useState({
@@ -148,13 +149,13 @@ export function StudentTable({
 
     // Polling for Live Mode
     useEffect(() => {
-        if (!liveMode) return
+        if (!liveMode || isExporting) return // Pause polling while exporting to prevent refresh collision
         const interval = setInterval(() => {
             router.refresh()
             toast.success('Synced with database', { duration: 1000, icon: <RefreshCcw size={12} /> })
         }, 15000)
         return () => clearInterval(interval)
-    }, [liveMode, router])
+    }, [liveMode, isExporting, router])
 
     const handleBulkAction = (action: 'activate' | 'suspend' | 'delete') => {
         setBulkConfirmation({ isOpen: true, action })
@@ -618,22 +619,34 @@ export function StudentTable({
                             )}
                             <div className="w-px h-4 bg-gray-200 mx-0.5"></div>
                             <button
-                                onClick={() => exportToCSV(filteredStudents, 'Student_List', [
-                                    { header: 'Full Name', accessor: (s) => s.fullName },
-                                    { header: 'Admission No', accessor: (s) => s.admissionNumber },
-                                    { header: 'Grade', accessor: (s) => s.grade },
-                                    { header: 'Parent', accessor: (s) => s.parent?.fullName || '' },
-                                    { header: 'Mobile', accessor: (s) => s.parent?.mobileNumber || '' },
-                                    { header: 'Ambassador', accessor: (s) => s.ambassador?.fullName || '' },
-                                    { header: 'Status', accessor: (s) => s.status },
-                                    { header: 'Fee Plan', accessor: (s) => (s as any).selectedFeeType || 'WOTP' },
-                                    { header: 'Annual Fee', accessor: (s) => (s.baseFee || (s as any).annualFee || 0).toString() }
-                                ])}
-                                className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:bg-white hover:text-gray-600 hover:shadow-sm"
+                                onClick={async () => {
+                                    setIsExporting(true)
+                                    // Small delay to allow UI to update if the dataset is massive
+                                    setTimeout(() => {
+                                        try {
+                                            exportToCSV(filteredStudents, 'Student_List', [
+                                                { header: 'Full Name', accessor: (s) => s.fullName },
+                                                { header: 'Admission No', accessor: (s) => s.admissionNumber },
+                                                { header: 'Grade', accessor: (s) => s.grade },
+                                                { header: 'Parent', accessor: (s) => s.parent?.fullName || '' },
+                                                { header: 'Mobile', accessor: (s) => s.parent?.mobileNumber || '' },
+                                                { header: 'Ambassador', accessor: (s) => s.ambassador?.fullName || '' },
+                                                { header: 'Status', accessor: (s) => s.status },
+                                                { header: 'Fee Plan', accessor: (s) => (s as any).selectedFeeType || 'WOTP' },
+                                                { header: 'Annual Fee', accessor: (s) => (s.baseFee || (s as any).annualFee || 0).toString() }
+                                            ])
+                                            toast.success('Export completed')
+                                        } finally {
+                                            setIsExporting(false)
+                                        }
+                                    }, 100)
+                                }}
+                                disabled={isExporting}
+                                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isExporting ? 'bg-indigo-50 text-indigo-600' : 'text-gray-400 hover:bg-white hover:text-gray-600 hover:shadow-sm'}`}
                                 title="Download Results"
                                 suppressHydrationWarning
                             >
-                                <Download size={14} />
+                                <Download size={14} className={isExporting ? 'animate-bounce' : ''} />
                             </button>
                         </div>
 

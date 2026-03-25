@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { revalidatePath } from 'next/cache'
 
 /**
  * MSG91 Webhook Handler
@@ -167,6 +168,7 @@ export async function POST(request: Request) {
             }
         }
 
+        revalidatePath('/superadmin')
         return NextResponse.json({ success: true })
 
     } catch (error: any) {

@@ -21,6 +21,7 @@ export function FeeManagementTable({ academicYears: initialAcademicYears = [] }:
     const [search, setSearch] = useState('')
     const [showUploader, setShowUploader] = useState(false)
     const [selectedIds, setSelectedIds] = useState<number[]>([])
+    const [isExporting, setIsExporting] = useState(false)
 
     // Confirmation State
     const [confirmState, setConfirmState] = useState<{
@@ -262,16 +263,28 @@ export function FeeManagementTable({ academicYears: initialAcademicYears = [] }:
                         Sync Fees
                     </button>
                     <button
-                        onClick={() => exportToCSV(fees, 'Fee_Structures', [
-                            { header: 'Campus', accessor: (f) => f.campus?.campusName },
-                            { header: 'Grade', accessor: (f) => f.grade },
-                            { header: 'Academic Year', accessor: (f) => f.academicYear },
-                            { header: 'OTP Fee', accessor: (f) => f.annualFee_otp },
-                            { header: 'WOTP Fee', accessor: (f) => f.annualFee_wotp }
-                        ])}
-                        className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium"
+                        onClick={async () => {
+                            setIsExporting(true)
+                            setTimeout(() => {
+                                try {
+                                    exportToCSV(fees, 'Fee_Structures', [
+                                        { header: 'Campus', accessor: (f) => f.campus?.campusName },
+                                        { header: 'Grade', accessor: (f) => f.grade },
+                                        { header: 'Academic Year', accessor: (f) => f.academicYear },
+                                        { header: 'OTP Fee', accessor: (f) => f.annualFee_otp },
+                                        { header: 'WOTP Fee', accessor: (f) => f.annualFee_wotp }
+                                    ])
+                                    toast.success('Export completed')
+                                } finally {
+                                    setIsExporting(false)
+                                }
+                            }, 100)
+                        }}
+                        disabled={isExporting}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isExporting ? 'bg-gray-50 text-gray-400' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'}`}
                     >
-                        <Download size={16} /> Export
+                        {isExporting ? <RefreshCw size={16} className="animate-spin" /> : <Download size={16} />}
+                        {isExporting ? 'Exporting...' : 'Export'}
                     </button>
                     <button
                         onClick={() => window.open('/fee_structure_template.csv')}

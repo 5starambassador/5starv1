@@ -1,4 +1,4 @@
-import { UserPlus, Download, CheckCircle, XCircle, Calendar, CreditCard, Smartphone, Hash, Building, Trash2, Key, Shield, Star, ArrowRight, ChevronDown, CheckSquare, Filter } from 'lucide-react'
+import { RefreshCw, UserPlus, Download, CheckCircle, XCircle, Calendar, CreditCard, Smartphone, Hash, Building, Trash2, Key, Shield, Star, ArrowRight, ChevronDown, CheckSquare, Filter } from 'lucide-react'
 import { AcademicYearFilter } from '@/components/AcademicYearFilter'
 import Image from 'next/image'
 
@@ -346,8 +346,10 @@ export function UserTable({
 
     const handleExport = async () => {
         setIsExporting(true)
-        try {
-            const selectedYear = searchParams.get('year')
+        // Give UI a moment to show loading state
+        setTimeout(async () => {
+            try {
+                const selectedYear = searchParams.get('year')
             const exportData = await getUsersForExport({
                 academicYear: selectedYear || 'All',
                 search: searchTerm,
@@ -462,12 +464,13 @@ export function UserTable({
             a.click()
             setShowExportModal(false)
             toast.success(`Exported ${exportData.length} records successfully`)
-        } catch (error) {
-            console.error('Export Error:', error)
-            toast.error('Failed to export data. Please try again.')
-        } finally {
-            setIsExporting(false)
-        }
+            } catch (error) {
+                console.error('Export Error:', error)
+                toast.error('Failed to export data. Please try again.')
+            } finally {
+                setIsExporting(false)
+            }
+        }, 100)
     }
 
     // Toggle Column Handler
@@ -799,16 +802,17 @@ export function UserTable({
                             <button
                                 onClick={handleExport}
                                 disabled={isExporting}
-                                className="flex-1 py-3 text-white font-bold text-sm bg-gray-900 hover:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className={`flex-1 py-3 bg-red-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-red-200 hover:shadow-red-300 transition-all flex items-center justify-center gap-2 ${isExporting ? 'opacity-80 cursor-wait' : 'hover:-translate-y-0.5'}`}
                             >
                                 {isExporting ? (
                                     <>
-                                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/20 border-t-white" />
-                                        Preparing...
+                                        <RefreshCw size={16} className="animate-spin" />
+                                        Exporting...
                                     </>
                                 ) : (
                                     <>
-                                        <Download size={16} /> Download CSV
+                                        <Download size={16} />
+                                        Download CSV
                                     </>
                                 )}
                             </button>

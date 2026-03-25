@@ -69,6 +69,7 @@ export function RegistrationTable({
     const [filter, setFilter] = useState('All')
 
     const [showExportModal, setShowExportModal] = useState(false)
+    const [isExporting, setIsExporting] = useState(false)
 
     // Helper to get payment details
     const getPaymentDetails = (row: Registration) => {
@@ -252,23 +253,32 @@ export function RegistrationTable({
     }
 
     const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
-        const res = await exportRegistrations(start, end, selectedColumns, academicYear, search)
-        if (res.success && res.csv) {
-            // Trigger Download
-            const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
-            const link = document.createElement('a')
-            if (link.download !== undefined) {
-                const url = URL.createObjectURL(blob)
-                link.setAttribute('href', url)
-                link.setAttribute('download', res.filename || 'export.csv')
-                link.style.visibility = 'hidden'
-                document.body.appendChild(link)
-                link.click()
-                document.body.removeChild(link)
+        setIsExporting(true)
+        try {
+            const res = await exportRegistrations(start, end, selectedColumns, academicYear, search)
+            if (res.success && res.csv) {
+                // Trigger Download
+                const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
+                const link = document.createElement('a')
+                if (link.download !== undefined) {
+                    const url = URL.createObjectURL(blob)
+                    link.setAttribute('href', url)
+                    link.setAttribute('download', res.filename || 'export.csv')
+                    link.style.visibility = 'hidden'
+                    document.body.appendChild(link)
+                    link.click()
+                    document.body.removeChild(link)
+                    URL.revokeObjectURL(url)
+                }
+                toast.success('Export downloaded successfully')
+            } else {
+                toast.error(res.error || 'Failed to export')
             }
-            toast.success('Export downloaded successfully')
-        } else {
-            toast.error(res.error || 'Failed to export')
+        } catch (error) {
+            console.error('Server Export Error:', error)
+            toast.error('An unexpected error occurred during export')
+        } finally {
+            setIsExporting(false)
         }
     }
 
@@ -309,10 +319,11 @@ export function RegistrationTable({
                 <button
                     onClick={() => setShowExportModal(true)}
                     suppressHydrationWarning
-                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-all shadow-lg shadow-gray-900/20"
+                    disabled={isExporting}
+                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-all shadow-lg shadow-gray-900/20 disabled:opacity-50"
                 >
-                    <Download size={14} />
-                    Export Report
+                    <Download size={14} className={isExporting ? 'animate-bounce' : ''} />
+                    {isExporting ? 'Exporting...' : 'Export Report'}
                 </button>
             </div>
 

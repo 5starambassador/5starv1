@@ -284,15 +284,15 @@ export function CampaignManager() {
             const res = await exportCampaignData(id)
             if (res.success && res.csv) {
                 // Create Blob and Download
-                const blob = new Blob([res.csv], { type: 'text/csv' })
+                const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
                 const url = window.URL.createObjectURL(blob)
                 const a = document.createElement('a')
                 a.href = url
                 a.download = res.filename || `report-${id}.csv`
                 document.body.appendChild(a)
                 a.click()
-                window.URL.revokeObjectURL(url)
                 document.body.removeChild(a)
+                window.URL.revokeObjectURL(url)
                 toast.success('Report Downloaded', { id: tid })
             } else {
                 toast.error(res.error || 'Export failed', { id: tid })
@@ -520,15 +520,18 @@ export function CampaignManager() {
                                                                                     <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
                                                                                     WHATSAPP
                                                                                 </span>
-                                                                                <span className="text-[10px] font-black text-green-800">{log.whatsappSent}</span>
                                                                             </div>
-                                                                            <div className="grid grid-cols-2 gap-2 text-[9px] font-medium text-green-600/80">
-                                                                                <div className="flex items-center justify-between gap-2 bg-white/50 px-1.5 py-0.5 rounded">
-                                                                                    <span>Delivered&nbsp;</span>
+                                                                            <div className="grid grid-cols-3 gap-2 text-[9px] font-medium text-green-600/80">
+                                                                                <div className="flex items-center justify-between gap-1 bg-white/50 px-1.5 py-0.5 rounded">
+                                                                                    <span>Sent</span>
+                                                                                    <span className="font-bold">{log.whatsappSent || 0}</span>
+                                                                                </div>
+                                                                                <div className="flex items-center justify-between gap-1 bg-white/50 px-1.5 py-0.5 rounded">
+                                                                                    <span>Delivered</span>
                                                                                     <span className="font-bold">{log.whatsappDelivered || 0}</span>
                                                                                 </div>
-                                                                                <div className="flex items-center justify-between gap-2 bg-white/50 px-1.5 py-0.5 rounded">
-                                                                                    <span>Read&nbsp;</span>
+                                                                                <div className="flex items-center justify-between gap-1 bg-white/50 px-1.5 py-0.5 rounded">
+                                                                                    <span>Read</span>
                                                                                     <span className="font-bold text-green-700">{log.whatsappRead || 0}</span>
                                                                                 </div>
                                                                             </div>

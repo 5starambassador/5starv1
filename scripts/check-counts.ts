@@ -3,24 +3,15 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-    console.log('📊 Checking Table Counts...')
+    const logs = await prisma.campaignLog.findMany({
+        take: 5,
+        orderBy: { runAt: 'desc' }
+    });
 
-    const students = await prisma.student.count()
-    const referrals = await prisma.referralLead.count()
-    const users = await prisma.user.count()
-
-    console.log(`Students: ${students}`)
-    console.log(`ReferralLeads: ${referrals}`)
-    console.log(`Users: ${users}`)
-
-    // Check one student date if exists
-    if (students > 0) {
-        const first = await prisma.student.findFirst()
-        console.log('First Student CreatedAt:', first?.createdAt)
-    }
+    console.log('--- RECENT CAMPAIGN LOGS ---');
+    logs.forEach(l => {
+        console.log(`ID: ${l.id} | Campaign: ${l.campaignId} | Sent: ${l.sentCount} | Delivered: ${l.whatsappDelivered} | Read: ${l.whatsappRead} | Status: ${l.status}`);
+    });
 }
 
-main()
-    .finally(async () => {
-        await prisma.$disconnect()
-    })
+main().finally(() => prisma.$disconnect());

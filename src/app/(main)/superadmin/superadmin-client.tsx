@@ -216,6 +216,10 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                 a.click()
                 window.URL.revokeObjectURL(url)
                 document.body.removeChild(a)
+                // Phase 2: Add a short delay before returning to ensure the 
+                // ReportsPanel can clear its loading state after the browser 
+                // handles the download dialog. This prevents UI "collision" hangs.
+                await new Promise(resolve => setTimeout(resolve, 1000))
             }
             return 'Report downloaded'
         })()

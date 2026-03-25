@@ -1283,14 +1283,19 @@ export async function exportReferrals(filters?: {
         // Filter out any invalid column names requested by client
         const headers = targetColumns.filter(c => FIELD_MAP[c])
 
-        const rows = referrals.map(r => {
-            return headers.map(header => {
+        // High-performance CSV generation using array joining
+        const csvRows: string[] = []
+        csvRows.push(headers.join(','))
+
+        referrals.forEach(r => {
+            const rowData = headers.map(header => {
                 const extractor = FIELD_MAP[header]
                 return extractor ? extractor(r) : ''
             })
+            csvRows.push(rowData.join(','))
         })
 
-        const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n')
+        const csvContent = csvRows.join('\n')
         return { success: true, csv: csvContent }
 
     } catch (e) {

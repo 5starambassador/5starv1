@@ -955,18 +955,35 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                         campuses={campuses}
                         admins={admins}
                         campusComparison={campusPerformance}
-                        onDownloadReport={async (fn) => {
-                            const res = await fn()
-                            if (res.success && res.csv) {
-                                const blob = new Blob([res.csv], { type: 'text/csv' })
-                                const url = window.URL.createObjectURL(blob)
-                                const a = document.createElement('a')
-                                a.href = url
-                                a.download = res.filename || 'report.csv'
-                                a.click()
-                            } else {
-                                toast.error(res.error || 'Failed to download report')
-                            }
+                        onDownloadReport={async (reportFunction) => {
+                            const promise = (async () => {
+                                const res = await reportFunction()
+                                if (!res.success) throw new Error(res.error || 'Failed to generate report')
+                                if (res.csv) {
+                                    const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
+                                    const url = window.URL.createObjectURL(blob)
+                                    const a = document.createElement('a')
+                                    a.href = url
+                                    a.download = res.filename || 'report.csv'
+                                    document.body.appendChild(a)
+                                    a.click()
+                                    document.body.removeChild(a)
+                                    window.URL.revokeObjectURL(url)
+                                }
+                                
+                                // Phase 2: Add a short delay before returning to ensure the 
+                                // ReportsPanel can clear its loading state after the browser 
+                                // handles the download dialog.
+                                await new Promise(resolve => setTimeout(resolve, 1000))
+                                
+                                return 'Report downloaded successfully'
+                            })()
+
+                            toast.promise(promise, {
+                                loading: 'Generating report...',
+                                success: (data) => data,
+                                error: (err) => err.message
+                            })
                         }}
                     />
                 )

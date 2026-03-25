@@ -45,6 +45,7 @@ export function AuditLogPanel() {
     const [selectedModule, setSelectedModule] = useState('All')
     const [dateRange, setDateRange] = useState({ start: '', end: '' })
     const [expandedLogId, setExpandedLogId] = useState<number | null>(null)
+    const [isExporting, setIsExporting] = useState(false)
     const [page, setPage] = useState(1)
     const [pagination, setPagination] = useState({ total: 0, totalPages: 0, pageSize: 50 })
 
@@ -195,31 +196,45 @@ export function AuditLogPanel() {
 
                     <button
                         onClick={() => {
-                            const headers = ["Timestamp", "Actor", "Role", "Action", "Module", "Description", "IP Address"]
-                            const csvRows = [
-                                headers.join(','),
-                                ...logs.map(log => [
-                                    new Date(log.createdAt).toISOString(),
-                                    `"${log.admin?.adminName || log.user?.fullName || 'System'}"`,
-                                    `"${log.admin?.role || log.user?.role || 'System'}"`,
-                                    log.action,
-                                    log.module,
-                                    `"${log.description.replace(/"/g, '""')}"`,
-                                    log.ipAddress || ''
-                                ].join(','))
-                            ]
-                            const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
-                            const url = window.URL.createObjectURL(blob)
-                            const a = document.createElement('a')
-                            a.href = url
-                            a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.csv`
-                            a.click()
-                            toast.success('Audit logs exported')
+                            setIsExporting(true)
+                            setTimeout(() => {
+                                try {
+                                    const headers = ["Timestamp", "Actor", "Role", "Action", "Module", "Description", "IP Address"]
+                                    const csvRows = [
+                                        headers.join(','),
+                                        ...logs.map(log => [
+                                            `"${new Date(log.createdAt).toISOString()}"`,
+                                            `"${(log.admin?.adminName || log.user?.fullName || 'System').replace(/"/g, '""')}"`,
+                                            `"${(log.admin?.role || log.user?.role || 'System').replace(/"/g, '""')}"`,
+                                            `"${log.action.replace(/"/g, '""')}"`,
+                                            `"${log.module.replace(/"/g, '""')}"`,
+                                            `"${log.description.replace(/"/g, '""')}"`,
+                                            `"${(log.ipAddress || '').replace(/"/g, '""')}"`
+                                        ].join(','))
+                                    ]
+                                    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+                                    const url = window.URL.createObjectURL(blob)
+                                    const a = document.createElement('a')
+                                    a.href = url
+                                    a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.csv`
+                                    document.body.appendChild(a)
+                                    a.click()
+                                    document.body.removeChild(a)
+                                    window.URL.revokeObjectURL(url)
+                                    toast.success('Audit logs exported')
+                                } catch (error) {
+                                    console.error('Export error:', error)
+                                    toast.error('Export failed')
+                                } finally {
+                                    setIsExporting(false)
+                                }
+                            }, 100)
                         }}
-                        disabled={logs.length === 0}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-gray-200"
+                        disabled={logs.length === 0 || isExporting}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-lg shadow-gray-200 ${isExporting ? 'bg-gray-100 text-gray-400 cursor-wait' : 'bg-gray-900 text-white hover:bg-black'}`}
                     >
-                        <Download size={14} /> Export CSV
+                        {isExporting ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
+                        {isExporting ? 'Exporting...' : 'Export CSV'}
                     </button>
                 </div>
             </div>

@@ -194,6 +194,7 @@ export function ReferralManagementTable({
     // Filters (Mirror URL params)
     // Filters (Mirror URL params)
     const [search, setSearch] = useState(searchParams.get('search') || '')
+    const [isExporting, setIsExporting] = useState(false)
 
     // Sync search state with URL when back/forward is used
     useEffect(() => {
@@ -205,13 +206,13 @@ export function ReferralManagementTable({
 
     // Polling Effect
     useEffect(() => {
-        if (!isLive) return
+        if (!isLive || isExporting) return // Pause polling while exporting to prevent refresh collision
         const interval = setInterval(() => {
             router.refresh()
             toast.success('Data refreshed', { duration: 1000, icon: <RefreshCcw size={12} /> })
         }, 10000) // 30s might be better but 10s is responsive
         return () => clearInterval(interval)
-    }, [isLive, router])
+    }, [isLive, isExporting, router])
 
     // Pagination Auto-Correction
     useEffect(() => {
@@ -510,6 +511,8 @@ export function ReferralManagementTable({
     }
 
     const handleExport = async () => {
+        if (isExporting) return
+        setIsExporting(true)
         const tid = toast.loading('Generating CSV...')
         try {
             // Get values from searchParams
@@ -520,33 +523,47 @@ export function ReferralManagementTable({
             const dateFrom = searchParams.get('from') || undefined
             const dateTo = searchParams.get('to') || undefined
 
-            const res = await exportReferrals({
-                status: statusValues.length > 0 ? statusValues.join(',') : undefined,
-                role: roleValues.length > 0 ? roleValues.join(',') : undefined,
-                campus: campusValues.length > 0 ? campusValues.join(',') : undefined,
-                feeType: feeTypeValues.length > 0 ? feeTypeValues.join(',') : undefined,
-                academicYear: searchParams.get('year') || undefined, // ADDED
-                grade: searchParams.get('grade') || undefined,
-                search: search || undefined,
-                dateRange: (dateFrom && dateTo) ? { from: dateFrom, to: dateTo } : undefined,
-                columns: selectedExportColumns // Pass selected columns
-            })
+            setTimeout(async () => {
+                try {
+                    const res = await exportReferrals({
+                        status: statusValues.length > 0 ? statusValues.join(',') : undefined,
+                        role: roleValues.length > 0 ? roleValues.join(',') : undefined,
+                        campus: campusValues.length > 0 ? campusValues.join(',') : undefined,
+                        feeType: feeTypeValues.length > 0 ? feeTypeValues.join(',') : undefined,
+                        academicYear: searchParams.get('year') || undefined,
+                        grade: searchParams.get('grade') || undefined,
+                        search: search || undefined,
+                        dateRange: (dateFrom && dateTo) ? { from: dateFrom, to: dateTo } : undefined,
+                        columns: selectedExportColumns
+                    })
 
-            if (res.success && res.csv) {
-                const blob = new Blob([res.csv], { type: 'text/csv' })
-                const url = window.URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = `referrals-export-${new Date().toISOString().split('T')[0]}.csv`
-                document.body.appendChild(a)
-                a.click()
-                document.body.removeChild(a)
-                toast.success('Download started', { id: tid })
-            } else {
-                toast.error(res.error || 'Export failed', { id: tid })
-            }
+                    if (res.success && res.csv) {
+                        const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' })
+                        const url = window.URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = `referrals-export-${new Date().toISOString().split('T')[0]}.csv`
+                        document.body.appendChild(a)
+                        a.click()
+                        document.body.removeChild(a)
+                        window.URL.revokeObjectURL(url)
+                        toast.success('Download started', { id: tid })
+                    } else {
+                        toast.error(res.error || 'Export failed', { id: tid })
+                    }
+                } catch (e) {
+                    toast.error('Export error', { id: tid })
+                } finally {
+                    // Phase 2: Add a short delay before clearing the exporting state
+                    // to ensure the browser has locked the file download and the main thread is free
+                    setTimeout(() => {
+                        setIsExporting(false)
+                    }, 1000)
+                }
+            }, 100)
         } catch (e) {
             toast.error('Export error', { id: tid })
+            setIsExporting(false)
         }
     }
 
@@ -1060,7 +1077,14 @@ export function ReferralManagementTable({
                             <div className="bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center">
                                 {selectedIds.length}
                             </div>
-                            <span className="text-xs font-bold text-white uppercase tracking-widest whitespace-nowrap">Selected</span>
+                            <button
+                                onClick={handleExport}
+                                disabled={isExporting}
+                                className={`flex flex-col items-center justify-center p-4 border border-indigo-100 rounded-2xl transition-all ${isExporting ? 'bg-indigo-50/50 cursor-wait' : 'bg-indigo-50 hover:bg-indigo-100 hover:shadow-lg hover:shadow-indigo-500/10 active:scale-95'}`}
+                            >
+                                <Download size={24} className={`mb-2 ${isExporting ? 'animate-bounce text-indigo-400' : 'text-indigo-600'}`} />
+                                <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">{isExporting ? 'Exporting...' : 'Export Selected'}</span>
+                            </button>
                         </div>
 
                         <div className="flex items-center gap-3">

@@ -65,7 +65,9 @@ export async function generateReferralPerformanceReport(filters?: { startDate?: 
         })
 
         // Format CSV
-        let csv = 'Ambassador Name,Role,Campus,Mobile,Total Referrals,Confirmed,Pending,Conversion Rate,Benefit Tier,Benefit Status,Aadhar No,Address,Academic Year,Child Code,Year Fee Benefit,Long Term Benefit,Status,Joined Date\n'
+        const rows: string[] = [
+            'Ambassador Name,Role,Campus,Mobile,Total Referrals,Confirmed,Pending,Conversion Rate,Benefit Tier,Benefit Status,Aadhar No,Address,Academic Year,Child Code,Year Fee Benefit,Long Term Benefit,Status,Joined Date'
+        ]
 
         users.forEach((user: any) => {
             const totalReferrals = user.referrals.length
@@ -74,10 +76,10 @@ export async function generateReferralPerformanceReport(filters?: { startDate?: 
             const conversionRate = totalReferrals > 0 ? ((confirmed / totalReferrals) * 100).toFixed(1) : '0'
             const benefitTier = confirmed >= 5 ? '5 Stars' : confirmed >= 4 ? '4 Stars' : confirmed >= 3 ? '3 Stars' : confirmed >= 2 ? '2 Stars' : confirmed >= 1 ? '1 Star' : 'None'
 
-            csv += `"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",="${user.mobileNumber}",${totalReferrals},${confirmed},${pending},${conversionRate}%,${benefitTier},${user.benefitStatus || 'Active'},="${user.aadharNo || ''}","${(user.address || '').replace(/"/g, '""')}","${user.academicYear || ''}","${user.childEprNo || ''}",${user.yearFeeBenefitPercent}%,${user.longTermBenefitPercent}%,${user.status},${new Date(user.createdAt).toLocaleDateString()}\n`
+            rows.push(`"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",="${user.mobileNumber}",${totalReferrals},${confirmed},${pending},${conversionRate}%,${benefitTier},${user.benefitStatus || 'Active'},="${user.aadharNo || ''}","${(user.address || '').replace(/"/g, '""')}","${user.academicYear || ''}","${user.childEprNo || ''}",${user.yearFeeBenefitPercent}%,${user.longTermBenefitPercent}%,${user.status},${new Date(user.createdAt).toLocaleDateString()}`)
         })
 
-        return { success: true, csv, filename: `referral-performance-${new Date().toISOString().split('T')[0]}.csv` }
+        return { success: true, csv: rows.join('\n'), filename: `referral-performance-${new Date().toISOString().split('T')[0]}.csv` }
     } catch (error) {
         console.error('Referral Performance Report Error:', error)
         return { success: false, error: 'Failed to generate report' }
@@ -119,14 +121,16 @@ export async function generatePendingLeadsReport(filters?: { startDate?: string,
             orderBy: { createdAt: 'desc' }
         })
 
-        let csv = 'Lead Name,Parent Mobile,Interested Campus,Grade,Status,Referred By,Ambassador Mobile,Days Pending,Created Date\n'
+        const rows: string[] = [
+            'Lead Name,Parent Mobile,Interested Campus,Grade,Status,Referred By,Ambassador Mobile,Days Pending,Created Date'
+        ]
 
         pendingLeads.forEach((lead: any) => {
             const daysPending = Math.floor((new Date().getTime() - new Date(lead.createdAt).getTime()) / (1000 * 60 * 60 * 24))
-            csv += `"${lead.parentName}",${lead.parentMobile},"${lead.campus || 'Not Specified'}","${lead.gradeInterested || 'Not Specified'}",${lead.leadStatus},"${lead.user.fullName}",${lead.user.mobileNumber},${daysPending},${new Date(lead.createdAt).toLocaleDateString()}\n`
+            rows.push(`"${lead.parentName}",${lead.parentMobile},"${lead.campus || 'Not Specified'}","${lead.gradeInterested || 'Not Specified'}",${lead.leadStatus},"${lead.user.fullName}",${lead.user.mobileNumber},${daysPending},${new Date(lead.createdAt).toLocaleDateString()}`)
         })
 
-        return { success: true, csv, filename: `pending-leads-${new Date().toISOString().split('T')[0]}.csv` }
+        return { success: true, csv: rows.join('\n'), filename: `pending-leads-${new Date().toISOString().split('T')[0]}.csv` }
     } catch (error) {
         console.error('Pending Leads Report Error:', error)
         return { success: false, error: 'Failed to generate report' }
@@ -192,12 +196,15 @@ export async function generateMonthlyTrendsReport(filters?: { startDate?: string
             current.setMonth(current.getMonth() + 1)
         }
 
-        let csv = 'Month,New Ambassadors,New Leads,Confirmed Admissions,Conversion Rate\n'
+        const rows: string[] = [
+            'Month,New Ambassadors,New Leads,Confirmed Admissions,Conversion Rate'
+        ]
+
         monthsData.forEach((m: any) => {
-            csv += `${m.month},${m.newAmbassadors},${m.newLeads},${m.confirmed},${m.conversionRate}%\n`
+            rows.push(`${m.month},${m.newAmbassadors},${m.newLeads},${m.confirmed},${m.conversionRate}%`)
         })
 
-        return { success: true, csv, filename: `monthly-trends-${new Date().toISOString().split('T')[0]}.csv` }
+        return { success: true, csv: rows.join('\n'), filename: `monthly-trends-${new Date().toISOString().split('T')[0]}.csv` }
     } catch (error) {
         console.error('Monthly Trends Report Error:', error)
         return { success: false, error: 'Failed' }
@@ -232,14 +239,16 @@ export async function generateInactiveUsersReport(filters?: { campus?: string })
             orderBy: { createdAt: 'desc' }
         })
 
-        let csv = 'Ambassador Name,Role,Campus,Mobile,Aadhar No,Address,Academic Year,Total Referrals,Last Referral Date,Registered Date,Status\n'
+        const rows: string[] = [
+            'Ambassador Name,Role,Campus,Mobile,Aadhar No,Address,Academic Year,Total Referrals,Last Referral Date,Registered Date,Status'
+        ]
 
         inactiveUsers.forEach((user: any) => {
             const lastReferralDate = user.referrals[0] ? new Date(user.referrals[0].createdAt).toLocaleDateString() : 'Never'
-            csv += `"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",="${user.mobileNumber}",="${user.aadharNo || ''}","${(user.address || '').replace(/"/g, '""')}","${user.academicYear || ''}",${user.confirmedReferralCount},${lastReferralDate},${new Date(user.createdAt).toLocaleDateString()},${user.status}\n`
+            rows.push(`"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",="${user.mobileNumber}",="${user.aadharNo || ''}","${(user.address || '').replace(/"/g, '""')}","${user.academicYear || ''}",${user.confirmedReferralCount},${lastReferralDate},${new Date(user.createdAt).toLocaleDateString()},${user.status}`)
         })
 
-        return { success: true, csv, filename: `inactive-users-${new Date().toISOString().split('T')[0]}.csv` }
+        return { success: true, csv: rows.join('\n'), filename: `inactive-users-${new Date().toISOString().split('T')[0]}.csv` }
     } catch (error) {
         console.error('Inactive Users Report Error:', error)
         return { success: false, error: 'Failed' }
@@ -270,14 +279,16 @@ export async function generateTopPerformersReport(filters?: { campus?: string })
             take: 50
         })
 
-        let csv = 'Rank,Ambassador Name,Role,Campus,Confirmed Referrals,Benefit Tier,Year Fee Benefit,Long Term Benefit\n'
+        const rows: string[] = [
+            'Rank,Ambassador Name,Role,Campus,Confirmed Referrals,Benefit Tier,Year Fee Benefit,Long Term Benefit'
+        ]
 
         topPerformers.forEach((user: any, index: number) => {
             const benefitTier = user.confirmedReferralCount >= 5 ? '5 Stars' : user.confirmedReferralCount >= 4 ? '4 Stars' : user.confirmedReferralCount >= 3 ? '3 Stars' : user.confirmedReferralCount >= 2 ? '2 Stars' : '1 Star'
-            csv += `${index + 1},"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",${user.confirmedReferralCount},${benefitTier},${user.yearFeeBenefitPercent}%,${user.longTermBenefitPercent}%\n`
+            rows.push(`${index + 1},"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",${user.confirmedReferralCount},${benefitTier},${user.yearFeeBenefitPercent}%,${user.longTermBenefitPercent}%`)
         })
 
-        return { success: true, csv, filename: `top-performers-${new Date().toISOString().split('T')[0]}.csv` }
+        return { success: true, csv: rows.join('\n'), filename: `top-performers-${new Date().toISOString().split('T')[0]}.csv` }
     } catch (error) {
         console.error('Top Performers Report Error:', error)
         return { success: false, error: 'Failed' }
@@ -298,33 +309,25 @@ export async function generateCampusDistributionReport() {
             where: { referralCode: { not: null } }
         })
 
-        let csv = 'Campus,Total Ambassadors,Total Leads,Confirmed,Conversion Rate,Parents,Staff\n'
+        const rows: string[] = [
+            'Campus,Total Ambassadors,Total Leads,Confirmed,Conversion Rate,Parents,Staff'
+        ]
 
         for (const stat of campusStats) {
             const campus = stat.assignedCampus || 'Not Assigned'
 
-            const parents = await prisma.user.count({
-                where: { referralCode: { not: null }, assignedCampus: stat.assignedCampus, role: 'Parent' }
-            })
-
-            const staff = await prisma.user.count({
-                where: { referralCode: { not: null }, assignedCampus: stat.assignedCampus, role: 'Staff' }
-            })
-
-            const totalLeads = await prisma.referralLead.count({
-                where: { campus: stat.assignedCampus }
-            })
-
-            const confirmed = await prisma.referralLead.count({
-                where: { campus: stat.assignedCampus, leadStatus: _LeadStatus.Confirmed }
-            })
+            const [parents, staff, totalLeads, confirmed] = await Promise.all([
+                prisma.user.count({ where: { referralCode: { not: null }, assignedCampus: stat.assignedCampus, role: 'Parent' } }),
+                prisma.user.count({ where: { referralCode: { not: null }, assignedCampus: stat.assignedCampus, role: 'Staff' } }),
+                prisma.referralLead.count({ where: { campus: stat.assignedCampus } }),
+                prisma.referralLead.count({ where: { campus: stat.assignedCampus, leadStatus: _LeadStatus.Confirmed } })
+            ])
 
             const conversionRate = totalLeads > 0 ? ((confirmed / totalLeads) * 100).toFixed(1) : '0'
-
-            csv += `"${campus}",${stat._count.userId},${totalLeads},${confirmed},${conversionRate}%,${parents},${staff}\n`
+            rows.push(`"${campus}",${stat._count.userId},${totalLeads},${confirmed},${conversionRate}%,${parents},${staff}`)
         }
 
-        return { success: true, csv, filename: `campus-distribution-${new Date().toISOString().split('T')[0]}.csv` }
+        return { success: true, csv: rows.join('\n'), filename: `campus-distribution-${new Date().toISOString().split('T')[0]}.csv` }
     } catch (error) {
         console.error('Campus Distribution Report Error:', error)
         return { success: false, error: 'Failed' }
@@ -348,7 +351,9 @@ export async function generateBenefitTierReport(filters?: { campus?: string }) {
             { name: 'No Tier', min: 0, max: 0 }
         ]
 
-        let csv = 'Benefit Tier,User Count,Avg Year Fee Benefit,Avg Long Term Benefit,Percentage\n'
+        const rows: string[] = [
+            'Benefit Tier,User Count,Avg Year Fee Benefit,Avg Long Term Benefit,Percentage'
+        ]
 
         const baseWhere: any = { referralCode: { not: null } }
         if (filters?.campus && filters.campus !== 'All') {
@@ -371,10 +376,10 @@ export async function generateBenefitTierReport(filters?: { campus?: string }) {
             const avgYear = count > 0 ? (users.reduce((s: number, u: any) => s + u.yearFeeBenefitPercent, 0) / count).toFixed(1) : '0'
             const avgLong = count > 0 ? (users.reduce((s: number, u: any) => s + u.longTermBenefitPercent, 0) / count).toFixed(1) : '0'
 
-            csv += `${tier.name},${count},${avgYear}%,${avgLong}%,${percentage}%\n`
+            rows.push(`${tier.name},${count},${avgYear}%,${avgLong}%,${percentage}%`)
         }
 
-        return { success: true, csv, filename: `benefit-tier-analysis-${new Date().toISOString().split('T')[0]}.csv` }
+        return { success: true, csv: rows.join('\n'), filename: `benefit-tier-analysis-${new Date().toISOString().split('T')[0]}.csv` }
     } catch (error) {
         console.error('Benefit Tier Report Error:', error)
         return { success: false, error: 'Failed' }
@@ -410,13 +415,15 @@ export async function generateNewRegistrationsReport(filters?: { startDate?: str
             orderBy: { createdAt: 'desc' }
         })
 
-        let csv = 'Registration Date,Ambassador Name,Role,Campus,Mobile,Aadhar No,Address,Academic Year,Referrals,Benefit Status,Child Code,Status,Transaction ID,Payment Amount\n'
+        const rows: string[] = [
+            'Registration Date,Ambassador Name,Role,Campus,Mobile,Aadhar No,Address,Academic Year,Referrals,Benefit Status,Child Code,Status,Transaction ID,Payment Amount'
+        ]
 
         newUsers.forEach((user: any) => {
-            csv += `${new Date(user.createdAt).toLocaleDateString()},"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",="${user.mobileNumber}",="${user.aadharNo || ''}","${(user.address || '').replace(/"/g, '""')}","${user.academicYear || ''}",${user.confirmedReferralCount},${user.benefitStatus || 'Active'},"${user.childEprNo || ''}",${user.status},="${user.transactionId || ''}",${user.paymentAmount || 0}\n`
+            rows.push(`${new Date(user.createdAt).toLocaleDateString()},"${user.fullName}",${user.role},"${user.assignedCampus || 'Not Assigned'}",="${user.mobileNumber}",="${user.aadharNo || ''}","${(user.address || '').replace(/"/g, '""')}","${user.academicYear || ''}",${user.confirmedReferralCount},${user.benefitStatus || 'Active'},"${user.childEprNo || ''}",${user.status},="${user.transactionId || ''}",${user.paymentAmount || 0}`)
         })
 
-        return { success: true, csv, filename: `new-registrations-${new Date().toISOString().split('T')[0]}.csv` }
+        return { success: true, csv: rows.join('\n'), filename: `new-registrations-${new Date().toISOString().split('T')[0]}.csv` }
     } catch (error) {
         console.error('New Registrations Report Error:', error)
         return { success: false, error: 'Failed' }
@@ -432,7 +439,9 @@ export async function generateStaffVsParentReport(filters?: { campus?: string })
 
     try {
         const roles = [_UserRole.Parent, _UserRole.Staff]
-        let csv = 'Role,Ambassadors,Leads,Confirmed,Conversion%,Avg Referrals\n'
+        const rows: string[] = [
+            'Role,Ambassadors,Leads,Confirmed,Conversion%,Avg Referrals'
+        ]
 
         const baseWhere: any = { referralCode: { not: null } }
         if (filters?.campus && filters.campus !== 'All') {
@@ -451,10 +460,10 @@ export async function generateStaffVsParentReport(filters?: { campus?: string })
             const conversion = totalLeads > 0 ? ((totalConfirmed / totalLeads) * 100).toFixed(1) : '0'
             const avgReferrals = totalAmbassadors > 0 ? (totalLeads / totalAmbassadors).toFixed(1) : '0'
 
-            csv += `${role},${totalAmbassadors},${totalLeads},${totalConfirmed},${conversion}%,${avgReferrals}\n`
+            rows.push(`${role},${totalAmbassadors},${totalLeads},${totalConfirmed},${conversion}%,${avgReferrals}`)
         }
 
-        return { success: true, csv, filename: `staff-vs-parent-${new Date().toISOString().split('T')[0]}.csv` }
+        return { success: true, csv: rows.join('\n'), filename: `staff-vs-parent-${new Date().toISOString().split('T')[0]}.csv` }
     } catch (error) {
         console.error('Staff vs Parent Report Error:', error)
         return { success: false, error: 'Failed' }
@@ -470,7 +479,9 @@ export async function generateLeadPipelineReport(filters?: { startDate?: string,
 
     try {
         const statuses = [_LeadStatus.New, _LeadStatus.Follow_up, _LeadStatus.Confirmed]
-        let csv = 'Lead Status,Count,Percentage,Avg Days in Stage\n'
+        const rows: string[] = [
+            'Lead Status,Count,Percentage,Avg Days in Stage'
+        ]
 
         const baseWhere: any = {}
         if (filters?.startDate || filters?.endDate) {
@@ -497,10 +508,10 @@ export async function generateLeadPipelineReport(filters?: { startDate?: string,
                     return sum + Math.max(0, Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
                 }, 0) / count).toFixed(1) : '0'
 
-            csv += `${status},${count},${percentage}%,${avgDays} days\n`
+            rows.push(`${status},${count},${percentage}%,${avgDays} days`)
         }
 
-        return { success: true, csv, filename: `lead-pipeline-${new Date().toISOString().split('T')[0]}.csv` }
+        return { success: true, csv: rows.join('\n'), filename: `lead-pipeline-${new Date().toISOString().split('T')[0]}.csv` }
     } catch (error) {
         console.error('Lead Pipeline Report Error:', error)
         return { success: false, error: 'Failed' }
@@ -528,7 +539,9 @@ export async function generateStarMilestoneReport(filters?: { campus?: string })
             orderBy: { confirmedReferralCount: 'desc' }
         })
 
-        let csv = 'Ambassador Name,Mobile,Campus,Current Stars,Confirmed,Needed for Next,Proximity%\n'
+        const rows: string[] = [
+            'Ambassador Name,Mobile,Campus,Current Stars,Confirmed,Needed for Next,Proximity%'
+        ]
 
         users.forEach((user: any) => {
             const current = user.confirmedReferralCount
@@ -536,10 +549,10 @@ export async function generateStarMilestoneReport(filters?: { campus?: string })
             const needed = 1
             const proximity = Math.round((current / next) * 100)
 
-            csv += `"${user.fullName}",${user.mobileNumber},"${user.assignedCampus || 'N/A'}",${current} Stars,${current},${needed},${proximity}%\n`
+            rows.push(`"${user.fullName}",${user.mobileNumber},"${user.assignedCampus || 'N/A'}",${current} Stars,${current},${needed},${proximity}%`)
         })
 
-        return { success: true, csv, filename: `star-milestones-${new Date().toISOString().split('T')[0]}.csv` }
+        return { success: true, csv: rows.join('\n'), filename: `star-milestones-${new Date().toISOString().split('T')[0]}.csv` }
     } catch (error) {
         console.error('Star Milestone Report Error:', error)
         return { success: false, error: 'Failed' }
@@ -1020,7 +1033,10 @@ export async function generateAuditTrailReport(filters?: { startDate?: string, e
         const adminMap = Object.fromEntries(admins.map(a => [a.adminId, a]))
         const userMap = Object.fromEntries(users.map(u => [u.userId, u]))
 
-        let csv = 'Timestamp,Actor Type,Actor ID,Actor Name,Actor Role,Action,Module,Target ID,Description,IP Address\n'
+        const rows: string[] = [
+            'Timestamp,Actor Type,Actor ID,Actor Name,Actor Role,Action,Module,Target ID,Description,IP Address'
+        ]
+
         logs.forEach((log: any) => {
             let actorType = 'System', actorId = '-', actorName = 'System', actorRole = '-'
             if (log.adminId && adminMap[log.adminId]) {
@@ -1032,10 +1048,10 @@ export async function generateAuditTrailReport(filters?: { startDate?: string, e
                 actorName = userMap[log.userId].fullName
                 actorRole = userMap[log.userId].role
             }
-            csv += `${new Date(log.createdAt).toLocaleString()},${actorType},${actorId},"${actorName}","${actorRole}","${log.action}","${log.module}","${log.targetId || ''}","${(log.description || '').replace(/"/g, '""')}","${log.ipAddress || ''}"\n`
+            rows.push(`${new Date(log.createdAt).toLocaleString()},${actorType},${actorId},"${actorName}","${actorRole}","${log.action}","${log.module}","${log.targetId || ''}","${(log.description || '').replace(/"/g, '""')}","${log.ipAddress || ''}"`)
         })
 
-        return { success: true, csv, filename: `audit-trail-${new Date().toISOString().split('T')[0]}.csv` }
+        return { success: true, csv: rows.join('\n'), filename: `audit-trail-${new Date().toISOString().split('T')[0]}.csv` }
     } catch (error) {
         console.error('Audit Trail Report Error:', error)
         return { success: false, error: 'Failed' }
@@ -1065,13 +1081,16 @@ export async function generateWhatsAppLogReport(filters?: { startDate?: string, 
             orderBy: { createdAt: 'desc' }
         })
 
-        let csv = 'Timestamp,Mobile,Template,Type,Status,Reference ID,Content (Preview)\n'
+        const rows: string[] = [
+            'Timestamp,Mobile,Template,Type,Status,Reference ID,Content (Preview)'
+        ]
+
         logs.forEach((log: any) => {
             const preview = (log.content || '').replace(/"/g, '""').substring(0, 80)
-            csv += `${new Date(log.createdAt).toLocaleString()},"${log.mobile}","${log.template || ''}","${log.type}","${log.status}","${log.refId || ''}","${preview}"\n`
+            rows.push(`${new Date(log.createdAt).toLocaleString()},"${log.mobile}","${log.template || ''}","${log.type}","${log.status}","${log.refId || ''}","${preview}"`)
         })
 
-        return { success: true, csv, filename: `whatsapp-log-${new Date().toISOString().split('T')[0]}.csv` }
+        return { success: true, csv: rows.join('\n'), filename: `whatsapp-log-${new Date().toISOString().split('T')[0]}.csv` }
     } catch (error) {
         console.error('WhatsApp Log Report Error:', error)
         return { success: false, error: 'Failed' }
@@ -1100,15 +1119,17 @@ export async function generateSettlementIntegrityReport() {
             where: { status: 'Processed' }
         })
 
-        let csv = 'Ambassador Name,Mobile,Lead Name,Confirmed Date,Status,Settlement Status\n'
+        const rows: string[] = [
+            'Ambassador Name,Mobile,Lead Name,Confirmed Date,Status,Settlement Status'
+        ]
 
         leads.forEach((lead: any) => {
             const hasSettlement = settlements.some((s: any) => s.userId === lead.userId)
             const settlementStatus = hasSettlement ? 'Settled' : 'Unsettled'
-            csv += `"${lead.user.fullName}",${lead.user.mobileNumber},"${lead.parentName}",${new Date(lead.confirmedDate || lead.createdAt).toLocaleDateString()},${lead.leadStatus},${settlementStatus}\n`
+            rows.push(`"${lead.user.fullName}",${lead.user.mobileNumber},"${lead.parentName}",${new Date(lead.confirmedDate || lead.createdAt).toLocaleDateString()},${lead.leadStatus},${settlementStatus}`)
         })
 
-        return { success: true, csv, filename: `integrity-audit-${new Date().toISOString().split('T')[0]}.csv` }
+        return { success: true, csv: rows.join('\n'), filename: `integrity-audit-${new Date().toISOString().split('T')[0]}.csv` }
     } catch (error) {
         console.error('Integrity Report Error:', error)
         return { success: false, error: 'Failed' }
@@ -1143,7 +1164,9 @@ export async function generateMasterPipelineExport(filters?: { startDate?: strin
             orderBy: { createdAt: 'desc' }
         })
 
-        let csv = 'Lead ID,Created Date,Lead Name,Parent Mobile,Campus,Grade,Status,Referred By,Ambassador Mobile,Referral Code,Confirmed Date,Annual Fee,Admission Fee,Donation Fee,Rejection Reason\n'
+        const rows: string[] = [
+            'Lead ID,Created Date,Lead Name,Parent Mobile,Campus,Grade,Status,Referred By,Ambassador Mobile,Referral Code,Confirmed Date,Annual Fee,Admission Fee,Donation Fee,Rejection Reason'
+        ]
 
         leads.forEach((lead: any) => {
             const row = [
@@ -1163,12 +1186,12 @@ export async function generateMasterPipelineExport(filters?: { startDate?: strin
                 lead.donationFeeCollected || 0,
                 `"${(lead.rejectionReason || '').replace(/"/g, '""')}"`
             ]
-            csv += row.join(',') + '\n'
+            rows.push(row.join(','))
         })
 
         return {
             success: true,
-            csv,
+            csv: rows.join('\n'),
             filename: `master-pipeline-export-${new Date().toISOString().split('T')[0]}.csv`
         }
     } catch (error) {
@@ -1209,7 +1232,7 @@ export async function generateMasterReferralReport(filters?: { startDate?: strin
             'Ambassador ID', 'Ambassador Name', 'Ambassador Mobile', 'Ambassador Role', 'Ambassador Campus', 'Ambassador Referral Code', 'Ambassador Aadhar', 'Ambassador Address', 'Ambassador Academic Year', 'Ambassador Joined Date'
         ]
 
-        let csv = headers.join(',') + '\n'
+        const rows: string[] = [headers.join(',')]
 
         leads.forEach((lead: any) => {
             const row = [
@@ -1235,12 +1258,12 @@ export async function generateMasterReferralReport(filters?: { startDate?: strin
                 `"${lead.user?.academicYear || ''}"`,
                 lead.user?.createdAt ? new Date(lead.user.createdAt).toLocaleDateString() : '-'
             ]
-            csv += row.join(',') + '\n'
+            rows.push(row.join(','))
         })
 
         return {
             success: true,
-            csv,
+            csv: rows.join('\n'),
             filename: `master-referral-report-${new Date().toISOString().split('T')[0]}.csv`
         }
     } catch (error) {

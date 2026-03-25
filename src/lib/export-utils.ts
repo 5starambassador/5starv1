@@ -11,8 +11,10 @@ export function exportToCSV(data: any[], filename: string, columns: { header: st
     const headers = columns.map(c => c.header).join(',')
 
     // Extract rows
-    const rows = data.map(row => {
-        return columns.map(c => {
+    const csvRows: string[] = [headers]
+    
+    data.forEach(row => {
+        const rowContent = columns.map(c => {
             let val = c.accessor ? c.accessor(row) : ''
 
             // Handle null/undefined
@@ -44,14 +46,22 @@ export function exportToCSV(data: any[], filename: string, columns: { header: st
             }
             return str
         }).join(',')
+        csvRows.push(rowContent)
     })
 
-    const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n")
-    const encodedUri = encodeURI(csvContent)
+    const csvContent = csvRows.join("\n")
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    
     const link = document.createElement("a")
-    link.setAttribute("href", encodedUri)
+    link.href = url
     link.setAttribute("download", `${filename}_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`)
+    
+    // Append to body to ensure it works in all browsers
     document.body.appendChild(link)
     link.click()
+    
+    // Cleanup
     document.body.removeChild(link)
+    URL.revokeObjectURL(url)
 }

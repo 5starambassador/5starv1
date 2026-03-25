@@ -57,6 +57,7 @@ export function ReportsPanel({
     onWeeklyReport,
 }: ReportsPanelProps) {
     const [emailingId, setEmailingId] = useState<string | null>(null)
+    const [isExportingId, setIsExportingId] = useState<string | null>(null)
     const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' })
     const [selectedCampus, setSelectedCampus] = useState<string>('All')
     const uniqueCampuses = Array.from(new Set(campuses.map(c => c.campusName || c.campus).filter(Boolean)))
@@ -77,13 +78,19 @@ export function ReportsPanel({
         }
     }
 
-    const handleDownload = (action: any) => {
+    const handleDownload = async (groupId: string, action: any) => {
+        if (isExportingId) return
+        setIsExportingId(groupId)
         const filters = {
             startDate: dateRange.start || undefined,
             endDate: dateRange.end || undefined,
             campus: selectedCampus !== 'All' ? selectedCampus : undefined
         }
-        onDownloadReport(() => action(filters))
+        try {
+            await onDownloadReport(() => action(filters))
+        } finally {
+            setIsExportingId(null)
+        }
     }
 
     const reportGroups = [
@@ -342,12 +349,17 @@ export function ReportsPanel({
 
                             <div className="grid grid-cols-2 gap-3 mt-auto">
                                 <button
-                                    onClick={() => handleDownload(group.action)}
+                                    onClick={() => handleDownload(group.id, group.action)}
+                                    disabled={!!isExportingId}
                                     suppressHydrationWarning
-                                    className="col-span-1 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 hover:border-gray-300 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md"
+                                    className="col-span-1 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 hover:border-gray-300 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
                                 >
-                                    <Download size={14} />
-                                    <span>CSV</span>
+                                    {isExportingId === group.id ? (
+                                        <Loader2 size={14} className="animate-spin text-blue-600" />
+                                    ) : (
+                                        <Download size={14} />
+                                    )}
+                                    <span>{isExportingId === group.id ? 'Loading...' : 'CSV'}</span>
                                 </button>
 
                                 <button
