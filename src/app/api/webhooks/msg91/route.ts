@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
         for (const event of events) {
             // MSG91 sends varied field names for references
-            const rawId = event.CRQID || event.custom_ref || event.ref_id || event.externalId
+            const rawId = event.CRQID || event.request_id || event.requestId || event.custom_ref || event.ref_id || event.externalId
             const status = event.status ? event.status.toUpperCase() : ''
             const rawMobile = event.mobile || event.customerNumber || event.destination
             const error = event.error || event.reason || event.message || null
@@ -52,7 +52,12 @@ export async function POST(request: Request) {
             const log = await prisma.whatsAppLog.findFirst({
                 where: {
                     refId: refStr,
-                    ...(refStr.startsWith('AUT_') ? {} : { mobile: mobile })
+                    ...(refStr.startsWith('AUT_') ? {} : {
+                        OR: [
+                            { mobile: mobile },
+                            { mobile: '91' + mobile }
+                        ]
+                    })
                 },
                 orderBy: { createdAt: 'desc' }
             })
@@ -69,7 +74,6 @@ export async function POST(request: Request) {
                     where: { id: log.id },
                     data: {
                         status: normalizedStatus,
-                        errorMessage: error ? error.toString() : log.errorMessage,
                         metadata: updatedMetadata
                     } as any
                 })

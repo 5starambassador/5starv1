@@ -62,9 +62,26 @@ export async function dispatchCampaignBatch(campaignId: number) {
         })
         logId = log.id
 
-        // PRE-FLIGHT: Update Log with Total Match Count for Progress UI
-        const preCount = await getAmbassadorQuery(audience as any) 
-        const totalToProcess = await prisma.user.count({ where: preCount })
+        // PRE-FLIGHT: Update Log with Total Match Count based on audience type
+        let totalToProcess = 0;
+        const type = audience.type || 'AMBASSADORS';
+
+        if (type === 'AMBASSADORS') {
+            const preCount = await getAmbassadorQuery(audience as any);
+            totalToProcess = await prisma.user.count({ where: preCount });
+        } else if (type === 'PROGRAM_LEADS') {
+            const leadWhere: any = {};
+            if (audience.campus && audience.campus !== 'All') {
+                leadWhere.referrer = { assignedCampus: audience.campus };
+            }
+            totalToProcess = await prisma.programLead.count({ where: leadWhere });
+        } else if (type === 'REFERRALS') {
+            totalToProcess = await prisma.referralLead.count();
+        } else if (type === 'STUDENTS') {
+            const whereStudent = getStudentQuery(audience as any);
+            totalToProcess = await prisma.student.count({ where: whereStudent });
+        }
+
         if (logId) {
             await prisma.campaignLog.update({
                 where: { id: logId },
@@ -252,17 +269,28 @@ export async function dispatchCampaignBatch(campaignId: number) {
 
                 // WhatsApp
                 if (isWhatsapp && waService && user.mobileNumber) {
+                    const cleanMobile = user.mobileNumber.toString().replace(/\D/g, '')
+                    
+                    // SAFETY: Skip if mobile is clearly an ID (like Campaign #14 issue)
+                    if (cleanMobile.length < 10) {
+                        console.warn(`[CampaignDispatcher] Skipping invalid mobile for WhatsApp: ${user.mobileNumber} (Name: ${user.fullName})`)
+                        stats.whatsappFailed++
+                        continue
+                    }
+
                     // MSG91 template variables should NOT include the full message body.
                     // The template on MSG91 already has the message — we only pass personalisation tokens.
-                    // Convention: {{1}} = Name, {{2}} = Referral Code (if template uses it)
+                    // Convention: {{1}} = Name, {{2}} = Referral Code, {{3}} = Campus, {{4}} = Grade/Source, {{5}} = Role
                     const waVars: string[] = [
-                        (user.fullName || 'Ambassador').replace(/[\r\n]+/g, ' ').trim()
+                        (user.fullName || 'User').toString().replace(/[\r\n]+/g, ' ').trim(),
+                        (user.referralCode || '').toString().replace(/[\r\n]+/g, ' ').trim(),
+                        (user.assignedCampus || '').toString().replace(/[\r\n]+/g, ' ').trim(),
+                        (user.grade || user.source || '').toString().replace(/[\r\n]+/g, ' ').trim(),
+                        (user.role || '').toString().replace(/[\r\n]+/g, ' ').trim()
                     ]
-                    if (user.referralCode) {
-                        waVars.push(user.referralCode)
-                    }
+                    
                     whatsappRecipients.push({
-                        mobile: user.mobileNumber,
+                        mobile: cleanMobile,
                         variables: waVars
                     })
                 }

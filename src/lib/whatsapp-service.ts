@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import prisma from '@/lib/prisma'
 
 interface WhatsAppResponse {
@@ -6,9 +7,9 @@ interface WhatsAppResponse {
     error?: string
 }
 
-const MSG91_AUTH_KEY = process.env.MSG91_WHATSAPP_AUTH_KEY || process.env.MSG91_AUTH_KEY || ""
+const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY || process.env.MSG91_WHATSAPP_AUTH_KEY || ""
 const MSG91_WHATSAPP_NUMBER = process.env.MSG91_WHATSAPP_NUMBER || ""
-const MSG91_API_URL = process.env.MSG91_API_URL || "https://api.msg91.com/api/v5"
+const MSG91_API_URL = process.env.MSG91_API_URL || "https://control.msg91.com/api/v5"
 const WHATSAPP_PROVIDER = process.env.WHATSAPP_PROVIDER || 'mock'
 
 const MSG91_WHATSAPP_NAMESPACE = process.env.MSG91_WHATSAPP_NAMESPACE || "a4fe4058_eaa9_45d8_91d6_df10d082de80"
@@ -128,7 +129,7 @@ class WhatsAppService {
             const components: any = {}
             variables.forEach((v, i) => {
                 // MSG91 does NOT allow newlines in variable values — strip them
-                const cleanValue = (v || '').replace(/[\r\n]+/g, ' ').trim()
+                const cleanValue = (v || '').toString().replace(/[\r\n]+/g, ' ').trim()
                 components[`body_${i + 1}`] = {
                     type: "text",
                     value: cleanValue
@@ -136,20 +137,21 @@ class WhatsAppService {
             })
 
             const payload: any = {
-                integrated_number: this.sanitizeMobile(MSG91_WHATSAPP_NUMBER),
+                integrated_number: MSG91_WHATSAPP_NUMBER,
                 content_type: "template",
                 payload: {
                     messaging_product: "whatsapp",
                     type: "template",
                     template: {
                         name: templateName,
+                        namespace: MSG91_WHATSAPP_NAMESPACE,
                         language: {
-                            code: "en",
-                            policy: "deterministic"
+                            policy: "deterministic",
+                            code: "en"
                         },
                         to_and_components: [
                             {
-                                to: [sanitizedMobile],
+                                to: [this.sanitizeMobile(mobile)],
                                 components
                             }
                         ]
@@ -221,7 +223,7 @@ class WhatsAppService {
                 const to_and_components = chunk.map(r => {
                     const components: any = {}
                     r.variables.forEach((v, i) => {
-                        const cleanValue = (v || '').replace(/[\r\n]+/g, ' ').trim()
+                        const cleanValue = (v || '').toString().replace(/[\r\n]+/g, ' ').trim()
                         components[`body_${i + 1}`] = { type: "text", value: cleanValue }
                     })
                     return {
@@ -398,9 +400,14 @@ class WhatsAppService {
     }
 
     private sanitizeMobile(mobile: string): string {
-        let sanitized = mobile.replace(/\D/g, '')
+        if (!mobile) return ''
+        let sanitized = mobile.toString().replace(/\D/g, '')
+        
+        // Basic validation: must be at least 10 digits
+        if (sanitized.length < 10) return ''
+
         if (sanitized.length === 10) {
-            sanitized = '91' + sanitized
+            return `91${sanitized}`
         } else if (sanitized.length > 10 && sanitized.startsWith('0')) {
             sanitized = '91' + sanitized.substring(1)
         }
