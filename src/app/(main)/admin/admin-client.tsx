@@ -1,13 +1,21 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Users, TrendingUp, Award, BarChart3, IndianRupee, CheckCircle, RefreshCw, Trophy, Building2, BookOpen, Shield, GraduationCap, Phone, Mail, Clock, Plus, Filter, Search, X, Pencil, UserPlus } from 'lucide-react'
+import { Users, TrendingUp, Award, BarChart3, IndianRupee, CheckCircle, RefreshCw, Trophy, Building2, BookOpen, Shield, GraduationCap, Phone, Mail, Clock, Plus, Filter, Search, X, Pencil, UserPlus, ShieldCheck } from 'lucide-react'
 import { ReferralManagementTable } from './referral-table-advanced'
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import dynamic from 'next/dynamic'
 import { toast } from 'sonner'
 import { GRADES } from '@/lib/constants'
 import { CleanStatCard } from '@/components/superadmin/CleanStatCard'
 import { ReportsPanel } from '@/components/superadmin/ReportsPanel'
+import { getAllProgramLeads } from '@/app/superadmin-actions'
+
+// Dynamically import heavy panels
+const EngagementPanel = dynamic(() => import('@/components/superadmin/EngagementPanel').then(mod => mod.EngagementPanel), { ssr: false })
+const ProgramManager = dynamic(() => import('@/components/superadmin/ProgramManager').then(mod => mod.ProgramManager), { ssr: false })
+const ProgramLeadsTable = dynamic(() => import('@/components/superadmin/ProgramLeadsTable').then(mod => mod.ProgramLeadsTable), { ssr: false })
 import {
     generateLeadPipelineReport,
     generateReferralPerformanceReport,
@@ -85,6 +93,11 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
     })
     const [editingStudent, setEditingStudent] = useState<any>(null)
     const [modalLoading, setModalLoading] = useState(false)
+    const [isClient, setIsClient] = useState(false)
+
+    useEffect(() => {
+        setIsClient(true)
+    }, [])
 
     // Handlers (Added)
     const handleAddStudent = async () => {
@@ -127,8 +140,34 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
         } catch (e) { toast.error('An error occurred', { id: tid }) }
     }
 
+    // Program Leads state
+    const [programLeads, setProgramLeads] = useState<any[]>([])
+    const [loadingLeads, setLoadingLeads] = useState(false)
+
     // View state
     const [selectedView, setSelectedView] = useState<string>(initialView)
+
+    // Fetch Program Leads when view selected
+    useEffect(() => {
+        if (selectedView === 'program-leads') {
+            const fetchLeads = async () => {
+                setLoadingLeads(true)
+                try {
+                    const res = await getAllProgramLeads()
+                    if (res.success && 'leads' in res) {
+                        setProgramLeads(res.leads || [])
+                    } else {
+                        toast.error((res as any).error || 'Failed to fetch program leads')
+                    }
+                } catch (e) {
+                    toast.error('An error occurred fetching leads')
+                } finally {
+                    setLoadingLeads(false)
+                }
+            }
+            fetchLeads()
+        }
+    }, [selectedView])
 
     // Sync state with URL
     useEffect(() => {
@@ -149,6 +188,9 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
             case 'home': return 'Dashboard';
             case 'referrals': return 'Referral Management';
             case 'reports': return 'Detailed Reports';
+            case 'engagement': return 'Engagement Center';
+            case 'programs': return 'External Programs';
+            case 'program-leads': return 'Program Leads';
             default: return 'Analytics Overview';
         }
     }
@@ -162,6 +204,9 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
             case 'home': return 'Quick overview and actions';
             case 'referrals': return 'Process, verify, and manage referral leads';
             case 'reports': return 'Generate and download data exports';
+            case 'engagement': return 'Manage multi-channel communications';
+            case 'programs': return 'Manage external program offerings';
+            case 'program-leads': return 'Track and process leads for external programs';
             default: return 'Operational insights and lead conversion';
         }
     }
@@ -174,8 +219,12 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                     <p className="text-sm text-gray-500 mt-1">{getSubtitle()}</p>
                 </div>
                 <div className="flex items-center gap-4">
-                    <StudentSourceFilter />
-                    <AcademicYearFilter />
+                    {['home', 'analytics', 'referrals', 'users', 'students', 'reports'].includes(selectedView || 'analytics') && (
+                        <>
+                            <StudentSourceFilter />
+                            <AcademicYearFilter />
+                        </>
+                    )}
                     <button
                         onClick={() => router.refresh()}
                         className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-all shadow-sm"
@@ -262,10 +311,10 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                             )}
                             {(permissions?.analytics?.access) && (
                                 <button
-                                    onClick={() => router.push('/admin?view=reports')}
+                                    onClick={() => router.push('/admin?view=analytics')}
                                     className="flex items-center justify-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors text-sm font-medium text-gray-700"
                                 >
-                                    <BarChart3 size={18} />
+                                    < BarChart3 size={18} />
                                     Analytics
                                 </button>
                             )}
@@ -364,6 +413,24 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                                                 <span className="text-sm font-bold text-gray-700">Staff Members</span>
                                             </div>
                                             <span className="text-xl font-black text-gray-900">{analytics?.roleBreakdown?.staff?.count || 0}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-2xl border border-gray-100">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center">
+                                                    <ShieldCheck size={20} />
+                                                </div>
+                                                <span className="text-sm font-bold text-gray-700">Alumni</span>
+                                            </div>
+                                            <span className="text-xl font-black text-gray-900">{analytics?.roleBreakdown?.alumni?.count || 0}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between p-4 bg-gray-50/80 rounded-2xl border border-gray-100">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center">
+                                                    <UserPlus size={20} />
+                                                </div>
+                                                <span className="text-sm font-bold text-gray-700">Others</span>
+                                            </div>
+                                            <span className="text-xl font-black text-gray-900">{analytics?.roleBreakdown?.others?.count || 0}</span>
                                         </div>
                                         <div className="flex items-center justify-between p-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
                                             <div className="flex items-center gap-3">
@@ -989,153 +1056,176 @@ export function AdminClient({ referrals, referralMeta, referralStats, analytics,
                 )
             }
 
+            {/* ENGAGEMENT VIEW */}
+            {selectedView === 'engagement' && permissions?.engagementCentre?.access && (
+                <EngagementPanel permissions={permissions} />
+            )}
+
+            {/* EXTERNAL PROGRAMS VIEW */}
+            {selectedView === 'programs' && permissions?.externalPrograms?.access && (
+                <ProgramManager />
+            )}
+
+            {/* PROGRAM LEADS VIEW */}
+            {selectedView === 'program-leads' && permissions?.programLeads?.access && (
+                loadingLeads ? (
+                    <div className="flex items-center justify-center p-20">
+                        <RefreshCw className="animate-spin text-gray-400" size={40} />
+                    </div>
+                ) : (
+                    <ProgramLeadsTable leads={programLeads} />
+                )
+            )}
+
             {/* Student Modal */}
-            {
-                showStudentModal && (
-                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-300">
-                            <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            {isClient && showStudentModal && createPortal(
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div 
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        onClick={() => setShowStudentModal(false)}
+                    />
+                    <div className="bg-white rounded-[40px] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-300 relative">
+                        <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <div>
+                                <h3 className="text-xl font-black text-gray-900 tracking-tight uppercase italic">
+                                    {editingStudent ? 'Edit Student Details' : 'Register New Student'}
+                                </h3>
+                                <p className="text-sm font-medium text-gray-400 mt-1 uppercase tracking-tight">
+                                    {editingStudent ? 'Update academic or personal information' : 'Add a new student to the master database'}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowStudentModal(false)}
+                                className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400 hover:text-gray-600"
+                            >
+                                <X size={20} strokeWidth={2.5} />
+                            </button>
+                        </div>
+
+                        <div className="p-8 space-y-6">
+                            {/* Basic Info */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <h3 className="text-xl font-black text-gray-900 tracking-tight">
-                                        {editingStudent ? 'Edit Student Details' : 'Register New Student'}
-                                    </h3>
-                                    <p className="text-sm font-medium text-gray-400 mt-1">
-                                        {editingStudent ? 'Update academic or personal information' : 'Add a new student to the master database'}
-                                    </p>
+                                    <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Student Name *</label>
+                                    <input
+                                        type="text"
+                                        value={studentForm.fullName}
+                                        onChange={(e) => setStudentForm({ ...studentForm, fullName: e.target.value })}
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 placeholder:font-medium placeholder:text-gray-400 transition-all"
+                                        placeholder="First & Last Name"
+                                    />
                                 </div>
-                                <button
-                                    onClick={() => setShowStudentModal(false)}
-                                    className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400 hover:text-gray-600"
-                                >
-                                    <X size={20} strokeWidth={2.5} />
-                                </button>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Roll Number</label>
+                                    <input
+                                        type="text"
+                                        value={studentForm.rollNumber}
+                                        onChange={(e) => setStudentForm({ ...studentForm, rollNumber: e.target.value })}
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 placeholder:font-medium placeholder:text-gray-400 transition-all"
+                                        placeholder="Optional"
+                                    />
+                                </div>
                             </div>
 
-                            <div className="p-8 space-y-6">
-                                {/* Basic Info */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Student Name *</label>
-                                        <input
-                                            type="text"
-                                            value={studentForm.fullName}
-                                            onChange={(e) => setStudentForm({ ...studentForm, fullName: e.target.value })}
-                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 placeholder:font-medium placeholder:text-gray-400 transition-all"
-                                            placeholder="First & Last Name"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Roll Number</label>
-                                        <input
-                                            type="text"
-                                            value={studentForm.rollNumber}
-                                            onChange={(e) => setStudentForm({ ...studentForm, rollNumber: e.target.value })}
-                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 placeholder:font-medium placeholder:text-gray-400 transition-all"
-                                            placeholder="Optional"
-                                        />
-                                    </div>
+                            {/* Academic Details */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="md:col-span-2">
+                                    <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Campus *</label>
+                                    <select
+                                        value={studentForm.campusId}
+                                        onChange={(e) => setStudentForm({ ...studentForm, campusId: e.target.value })}
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 cursor-pointer transition-all appearance-none"
+                                        disabled={!!editingStudent}
+                                    >
+                                        <option value="">Select Campus</option>
+                                        {campuses.map(c => <option key={c.id} value={c.id}>{c.campusName}</option>)}
+                                    </select>
                                 </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Grade *</label>
+                                    <select
+                                        value={studentForm.grade}
+                                        onChange={(e) => setStudentForm({ ...studentForm, grade: e.target.value })}
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 cursor-pointer transition-all appearance-none"
+                                    >
+                                        <option value="">Select</option>
+                                        {GRADES.map(g => (
+                                            <option key={g} value={g}>{g}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
 
-                                {/* Academic Details */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="md:col-span-2">
-                                        <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Campus *</label>
-                                        <select
-                                            value={studentForm.campusId}
-                                            onChange={(e) => setStudentForm({ ...studentForm, campusId: e.target.value })}
-                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 cursor-pointer transition-all appearance-none"
-                                            disabled={!!editingStudent} // Often locked on edit, but consistent with SuperAdmin
+                            {/* Parent Selection */}
+                            {!editingStudent && (
+                                <div className="space-y-4 pt-4 border-t border-gray-100">
+                                    <div className="flex items-center gap-4">
+                                        <button
+                                            onClick={() => setStudentForm({ ...studentForm, isNewParent: false })}
+                                            className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-all ${!studentForm.isNewParent ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-gray-200 text-gray-500'}`}
                                         >
-                                            <option value="">Select Campus</option>
-                                            {campuses.map(c => <option key={c.id} value={c.id}>{c.campusName}</option>)}
-                                        </select>
+                                            Existing Parent
+                                        </button>
+                                        <button
+                                            onClick={() => setStudentForm({ ...studentForm, isNewParent: true })}
+                                            className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-all ${studentForm.isNewParent ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-gray-200 text-gray-500'}`}
+                                        >
+                                            New Parent
+                                        </button>
                                     </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Grade *</label>
+
+                                    {studentForm.isNewParent ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+                                            <input
+                                                type="text"
+                                                placeholder="Parent Full Name"
+                                                value={studentForm.newParentName}
+                                                onChange={(e) => setStudentForm({ ...studentForm, newParentName: e.target.value })}
+                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 transition-all"
+                                            />
+                                            <input
+                                                type="tel"
+                                                placeholder="Mobile Number"
+                                                value={studentForm.newParentMobile}
+                                                onChange={(e) => setStudentForm({ ...studentForm, newParentMobile: e.target.value })}
+                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 transition-all"
+                                            />
+                                        </div>
+                                    ) : (
                                         <select
-                                            value={studentForm.grade}
-                                            onChange={(e) => setStudentForm({ ...studentForm, grade: e.target.value })}
+                                            value={studentForm.parentId}
+                                            onChange={(e) => setStudentForm({ ...studentForm, parentId: e.target.value })}
                                             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 cursor-pointer transition-all appearance-none"
                                         >
-                                            <option value="">Select</option>
-                                            {GRADES.map(g => (
-                                                <option key={g} value={g}>{g}</option>
+                                            <option value="">Select Existing Parent</option>
+                                            {users.filter(u => u.role === 'Parent').map(u => (
+                                                <option key={u.userId} value={u.userId}>{u.fullName} ({u.mobileNumber})</option>
                                             ))}
                                         </select>
-                                    </div>
+                                    )}
                                 </div>
+                            )}
 
-                                {/* Parent Selection (Simplified for now - strictly existing parents or new) */}
-                                {!editingStudent && (
-                                    <div className="space-y-4 pt-4 border-t border-gray-100">
-                                        <div className="flex items-center gap-4">
-                                            <button
-                                                onClick={() => setStudentForm({ ...studentForm, isNewParent: false })}
-                                                className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-all ${!studentForm.isNewParent ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-gray-200 text-gray-500'}`}
-                                            >
-                                                Existing Parent
-                                            </button>
-                                            <button
-                                                onClick={() => setStudentForm({ ...studentForm, isNewParent: true })}
-                                                className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-all ${studentForm.isNewParent ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-gray-200 text-gray-500'}`}
-                                            >
-                                                New Parent
-                                            </button>
-                                        </div>
-
-                                        {studentForm.isNewParent ? (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
-                                                <input
-                                                    type="text"
-                                                    placeholder="Parent Full Name"
-                                                    value={studentForm.newParentName}
-                                                    onChange={(e) => setStudentForm({ ...studentForm, newParentName: e.target.value })}
-                                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 transition-all"
-                                                />
-                                                <input
-                                                    type="tel"
-                                                    placeholder="Mobile Number"
-                                                    value={studentForm.newParentMobile}
-                                                    onChange={(e) => setStudentForm({ ...studentForm, newParentMobile: e.target.value })}
-                                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 transition-all"
-                                                />
-                                            </div>
-                                        ) : (
-                                            <select
-                                                value={studentForm.parentId}
-                                                onChange={(e) => setStudentForm({ ...studentForm, parentId: e.target.value })}
-                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-gray-900 cursor-pointer transition-all appearance-none"
-                                            >
-                                                <option value="">Select Existing Parent</option>
-                                                {users.filter(u => u.role === 'Parent').map(u => (
-                                                    <option key={u.userId} value={u.userId}>{u.fullName} ({u.mobileNumber})</option>
-                                                ))}
-                                            </select>
-                                        )}
-                                    </div>
-                                )}
-
-                                <div className="pt-6 flex justify-end gap-3 sticky bottom-0 bg-white">
-                                    <button
-                                        onClick={() => setShowStudentModal(false)}
-                                        className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-sm transition-all"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={handleAddStudent}
-                                        disabled={modalLoading}
-                                        className="px-8 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm shadow-xl shadow-red-600/20 hover:-translate-y-0.5 transition-all flex items-center gap-2"
-                                    >
-                                        {modalLoading ? <Clock className="animate-spin" size={18} /> : <CheckCircle size={18} />}
-                                        {editingStudent ? 'Save Changes' : 'Register Student'}
-                                    </button>
-                                </div>
+                            <div className="pt-6 flex justify-end gap-3 sticky bottom-0 bg-white/95 backdrop-blur-md">
+                                <button
+                                    onClick={() => setShowStudentModal(false)}
+                                    className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-sm transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleAddStudent}
+                                    disabled={modalLoading}
+                                    className="px-8 py-3 bg-gray-900 hover:bg-black text-white rounded-xl font-bold text-sm shadow-xl shadow-gray-200 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                                >
+                                    {modalLoading ? <Clock className="animate-spin" size={18} /> : <CheckCircle size={18} />}
+                                    {editingStudent ? 'Save Changes' : 'Register Student'}
+                                </button>
                             </div>
                         </div>
                     </div>
-                )
-            }
+                </div>
+            , document.body)}
         </div >
     )
 }

@@ -52,6 +52,7 @@ export default function RuleBuilderPanel() {
     const [daysSinceClick, setDaysSinceClick] = useState<number | ''>('')
     const [leadFunnelStatus, setLeadFunnelStatus] = useState('All')
     const [activityStatus, setActivityStatus] = useState('All')
+    const [intervalDay, setIntervalDay] = useState<number | ''>('')
     const [isFiveStarOnly, setIsFiveStarOnly] = useState(false)
     const [minAmount, setMinAmount] = useState<number | ''>('')
     const [maxAmount, setMaxAmount] = useState<number | ''>('')
@@ -129,6 +130,7 @@ export default function RuleBuilderPanel() {
         }
         if (leadFunnelStatus !== 'All') conditions.leadFunnelStatus = leadFunnelStatus
         if (activityStatus !== 'All') conditions.activityStatus = activityStatus
+        if (intervalDay !== '') conditions.intervalDay = Number(intervalDay)
 
         let res;
         if (editingRuleId) {
@@ -171,7 +173,7 @@ export default function RuleBuilderPanel() {
         const res = await deleteAutomationRule(id)
         if (res.success) {
             toast.success('Rule deleted')
-            setRules(rules.filter(r => r.id !== id))
+            setRules(prev => prev.filter(r => r.id !== id))
             if (editingRuleId === id) {
                 setShowForm(false)
                 resetForm()
@@ -185,7 +187,7 @@ export default function RuleBuilderPanel() {
         const res = await updateAutomationRule(rule.id, { isActive: !rule.isActive })
         if (res.success) {
             toast.success(`Rule ${!rule.isActive ? 'activated' : 'paused'}`)
-            setRules(rules.map(r => r.id === rule.id ? { ...r, isActive: !rule.isActive } : r))
+            setRules(prev => prev.map(r => r.id === rule.id ? { ...r, isActive: !rule.isActive } : r))
         } else {
             toast.error(res.error || 'Failed to update')
         }
@@ -222,6 +224,7 @@ export default function RuleBuilderPanel() {
 
         setLeadFunnelStatus(conds.leadFunnelStatus || 'All')
         setActivityStatus(conds.activityStatus || 'All')
+        setIntervalDay(conds.intervalDay !== undefined ? conds.intervalDay : '')
         setIsFiveStarOnly(conds.isFiveStarOnly || false)
         setMinAmount(conds.minAmount || '')
         setMaxAmount(conds.maxAmount || '')
@@ -235,6 +238,7 @@ export default function RuleBuilderPanel() {
     const resetForm = () => {
         setLeadFunnelStatus('All')
         setActivityStatus('All')
+        setIntervalDay('')
         setIsFiveStarOnly(false)
         setMinAmount('')
         setMaxAmount('')
@@ -271,7 +275,7 @@ export default function RuleBuilderPanel() {
     }
 
     const handleTestRun = async (rule: AutomationRuleData) => {
-        const mobile = window.prompt(`Enter a 10-digit mobile number to send a live test message for rule "${rule.name}":`)
+        const mobile = window.prompt(`Enter a 10-digit mobile number to send a live test message for rule \"${rule.name}\":`)
         if (!mobile) return
         if (mobile.replace(/\D/g,'').length < 10) {
             toast.error("Please enter a valid 10-digit mobile number")
@@ -377,7 +381,6 @@ export default function RuleBuilderPanel() {
                                         </button>
                                     </div>
                                 </div>
-
                                 <div className="lg:col-span-5">
                                     <label className="text-xs font-bold text-slate-700 mb-2 block">
                                         {triggerType === 'CRON_DAILY' ? '1. MSG91 Template Key' : '1. System Event Trigger'}
@@ -479,6 +482,7 @@ export default function RuleBuilderPanel() {
                                         )
                                     })}
                                 </div>
+
                                 {/* -- Basic Demographics -- */}
                                 <div className="border border-indigo-100 rounded-xl bg-white overflow-hidden shadow-sm">
                                     <button 
@@ -685,7 +689,7 @@ export default function RuleBuilderPanel() {
 
                                     {openSections.includes('funnel') && (
                                         <div className="p-5 animate-in fade-in slide-in-from-top-2 duration-300 border-t border-indigo-50">
-                                            {(targetEntity === 'USER' || targetEntity === 'STUDENT') ? (
+                                             {targetEntity === 'USER' || targetEntity === 'STUDENT' ? (
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                     <div className="space-y-1.5">
                                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 italic flex items-center gap-2">
@@ -718,15 +722,44 @@ export default function RuleBuilderPanel() {
                                                         </select>
                                                     </div>
                                                 </div>
+                                            ) : targetEntity === 'REFERRAL_LEAD' ? (
+                                                <div className="space-y-4">
+                                                    <label className="block text-[10px] font-black text-indigo-500 uppercase tracking-widest px-1 italic mb-2">Target Referral Stages</label>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {[
+                                                            { id: 'NEW', label: 'New', values: ['New'] },
+                                                            { id: 'CONTACTED', label: 'Contacted', values: ['Contacted', 'Follow_up', 'Interested'] },
+                                                            { id: 'ADMITTED_CONFIRMED', label: 'Admitted / Confirmed', values: ['Admitted', 'Confirmed'] },
+                                                            { id: 'REJECTED', label: 'Rejected', values: ['Rejected'] }
+                                                        ].map(stage => {
+                                                            const isActive = stage.values.every(v => leadStatuses.includes(v))
+                                                            return (
+                                                                <button
+                                                                    key={stage.id} type="button"
+                                                                    onClick={() => {
+                                                                        setLeadStatuses(prev => {
+                                                                            if (isActive) return prev.filter(v => !stage.values.includes(v))
+                                                                            return [...new Set([...prev, ...stage.values])]
+                                                                        })
+                                                                    }}
+                                                                    className={`px-4 py-2 text-[10px] font-black rounded-xl border transition-all uppercase tracking-tight ${isActive ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-indigo-300'}`}
+                                                                >
+                                                                    {stage.label}
+                                                                </button>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight px-1 italic">Multi-select enabled. Leaves blank to target all leads.</p>
+                                                </div>
                                             ) : (
                                                 <div className="p-10 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Experimental: CRM Metrics not applicable for Leads yet</p>
+                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Experimental: CRM Metrics not applicable for Program Leads yet</p>
                                                 </div>
                                             )}
                                         </div>
                                     )}
                                 </div>
-
+                                
                                 {/* -- Phase 10: Membership & Context (New) -- */}
                                 <div className="border border-orange-100 rounded-xl bg-white overflow-hidden shadow-sm">
                                     <button 
@@ -884,7 +917,6 @@ export default function RuleBuilderPanel() {
 
                                     {openSections.includes('advanced') && (
                                         <div className="p-5 animate-in fade-in slide-in-from-top-2 duration-300 border-t border-indigo-50 space-y-6">
-
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 rounded-xl">
                                                 <div>
                                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Registered After</label>
@@ -900,6 +932,37 @@ export default function RuleBuilderPanel() {
                                                         className="w-full rounded-xl border-slate-200 text-sm focus:ring-4 focus:ring-indigo-100 py-3 bg-white shadow-sm outline-none"
                                                     />
                                                 </div>
+                                            </div>
+
+                                            {/* Interval Logic */}
+                                            <div className="p-4 bg-orange-50/30 rounded-xl border border-orange-100/50 space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-[10px] font-black text-orange-900/50 uppercase tracking-widest block italic">Touchpoint Interval (Exact Day)</label>
+                                                    {intervalDay !== '' && (
+                                                        <button onClick={() => setIntervalDay('')} className="text-[9px] font-bold text-orange-600 uppercase hover:underline">Clear</button>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {[1, 2, 3, 4, 5, 6, 7, 10, 15, 20, 30].map(day => (
+                                                        <button
+                                                            key={day} type="button"
+                                                            onClick={() => setIntervalDay(day)}
+                                                            className={`px-3 py-1.5 text-[10px] font-black rounded-lg border transition-all ${intervalDay === day ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-orange-300'}`}
+                                                        >
+                                                            Day {day}
+                                                        </button>
+                                                    ))}
+                                                    <div className="relative flex-1 min-w-[100px]">
+                                                        <input 
+                                                            type="number" 
+                                                            value={![1, 2, 3, 4, 5, 6, 7, 10, 15, 20, 30].includes(Number(intervalDay)) ? intervalDay : ''} 
+                                                            onChange={e => setIntervalDay(e.target.value === '' ? '' : Number(e.target.value))}
+                                                            placeholder="Custom..."
+                                                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-[10px] font-bold text-slate-700 outline-none focus:border-orange-300"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <p className="text-[9px] text-orange-800/60 font-medium italic">Targets users exactly N days after registration. Perfect for automated re-engagement sequences.</p>
                                             </div>
 
                                             {(targetEntity === 'USER' || targetEntity === 'STUDENT') && (
@@ -1075,6 +1138,9 @@ export default function RuleBuilderPanel() {
                                 )}
                                 {rule.conditions?.activityStatus && rule.conditions.activityStatus !== 'All' && (
                                      <span className="text-[10px] font-bold text-slate-600 uppercase bg-slate-50 px-2 py-1 rounded-lg border border-slate-200">{rule.conditions.activityStatus} Activity</span>
+                                )}
+                                {rule.conditions?.intervalDay && (
+                                     <span className="text-[10px] font-bold text-orange-600 uppercase bg-orange-50 px-2 py-1 rounded-lg border border-orange-100 italic">Day {rule.conditions.intervalDay} Targeting</span>
                                 )}
                                 {rule.conditions?.minAmount && (
                                      <span className="text-[10px] font-bold text-green-600 uppercase bg-green-50 px-2 py-1 rounded-lg border border-green-100">Min: ₹{rule.conditions.minAmount}</span>

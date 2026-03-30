@@ -71,21 +71,27 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
         // Specific management of dashboard types based on permissions
         if (permissions.engagementCentre?.access) navItems.push({ label: 'Engagement Center', href: `${baseAdminPath}?view=engagement`, icon: <Zap /> })
-        if (isSuperAdmin) {
-            navItems.push({ label: 'Campus Control', href: '/superadmin/campuses', icon: <Building2 /> })
-            navItems.push({ label: 'User Operations', href: '/superadmin/users', icon: <Users /> })
-            navItems.push({ label: 'Student Records', href: '/superadmin/students', icon: <GraduationCap /> })
-            navItems.push({ label: 'Beneficiary Verification', href: '/superadmin/verification', icon: <UserCheck /> })
-            navItems.push({ label: 'Referral Pipeline', href: '/superadmin/referrals', icon: <GitFork /> })
-            navItems.push({ label: 'External Programs', href: '/superadmin?view=programs', icon: <ExternalLink /> })
-            navItems.push({ label: 'Program Leads', href: '/superadmin?view=program-leads', icon: <MousePointerClick /> }) // New Link
-            navItems.push({ label: 'Marketing Management', href: '/superadmin?view=marketing', icon: <Megaphone /> })
-            navItems.push({ label: 'Revenue & Payouts', href: '/superadmin?view=settlements', icon: <IndianRupee /> })
-            navItems.push({ label: 'Access Matrix', href: '/superadmin?view=permissions', icon: <Shield /> })
-            navItems.push({ label: 'App Settings', href: '/superadmin?view=settings', icon: <Settings /> })
-            navItems.push({ label: 'Automation Settings', href: '/superadmin?view=automation', icon: <Zap /> })
-            navItems.push({ label: 'Benefit Management', href: '/superadmin/benefits', icon: <Calculator /> })
-        }
+        if (permissions.externalPrograms?.access) navItems.push({ label: 'External Programs', href: `${baseAdminPath}?view=programs`, icon: <ExternalLink /> })
+        if (permissions.programLeads?.access && !isAmbassadorRole) navItems.push({ label: 'Program Leads', href: `${baseAdminPath}?view=program-leads`, icon: <MousePointerClick /> })
+
+        // Advanced Management Modules (Dynamic visibility based on permissions)
+        const canSeeAutomation = isSuperAdmin || (permissions as any).whatsappConfig?.access
+        const canSeePermissions = isSuperAdmin || permissions.adminManagement.access
+        const canSeeSettings = isSuperAdmin || permissions.settings.access
+
+        if (isSuperAdmin || permissions.campusPerformance.access) navItems.push({ label: 'Campus Control', href: '/superadmin/campuses', icon: <Building2 /> })
+        if (isSuperAdmin || permissions.userManagement.access) navItems.push({ label: 'User Operations', href: '/superadmin/users', icon: <Users /> })
+        if (isSuperAdmin || permissions.studentManagement.access) navItems.push({ label: 'Student Records', href: '/superadmin/students', icon: <GraduationCap /> })
+        if (isSuperAdmin || permissions.paymentApproval.access) navItems.push({ label: 'Beneficiary Verification', href: '/superadmin/verification', icon: <UserCheck /> })
+        if (isSuperAdmin || permissions.referralTracking.access) navItems.push({ label: 'Referral Pipeline', href: '/superadmin/referrals', icon: <GitFork /> })
+        
+        if (isSuperAdmin || (permissions as any).marketingManager?.access) navItems.push({ label: 'Marketing Management', href: '/superadmin?view=marketing', icon: <Megaphone /> })
+        if (isSuperAdmin || permissions.settlements.access) navItems.push({ label: 'Revenue & Payouts', href: '/superadmin?view=settlements', icon: <IndianRupee /> })
+        
+        if ((canSeePermissions || canSeeAutomation) && user.role !== 'Admission Admin') navItems.push({ label: 'Access Control', href: '/superadmin?view=permissions', icon: <Shield /> })
+        if (canSeeSettings) navItems.push({ label: 'Settings', href: '/superadmin?view=settings', icon: <Settings /> })
+        
+        if (isSuperAdmin || permissions.settlements.access) navItems.push({ label: 'Benefit Management', href: '/superadmin/benefits', icon: <Calculator /> })
 
         if (permissions.paymentApproval?.access) {
             navItems.push({ label: 'Payment Approvals', href: '/superadmin/approvals', icon: <CheckCircle /> })
@@ -111,7 +117,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
         // Shared Tooling (Available to all who have permission, but hidden for Super Admin who has dedicated management views)
         if (permissions.marketingKit.access && !isSuperAdmin) navItems.push({ label: 'Promo Kit', href: '/marketing', icon: <Share2 /> })
-        if (permissions.supportDesk.access && !isSuperAdmin) navItems.push({ label: 'Support Desk', href: '/support', icon: <MessageSquare /> })
+        if (permissions.supportDesk.access && !isSuperAdmin && user.role !== 'Admission Admin') navItems.push({ label: 'Support Desk', href: '/support', icon: <MessageSquare /> })
 
         // Admin-specific shared modules (Hide from Ambassadors)
         if (!isAmbassadorRole) {
@@ -124,13 +130,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                     navItems.push({ label: 'Finance', href: financeHref, icon: <IndianRupee /> })
                 }
             }
+            // Audit Trail
             if (permissions.auditLog.access) navItems.push({ label: 'Audit Trail', href: '/superadmin?view=audit', icon: <GanttChartSquare /> })
-            if (permissions.settings.access && !isSuperAdmin) navItems.push({ label: 'Settings', href: '/superadmin?view=settings', icon: <Settings /> })
-
-            // AS SENIOR EXPERT: Ensure Referral Pipeline is visible to Admission Admin/Non-SuperAdmins with permission
-            if (permissions.referralTracking.access && !isSuperAdmin && !isCampusLevel) {
-                navItems.push({ label: 'Referral Pipeline', href: `${baseAdminPath}?view=referrals`, icon: <GitFork /> })
-            }
         }
     }
 

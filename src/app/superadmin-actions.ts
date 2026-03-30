@@ -809,9 +809,14 @@ async function buildUserWhereClause(options: {
 
     const yearFilter = academicYear && academicYear !== 'All' ? { academicYear } : {}
 
-    const andConditions: any[] = [
-        { referralCode: { not: null } }
-    ]
+    // --- 100% SAFETY: Admission Admin/Super Admin with 'All' scope should see full directory ---
+    const scope = await getPermissionScope('userManagement')
+    const andConditions: any[] = []
+
+    // If scope is NOT 'all', restrict to only those with a referral code (Ambassadors)
+    if (scope !== 'all') {
+        andConditions.push({ referralCode: { not: null } })
+    }
 
     if (scopeFilter && Object.keys(scopeFilter).length > 0) {
         andConditions.push(scopeFilter)

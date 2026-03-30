@@ -119,10 +119,9 @@ export function PayoutHistoryTable({ data, totalResults = 0, currentPage = 1, on
             accessorKey: 'payoutDate',
             cell: (row: Settlement) => (
                 <div className="flex flex-col">
-                    <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full w-fit dark:bg-emerald-900/20 dark:text-emerald-400">
+                    <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full w-fit dark:bg-emerald-900/20 dark:text-emerald-400" suppressHydrationWarning>
                         {row.payoutDate ? format(new Date(row.payoutDate), 'dd MMM yyyy') : 'N/A'}
                     </span>
-                    <span className="text-[10px] text-gray-400 mt-1">Requested: {format(new Date(row.createdAt), 'dd MMM')}</span>
                 </div>
             )
         }
@@ -142,6 +141,7 @@ export function PayoutHistoryTable({ data, totalResults = 0, currentPage = 1, on
                 </div>
                 <button
                     onClick={() => setShowExportModal(true)}
+                    suppressHydrationWarning
                     className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-all shadow-lg shadow-gray-200 dark:bg-white dark:text-black dark:hover:bg-gray-200 dark:shadow-none"
                 >
                     <FileDown size={14} />

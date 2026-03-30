@@ -1,6 +1,6 @@
-
 import { Suspense } from 'react'
 import { getCurrentUser } from '@/lib/auth-service'
+import { hasPermission } from '@/lib/permission-service'
 import { redirect } from 'next/navigation'
 import { getAllReferrals } from '@/app/admin-actions'
 import { getCampuses } from '@/app/campus-actions'
@@ -18,7 +18,14 @@ export default async function SuperAdminReferralsPage({ searchParams }: PageProp
     const params = await searchParams
 
     if (!user) redirect('/')
-    if (user.role !== 'Super Admin') redirect('/dashboard')
+    
+    // 100% DB-Driven Permission Check
+    const hasPipelineAccess = await hasPermission('referralTracking')
+    const isAdmin = user.role.includes('Admin') || user.role === 'Campus Head'
+    
+    if (!hasPipelineAccess || !isAdmin) {
+        redirect('/dashboard')
+    }
 
     const page = parseInt(Array.isArray(params.page) ? params.page[0] : params.page || '1')
     const limit = parseInt(Array.isArray(params.limit) ? params.limit[0] : params.limit || '50')
@@ -49,6 +56,7 @@ export default async function SuperAdminReferralsPage({ searchParams }: PageProp
                     referrals={referralData?.referrals || []}
                     meta={referralData?.meta}
                     campuses={campusesData.campuses || []}
+                    userRole={user.role}
                 />
             </Suspense>
         </ErrorBoundary>

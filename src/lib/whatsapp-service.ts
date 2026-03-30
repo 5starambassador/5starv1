@@ -322,16 +322,14 @@ class WhatsAppService {
             const sanitizedMobile = this.sanitizeMobile(mobile)
             const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/`
 
+            // Winners format: Flat structure for MSG91 Session Messages
             const payload: any = {
                 integrated_number: this.sanitizeMobile(MSG91_WHATSAPP_NUMBER),
+                recipient_number: sanitizedMobile,
                 content_type: "text",
-                payload: {
-                    messaging_product: "whatsapp",
-                    to: sanitizedMobile,
-                    type: "text",
-                    text: text
-                }
+                text: text
             }
+            console.log('[WhatsApp] Sending free-text payload:', JSON.stringify(payload))
 
             const response = await fetch(url, {
                 method: 'POST',
@@ -362,7 +360,7 @@ class WhatsAppService {
         }
     }
 
-    private async logMessage(
+    public async logMessage(
         mobile: string,
         template: string | null,
         content: string,

@@ -122,7 +122,7 @@ export async function getAllReferrals(
  * 
  * @returns Object containing detailed metrics and success status
  */
-export async function getAdminAnalytics(academicYear?: string, studentSource: 'referral' | 'all' | 'organic' = 'referral'): Promise<{ success: boolean; error?: string } & Partial<AdminAnalytics>> {
+export async function getAdminAnalytics(academicYear?: string, studentSource: 'referral' | 'all' | 'organic' = 'referral', campus?: string): Promise<{ success: boolean; error?: string } & Partial<AdminAnalytics>> {
     const user = await getCurrentUser()
     if (!user || !user.role.includes('Admin')) return { success: false, error: 'Unauthorized' }
 
@@ -145,7 +145,7 @@ export async function getAdminAnalytics(academicYear?: string, studentSource: 'r
     if (referralFilterScope === null || userFilterScope === null) return { success: false, error: 'Access Denied' }
 
     // Enhanced Referral Filter using buildReferralWhereClause for consistency
-    const referralFilter = buildReferralWhereClause({ academicYear }, referralFilterScope)
+    const referralFilter = buildReferralWhereClause({ academicYear, campus }, referralFilterScope)
 
     // User Filter
     const userFilter = {
@@ -159,8 +159,7 @@ export async function getAdminAnalytics(academicYear?: string, studentSource: 'r
             confirmedLeads,
             statusCounts,
             campusCounts,
-            roleCounts,
-            totalAmbassadors,
+            userRoleCounts,
             topPerformersData,
             missingStudentCount
         ] = await prisma.$transaction([
@@ -178,8 +177,12 @@ export async function getAdminAnalytics(academicYear?: string, studentSource: 'r
                 where: referralFilter,
                 orderBy: { _count: { campus: 'desc' } }
             }),
-            prisma.referralLead.findMany({ where: referralFilter, select: { user: { select: { role: true } } } }),
-            prisma.user.count({ where: { ...userFilter, role: { in: ['Parent', 'Staff'] } } }),
+            prisma.user.groupBy({
+                by: ['role'],
+                _count: { _all: true },
+                where: { ...userFilter, role: { in: ['Parent', 'Staff', 'Alumni', 'Others'] } },
+                orderBy: { role: 'asc' }
+            }),
             prisma.referralLead.groupBy({
                 by: ['userId'],
                 _count: { _all: true },
@@ -190,8 +193,12 @@ export async function getAdminAnalytics(academicYear?: string, studentSource: 'r
             prisma.referralLead.count({ where: { leadStatus: { in: ['Confirmed', 'Admitted'] }, student: { is: null } } })
         ])
 
+        // Calculate derived metrics
         const pendingLeads = totalLeads - confirmedLeads
         const conversionRate = totalLeads > 0 ? ((confirmedLeads / totalLeads) * 100).toFixed(1) : '0'
+        
+        // Total Ambassadors (Total users with ambassador roles)
+        const totalAmbassadors = userRoleCounts.reduce((sum, r) => sum + ((r._count as any)._all || 0), 0)
         const avgReferralsPerAmbassador = totalAmbassadors > 0 ? (totalLeads / totalAmbassadors).toFixed(1) : '0'
 
         // Total Estimated Value (Simplified)
@@ -207,12 +214,17 @@ export async function getAdminAnalytics(academicYear?: string, studentSource: 'r
             }
         })
 
-        // Role breakdown
-        const parentReferrals = roleCounts.filter(r => r.user.role === 'Parent').length
-        const staffReferrals = roleCounts.filter(r => r.user.role === 'Staff').length
+        // Role breakdown (Consolidated from userRoleCounts for 100% consistency)
+        const parentCount = (userRoleCounts.find(r => r.role === 'Parent')?._count as any)?._all || 0
+        const staffCount = (userRoleCounts.find(r => r.role === 'Staff')?._count as any)?._all || 0
+        const alumniCount = (userRoleCounts.find(r => r.role === 'Alumni')?._count as any)?._all || 0
+        const othersCount = (userRoleCounts.find(r => r.role === 'Others')?._count as any)?._all || 0
+
         const roleBreakdown = {
-            parent: { count: parentReferrals, percentage: totalLeads > 0 ? ((parentReferrals / totalLeads) * 100).toFixed(1) : '0' },
-            staff: { count: staffReferrals, percentage: totalLeads > 0 ? ((staffReferrals / totalLeads) * 100).toFixed(1) : '0' }
+            parent: { count: parentCount, percentage: totalAmbassadors > 0 ? ((parentCount / totalAmbassadors) * 100).toFixed(1) : '0' },
+            staff: { count: staffCount, percentage: totalAmbassadors > 0 ? ((staffCount / totalAmbassadors) * 100).toFixed(1) : '0' },
+            alumni: { count: alumniCount, percentage: totalAmbassadors > 0 ? ((alumniCount / totalAmbassadors) * 100).toFixed(1) : '0' },
+            others: { count: othersCount, percentage: totalAmbassadors > 0 ? ((othersCount / totalAmbassadors) * 100).toFixed(1) : '0' }
         }
 
         // Status breakdown
@@ -1241,11 +1253,17 @@ export async function exportReferrals(filters?: {
                         role: true,
                         referralCode: true,
                         assignedCampus: true,
-                        mobileNumber: true
+                        mobileNumber: true,
+                        bankName: true,
+                        accountNumber: true,
+                        ifscCode: true,
+                        bankAccountDetails: true
                     }
                 }
             }
         })
+
+        const { decrypt } = await import('@/lib/encryption')
 
         // Dynamic Column Mapping
         // Define available columns and their data extractors
@@ -1271,6 +1289,30 @@ export async function exportReferrals(filters?: {
             'Annual Fee': r => r.annualFee || '',
             'Admission Fee': r => r.admissionFeeCollected || 0,
             'Donation Fee': r => r.donationFeeCollected || 0,
+            'Bank Name': r => {
+                let val = r.user.bankName || ''
+                if (!val && r.user.bankAccountDetails) {
+                    const decrypted = decrypt(r.user.bankAccountDetails) || ''
+                    val = decrypted.split('-')[0]?.trim() || decrypted
+                }
+                return val || 'N/A'
+            },
+            'Account Number': r => {
+                let val = r.user.accountNumber || ''
+                if (!val && r.user.bankAccountDetails) {
+                    const decrypted = decrypt(r.user.bankAccountDetails) || ''
+                    val = decrypted.split('-')[1]?.trim() || ''
+                }
+                return val ? `="${val}"` : 'N/A'
+            },
+            'IFSC Code': r => {
+                let val = r.user.ifscCode || ''
+                if (!val && r.user.bankAccountDetails) {
+                    const decrypted = decrypt(r.user.bankAccountDetails) || ''
+                    val = decrypted.split('-')[2]?.trim() || ''
+                }
+                return val || 'N/A'
+            },
             'Rejection Reason': r => `"${(r.rejectionReason || '').replace(/"/g, '""')}"`
         }
 

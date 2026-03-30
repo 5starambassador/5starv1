@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { DataTable } from '@/components/ui/DataTable'
 
 
-import { BadgeCheck, CreditCard, Download, FileText, History as HistoryIcon } from 'lucide-react'
+import { BadgeCheck, CreditCard, Download, FileText, History as HistoryIcon, FileDown } from 'lucide-react'
 
 import { format } from 'date-fns'
 import { formatIndianCurrency } from '@/lib/currency-utils'
@@ -16,6 +16,7 @@ import { ExportDateRangeModal } from './ExportDateRangeModal'
 import { exportRegistrations } from '@/app/export-actions'
 
 interface Registration {
+    userId: number
     id: number
     fullName: string
     mobileNumber: string
@@ -214,7 +215,7 @@ export function RegistrationTable({
         },
         {
             header: 'Receipt',
-            accessorKey: 'id',
+            accessorKey: 'userId',
             cell: (row: Registration) => (
                 <button
                     onClick={() => generateReceipt(row)}
@@ -293,56 +294,41 @@ export function RegistrationTable({
         { id: 'ifscCode', label: 'IFSC Code', defaultChecked: false },
         { id: 'referralCode', label: 'Referral Code', defaultChecked: true },
         { id: 'campus', label: 'Campus', defaultChecked: true },
-        { id: 'childName', label: 'Child Name', defaultChecked: false },
-        { id: 'grade', label: 'Grade', defaultChecked: false },
-        { id: 'childEpr', label: 'Child EPR No', defaultChecked: false },
-        { id: 'empId', label: 'Employee ID', defaultChecked: false },
-        { id: 'paymentStatus', label: 'Payment Status', defaultChecked: true },
-        { id: 'txnId', label: 'Transaction ID', defaultChecked: true },
         { id: 'amount', label: 'Payment Amount', defaultChecked: true },
         { id: 'paymentMethod', label: 'Payment Method', defaultChecked: true },
-        { id: 'bankRef', label: 'Bank Ref (UTR)', defaultChecked: true },
+        { id: 'bankRef', label: 'Bank Reference / UTR', defaultChecked: true },
         { id: 'paidAt', label: 'Payment Date', defaultChecked: true },
-        { id: 'settlementDate', label: 'Settlement Date', defaultChecked: true },
-        { id: 'status', label: 'Account Status', defaultChecked: true },
-        { id: 'benefitStatus', label: 'Benefit Status', defaultChecked: false }
+        { id: 'remarks', label: 'Admin Remarks', defaultChecked: true }
     ]
 
     return (
         <div className="space-y-6">
-            {/* Header / Actions */}
             <div className="flex justify-between items-center px-1">
-                <div className="flex gap-2">
-                    {/* Cleaned up redundant header info */}
-                </div>
-
+                <h3 className="text-lg font-black text-gray-900 dark:text-gray-100">Direct Registrations</h3>
                 <button
                     onClick={() => setShowExportModal(true)}
-                    suppressHydrationWarning
-                    disabled={isExporting}
-                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-all shadow-lg shadow-gray-900/20 disabled:opacity-50"
+                    suppressHydrationWarning={true}
+                    className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-xl text-xs font-bold hover:bg-gray-50 transition-all shadow-sm"
                 >
-                    <Download size={14} className={isExporting ? 'animate-bounce' : ''} />
-                    {isExporting ? 'Exporting...' : 'Export Report'}
+                    <FileDown size={14} />
+                    Export Report
                 </button>
             </div>
 
-            <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm overflow-hidden overflow-x-auto">
                 <DataTable
                     data={data}
                     columns={columns as any}
-                    searchKey={["fullName", "mobileNumber", "transactionId"]}
-                    searchPlaceholder="Search by name, mobile or UTR (Server-side)..."
+                    searchKey={["fullName", "mobileNumber"] as any}
+                    searchPlaceholder="Search by name or mobile..."
                     pageSize={20}
-                    searchValue={search}
-                    onSearchChange={onSearchChange}
+                    manualPagination={true}
                     rowCount={totalResults}
                     pageCount={Math.ceil((totalResults || 0) / 20)}
                     currentPage={currentPage}
                     onPageChange={onPageChange}
-                    manualPagination={true}
+                    uniqueKey="userId"
                 />
-
             </div>
             <ExportDateRangeModal
                 isOpen={showExportModal}

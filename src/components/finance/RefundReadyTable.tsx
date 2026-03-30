@@ -96,6 +96,15 @@ export function RefundReadyTable({ data, totalResults = 0, currentPage = 1, onPa
             )
         },
         {
+            header: 'Role',
+            accessorKey: 'role',
+            cell: (u: RefundUser) => (
+                <span className="inline-flex px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 text-[10px] font-black uppercase tracking-wider border border-gray-200">
+                    {u.role}
+                </span>
+            )
+        },
+        {
             header: 'Campus',
             accessorKey: 'campusName',
         },
@@ -132,6 +141,7 @@ export function RefundReadyTable({ data, totalResults = 0, currentPage = 1, onPa
                 <div className="flex gap-2">
                     <button
                         onClick={() => setShowExportModal(true)}
+                        suppressHydrationWarning
                         className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-200 transition-all border border-gray-200"
                     >
                         <FileDown size={14} />
@@ -140,6 +150,7 @@ export function RefundReadyTable({ data, totalResults = 0, currentPage = 1, onPa
                     <button
                         onClick={handleBulkRefund}
                         disabled={isInitiating || data.length === 0}
+                        suppressHydrationWarning
                         className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-all disabled:opacity-50 shadow-lg shadow-gray-200"
                     >
                         {isInitiating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}

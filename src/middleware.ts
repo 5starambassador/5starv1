@@ -115,8 +115,11 @@ export async function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL('/dashboard', request.url))
         }
 
-        // Super Admin Only (except for shared modules like approvals)
-        if (isSuperAdminRoute && user.role !== 'Super Admin' && !pathname.startsWith('/superadmin/approvals')) {
+        // Super Admin Only (except for shared modules like approvals and referrals for Admission Admin)
+        const isSharedAdminRoute = pathname.startsWith('/superadmin/approvals') || 
+                                 (pathname.startsWith('/superadmin/referrals') && user.role === 'Admission Admin')
+
+        if (isSuperAdminRoute && user.role !== 'Super Admin' && !isSharedAdminRoute) {
             return NextResponse.redirect(new URL('/dashboard', request.url))
         }
 

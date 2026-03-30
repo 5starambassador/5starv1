@@ -30,6 +30,7 @@ export interface UserConditions {
   maxAmount?: number;
   ticketCategories?: string[];
   payoutCategories?: string[];
+  intervalDay?: number;
 }
 
 export class AutomationEngine {
@@ -322,6 +323,13 @@ export class AutomationEngine {
           }
       }
 
+      if (conditions.intervalDay) {
+          const start = new Date(); start.setDate(start.getDate() - conditions.intervalDay);
+          start.setHours(0,0,0,0);
+          const end = new Date(start); end.setHours(23,59,59,999);
+          query.createdAt = { gte: start, lte: end }
+      }
+
       return query
   }
 
@@ -334,6 +342,12 @@ export class AutomationEngine {
           const pDate = new Date(); pDate.setDate(pDate.getDate() - conditions.daysSinceRegistration);
           query.createdAt = { lt: pDate }
       }
+      if (conditions.intervalDay) {
+          const start = new Date(); start.setDate(start.getDate() - conditions.intervalDay);
+          start.setHours(0,0,0,0);
+          const end = new Date(start); end.setHours(23,59,59,999);
+          query.createdAt = { gte: start, lte: end }
+      }
       return query
   }
 
@@ -341,6 +355,12 @@ export class AutomationEngine {
       const query: any = { status: 'Active' }
       if (conditions.campus?.length) query.campus = { campusName: { in: conditions.campus } }
       // Add more specific student filters here if needed
+      if (conditions.intervalDay) {
+          const start = new Date(); start.setDate(start.getDate() - conditions.intervalDay);
+          start.setHours(0,0,0,0);
+          const end = new Date(start); end.setHours(23,59,59,999);
+          query.createdAt = { gte: start, lte: end }
+      }
       return query
   }
 
@@ -350,6 +370,12 @@ export class AutomationEngine {
       if (conditions.daysSinceClick) {
           const pDate = new Date(); pDate.setDate(pDate.getDate() - conditions.daysSinceClick);
           query.clickedAt = { lt: pDate }
+      }
+      if (conditions.intervalDay) {
+          const start = new Date(); start.setDate(start.getDate() - conditions.intervalDay);
+          start.setHours(0,0,0,0);
+          const end = new Date(start); end.setHours(23,59,59,999);
+          query.createdAt = { gte: start, lte: end }
       }
       return query
   }

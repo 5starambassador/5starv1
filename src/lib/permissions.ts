@@ -158,7 +158,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, RolePermissions> = {
         savingsCalculator: { access: false, scope: 'none' },
         rulesAccess: { access: true, scope: 'all' },
         feeManagement: { access: false, scope: 'none' },
-        engagementCentre: { access: false, scope: 'none' },
+        engagementCentre: { access: true, scope: 'all' },
         paymentApproval: { access: true, scope: 'view-only' },
         programLeads: { access: false, scope: 'none' },
         externalPrograms: { access: false, scope: 'none' },

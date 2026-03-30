@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, MessageSquare, Clock, AlertCircle, CheckCircle2, X, Send, Tag, Calendar, Loader2 } from 'lucide-react'
-import { createTicket, getUserTickets } from '@/app/ticket-actions'
+import { Plus, MessageSquare, Clock, AlertCircle, CheckCircle2, X, Send, Tag, Calendar, Loader2, Star } from 'lucide-react'
+import { createTicket, getUserTickets, rateSupportTicket } from '@/app/ticket-actions'
 import { TicketChatModal } from '@/components/support/ticket-chat-modal'
 import { toast } from 'sonner'
 import { PageAnimate, PageItem } from '@/components/PageAnimate'
@@ -162,53 +162,66 @@ export default function SupportPage() {
                             {tickets.map((ticket) => {
                                 const statusStyle = getStatusColor(ticket.status)
                                 const priorityStyle = getPriorityStyle(ticket.priority)
+                                const isResolved = ticket.status === 'Resolved' || ticket.status === 'Closed'
+                                const hasRated = !!ticket.rating
 
                                 return (
-                                    <div
-                                        key={ticket.id}
-                                        onClick={() => setSelectedTicket(ticket)}
-                                        className="p-7 !bg-gradient-to-br !from-indigo-950/80 !via-indigo-900/40 !to-blue-900/40 border border-white/10 rounded-2xl hover:border-white/20 hover:shadow-2xl transition-all cursor-pointer group active:scale-[0.98]"
-                                    >
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                                            <div style={{ flex: 1 }}>
-                                                <h3 className="text-lg font-bold text-white mb-1.5 group-hover:text-indigo-200 transition-colors">{ticket.subject}</h3>
-                                                <p className="text-sm text-white/60 line-clamp-2">
-                                                    {ticket.messages && ticket.messages.length > 0
-                                                        ? ticket.messages[ticket.messages.length - 1].message
-                                                        : ticket.message}
-                                                </p>
+                                    <div key={ticket.id} className="space-y-3">
+                                        <div
+                                            onClick={() => setSelectedTicket(ticket)}
+                                            className="p-7 !bg-gradient-to-br !from-indigo-950/80 !via-indigo-900/40 !to-blue-900/40 border border-white/10 rounded-2xl hover:border-white/20 hover:shadow-2xl transition-all cursor-pointer group active:scale-[0.98]"
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <h3 className="text-lg font-bold text-white mb-1.5 group-hover:text-indigo-200 transition-colors">{ticket.subject}</h3>
+                                                    <p className="text-sm text-white/60 line-clamp-2">
+                                                        {ticket.messages && ticket.messages.length > 0
+                                                            ? ticket.messages[ticket.messages.length - 1].message
+                                                            : ticket.message}
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-2 ml-4">
+                                                    <span
+                                                        className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                                                        style={{ background: priorityStyle.bg, color: priorityStyle.text }}
+                                                    >
+                                                        {ticket.priority}
+                                                    </span>
+                                                    <span
+                                                        className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border"
+                                                        style={{ background: statusStyle.bg, color: statusStyle.text, borderColor: statusStyle.border }}
+                                                    >
+                                                        {ticket.status}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-2 ml-4">
-                                                <span
-                                                    className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                                                    style={{ background: priorityStyle.bg, color: priorityStyle.text }}
-                                                >
-                                                    {ticket.priority}
+                                            <div className="flex gap-5 text-xs text-white/40 mt-4 pt-4 border-t border-white/5">
+                                                <span className="flex items-center gap-1.5">
+                                                    <Tag size={14} />
+                                                    {ticket.category}
                                                 </span>
-                                                <span
-                                                    className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border"
-                                                    style={{ background: statusStyle.bg, color: statusStyle.text, borderColor: statusStyle.border }}
-                                                >
-                                                    {ticket.status}
+                                                <span className="flex items-center gap-1.5">
+                                                    <Calendar size={14} />
+                                                    {new Date(ticket.createdAt).toLocaleDateString()}
                                                 </span>
+                                                {isResolved && hasRated && (
+                                                    <span className="flex items-center gap-1.5 text-emerald-400 font-bold uppercase tracking-tighter">
+                                                        <Star size={14} fill="currentColor" />
+                                                        Rated {ticket.rating}/5
+                                                    </span>
+                                                )}
+                                                {ticket.messages && ticket.messages.length > 0 && (
+                                                    <span className="ml-auto flex items-center gap-1.5 text-indigo-400 font-bold">
+                                                        <MessageSquare size={14} />
+                                                        {ticket.messages.length} replies
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
-                                        <div className="flex gap-5 text-xs text-white/40 mt-4 pt-4 border-t border-white/5">
-                                            <span className="flex items-center gap-1.5">
-                                                <Tag size={14} />
-                                                {ticket.category}
-                                            </span>
-                                            <span className="flex items-center gap-1.5">
-                                                <Calendar size={14} />
-                                                {new Date(ticket.createdAt).toLocaleDateString()}
-                                            </span>
-                                            {ticket.messages && ticket.messages.length > 0 && (
-                                                <span className="ml-auto flex items-center gap-1.5 text-indigo-400 font-bold">
-                                                    <MessageSquare size={14} />
-                                                    {ticket.messages.length} replies
-                                                </span>
-                                            )}
-                                        </div>
+
+                                        {isResolved && !hasRated && (
+                                            <CSATRatingCard ticketId={ticket.id} />
+                                        )}
                                     </div>
                                 )
                             })}
@@ -317,6 +330,74 @@ export default function SupportPage() {
                 {/* Explicit Bottom Spacer for Mobile Scroll */}
                 <div className="h-40 md:h-10 w-full shrink-0" />
             </PageAnimate>
+        </div>
+    )
+}
+function CSATRatingCard({ ticketId }: { ticketId: number }) {
+    const [rating, setRating] = useState(0)
+    const [hover, setHover] = useState(0)
+    const [feedback, setFeedback] = useState('')
+    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [success, setSuccess] = useState(false)
+
+    const handleRate = async () => {
+        if (rating === 0 || isSubmitting) return
+        setIsSubmitting(true)
+        const res = await rateSupportTicket(ticketId, rating, feedback)
+        if (res.success) {
+            setSuccess(true)
+            toast.success('Thank you for your feedback!')
+        } else {
+            toast.error(res.error || 'Failed to submit rating')
+        }
+        setIsSubmitting(false)
+    }
+
+    if (success) return null
+
+    return (
+        <div className="p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl animate-in slide-in-from-top-2 duration-300">
+            <div className="flex flex-col md:flex-row items-center gap-6">
+                <div className="flex-1">
+                    <h4 className="text-sm font-black text-emerald-400 uppercase tracking-widest mb-1">Rate your experience</h4>
+                    <p className="text-[10px] font-bold text-white/50 uppercase tracking-tighter">How was the resolution of this case?</p>
+                </div>
+                <div className="flex flex-col items-center md:items-end gap-3">
+                    <div className="flex gap-1.5">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                                key={star}
+                                onMouseEnter={() => setHover(star)}
+                                onMouseLeave={() => setHover(0)}
+                                onClick={() => setRating(star)}
+                                className="transition-all hover:scale-125 active:scale-95"
+                            >
+                                <Star
+                                    size={24}
+                                    className={`${(hover || rating) >= star ? 'text-amber-400 fill-amber-400 shadow-xl' : 'text-white/20'}`}
+                                />
+                            </button>
+                        ))}
+                    </div>
+                    {rating > 0 && (
+                        <div className="flex gap-3 w-full animate-in fade-in duration-300 mt-2">
+                            <input
+                                placeholder="Any feedback? (optional)"
+                                value={feedback}
+                                onChange={(e) => setFeedback(e.target.value)}
+                                className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-bold text-white outline-none flex-1 min-w-[200px]"
+                            />
+                            <button
+                                onClick={handleRate}
+                                disabled={isSubmitting}
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                            >
+                                {isSubmitting ? '...' : 'Send'}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     )
 }

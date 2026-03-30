@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { chatbotService } from '@/lib/chatbot-service'
+import { whatsappService } from '@/lib/whatsapp-service'
 
 /**
  * WhatsApp Webhook Endpoint (MSG91)
@@ -31,8 +32,11 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'Missing data' }, { status: 400 })
         }
 
-        // Handle Logic
-        await chatbotService.handleIncomingMessage(mobile, text)
+        // Handle Logic & Log Inbound
+        await Promise.all([
+            chatbotService.handleIncomingMessage(mobile, text),
+            whatsappService.logMessage(mobile, null, text, 'INBOUND', 'RECEIVED')
+        ])
 
         return NextResponse.json({ success: true })
     } catch (error: any) {

@@ -668,20 +668,20 @@ export async function exportLiabilities(startDate: Date, endDate: Date, selected
         const safeString = (str: string | null | undefined) => `"${(String(str || '')).replace(/"/g, '""')}"`
 
         const colDefs: Record<string, { header: string, accessor: (l: any) => string | number | null }> = {
-            'academicYear': { header: 'Academic Year', accessor: (l) => l.user?.academicYear || academicYear || 'N/A' },
+            'academicYear': { header: 'Academic Year', accessor: (l) => l.academicYear || academicYear || 'N/A' },
             'fullName': { header: 'Ambassador Name', accessor: (l) => l.fullName },
             'mobile': { header: 'Mobile Number', accessor: (l) => `="${l.mobileNumber}"` },
             'role': { header: 'Role', accessor: (l) => l.role },
-            'aadharNo': { header: 'Aadhar No', accessor: (l) => `="${l.user?.aadharNo || ''}"` },
-            'address': { header: 'Address', accessor: (l) => (l.user?.address || '').replace(/"/g, '""') },
+            'aadharNo': { header: 'Aadhar No', accessor: (l) => `="${l.aadharNo || ''}"` },
+            'address': { header: 'Address', accessor: (l) => (l.address || '').replace(/"/g, '""') },
             'campus': { header: 'Ambassador Campus', accessor: (l) => l.campusName || 'N/A' },
             'bankName': {
                 header: 'Bank Name',
                 accessor: (l) => {
                     let val = 'N/A'
-                    if (l.user?.bankName) val = l.user.bankName
-                    else if (l.user?.bankAccountDetails) {
-                        const decrypted = decrypt(l.user.bankAccountDetails) || ''
+                    if (l.bankName) val = l.bankName
+                    else if (l.bankAccountDetails) {
+                        const decrypted = decrypt(l.bankAccountDetails) || ''
                         val = decrypted.split('-')[0]?.trim() || decrypted
                     }
                     if (!val || val === 'N/A') return 'N/A'
@@ -692,9 +692,9 @@ export async function exportLiabilities(startDate: Date, endDate: Date, selected
             'accountNumber': {
                 header: 'Account Number',
                 accessor: (l) => {
-                    if (l.user?.accountNumber) return `="${l.user.accountNumber}"`
-                    if (l.user?.bankAccountDetails) {
-                        const val = decrypt(l.user.bankAccountDetails) || ''
+                    if (l.accountNumber) return `="${l.accountNumber}"`
+                    if (l.bankAccountDetails) {
+                        const val = decrypt(l.bankAccountDetails) || ''
                         const parts = val.split('-')
                         if (parts.length > 1) return `="${parts[1]?.trim()}"`
                     }
@@ -705,11 +705,11 @@ export async function exportLiabilities(startDate: Date, endDate: Date, selected
                 header: 'IFSC Code',
                 accessor: (l) => {
                     let val = 'N/A'
-                    if (l.user?.ifscCode) val = l.user.ifscCode
-                    else if (l.user?.bankAccountDetails) {
-                        const decrypted = decrypt(l.user.bankAccountDetails) || ''
+                    if (l.ifscCode) val = l.ifscCode
+                    else if (l.bankAccountDetails) {
+                        const decrypted = decrypt(l.bankAccountDetails) || ''
                         const match = decrypted.match(/\((.*?)\)/)
-                        val = match ? match[1] : 'N/A'
+                        val = match ? match[1] : (decrypted.split('-')[2]?.trim() || 'N/A')
                     }
                     return val === 'N/A' ? val : `="${val}"`
                 }

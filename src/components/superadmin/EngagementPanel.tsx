@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { Rocket, Mail, CheckCircle2, AlertTriangle, Loader2, Users, Clock, Zap, BarChart3, Activity, ArrowRight, MousePointer2, ShieldAlert } from 'lucide-react'
 import { triggerReengagementCampaign, getEngagementStats } from '@/app/engagement-actions'
 import { triggerCampusEnforcementBroadcast, getCampusEnforcementStats } from '@/app/campus-enforcement-actions'
@@ -8,9 +9,19 @@ import { toast } from 'sonner'
 import { CampaignManager } from './CampaignManager'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { motion, AnimatePresence } from 'framer-motion'
+import { RolePermissions } from '@/types'
 
-export function EngagementPanel() {
-    const [activeTab, setActiveTab] = useState<'overview' | 'campaigns'>('overview')
+const WhatsAppConfigPanel = dynamic(() => import('./WhatsAppConfigPanel'), { 
+    ssr: false,
+    loading: () => <div className="h-96 w-full animate-pulse bg-gray-50 rounded-3xl border border-gray-100" />
+})
+
+interface EngagementPanelProps {
+    permissions?: RolePermissions
+}
+
+export function EngagementPanel({ permissions }: EngagementPanelProps) {
+    const [activeTab, setActiveTab] = useState<'overview' | 'campaigns' | 'automation'>('overview')
     const [loading, setLoading] = useState(false)
     const [lastResult, setLastResult] = useState<{ sent: number, time: Date } | null>(null)
     const [stats, setStats] = useState<{
@@ -131,6 +142,24 @@ export function EngagementPanel() {
                         <Mail size={14} /> Campaigns
                     </span>
                 </button>
+                {(permissions === undefined || (permissions as any).whatsappConfig?.access) && (
+                    <button
+                        onClick={() => setActiveTab('automation')}
+                        className={`relative px-8 py-3.5 text-[11px] font-black uppercase tracking-[0.2em] transition-all rounded-2xl ${activeTab === 'automation' ? 'text-white' : 'text-gray-400 hover:text-gray-600'
+                            }`}
+                    >
+                        {activeTab === 'automation' && (
+                            <motion.div
+                                layoutId="activeTab"
+                                className="absolute inset-0 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100"
+                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                            />
+                        )}
+                        <span className="relative z-10 flex items-center gap-2">
+                            <Zap size={14} /> Automation
+                        </span>
+                    </button>
+                )}
             </div>
 
             <AnimatePresence mode="wait">
@@ -143,6 +172,16 @@ export function EngagementPanel() {
                         transition={{ duration: 0.4 }}
                     >
                         <CampaignManager />
+                    </motion.div>
+                ) : activeTab === 'automation' ? (
+                    <motion.div
+                        key="automation"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.4 }}
+                    >
+                        <WhatsAppConfigPanel />
                     </motion.div>
                 ) : (
                     <motion.div

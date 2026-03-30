@@ -126,6 +126,8 @@ export async function getPaginatedWhatsAppLogs(page: number = 1, pageSize: numbe
         if (filters?.type && filters.type !== 'All') {
             if (filters.type === 'AUTOMATION') {
                 whereClause.type = { in: ['SYSTEM', 'REMINDER'] }
+            } else if (filters.type === 'CHATBOT') {
+                whereClause.type = { in: ['CHATBOT', 'INBOUND'] }
             } else {
                 whereClause.type = filters.type
             }

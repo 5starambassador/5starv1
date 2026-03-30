@@ -316,43 +316,18 @@ export async function importStudents(csvData: string) {
                     continue
                 }
 
-                // Find or Create Parent
+                // 3. Parent Lookup (No Creation)
                 let parent = await prisma.user.findUnique({ where: { mobileNumber: parentMobile } })
                 if (parent) {
-                    // AS SENIOR EXPERT: Sync Parent Name if it differs from CSV (Fixes "poisoned" names)
+                    // Sync Name if exists
                     if (parentName && parent.fullName !== parentName) {
                         await prisma.user.update({
                             where: { userId: parent.userId },
                             data: { fullName: parentName }
                         })
                     }
-                } else {
-                    if (!parentName) {
-                        const msg = `Parent not found and 'Parent Name' missing. Cannot create account.`
-                        errors.push(`Row ${index + 2}: ${msg}`)
-                        results.push({ row: index + 2, data: row, status: 'Failed', reason: msg })
-                        continue
-                    }
-                    // Auto-create Parent as PASSIVE record (No referral code, Pending status)
-                    parent = await prisma.user.create({
-                        data: {
-                            fullName: parentName,
-                            mobileNumber: parentMobile,
-                            role: 'Parent',
-                            referralCode: null, // No code = must pay registration fee to become ambassador
-                            assignedCampus: campusName,
-                            childEprNo: admissionNumber || null,
-                            registrationSource: 'Manual_Import',
-                            academicYear: academicYearForRecord,
-                            isFiveStarMember: false,
-                            childInAchariya: true,
-                            status: 'Pending', // Pending payment of registration fee
-                            benefitStatus: 'Pending'
-                        }
-                    })
+                    usersToSync.add(parent.userId)
                 }
-
-                if (parent) usersToSync.add(parent.userId)
 
                 // Find Campus
                 const campusId = campusMap.get(campusName.toLowerCase())
@@ -455,7 +430,7 @@ export async function importStudents(csvData: string) {
                     usersToSync.add(parent.userId)
                 }
 
-                // Handle Referral Logic (Create/Update Confirmed Lead)
+                // 4. Handle Referral Logic (Create/Update Confirmed Lead)
                 let leadId: number | null = null
                 if (ambassadorId) {
                     const existingLead = await prisma.referralLead.findFirst({
@@ -463,7 +438,6 @@ export async function importStudents(csvData: string) {
                     })
 
                     if (existingLead) {
-                        // Start Update
                         const updateData: any = {
                             studentName: fullName,
                             gradeInterested: grade,
@@ -478,15 +452,7 @@ export async function importStudents(csvData: string) {
                         if (existingLead.leadStatus !== 'Admitted' && existingLead.leadStatus !== 'Rejected') {
                             updateData.leadStatus = 'Admitted'
                             updateData.confirmedDate = new Date()
-                            usersToSync.add(ambassadorId) // Mark for stat update
-
-                            // ⚡ INTEGRATION: Trigger Instant Automations
-                            try {
-                                const { automationEngine } = await import('@/lib/automation-engine')
-                                await automationEngine.processImmediateEvent('ON_LEAD_ADMITTED', ambassadorId, { leadId: existingLead.leadId })
-                            } catch (err) {
-                                console.error('[AutomationEngine] Admission trigger failed:', err)
-                            }
+                            usersToSync.add(ambassadorId)
                         }
                         const updatedLead = await prisma.referralLead.update({
                             where: { leadId: existingLead.leadId },
@@ -501,7 +467,7 @@ export async function importStudents(csvData: string) {
                         const newLead = await prisma.referralLead.create({
                             data: {
                                 userId: ambassadorId,
-                                parentName: parent.fullName,
+                                parentName: parent?.fullName || parentName || 'Imported Parent',
                                 parentMobile,
                                 studentName: fullName,
                                 gradeInterested: grade,
@@ -509,7 +475,7 @@ export async function importStudents(csvData: string) {
                                 campus: campusName,
                                 leadStatus: 'Admitted',
                                 confirmedDate: new Date(),
-                                admittedYear: normalizeAcademicYear(row.academicYear || '2025-2026'),
+                                admittedYear: academicYearForRecord,
                                 admissionNumber: admissionNumber,
                                 selectedFeeType: selectedFeeType,
                                 annualFee: annualFeeAmount,
@@ -519,78 +485,37 @@ export async function importStudents(csvData: string) {
                             } as any
                         })
                         leadId = newLead.leadId
-                        usersToSync.add(ambassadorId) // Mark for stat update
-
-                        // ⚡ INTEGRATION: Trigger Instant Automations
-                        try {
-                            const { automationEngine } = await import('@/lib/automation-engine')
-                            await automationEngine.processImmediateEvent('ON_LEAD_ADMITTED', ambassadorId, { leadId: newLead.leadId })
-                        } catch (err) {
-                            console.error('[AutomationEngine] Admission trigger failed:', err)
-                        }
+                        usersToSync.add(ambassadorId)
                     }
                 }
 
-                // Upsert Student (Create or Update based on Admission Number)
+                // 5. SAVE TO STAGING AREA (Safe, No "Global" User Impact)
                 if (admissionNumber) {
-                    await prisma.student.upsert({
+                    await (prisma as any).erpStudentData.upsert({
                         where: { admissionNumber },
                         update: {
                             fullName,
-                            parentId: parent.userId,
-                            campusId,
+                            parentMobile,
+                            parentName: parentName || parent?.fullName || null,
                             grade,
-                            section,
-                            rollNumber,
-                            ambassadorId,
-                            referralLeadId: leadId,
-                            baseFee: baseFeeValue,
-                            academicYear: academicYearForRecord,
-                            selectedFeeType: selectedFeeType,
-                            annualFee: annualFeeAmount,
-                            status: studentStatus
+                            campusName,
+                            academicYear: academicYearForRecord
                         },
                         create: {
                             fullName,
-                            parentId: parent.userId,
-                            campusId,
-                            grade,
-                            section,
-                            rollNumber,
                             admissionNumber,
-                            ambassadorId, // Link directly
-                            referralLeadId: leadId,
-                            baseFee: baseFeeValue,
-                            academicYear: academicYearForRecord,
-                            selectedFeeType: selectedFeeType,
-                            annualFee: annualFeeAmount,
-                            status: studentStatus
+                            parentMobile,
+                            parentName: parentName || parent?.fullName || null,
+                            grade,
+                            campusName,
+                            academicYear: academicYearForRecord
                         }
                     })
-                    console.log(`[IMPORT] Upserted Student: ${fullName} (${admissionNumber})`)
-                } else {
-                    // Fallback for students without ERP (rare in this logic but handled)
-                    await prisma.student.create({
-                        data: {
-                            fullName,
-                            parentId: parent.userId,
-                            campusId,
-                            grade,
-                            section,
-                            rollNumber,
-                            admissionNumber,
-                            ambassadorId,
-                            referralLeadId: leadId,
-                            baseFee: baseFeeValue,
-                            academicYear: academicYearForRecord,
-                            selectedFeeType: selectedFeeType,
-                            annualFee: annualFeeAmount,
-                            status: studentStatus
-                        } as any
-                    })
+                    console.log(`[IMPORT] Saved to Staging: ${fullName} (${admissionNumber})`)
                 }
+                
                 processed++
-                results.push({ row: index + 2, data: row, status: 'Success', reason: 'Imported' })
+                results.push({ row: index + 2, data: row, status: 'Success', reason: 'Staged for Verification' })
             } catch (err: any) {
                 errors.push(`Row ${index + 2}: ${err.message}`)
                 results.push({ row: index + 2, data: row, status: 'Failed', reason: err.message })

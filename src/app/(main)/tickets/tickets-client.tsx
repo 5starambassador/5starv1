@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { MessageSquare, Clock, CheckCircle2, AlertCircle, RefreshCw, Ticket, User, Calendar, Tag, Search, Filter } from 'lucide-react'
+import { MessageSquare, Clock, CheckCircle2, AlertCircle, RefreshCw, Ticket, User, Calendar, Tag, Search, Filter, Shield } from 'lucide-react'
 import { updateTicketStatus } from '@/app/ticket-actions'
 import { TicketChatModal } from '@/components/support/ticket-chat-modal'
 import { toast } from 'sonner'
@@ -191,17 +191,53 @@ export function TicketsClient({ tickets, counts, role, adminId }: TicketsClientP
                                         <p className="text-sm font-bold text-gray-500 line-clamp-1 mt-1 leading-relaxed">{ticket.message}</p>
                                     </div>
                                     <div className="flex flex-wrap gap-8 items-center pt-2">
-                                        <div className="flex items-center gap-2 group/user bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
-                                            <div className="w-6 h-6 bg-white rounded-lg flex items-center justify-center border border-gray-100 shadow-sm">
-                                                <User size={12} className="text-gray-900" />
+                                        <div className="flex items-center gap-3 group/user bg-gray-50 px-4 py-2 rounded-2xl border border-gray-100 shadow-sm">
+                                            <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center border border-gray-100 shadow-sm">
+                                                <User size={14} className="text-gray-900" />
                                             </div>
-                                            <span className="text-[11px] font-black uppercase tracking-tighter text-gray-900">{ticket.user?.fullName}</span>
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase">{ticket.user?.role}</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-[11px] font-black uppercase tracking-tighter text-gray-900 leading-none">{ticket.user?.fullName}</span>
+                                                <div className="flex gap-2 items-center mt-1">
+                                                    <a 
+                                                        href={`tel:${ticket.user?.mobileNumber}`}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="text-[10px] font-bold text-gray-400 hover:text-red-600 transition-colors"
+                                                    >
+                                                        {ticket.user?.mobileNumber}
+                                                    </a>
+                                                    <span className="w-1 h-1 bg-gray-200 rounded-full" />
+                                                    <a 
+                                                        href={`https://wa.me/${ticket.user?.mobileNumber?.replace(/\D/g, '')}`}
+                                                        target="_blank"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="text-[10px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors"
+                                                    >
+                                                        WhatsApp
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            <span className="ml-2 px-2 py-0.5 bg-gray-900 text-white text-[8px] font-black uppercase rounded-lg">{ticket.user?.role}</span>
                                         </div>
                                         <div className="flex items-center gap-2 text-gray-400">
                                             <Tag size={16} />
                                             <span className="text-[10px] font-black uppercase tracking-widest">{ticket.category}</span>
                                         </div>
+                                        {ticket.assignedAdmin && (
+                                            <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-100 shadow-sm">
+                                                <Shield size={12} className="text-blue-600" />
+                                                <span className="text-[10px] font-black uppercase tracking-tighter text-blue-700">
+                                                    Handled By: {ticket.assignedAdmin.adminName}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {!ticket.assignedAdmin && ticket.status !== 'Open' && (
+                                            <div className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200">
+                                                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse" />
+                                                <span className="text-[10px] font-black uppercase tracking-tighter text-gray-500">
+                                                    Self-Assigned Required
+                                                </span>
+                                            </div>
+                                        )}
                                         <div className="flex items-center gap-2 text-gray-400">
                                             <Calendar size={16} />
                                             <span className="text-[10px] font-black uppercase tracking-widest">

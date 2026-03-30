@@ -13,12 +13,15 @@ interface ReferralsPageClientProps {
     referrals: any[]
     meta: any
     campuses: Campus[]
+    userRole?: string
 }
 
-export default function ReferralsPageClient({ referrals, meta, campuses }: ReferralsPageClientProps) {
+export default function ReferralsPageClient({ referrals, meta, campuses, userRole }: ReferralsPageClientProps) {
     const router = useRouter()
     const [showBulkUpload, setShowBulkUpload] = useState(false)
     const [uploadType, setUploadType] = useState<'referrals' | 'crm-leads'>('referrals')
+
+    const isSuperAdmin = userRole === 'Super Admin'
 
     return (
         <div className="space-y-6">
@@ -36,7 +39,7 @@ export default function ReferralsPageClient({ referrals, meta, campuses }: Refer
                 convertLeadToStudent={convertLeadToStudent}
                 rejectReferral={rejectReferral}
                 campuses={campuses}
-                isSuperAdmin={true}
+                isSuperAdmin={isSuperAdmin}
             />
 
             {showBulkUpload && (

@@ -111,8 +111,14 @@ export async function getRolePermissions(role: string): Promise<{ success: boole
  */
 export async function updateRolePermissions(role: string, permissions: RolePermissions) {
     const admin = await getCurrentUser()
-    if (!admin || admin.role !== 'Super Admin') {
-        return { success: false, error: 'Only Super Admin can update permissions' }
+    if (!admin) return { success: false, error: 'Unauthorized' }
+
+    // Check if user has permission to manage admins/permissions
+    const adminPermsResult = await getRolePermissions(admin.role)
+    const canManage = admin.role === 'Super Admin' || (adminPermsResult.success && adminPermsResult.permissions?.adminManagement.canEdit)
+
+    if (!canManage) {
+        return { success: false, error: 'You do not have permission to update role settings' }
     }
 
     try {
@@ -267,8 +273,14 @@ export async function updateRolePermissions(role: string, permissions: RolePermi
  */
 export async function resetRolePermissions(role: string) {
     const admin = await getCurrentUser()
-    if (!admin || admin.role !== 'Super Admin') {
-        return { success: false, error: 'Only Super Admin can reset permissions' }
+    if (!admin) return { success: false, error: 'Unauthorized' }
+
+    // Check if user has permission to manage admins/permissions
+    const adminPermsResult = await getRolePermissions(admin.role)
+    const canManage = admin.role === 'Super Admin' || (adminPermsResult.success && adminPermsResult.permissions?.adminManagement.canEdit)
+
+    if (!canManage) {
+        return { success: false, error: 'You do not have permission to reset role settings' }
     }
 
     try {

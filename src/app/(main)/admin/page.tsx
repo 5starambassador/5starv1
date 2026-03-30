@@ -96,8 +96,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
         campusesPromise = getCampuses()
     }
 
-    if (view === 'campuses') {
-        campusPerformancePromise = getAdminCampusPerformance(filters.academicYear) // Note: getAdminCampusPerformance doesn't support studentSource yet, but keeping for now or I can update it
+    if (view === 'campuses' || view === 'engagement' || view === 'programs') {
+        if (view === 'campuses') {
+            campusPerformancePromise = getAdminCampusPerformance(filters.academicYear)
+        }
         campusesPromise = getCampuses()
     }
 

@@ -5,7 +5,7 @@ import { useClickOutside } from '@/hooks/use-click-outside'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, X, Edit2, Search, Database, Globe, Loader2, Save, Clock, GraduationCap, Building, User as UserIcon, CheckCircle2, AlertCircle, ArrowUpRight, TrendingUp, Users, Download } from 'lucide-react'
 import { toast } from 'sonner'
-import { getPendingVerifications, getVerifiedUsers, approveVerification, rejectVerification, bulkVerifyAgainstDatabase, getVerificationsForExport } from '@/app/verification-actions'
+import { getPendingVerifications, getVerifiedUsers, getErpStagingData, approveVerification, rejectVerification, bulkVerifyAgainstDatabase, getVerificationsForExport } from '@/app/verification-actions'
 import { getCampuses } from '@/app/campus-actions'
 import { exportToCSV } from '@/lib/export-utils'
 import { GRADES } from '@/lib/constants'
@@ -22,9 +22,10 @@ interface VerificationQueueProps {
 
 export default function VerificationQueue({ initialData = [] }: VerificationQueueProps) {
     const [mounted, setMounted] = useState(false)
-    const [activeTab, setActiveTab] = useState<'pending' | 'verified'>('pending')
+    const [activeTab, setActiveTab] = useState<'pending' | 'verified' | 'staged'>('pending')
     const [pendingUsers, setPendingUsers] = useState<any[]>(initialData || [])
     const [verifiedUsers, setVerifiedUsers] = useState<any[]>([])
+    const [stagedUsers, setStagedUsers] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [page, setPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
@@ -45,6 +46,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
     const [serverPotentialMatches, setServerPotentialMatches] = useState(0)
     const [totalPending, setTotalPending] = useState(0)
     const [totalVerifiedOnServer, setTotalVerifiedOnServer] = useState(0)
+    const [totalStaged, setTotalStaged] = useState(0)
     const [staffCount, setStaffCount] = useState(0)
     const [parentCount, setParentCount] = useState(0)
     const [visibleColumns, setVisibleColumns] = useState({
@@ -90,6 +92,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
             setServerPotentialMatches(res.potentialMatches || 0)
             setTotalPending(res.total || 0)
             setTotalVerifiedOnServer(res.totalVerified || 0)
+            setTotalStaged(res.stagedCount || 0)
             setStaffCount(res.staffCount || 0)
             setParentCount(res.parentCount || 0)
             setTotalPages(res.totalPages || 1)
@@ -116,9 +119,26 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
         setLoading(false)
     }
 
+    const loadStagedData = async (
+        pageNum: number = page,
+        search: string = searchTerm,
+        campus: string = filterCampus,
+        grade: string = filterGrade
+    ) => {
+        setLoading(true)
+        const res = await getErpStagingData(pageNum, 50, search, campus, grade)
+        if (res.success) {
+            setStagedUsers(res.data || [])
+            setTotalPages(res.totalPages || 1)
+            setTotalStaged(res.total || 0)
+        }
+        setLoading(false)
+    }
+
     const loadData = () => {
         if (activeTab === 'pending') loadPendingData(1)
-        else loadVerifiedData(1)
+        else if (activeTab === 'verified') loadVerifiedData(1)
+        else loadStagedData(1)
         setPage(1)
     }
 
@@ -129,13 +149,15 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
 
     useEffect(() => {
         if (activeTab === 'pending') loadPendingData(page, searchTerm, filterCampus, filterRole, filterGrade)
-        else loadVerifiedData(page, searchTerm, filterCampus, filterRole, filterGrade)
+        else if (activeTab === 'verified') loadVerifiedData(page, searchTerm, filterCampus, filterRole, filterGrade)
+        else loadStagedData(page, searchTerm, filterCampus, filterGrade)
     }, [page, activeTab, filterCampus, filterRole, filterGrade])
 
     const handleSearch = () => {
         setPage(1)
         if (activeTab === 'pending') loadPendingData(1, searchTerm, filterCampus, filterRole, filterGrade)
-        else loadVerifiedData(1, searchTerm, filterCampus, filterRole, filterGrade)
+        else if (activeTab === 'verified') loadVerifiedData(1, searchTerm, filterCampus, filterRole, filterGrade)
+        else loadStagedData(1, searchTerm, filterCampus, filterGrade)
     }
 
     // Reset page on search
@@ -217,18 +239,27 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
     const handleExport = async () => {
         setLoading(true)
         try {
-            const res = await getVerificationsForExport(activeTab, searchTerm, filterCampus, filterRole, filterGrade)
+            const res = await getVerificationsForExport(activeTab as any, searchTerm, filterCampus, filterRole, filterGrade)
             if (res.success && res.data) {
-                exportToCSV(res.data, `Verification_${activeTab}`, [
-                    { header: 'Full Name', accessor: (r) => r.fullName },
-                    { header: 'Mobile', accessor: (r) => r.mobileNumber },
-                    { header: 'Role', accessor: (r) => r.role },
-                    { header: 'Campus', accessor: (r) => r.assignedCampus || '-' },
-                    { header: 'Grade', accessor: (r) => r.grade || '-' },
-                    { header: 'ERP No', accessor: (r) => r.childEprNo || '-' },
-                    { header: 'Child Name', accessor: (r) => r.childName || '-' },
-                    { header: 'Applied Date', accessor: (r) => new Date(r.createdAt).toLocaleDateString() }
-                ])
+                const headers = activeTab === 'staged' ? [
+                    { header: 'Student Name', accessor: (r: any) => r.fullName },
+                    { header: 'ERP No', accessor: (r: any) => r.admissionNumber },
+                    { header: 'Parent Mobile', accessor: (r: any) => r.parentMobile || '-' },
+                    { header: 'Grade', accessor: (r: any) => r.grade },
+                    { header: 'Campus', accessor: (r: any) => r.campusName },
+                    { header: 'Import Date', accessor: (r: any) => new Date(r.createdAt).toLocaleDateString() }
+                ] : [
+                    { header: 'Full Name', accessor: (r: any) => r.fullName },
+                    { header: 'Mobile', accessor: (r: any) => r.mobileNumber },
+                    { header: 'Role', accessor: (r: any) => r.role },
+                    { header: 'Campus', accessor: (r: any) => r.assignedCampus || '-' },
+                    { header: 'Grade', accessor: (r: any) => r.grade || '-' },
+                    { header: 'ERP No', accessor: (r: any) => r.childEprNo || '-' },
+                    { header: 'Child Name', accessor: (r: any) => r.childName || '-' },
+                    { header: 'Applied Date', accessor: (r: any) => new Date(r.createdAt).toLocaleDateString() }
+                ];
+
+                exportToCSV(res.data, `Verification_${activeTab}`, headers);
                 toast.success('Export started')
             } else {
                 toast.error(res.error || 'Export failed')
@@ -257,7 +288,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
 
     // Filter State
     // Filter Logic
-    const currentUsers = activeTab === 'pending' ? pendingUsers : verifiedUsers
+    const currentUsers = activeTab === 'pending' ? pendingUsers : (activeTab === 'verified' ? verifiedUsers : stagedUsers)
 
     // Derived Stats
     const stats = {
@@ -265,7 +296,8 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
         verified: totalVerifiedOnServer,
         staff: staffCount,
         parents: parentCount,
-        matched: serverPotentialMatches
+        matched: serverPotentialMatches,
+        staged: totalStaged
     }
 
     const filteredUsers = currentUsers // Search/Filtering is now server-side for scale
@@ -342,6 +374,19 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                             <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'verified' ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`} suppressHydrationWarning>
                                 {stats.verified}
                             </span>
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('staged')}
+                            className={`relative px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all z-10 ${activeTab === 'staged' ? "text-white shadow-md bg-indigo-500" : "text-gray-500 hover:text-gray-700"}`}
+                            suppressHydrationWarning
+                        >
+                            <div className="flex items-center gap-1.5">
+                                <Database size={12} />
+                                ERP Master
+                                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'staged' ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`} suppressHydrationWarning>
+                                    {stats.staged}
+                                </span>
+                            </div>
                         </button>
                     </div>
 
@@ -519,10 +564,10 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                 <table className="w-full border-collapse">
                     <thead>
                         <tr className="bg-gray-50/50 border-b border-gray-100">
-                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">User Details</th>
-                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Child Details</th>
-                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Benefit Status</th>
-                            <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
+                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">{activeTab === 'staged' ? 'Student Name' : 'User Details'}</th>
+                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">{activeTab === 'staged' ? 'Parent Mobile' : 'Child Details'}</th>
+                            <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">{activeTab === 'staged' ? 'Grade / Campus' : 'Benefit Status'}</th>
+                            <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">{activeTab === 'staged' ? 'Admission No' : 'Actions'}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
@@ -543,7 +588,37 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                     <p className="text-sm text-gray-500 font-medium">No pending verification requests found.</p>
                                 </td>
                             </tr>
-                        ) : filteredUsers.map(user => (
+                        ) : activeTab === 'staged' ? (stagedUsers.map((student: any) => (
+                            <tr key={student.id} className="group hover:bg-gray-50/50 transition-all duration-300">
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm border border-indigo-100 group-hover:scale-110 transition-transform">
+                                            {student.fullName.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <div className="font-black text-gray-900 text-sm">{student.fullName}</div>
+                                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">ERP Master Record</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 font-bold text-gray-700">
+                                    {student.parentMobile || 'N/A'}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                    <div className="flex flex-col items-center">
+                                        <Badge variant="info" className="rounded-md px-1.5 py-0 text-[9px] mb-1">
+                                            {student.grade}
+                                        </Badge>
+                                        <span className="text-[10px] text-gray-400 font-bold">{student.campusName}</span>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-600 border border-gray-200">
+                                        {student.admissionNumber}
+                                    </span>
+                                </td>
+                            </tr>
+                        ))) : filteredUsers.map(user => (
                             <tr key={user.userId} className="group hover:bg-gray-50/50 transition-all duration-300">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">

@@ -2021,6 +2021,13 @@ export async function getAccruedPayoutLiabilities(
                         appBonusPercent: calcResult.appBonusPercent,
                         hasMissingFeeData,
                         missingFeeCampuses,
+                        academicYear: (u as any).academicYear,
+                        aadharNo: (u as any).aadharNo,
+                        address: (u as any).address,
+                        bankName: (u as any).bankName,
+                        accountNumber: (u as any).accountNumber,
+                        ifscCode: (u as any).ifscCode,
+                        bankAccountDetails: (u as any).bankAccountDetails,
                         type: 'Unified',
                         group: 'Group A'
                     })
@@ -2056,6 +2063,13 @@ export async function getAccruedPayoutLiabilities(
                     appBonusPercent: calcResult.appBonusPercent,
                     hasMissingFeeData,
                     missingFeeCampuses,
+                    academicYear: (u as any).academicYear,
+                    aadharNo: (u as any).aadharNo,
+                    address: (u as any).address,
+                    bankName: (u as any).bankName,
+                    accountNumber: (u as any).accountNumber,
+                    ifscCode: (u as any).ifscCode,
+                    bankAccountDetails: (u as any).bankAccountDetails,
                     type: 'Payout',
                     group: 'Group B'
                 })

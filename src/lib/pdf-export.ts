@@ -137,6 +137,9 @@ export function exportReferralsToPDF(referrals: any[], ambassadorName: string) {
             { header: 'Mobile', dataKey: 'parentMobile' },
             { header: 'Campus', dataKey: 'preferredCampus' },
             { header: 'Status', dataKey: 'status' },
+            { header: 'Bank Name', dataKey: 'bankName' },
+            { header: 'Acc No', dataKey: 'accountNumber' },
+            { header: 'IFSC', dataKey: 'ifscCode' },
             { header: 'Date', dataKey: 'createdAt' }
         ],
         data: referrals.map(r => ({
@@ -159,7 +162,9 @@ export function exportUsersToPDF(users: any[], reportTitle: string = 'Users Repo
             { header: 'Role', dataKey: 'role' },
             { header: 'Referral Code', dataKey: 'referralCode' },
             { header: 'Total Referrals', dataKey: 'totalReferrals' },
-            { header: 'Status', dataKey: 'benefitStatus' }
+            { header: 'Status', dataKey: 'benefitStatus' },
+            { header: 'Bank Name', dataKey: 'bankName' },
+            { header: 'Acc No', dataKey: 'accountNumber' }
         ],
         data: users
     })

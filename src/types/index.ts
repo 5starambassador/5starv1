@@ -191,6 +191,8 @@ export interface AdminAnalytics {
     roleBreakdown: {
         parent: { count: number; percentage: string }
         staff: { count: number; percentage: string }
+        alumni: { count: number; percentage: string }
+        others: { count: number; percentage: string }
     }
     statusBreakdown: {
         status: string

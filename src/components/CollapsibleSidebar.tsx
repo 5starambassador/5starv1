@@ -186,8 +186,12 @@ export function CollapsibleSidebar({ navItems, user, logoutAction }: Collapsible
                                 <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
                                     <span className="font-black truncate text-white text-sm tracking-tight leading-none">{user.fullName}</span>
                                     <div className="flex items-center gap-1.5 mt-1.5">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">{user.role}</span>
-                                        <div className="w-1 h-1 rounded-full bg-slate-700" />
+                                        {user.fullName.toLowerCase() !== user.role.toLowerCase() && (
+                                            <>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">{user.role}</span>
+                                                <div className="w-1 h-1 rounded-full bg-slate-700" />
+                                            </>
+                                        )}
                                         <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20">Verified</span>
                                     </div>
                                 </div>

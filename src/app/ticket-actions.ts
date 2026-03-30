@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { canEdit, hasPermission, getPermissionScope, getScopeFilter } from '@/lib/permission-service'
 import { revalidatePath } from 'next/cache'
 import { logAction } from '@/lib/audit-logger'
+import { getSession } from '@/lib/session'
 
 // Create a new support ticket
 export async function createTicket(data: {
@@ -108,15 +109,11 @@ export async function getAdminTickets() {
                         fullName: true,
                         mobileNumber: true,
                         role: true,
-                        // The original edit was syntactically incorrect and semantically misplaced.
-                        // 'assignedAdminId' is a field on the SupportTicket model, not typically on the related User model.
-                        // If the intent was to select the assignedAdminId of the *ticket itself*, it should be at the top level of the include.
-                        // If the intent was to select an admin ID associated with the *user*, the User model would need such a field.
-                        // Assuming the instruction implies ensuring safe access to adminId where it's relevant,
-                        // and given the context of 'user.select', this line is removed as it doesn't fit here.
-                        // If a field like 'assignedAdminId' exists on the User model, it should be selected directly.
-                        // If the goal was to select the ticket's assignedAdminId, it would be:
-                        // include: { user: { select: { ... } }, assignedAdminId: true }
+                    }
+                },
+                assignedAdmin: {
+                    select: {
+                        adminName: true
                     }
                 },
                 messages: true
@@ -179,7 +176,7 @@ export async function updateTicketStatus(ticketId: number, status: string) {
 }
 
 // Add message/response to ticket (FIXED: IDOR VULNERABILITY)
-export async function addTicketMessage(ticketId: number, message: string, isInternal: boolean = false) {
+export async function addTicketMessage(ticketId: number, message: string, isInternal: boolean = false, attachmentUrl?: string) {
     const user = await getCurrentUser()
     if (!user) return { success: false, error: 'Not authenticated' }
 
@@ -212,12 +209,13 @@ export async function addTicketMessage(ticketId: number, message: string, isInte
                 senderId,
                 senderType,
                 message,
-                isInternal
+                isInternal,
+                attachmentUrl
             }
         })
 
         // Auto-update status
-        if (senderType === 'Admin' && ticket.status === 'Open') {
+        if (senderType === 'Admin' && (ticket.status === 'Open' || (!isInternal && (ticket.status === 'Resolved' || ticket.status === 'Closed')))) {
             await prisma.supportTicket.update({ where: { id: ticketId }, data: { status: 'In-Progress' } })
         } else if (senderType === 'User' && (ticket.status === 'Resolved' || ticket.status === 'Closed')) {
             await prisma.supportTicket.update({ where: { id: ticketId }, data: { status: 'In-Progress' } })
@@ -427,5 +425,51 @@ export async function getUrgentTicketCount() {
         return count
     } catch (error) {
         return 0
+    }
+}
+
+export async function getSupportSnippets(category?: string) {
+    try {
+        const snippets = await prisma.supportSnippet.findMany({
+            where: category ? { category } : {},
+            orderBy: { title: 'asc' }
+        })
+        return { success: true, snippets }
+    } catch (error: any) {
+        console.error('Error fetching snippets:', error)
+        return { success: false, error: error.message }
+    }
+}
+
+export async function addSupportSnippet(title: string, content: string, category?: string) {
+    try {
+        const snippet = await prisma.supportSnippet.create({
+            data: { title, content, category }
+        })
+        return { success: true, snippet }
+    } catch (error: any) {
+        return { success: false, error: error.message }
+    }
+}
+
+export async function rateSupportTicket(ticketId: number, rating: number, feedback?: string) {
+    try {
+        const session = await getSession()
+        if (!session?.userId) return { success: false, error: 'Unauthorized' }
+
+        const ticket = await prisma.supportTicket.findUnique({ where: { id: ticketId } })
+        if (!ticket || ticket.userId !== Number(session.userId)) {
+            return { success: false, error: 'Access Denied' }
+        }
+
+        await prisma.supportTicket.update({
+            where: { id: ticketId },
+            data: { rating, feedback }
+        })
+
+        revalidatePath('/support')
+        return { success: true }
+    } catch (error: any) {
+        return { success: false, error: error.message }
     }
 }

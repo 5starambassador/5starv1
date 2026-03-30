@@ -1,5 +1,7 @@
 import prisma from '@/lib/prisma'
 import { whatsappService } from '@/lib/whatsapp-service'
+import { geminiService } from '@/lib/gemini-service'
+import { getRelevantKnowledge } from '@/lib/rag-utils'
 
 /**
  * Service to handle incoming WhatsApp messages and keywords
@@ -36,8 +38,20 @@ export class ChatbotService {
             case 'HELP':
                 return this.handleHelp(user)
             default:
-                // If it doesn't match a keyword, send a friendly help nudge
-                return this.handleDefault(user)
+                // AI FALLBACK: If it doesn't match a keyword, use Gemini
+                const facts = await getRelevantKnowledge(text)
+                console.log(`[Chatbot] Facts retrieved: ${facts.substring(0, 100)}...`)
+                
+                const aiResponse = await geminiService.generateResponse(text, {
+                    userName: user.fullName,
+                    role: user.role,
+                    referralCount: user.confirmedReferralCount,
+                    campus: user.assignedCampus || undefined,
+                    relatedData: facts
+                })
+                
+                console.log(`[Chatbot] AI Response for ${user.mobileNumber}: ${aiResponse}`)
+                return whatsappService.sendFreeTextMessage(user.mobileNumber, aiResponse)
         }
     }
 

@@ -20,6 +20,7 @@ interface Settlement {
     amount: number
     status: 'Processed' | 'Pending' | string
     createdAt: string | Date
+    payoutDate?: string | Date | null
     bankReference?: string | null
     remarks?: string | null
 }
@@ -417,8 +418,8 @@ export function EarningsClient({ stats, user, activeYears, selectedYear }: Earni
                                                 </p>
                                                 <div className="flex items-center gap-1.5">
                                                     <Calendar size={11} className="text-white/20" />
-                                                    <span className="text-[9px] text-white/30 font-bold uppercase tracking-[0.15em]">
-                                                        {formatDate(s.createdAt)}
+                                                    <span className="text-[9px] text-white/30 font-bold uppercase tracking-[0.15em]" suppressHydrationWarning>
+                                                        {formatDate(s.payoutDate || s.createdAt)}
                                                     </span>
                                                 </div>
                                             </div>

@@ -359,7 +359,7 @@ function TableSection({
 
             {/* Section Rows */}
             {!isCollapsed && section.modules.map((module: any, idx: number) => (
-                <tr key={module.key} style={{
+                <tr key={`${section.id}-${module.key}`} style={{
                     background: 'white',
                     borderBottom: '1px dashed #F3F4F6',
                     transition: 'background-color 0.1s'
@@ -384,7 +384,7 @@ function TableSection({
                                 <module.icon size={16} strokeWidth={module.isSub ? 2 : 2.5} />
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontWeight: module.isSub ? '500' : '600', fontSize: '13px', color: module.isSub ? '#374151' : '#374151' }}>
+                                <span style={{ fontWeight: module.isSub ? '500' : '600', fontSize: '13px', color: '#374151' }}>
                                     {module.label}
                                 </span>
                                 {module.isSub && <span style={{ fontSize: '10px', color: '#9CA3AF' }}>Sub-permission</span>}
@@ -394,12 +394,24 @@ function TableSection({
 
                     {/* Role Columns */}
                     {ROLES.map((role: string) => {
+                        // DECISION LOGIC: Decoupling UI for Referrals without affecting DB
+                        // We hide the redundant one based on role type
+                        const isAmbassadorRole = ['Staff', 'Parent', 'Alumni', 'Others'].includes(role)
+                        const isReferralTrackingKey = module.key === 'referralTracking'
+                        
+                        // Logic to show "Referral Tracking" toggle ONLY for Ambassadors 
+                        // and "Global Referral Module" toggle ONLY for Admin roles.
+                        const isAmbassadorTrackerRow = isReferralTrackingKey && section.id === 'ambassador_modules'
+                        const isGlobalModuleRow = isReferralTrackingKey && section.id === 'admin_modules'
+
+                        const shouldHideThisRowForThisRole = 
+                            (isAmbassadorRole && isGlobalModuleRow) || 
+                            (!isAmbassadorRole && isAmbassadorTrackerRow)
+
                         const isSubKey = module.key.includes('.')
-                        let perm: any
                         let accessValue: boolean = false
                         let scopeValue: string = 'view-only'
 
-                        // Safe access to nested permission objects
                         if (isSubKey) {
                             const [parentKey, subKey] = module.key.split('.')
                             if (rolePermissionsMatrix[role] && rolePermissionsMatrix[role][parentKey]) {
@@ -408,13 +420,11 @@ function TableSection({
                         } else {
                             if (rolePermissionsMatrix[role] && rolePermissionsMatrix[role][module.key]) {
                                 const moduleKey = module.key as keyof RolePermissions
-                                const permission = rolePermissionsMatrix[role]?.[moduleKey]
-                                accessValue = permission.access
-                                scopeValue = permission.scope
+                                accessValue = rolePermissionsMatrix[role][moduleKey].access
+                                scopeValue = rolePermissionsMatrix[role][moduleKey].scope
                             }
                         }
 
-                        // Determine if cell is disabled (no data)
                         const noData = !rolePermissionsMatrix[role]
 
                         return (
@@ -424,17 +434,17 @@ function TableSection({
                                 onMouseLeave={() => setHoveredRole(null)}
                                 style={{
                                     padding: '16px 4px',
-                                    background: hoveredRole === role ? '#FEF2F2' : 'transparent', // Highlight column
+                                    background: hoveredRole === role ? '#FEF2F2' : 'transparent',
                                     borderRight: '1px solid #F9FAFB',
-                                    transition: 'background-color 0.2s',
                                     textAlign: 'center'
                                 }}
                             >
                                 {noData ? (
-                                    <span className="text-gray-300">-</span>
+                                    <span style={{ color: '#E5E7EB' }}>-</span>
+                                ) : shouldHideThisRowForThisRole ? (
+                                    <div style={{ fontSize: '10px', color: '#CBD5E1', fontStyle: 'italic' }}>N/A for {isAmbassadorRole ? 'Ambassador' : 'Admin'}</div>
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                                        {/* Toggle Switch */}
                                         <div
                                             onClick={() => onTogglePermission(role, module.key)}
                                             style={{
@@ -443,7 +453,6 @@ function TableSection({
                                                 borderRadius: '20px',
                                                 position: 'relative',
                                                 cursor: 'pointer',
-                                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                                 boxShadow: accessValue ? '0 2px 4px rgba(16, 185, 129, 0.3)' : 'inset 0 1px 2px rgba(0,0,0,0.1)'
                                             }}
                                         >
@@ -454,14 +463,13 @@ function TableSection({
                                                 position: 'absolute',
                                                 left: accessValue ? '20px' : '2px',
                                                 top: '2px',
-                                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                transition: 'all 0.2s',
                                                 boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
                                             }}></div>
                                         </div>
 
-                                        {/* Scope Selector (Only for non-sub permissions and when access is true) */}
                                         {!isSubKey && (
-                                            <div style={{ opacity: accessValue ? 1 : 0.3, pointerEvents: accessValue ? 'auto' : 'none', transition: 'opacity 0.2s' }}>
+                                            <div style={{ opacity: accessValue ? 1 : 0.3, pointerEvents: accessValue ? 'auto' : 'none' }}>
                                                 <ScopePill
                                                     scope={scopeValue}
                                                     onClick={() => onCycleScope(role, module.key, scopeValue)}

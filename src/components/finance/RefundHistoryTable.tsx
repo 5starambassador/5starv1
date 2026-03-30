@@ -9,7 +9,7 @@ import { exportRefunds } from '@/app/export-actions'
 import { toast } from 'sonner'
 
 interface Registration {
-    id: number
+    userId: number
     fullName: string
     mobileNumber: string
     role: string
@@ -20,6 +20,7 @@ interface Registration {
     campus?: {
         campusName: string
     }
+    campusName?: string
     payments?: {
         paymentMethod: string | null
         transactionId: string | null
@@ -90,13 +91,31 @@ export function RefundHistoryTable({ data, totalResults = 0, currentPage = 1, on
             )
         },
         {
+            header: 'Role',
+            accessorKey: 'role',
+            cell: (row: Registration) => (
+                <span className="inline-flex px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 text-[10px] font-black uppercase tracking-wider border border-gray-200">
+                    {row.role}
+                </span>
+            )
+        },
+        {
+            header: 'Campus',
+            accessorKey: 'assignedCampus',
+            cell: (row: Registration) => (
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {row.campusName || row.assignedCampus || 'N/A'}
+                </div>
+            )
+        },
+        {
             header: 'Refund Amount',
             accessorKey: 'paymentAmount',
             cell: () => <span className="font-bold text-gray-900 dark:text-white">₹25</span>
         },
         {
-            header: 'Refund Status',
-            accessorKey: 'id',
+            header: 'Action',
+            accessorKey: 'userId',
             cell: (row: Registration) => {
                 const s = row.settlements?.[0]
                 return (
@@ -138,6 +157,7 @@ export function RefundHistoryTable({ data, totalResults = 0, currentPage = 1, on
                 </div>
                 <button
                     onClick={() => setShowExportModal(true)}
+                    suppressHydrationWarning
                     className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-all shadow-lg shadow-gray-200"
                 >
                     <FileDown size={14} />
@@ -157,7 +177,7 @@ export function RefundHistoryTable({ data, totalResults = 0, currentPage = 1, on
                     pageCount={Math.ceil((totalResults || 0) / 20)}
                     currentPage={currentPage}
                     onPageChange={onPageChange}
-                    uniqueKey="id"
+                    uniqueKey="userId"
                 />
             </div>
 

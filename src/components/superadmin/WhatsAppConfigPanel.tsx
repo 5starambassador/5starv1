@@ -1,24 +1,30 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, RefreshCcw, Check, X, AlertTriangle, ToggleLeft, ToggleRight, MessageSquare, Plus, Info, Trash2, Edit2, Loader2 as LoaderIcon } from 'lucide-react'
+import { Save, RefreshCcw, Check, X, AlertTriangle, ToggleLeft, ToggleRight, MessageSquare, Plus, Info, Trash2, Edit2, ShieldCheck, Loader2 as LoaderIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { getWhatsAppConfigs, updateWhatsAppConfig, createWhatsAppConfig, seedDefaultConfigs, deleteWhatsAppConfig, WhatsAppConfigData } from '@/app/whatsapp-config-actions'
 import { getWhatsAppAnalytics, WhatsAppAnalytics } from '@/app/automation-actions'
 import { generateWhatsAppLogReport } from '@/app/report-actions'
 import dynamic from 'next/dynamic'
 import { WhatsAppLogTable } from './WhatsAppLogTable'
-import RuleBuilderPanel from './RuleBuilderPanel' // <-- Added import
+import RuleBuilderPanel from './RuleBuilderPanel'
+import { RolePermissions } from '@/types'
 
 const AutomationInsights = dynamic(() => import('@/components/superadmin/AutomationInsights'), { 
     ssr: false, 
     loading: () => <div className="h-48 animate-pulse bg-white rounded-3xl mb-8" /> 
 })
 
+const PermissionsMatrix = dynamic(() => import('@/components/superadmin/PermissionsMatrix').then(m => m.PermissionsMatrix), { 
+    ssr: false, 
+    loading: () => <div className="h-96 w-full animate-pulse bg-gray-100 rounded-lg" /> 
+})
+
 export default function WhatsAppConfigPanel() {
     const [configs, setConfigs] = useState<WhatsAppConfigData[]>([])
     const [loading, setLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<'config' | 'logs' | 'rules'>('config') // <-- Added rules tab
+    const [activeTab, setActiveTab] = useState<'config' | 'logs' | 'rules'>('config')
     const [stats, setStats] = useState<WhatsAppAnalytics | null>(null)
     const [loadingStats, setLoadingStats] = useState(false)
     const [saving, setSaving] = useState<number | null>(null)

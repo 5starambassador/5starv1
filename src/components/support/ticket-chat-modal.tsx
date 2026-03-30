@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { X, Send, User, Shield, Loader2, Clock, AlertTriangle, CheckCircle2, MessageSquare } from 'lucide-react'
-import { addTicketMessage, getTicketMessages, escalateTicket } from '@/app/ticket-actions'
+import { addTicketMessage, getTicketMessages, escalateTicket, getSupportSnippets } from '@/app/ticket-actions'
 import { toast } from 'sonner'
 import { PromptDialog } from '../ui/PromptDialog'
+import { FileText, ChevronDown, Paperclip, ImageIcon, FileIcon, Trash2 } from 'lucide-react'
 
 interface Message {
     id: number
@@ -13,6 +14,7 @@ interface Message {
     message: string
     createdAt: Date | string
     isInternal?: boolean
+    attachmentUrl?: string | null
 }
 
 interface Ticket {
@@ -36,6 +38,19 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
     const [newMessage, setNewMessage] = useState('')
     const [isInternal, setIsInternal] = useState(false)
     const [showEscalatePrompt, setShowEscalatePrompt] = useState(false)
+    const [snippets, setSnippets] = useState<any[]>([])
+    const [showSnippets, setShowSnippets] = useState(false)
+    const [selectedFile, setSelectedFile] = useState<File | null>(null)
+    const [filePreview, setFilePreview] = useState<string | null>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+
+    useEffect(() => {
+        if (currentUserType === 'Admin') {
+            getSupportSnippets().then(res => {
+                if (res.success) setSnippets(res.snippets || [])
+            })
+        }
+    }, [currentUserType])
 
     useEffect(() => {
         setMounted(true)
@@ -49,6 +64,16 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
     }, [messages])
 
     useEffect(() => {
+        let pollingInterval = 10000 // Default 10s
+        let intervalId: NodeJS.Timeout
+
+        const updatePolling = () => {
+            clearInterval(intervalId)
+            // Active: 3s if window is focused, else 30s
+            const ms = document.hasFocus() ? 3000 : 30000
+            intervalId = setInterval(pollMessages, ms)
+        }
+
         const pollMessages = async () => {
             if (ticket.status === 'Resolved' || ticket.status === 'Closed') return
 
@@ -67,33 +92,67 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
             }
         }
 
-        const intervalId = setInterval(pollMessages, 10000) // Reduced from 4s to 10s
-        return () => clearInterval(intervalId)
+        // Listen for focus changes to adapt polling
+        window.addEventListener('focus', updatePolling)
+        window.addEventListener('blur', updatePolling)
+
+        // Initial start
+        updatePolling()
+
+        return () => {
+            clearInterval(intervalId)
+            window.removeEventListener('focus', updatePolling)
+            window.removeEventListener('blur', updatePolling)
+        }
     }, [ticket.id, ticket.status, onStatusChange])
 
     const handleSend = async () => {
         if (!newMessage.trim() || isSending) return
 
         setIsSending(true)
+        const attachmentUrl = selectedFile ? URL.createObjectURL(selectedFile) : null // This needs to be handled properly for actual upload
+        const attachmentUrlFinal = attachmentUrl || undefined
+
         const optimisticMsg: Message = {
             id: Date.now(),
             senderType: currentUserType,
             senderId: currentUserId,
             message: newMessage,
             isInternal,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            attachmentUrl: attachmentUrlFinal
         }
 
         setMessages(prev => [...prev, optimisticMsg])
         setNewMessage('')
+        setSelectedFile(null)
+        setFilePreview(null)
 
-        const result = await addTicketMessage(ticket.id, optimisticMsg.message, isInternal)
+        const result = await addTicketMessage(ticket.id, optimisticMsg.message, isInternal, attachmentUrlFinal)
 
         if (!result.success) {
             toast.error(result.error || 'Failed to send message')
             setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id))
         }
         setIsSending(false)
+    }
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error('File too large (Max 5MB)')
+                return
+            }
+            setSelectedFile(file)
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader()
+                reader.onloadend = () => setFilePreview(reader.result as string)
+                reader.readAsDataURL(file)
+            } else {
+                setFilePreview(null)
+            }
+        }
     }
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -206,6 +265,20 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
                                             ? 'bg-gray-900 text-white border-transparent rounded-tr-none'
                                             : 'bg-white text-gray-900 border-gray-100 rounded-tl-none shadow-blue-500/5'
                                         }`}>
+                                        {msg.attachmentUrl && (
+                                            <div className="mb-3 rounded-xl overflow-hidden border border-gray-100/20 max-w-sm">
+                                                {msg.attachmentUrl.startsWith('data:image/') || msg.attachmentUrl.startsWith('http') && msg.attachmentUrl.match(/\.(jpeg|jpg|gif|png)$/) ? (
+                                                    <img src={msg.attachmentUrl} alt="Attachment" className="w-full h-auto object-cover max-h-60" />
+                                                ) : (
+                                                    <div className="flex items-center gap-3 p-4 bg-gray-50/10">
+                                                        <FileIcon size={20} className={isMe ? 'text-gray-400' : 'text-blue-500'} />
+                                                        <span className="text-[10px] font-black uppercase tracking-tighter truncate">
+                                                            {msg.attachmentUrl.split('//').pop()}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                         {msg.message}
                                     </div>
                                 </div>
@@ -233,21 +306,99 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
                                     {isInternal ? 'Private Audit Note' : 'Public Reply'}
                                 </span>
                             </label>
+
+                            {snippets.length > 0 && (
+                                <div className="ml-auto relative">
+                                    <button
+                                        onClick={() => setShowSnippets(!showSnippets)}
+                                        className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-all"
+                                    >
+                                        <FileText size={12} className="text-gray-500" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-600">Snippets</span>
+                                        <ChevronDown size={12} className={`text-gray-400 transition-transform ${showSnippets ? 'rotate-180' : ''}`} />
+                                    </button>
+
+                                    {showSnippets && (
+                                        <div className="absolute bottom-full right-0 mb-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 z-[110] animate-in slide-in-from-bottom-2 duration-200">
+                                            <div className="max-h-48 overflow-y-auto space-y-1">
+                                                {snippets.map((s) => (
+                                                    <button
+                                                        key={s.id}
+                                                        onClick={() => {
+                                                            setNewMessage(s.content)
+                                                            setShowSnippets(false)
+                                                        }}
+                                                        className="w-full text-left px-4 py-2 hover:bg-gray-50 rounded-xl transition-colors group"
+                                                    >
+                                                        <p className="text-[10px] font-black uppercase text-gray-900 group-hover:text-blue-600 truncate">{s.title}</p>
+                                                        <p className="text-[9px] text-gray-400 truncate mt-0.5">{s.content}</p>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
+
+                    {/* Pending Attachment Preview */}
+                    {selectedFile && (
+                        <div className="mx-2 mb-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 animate-in slide-in-from-bottom-2 duration-300">
+                            <div className="flex items-center gap-4">
+                                {filePreview ? (
+                                    <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                                        <img src={filePreview} className="w-full h-full object-cover" alt="Preview" />
+                                    </div>
+                                ) : (
+                                    <div className="w-12 h-12 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                        <FileIcon size={20} className="text-gray-500" />
+                                    </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] font-black uppercase text-gray-900 truncate">{selectedFile.name}</p>
+                                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{(selectedFile.size / 1024).toFixed(0)} KB • Ready to send</p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setSelectedFile(null)
+                                        setFilePreview(null)
+                                    }}
+                                    className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="relative flex items-end gap-4">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            className="hidden"
+                            accept="image/*,application/pdf,.doc,.docx,.txt"
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isSending}
+                            className={`w-[70px] h-[70px] rounded-[2rem] flex items-center justify-center transition-all bg-gray-50 border border-gray-100 text-gray-400 hover:text-indigo-600 hover:border-indigo-100 hover:bg-white active:scale-95 ${isSending ? 'opacity-50 pointer-events-none' : ''}`}
+                        >
+                            <Paperclip size={24} />
+                        </button>
                         <textarea
                             value={newMessage}
                             onChange={(e) => setNewMessage(e.target.value)}
                             onKeyDown={handleKeyDown}
                             suppressHydrationWarning
-                            placeholder={ticket.status === 'Resolved' ? "Case is closed." : isInternal ? "Enter private internal note..." : "Protocol update..."}
-                            disabled={ticket.status === 'Resolved' || ticket.status === 'Closed' || isSending}
+                            placeholder={ticket.status === 'Resolved' && currentUserType === 'User' ? "Case is closed." : isInternal ? "Enter private internal note..." : "Protocol update..."}
+                            disabled={(ticket.status === 'Resolved' && currentUserType === 'User') || ticket.status === 'Closed' || isSending}
                             className={`flex-1 bg-gray-50 border-2 border-transparent focus:bg-white rounded-[2rem] px-8 py-5 text-sm font-bold outline-none transition-all resize-none shadow-inner min-h-[70px] max-h-[150px] ${isInternal ? 'focus:border-amber-500 text-amber-950' : 'focus:border-indigo-500 text-gray-900'}`}
                         />
                         <button
                             onClick={handleSend}
-                            disabled={!newMessage.trim() || isSending || ticket.status === 'Resolved'}
+                            disabled={!newMessage.trim() || isSending || (ticket.status === 'Resolved' && currentUserType === 'User')}
                             suppressHydrationWarning
                             className={`w-[70px] h-[70px] rounded-[2rem] flex items-center justify-center transition-all shadow-lg active:scale-90 ${!newMessage.trim() || isSending || ticket.status === 'Resolved'
                                 ? 'bg-gray-100 text-gray-300 pointer-events-none shadow-none'

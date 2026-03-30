@@ -105,7 +105,18 @@ export async function getMyEarningsStats(academicYear?: string): Promise<{
                 yearOfAttribution = matchedYear?.year || '2025-2026'
             }
 
-            return yearOfAttribution === yearFilter
+            s.attributedYear = yearOfAttribution
+            return yearFilter === 'All Time' || yearOfAttribution === yearFilter
+        })
+
+        // MAP: Ensure payoutDate is prioritized and available as a safe ISO string for the client
+        const mappedSettlements = settlements.map((s: any) => {
+            const pDate = s.payoutDate || s.createdAt
+            return {
+                ...s,
+                // Ensure payoutDate is never null in the returned object to avoid fallback issues on client
+                payoutDate: pDate ? new Date(pDate).toISOString() : null
+            }
         })
 
         // Calculate Benefits using the official calculator
@@ -224,7 +235,7 @@ export async function getMyEarningsStats(academicYear?: string): Promise<{
                 totalSettled: earningsSettled, // Now only shows earnings payouts
                 pendingSettlement,
                 remainingBalance: Math.max(0, totalEarned - earningsSettled),
-                settlements: JSON.parse(JSON.stringify(settlements)),
+                settlements: JSON.parse(JSON.stringify(mappedSettlements)),
                 breakdown: finalBreakdown,
                 referralCount: currentFormatted.length
             }
