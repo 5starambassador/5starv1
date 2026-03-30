@@ -53,6 +53,9 @@ export function WhatsAppLogTable({ defaultType = 'All', refId }: { defaultType?:
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'SENT': return <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            case 'DELIVERED': return <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            case 'READ': return <CheckCircle2 className="h-4 w-4 text-blue-500" />
+            case 'RECEIVED': return <CheckCircle2 className="h-4 w-4 text-indigo-500" />
             case 'FAILED': return <XCircle className="h-4 w-4 text-rose-500" />
             default: return <Clock className="h-4 w-4 text-amber-500" />
         }
@@ -92,7 +95,7 @@ export function WhatsAppLogTable({ defaultType = 'All', refId }: { defaultType?:
                             <option value="ALERT">Alert</option>
                             <option value="DRIP">Drip</option>
                             <option value="NUDGE">Nudge</option>
-                            <option value="CHATBOT">Chatbot</option>
+                            <option value="CHATBOT">AI Conversations</option>
                             <option value="DPR">DPR</option>
                         </select>
                     </div>
@@ -176,8 +179,12 @@ export function WhatsAppLogTable({ defaultType = 'All', refId }: { defaultType?:
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-black uppercase tracking-widest">
-                                                {log.type}
+                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
+                                                log.type === 'INBOUND' ? 'bg-indigo-50 text-indigo-500 border border-indigo-100' : 
+                                                log.type === 'CHATBOT' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 
+                                                'bg-slate-100 text-slate-500'
+                                            }`}>
+                                                {log.type === 'CHATBOT' ? 'AI REPLY' : log.type}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[10px] text-slate-400 font-mono">

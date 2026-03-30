@@ -7,7 +7,15 @@ import { useState, useEffect, useTransition } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { MessageSquare, Calculator, X, School, ArrowRight, Phone, IndianRupee, Users, Plus, Edit, Target, Save, Loader2, TrendingUp, TrendingDown, RefreshCw, CheckCircle } from 'lucide-react'
+import { 
+    LayoutDashboard, Users, UserCheck, GraduationCap, Building2, 
+    Shield, Settings, GitFork, Megaphone, IndianRupee, Zap, 
+    BarChart3, LifeBuoy, FileSearch, HelpCircle, GraduationCap as GraduationIcon,
+    Plus, Calculator, ExternalLink, MousePointerClick, Table as TableIcon,
+    AlertCircle, Search, Filter, Download, MessageSquare, Briefcase,
+    Calendar, CheckCircle, ChevronRight, MoreVertical, Trash2, Edit2 as Edit, 
+    ShieldAlert, Target, TrendingUp, TrendingDown, RefreshCw, Loader2, Save
+} from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 // Import only what's needed for client-managed state
@@ -96,16 +104,17 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     }
 
     // Core State
-    const [loading, setLoading] = useState(false)
+    const [loading, setLoading] = useState(true)
     const [showBulkUpload, setShowBulkUpload] = useState(false)
     const [uploadType, setUploadType] = useState<'students' | 'users' | 'fees' | 'campuses' | 'referrals' | 'crm-leads'>('referrals')
 
     // View State
-    const mapViewParam = (view: string): ViewType => {
+    const mapViewParam = (view: string | null): ViewType => {
         const validViews = ['home', 'analytics', 'admins', 'settings', 'reports', 'settlements', 'marketing', 'audit', 'support', 'permissions', 'staff-dash', 'parent-dash', 'fees', 'engagement', 'programs', 'program-leads', 'automation']
-        return validViews.includes(view) ? (view as ViewType) : 'home'
+        return validViews.includes(view || '') ? (view as ViewType) : 'home'
     }
     const [selectedView, setSelectedView] = useState<ViewType>(mapViewParam(initialView))
+    const [activePermissionTab, setActivePermissionTab] = useState<'matrix' | 'automation'>('matrix')
 
     useEffect(() => {
         const viewParam = searchParams.get('view') || 'home'
@@ -253,7 +262,7 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
     // Role Permissions State
     const [rolePermissionsMatrix, setRolePermissionsMatrix] = useState<Record<string, RolePermissions>>({})
     useEffect(() => {
-        if (selectedView === 'permissions') {
+        if (selectedView === 'permissions' || selectedView === 'automation') {
             const loadPermissions = async () => {
                 setLoading(true)
                 try {
@@ -271,6 +280,27 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
             loadPermissions()
         }
     }, [selectedView])
+
+    const handleSavePermissions = async (matrix?: Record<string, RolePermissions>) => {
+        const matrixToSave = matrix || rolePermissionsMatrix
+        setLoading(true)
+        try {
+            const roles = Object.keys(matrixToSave)
+            const results = await Promise.all(roles.map(role =>
+                updateRolePermissions(role, matrixToSave[role])
+            ))
+            const failures = results.filter(r => !r.success)
+            if (failures.length > 0) {
+                toast.error(`Failed to save some permissions: ${failures.map(f => f.error).join(', ')}`)
+            } else {
+                toast.success('Permissions saved successfully!')
+            }
+        } catch (err) {
+            toast.error('Failed to save permissions')
+        } finally {
+            setLoading(false)
+        }
+    }
 
 
     // Benefit Slab Modal State
@@ -371,19 +401,15 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
 
                 {selectedView === 'fees' && <FeeManagementTable />}
 
-                {selectedView === 'engagement' && <EngagementPanel />}
+                {selectedView === 'engagement' && <EngagementPanel permissions={permissions} />}
 
                 {selectedView === 'marketing' && <MarketingManager assets={marketingAssets || []} />}
 
                 {/* Audit Trail View */}
                 {selectedView === 'audit' && <AuditLogPanel />}
 
-
                 {/* Settings View */}
                 {selectedView === 'settings' && <SettingsPanel permissions={permissions} />}
-
-                {/* Automation View */}
-                {selectedView === 'automation' && <WhatsAppConfigPanel />}
 
                 {/* External Programs View */}
                 {selectedView === 'programs' && <ProgramManager />}
@@ -395,32 +421,27 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                     </div>
                 )}
 
-                {/* Permissions Matrix View - Use full available width */}
+                {/* Access Control View (Permissions & Automation) */}
                 {selectedView === 'permissions' && (
                     <div className="space-y-6 animate-fade-in w-full">
+                        {/* Tab Header */}
+                        <div className="flex p-1 bg-slate-50 rounded-2xl border border-slate-100 w-fit mb-8">
+                            <button
+                                onClick={() => setActivePermissionTab('matrix')}
+                                className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activePermissionTab === 'matrix' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Shield className="h-4 w-4" />
+                                    Permissions Matrix
+                                </div>
+                            </button>
+                        </div>
+
                         <PermissionsMatrix
                             rolePermissionsMatrix={rolePermissionsMatrix}
                             isLoading={loading}
                             onChange={setRolePermissionsMatrix}
-                            onSave={async () => {
-                                setLoading(true)
-                                try {
-                                    const roles = Object.keys(rolePermissionsMatrix)
-                                    const results = await Promise.all(roles.map(role =>
-                                        updateRolePermissions(role, rolePermissionsMatrix[role])
-                                    ))
-                                    const failures = results.filter(r => !r.success)
-                                    if (failures.length > 0) {
-                                        toast.error(`Failed to save some permissions: ${failures.map(f => f.error).join(', ')}`)
-                                    } else {
-                                        toast.success('Permissions saved successfully! Changes will reflect on refresh.')
-                                    }
-                                } catch (err) {
-                                    toast.error('Failed to save permissions')
-                                } finally {
-                                    setLoading(false)
-                                }
-                            }}
+                            onSave={() => handleSavePermissions()}
                             onReset={async (role: string) => {
                                 setResetConfirm({ isOpen: true, role })
                             }}
