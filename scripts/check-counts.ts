@@ -3,15 +3,18 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-    const logs = await prisma.campaignLog.findMany({
-        take: 5,
-        orderBy: { runAt: 'desc' }
-    });
-
-    console.log('--- RECENT CAMPAIGN LOGS ---');
-    logs.forEach(l => {
-        console.log(`ID: ${l.id} | Campaign: ${l.campaignId} | Sent: ${l.sentCount} | Delivered: ${l.whatsappDelivered} | Read: ${l.whatsappRead} | Status: ${l.status}`);
-    });
+    const leadCount = await prisma.referralLead.count()
+    const userCount = await prisma.user.count()
+    const ticketCount = await prisma.supportTicket.count()
+    const studentCount = await prisma.student.count()
+    
+    console.log(`Current Database Counts:`)
+    console.log(`Leads: ${leadCount}`)
+    console.log(`Users: ${userCount}`)
+    console.log(`Tickets: ${ticketCount}`)
+    console.log(`Students: ${studentCount}`)
 }
 
-main().finally(() => prisma.$disconnect());
+main()
+    .catch(console.error)
+    .finally(() => prisma.$disconnect())
