@@ -5,12 +5,13 @@ import { revalidatePath } from 'next/cache'
 import { logAction } from '@/lib/audit-logger'
 import { getCurrentUser } from '@/lib/auth-service'
 import { hasPermission } from '@/lib/permission-service'
-import { getAmbassadorQuery, getStudentQuery } from '@/lib/campaign-utils'
+import { getAmbassadorQuery, getStudentQuery, getReferralQuery, getProgramLeadQuery } from '@/lib/campaign-utils'
 import { EmailService } from '@/lib/email-service'
 import { whatsappService } from '@/lib/whatsapp-service'
 import { UserRole } from '@prisma/client'
 import fs from 'fs'
 import path from 'path'
+import { aliasTokens } from './campaign-dispatcher'
 
 // Helper to check campaign access via the permission matrix
 async function checkCampaignAccess() {
@@ -150,15 +151,13 @@ export async function getAudienceCount(audience: { type?: string, role: string, 
 
         // Use efficient count queries instead of fetching all rows
         if (audience.type === 'PROGRAM_LEADS') {
-            const where: any = {}
-            if (audience.campus && audience.campus !== 'All') where.assignedCampus = audience.campus
+            const where = getProgramLeadQuery(audience as any)
             const count = await prisma.programLead.count({ where })
             return { success: true, count }
         }
 
         if (audience.type === 'REFERRALS') {
-            const where: any = {}
-            if (audience.campus && audience.campus !== 'All') where.campus = audience.campus
+            const where = getReferralQuery(audience as any)
             const count = await prisma.referralLead.count({ where })
             return { success: true, count }
         }
@@ -196,7 +195,9 @@ async function getFilteredUsers(audience: { type?: string, role: string, campus:
 
     // 1. PROGRAM LEADS — no campus filter in schema, fetch all
     if (audience.type === 'PROGRAM_LEADS') {
+        const where = getProgramLeadQuery(audience as any)
         const leads = await prisma.programLead.findMany({
+            where,
             select: { visitorMobile: true, visitorName: true }
         })
         return leads.map(l => ({
@@ -207,20 +208,20 @@ async function getFilteredUsers(audience: { type?: string, role: string, campus:
         }))
     }
 
-    // 2. REFERRALS — respects campus filter
+    // 2. REFERRALS — respects campus and status filters
     if (audience.type === 'REFERRALS') {
-        const where: any = {}
-        if (audience.campus && audience.campus !== 'All') where.campus = audience.campus
+        const where = getReferralQuery(audience as any)
         const referrals = await prisma.referralLead.findMany({
             where,
-            select: { parentMobile: true, parentName: true, campus: true }
+            select: { parentMobile: true, parentName: true, campus: true, leadStatus: true }
         })
         return referrals.map(r => ({
             mobileNumber: r.parentMobile,
             fullName: r.parentName || 'Parent',
             assignedCampus: r.campus || undefined,
             role: 'Referral',
-            confirmedReferralCount: 0
+            confirmedReferralCount: 0,
+            leadStatus: r.leadStatus
         }))
     }
 
@@ -674,3 +675,271 @@ export async function getWhatsAppTemplates() {
         return { success: false, error: error.message || 'Failed to fetch templates' }
     }
 }
+
+/**
+ * Sends a single test WhatsApp message for a campaign to a specific mobile number.
+ * Uses real variable mapping logic with a sample recipient from the audien/**
+ * Sends a real-time WhatsApp test message for a campaign.
+ * Uses current UI mapping if provided, otherwise falls back to saved campaign settings.
+ */
+export async function sendTestCampaignMessage(
+    campaignId: number, 
+    testMobile: string, 
+    overrideMapping?: any, 
+    overrideTemplateName?: string
+) {
+    try {
+        await checkCampaignAccess()
+        const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } })
+        if (!campaign) throw new Error('Campaign not found')
+
+        const audience = (campaign.targetAudience as any) || { type: 'AMBASSADORS' }
+        const type = audience.type || 'AMBASSADORS'
+        
+        // 🔥 TARGETED CAMPUS: If the campaign has a campus filter, prioritize it
+        const targetCampus = (audience as any).campus !== 'All' ? (audience as any).campus : 'Global Campus'
+        
+        // 🧪 Sample Construction: Prefer real data records with a campus name
+        let sampleUser: any = null
+
+        if (type === 'AMBASSADORS') {
+            const where = getAmbassadorQuery(audience)
+            sampleUser = await prisma.user.findFirst({ 
+                where: { 
+                    AND: [
+                        where,
+                        { assignedCampus: { not: null } },
+                        { assignedCampus: { not: '' } }
+                    ]
+                }, 
+                orderBy: { userId: 'desc' },
+                select: { 
+                    userId: true, fullName: true, email: true, mobileNumber: true, 
+                    referralCode: true, assignedCampus: true, role: true, 
+                    confirmedReferralCount: true 
+                } 
+            }) || await prisma.user.findFirst({ 
+                where, 
+                orderBy: { userId: 'desc' },
+                select: { 
+                    userId: true, fullName: true, email: true, mobileNumber: true, 
+                    referralCode: true, assignedCampus: true, role: true, 
+                    confirmedReferralCount: true 
+                } 
+            })
+            if (sampleUser) {
+                sampleUser.pendingReferralCount = 0 
+            }
+        } else if (type === 'PROGRAM_LEADS') {
+            const where = getProgramLeadQuery(audience)
+            const lead = await prisma.programLead.findFirst({ 
+                where: {
+                    AND: [
+                        where,
+                        { referrer: { assignedCampus: { not: null } } },
+                        { referrer: { assignedCampus: { not: '' } } }
+                    ]
+                },
+                orderBy: { clickedAt: 'desc' },
+                select: {
+                    visitorName: true, visitorMobile: true, clickedAt: true,
+                    studentName: true, status: true,
+                    program: { select: { title: true, slug: true } },
+                    referrer: { select: { assignedCampus: true, fullName: true, referralCode: true } }
+                } 
+            }) || await prisma.programLead.findFirst({ 
+                where,
+                orderBy: { clickedAt: 'desc' },
+                select: {
+                    visitorName: true, visitorMobile: true, clickedAt: true,
+                    studentName: true, status: true,
+                    program: { select: { title: true, slug: true } },
+                    referrer: { select: { assignedCampus: true, fullName: true, referralCode: true } }
+                } 
+            })
+            if (lead) {
+                sampleUser = {
+                    userId: 0,
+                    fullName: lead.visitorName || 'Friend',
+                    studentName: lead.studentName || '',
+                    programName: lead.program?.title || '',
+                    programSlug: lead.program?.slug || '',
+                    leadStatus: lead.status || '',
+                    email: '',
+                    mobileNumber: lead.visitorMobile,
+                    assignedCampus: lead.referrer?.assignedCampus || targetCampus,
+                    source: lead.referrer?.fullName || 'Program',
+                    referrerCode: lead.referrer?.referralCode || '',
+                    referralCode: null,
+                    enquiryDate: lead.clickedAt ? new Date(lead.clickedAt).toLocaleDateString('en-IN') : '',
+                    role: 'Lead', confirmedReferralCount: 0, DeviceToken: []
+                }
+            }
+        } else if (type === 'REFERRALS') {
+            const where = getReferralQuery(audience)
+            const r = await prisma.referralLead.findFirst({ 
+                where: {
+                    AND: [
+                        where,
+                        { campus: { not: null } },
+                        { campus: { not: '' } }
+                    ]
+                },
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    parentName: true, parentMobile: true, campus: true,
+                    gradeInterested: true, leadStatus: true,
+                    studentName: true, academicYear: true,
+                    user: { select: { fullName: true, referralCode: true } }
+                }
+            }) || await prisma.referralLead.findFirst({ 
+                where,
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    parentName: true, parentMobile: true, campus: true,
+                    gradeInterested: true, leadStatus: true,
+                    studentName: true, academicYear: true,
+                    user: { select: { fullName: true, referralCode: true } }
+                }
+            })
+        // 🔥 TARGETED CAMPUS: If the campaign has a campus filter, prioritize it
+        const targetCampus = (audience as any).campus !== 'All' ? (audience as any).campus : 'Global Campus'
+
+        if (r) {
+            sampleUser = {
+                userId: 0,
+                fullName: r.parentName || 'Parent',
+                studentName: r.studentName || '',
+                email: '',
+                mobileNumber: r.parentMobile,
+                assignedCampus: r.campus || targetCampus,
+                grade: r.gradeInterested || '',
+                leadStatus: r.leadStatus || '',
+                ambassadorName: r.user?.fullName || '',
+                academicYear: r.academicYear || '',
+                referrerCode: r.user?.referralCode || '',
+                referralCode: null,
+                role: 'Referral', confirmedReferralCount: 0, DeviceToken: []
+            }
+        }
+    } else if (type === 'STUDENTS') {
+        const where = getStudentQuery(audience)
+        const s = await prisma.student.findFirst({ 
+            where,
+            orderBy: { studentId: 'desc' },
+            include: { campus: true, parent: true }
+        })
+        if (s) {
+            sampleUser = {
+                userId: 0,
+                fullName: s.parent?.fullName || 'Parent',
+                email: s.parent?.email,
+                mobileNumber: s.parent?.mobileNumber,
+                assignedCampus: s.campus?.campusName || targetCampus,
+                grade: s.grade || '',
+                referralCode: s.parent?.referralCode || '',
+                admissionDate: s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-IN') : '',
+                role: 'Parent', confirmedReferralCount: 0, DeviceToken: []
+            }
+        }
+    }
+
+    if (!sampleUser) {
+        // Fallback to dummy data
+        sampleUser = {
+            fullName: 'Test Recipient',
+            referralCode: 'TEST123',
+            assignedCampus: targetCampus,
+            role: 'Ambassador',
+            mobileNumber: testMobile,
+            confirmedReferralCount: 5,
+            pendingReferralCount: 2
+        }
+    }
+
+        // WhatsApp Logic (Main priority) - Use override if provided
+        const isWhatsapp = (campaign as any).channels?.includes('WHATSAPP')
+        if (isWhatsapp) {
+            const mapping = overrideMapping || (campaign as any).waVariableMapping || {}
+            const templateName = overrideTemplateName || (campaign as any).waTemplateName || 'welcome_message'
+            
+            const waVars: string[] = []
+            // Robust key detection: find anything that looks like a number (1, "1", "var_1")
+            const mappingKeys = Object.keys(mapping).filter(k => !isNaN(Number(k.replace(/\D/g, ''))))
+            const varCount = mappingKeys.length > 0 ? Math.max(...mappingKeys.map(k => Number(k.replace(/\D/g, '')))) : 0
+
+            if (mappingKeys.length > 0) {
+                for (let i = 1; i <= varCount; i++) {
+                    const key = i.toString()
+                    const altKey = `var_${i}`
+                    const mappedValue = mapping[key] || mapping[altKey]
+                    
+                    if (mappedValue === 'STATIC') {
+                        const val = (mapping[`static_${key}`] || mapping[`static_${altKey}`] || '').toString().replace(/[\r\n]+/g, ' ').trim()
+                        waVars.push(val)
+                    } else if (mappedValue) {
+                        const resolved = (await aliasTokens(mappedValue, sampleUser, type)).toString().replace(/[\r\n]+/g, ' ').trim()
+                        // Hard Fallback for Campus - never send it empty if we have it in the target
+                        if (mappedValue.toLowerCase().includes('campus') && !resolved) {
+                            waVars.push(targetCampus || 'Global Campus')
+                        } else {
+                            waVars.push(resolved || '')
+                        }
+                    } else {
+                        waVars.push('')
+                    }
+                }
+            } else {
+                // 100% SAFETY FALLBACK — Aligned with common templates
+                // Slot 1: Name
+                // Slot 2: Campus (CRITICAL FIX: Moved from slot 3 to slot 2)
+                // Slot 3: Grade/Source
+                // Slot 4: Role/Status
+                console.log(`[VAR_DEBUG] Using Safety Fallback for ${type}. No mapping detected.`)
+                waVars.push((sampleUser.fullName || 'User').toString().trim())
+                waVars.push((sampleUser.assignedCampus || targetCampus || 'Global Campus').toString().trim())
+                waVars.push((sampleUser.grade || sampleUser.source || '').toString().trim())
+                waVars.push((sampleUser.role || '').toString().trim())
+                waVars.push((sampleUser.referralCode || '').toString().trim())
+            }
+
+            const cleanMobile = testMobile.replace(/\D/g, '')
+            const requestId = `test_${campaignId}_${Date.now()}`
+
+            // 🔥 Audit Log: Create a database log entry for test sends so user can see it in dashboard
+            await prisma.whatsAppLog.create({
+                data: {
+                    mobile: cleanMobile,
+                    template: templateName,
+                    type: 'CAMPAIGN_TEST',
+                    status: 'SENT',
+                    content: `Test Variable List: ${waVars.join(' | ')}`,
+                    refId: requestId,
+                    errorMessage: `For Audience: ${type}`,
+                    createdAt: new Date()
+                }
+            })
+
+            const res = await whatsappService.sendBulkTemplateMessage(
+                [{ mobile: cleanMobile, variables: waVars }],
+                templateName,
+                'CAMPAIGN_TEST',
+                requestId
+            )
+
+            if (res.success) {
+                await logAction('Test Campaign Dispatch', 'Marketing', `Sent test WhatsApp for campaign #${campaignId} (${campaign.name}) to ${testMobile}`, undefined)
+                return { success: true }
+            } else {
+                throw new Error('WhatsApp API failed to send test message')
+            }
+        }
+
+        return { success: false, error: 'Only WhatsApp test is supported in this mode' }
+
+    } catch (error: any) {
+        console.error('sendTestCampaignMessage error:', error)
+        return { success: false, error: error.message || 'Failed to send test message' }
+    }
+}
+

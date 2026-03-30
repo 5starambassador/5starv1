@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma'
 import { getFirebaseAdmin } from '@/lib/firebase-admin'
 import { EmailService } from '@/lib/email-service'
 import { logAction } from '@/lib/audit-logger'
-import { getAmbassadorQuery, getStudentQuery } from '@/lib/campaign-utils'
+import { getAmbassadorQuery, getStudentQuery, getReferralQuery, getProgramLeadQuery } from '@/lib/campaign-utils'
 import { encryptReferralCode } from '@/lib/crypto'
 
 /**
@@ -14,6 +14,76 @@ import { encryptReferralCode } from '@/lib/crypto'
  * - In-App: Bulk create in DB
  * - WhatsApp: Sent via WhatsAppService
  */
+/**
+ * Helper to Alias Tokens — audience-aware variable replacement
+ * Exported for use in test dispatches and previews.
+ */
+export const aliasTokens = async (text: string, user: any, audienceType: string = 'AMBASSADORS') => {
+    if (!text) return ''
+    const type = audienceType || 'AMBASSADORS'
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://5starambassador.com'
+
+    const referralCode = user.referralCode || user.referrerCode || ''
+    const referralLink = referralCode ? `${baseUrl}/r/${encryptReferralCode(referralCode)}` : ''
+    const referrerLink = user.referrerCode ? `${baseUrl}/r/${encryptReferralCode(user.referrerCode)}` : ''
+
+    // 🔥 GLOBAL PRIORITY mapping — these apply to ALL audience types
+    let resolvedText = text
+        .replace(/{userName}|{Ambassador}|{parentName}|{Name}|{leadName}|{studentName}/gi, user.fullName || user.studentName || 'Recipient')
+        .replace(/{campus}|{Campus}|{CAMPUS}/gi, user.assignedCampus || 'Global Campus')
+        .replace(/{mobile}|{Mobile}/gi, user.mobileNumber || '')
+        .replace(/{referralCode}|{code}|{ReferralCode}/gi, user.referralCode || '')
+        .replace(/{referralLink}|{ReferralLink}/gi, referralLink)
+        .replace(/{referrerLink}|{ReferrerLink}/gi, referrerLink)
+
+    if (type === 'STUDENTS') {
+        return resolvedText
+            .replace(/{grade}|{Grade}/gi, user.grade || '')
+            .replace(/{admissionDate}/gi, user.admissionDate || '')
+    }
+
+    if (type === 'REFERRALS') {
+        const programLink = user.referrerCode ? `${baseUrl}/p/admission?r=${encryptReferralCode(user.referrerCode)}` : ''
+        return resolvedText
+            .replace(/{studentName}/gi, user.studentName || 'Student')
+            .replace(/{grade}|{Grade}/gi, user.grade || '')
+            .replace(/{leadStatus}|{status}/gi, user.leadStatus || '')
+            .replace(/{ambassadorName}|{referrerName}/gi, user.ambassadorName || '')
+            .replace(/{academicYear}/gi, user.academicYear || '2025-2026')
+            .replace(/{ProgramLink}/gi, programLink)
+    }
+
+    if (type === 'PROGRAM_LEADS') {
+        const programLink = user.programSlug ? `${baseUrl}/p/${user.programSlug}?r=${encryptReferralCode(user.referrerCode || '')}` : ''
+        return resolvedText
+            .replace(/{studentName}/gi, user.studentName || 'Student')
+            .replace(/{source}|{referrerName}/gi, user.source || '')
+            .replace(/{programName}/gi, user.programName || '')
+            .replace(/{programLink}/gi, programLink)
+            .replace(/{status}|{leadStatus}/gi, user.leadStatus || '')
+            .replace(/{enquiryDate}/gi, user.enquiryDate || '')
+    }
+
+    // Default: AMBASSADORS
+    resolvedText = resolvedText
+        .replace(/{role}|{Role}/gi, user.role || 'Ambassador')
+        .replace(/{referralCount}/gi, (user.confirmedReferralCount || 0).toString())
+        .replace(/{pendingReferrals}/gi, (user.pendingReferralCount || 0).toString())
+
+    // Handle Dynamic Program Links (e.g. {ProgramLink:slug})
+    if (resolvedText.includes('{ProgramLink:')) {
+        const programRegex = /{ProgramLink:([^}]+)}/gi
+        resolvedText = resolvedText.replace(programRegex, (match, slug) => {
+            if (user.referralCode) {
+                return `${baseUrl}/offer/${slug}?ref=${user.referralCode}`
+            }
+            return `${baseUrl}/offer/${slug}`
+        })
+    }
+
+    return resolvedText
+}
+
 export async function dispatchCampaignBatch(campaignId: number) {
     const BATCH_SIZE = 500 // Increased for larger audiences to reduce batch overhead
     const adminFn = await getFirebaseAdmin()
@@ -80,7 +150,8 @@ export async function dispatchCampaignBatch(campaignId: number) {
             }
             totalToProcess = await prisma.programLead.count({ where: leadWhere });
         } else if (type === 'REFERRALS') {
-            totalToProcess = await prisma.referralLead.count();
+            const where = getReferralQuery(audience as any);
+            totalToProcess = await prisma.referralLead.count({ where });
         } else if (type === 'STUDENTS') {
             const whereStudent = getStudentQuery(audience as any);
             totalToProcess = await prisma.student.count({ where: whereStudent });
@@ -96,75 +167,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
         console.error('Failed to create initial log', e)
     }
 
-    // Helper to Alias Tokens — audience-aware variable replacement
-    const aliasTokens = (text: string, user: any, audienceType?: string) => {
-        if (!text) return ''
-        const type = audienceType || audience.type || 'AMBASSADORS'
 
-        if (type === 'STUDENTS') {
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://5starambassador.com'
-            const referralLink = user.referralCode ? `${baseUrl}/r/${encryptReferralCode(user.referralCode)}` : ''
-
-            return text
-                .replace(/{studentName}|{Name}/gi, user.fullName || 'Student')
-                .replace(/{campus}|{Campus}/gi, user.assignedCampus || 'Global')
-                .replace(/{grade}|{Grade}/gi, user.grade || '')
-                .replace(/{mobile}|{Mobile}/gi, user.mobileNumber || '')
-                .replace(/{admissionDate}/gi, user.admissionDate || '')
-                .replace(/{referralLink}|{ReferralLink}/gi, referralLink)
-        }
-        if (type === 'REFERRALS') {
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://5starambassador.com'
-            const referralLink = user.referralCode ? `${baseUrl}/r/${encryptReferralCode(user.referralCode)}` : ''
-
-            return text
-                .replace(/{parentName}|{Name}/gi, user.fullName || 'Parent')
-                .replace(/{parentMobile}|{mobile}|{Mobile}/gi, user.mobileNumber || '')
-                .replace(/{campus}|{Campus}/gi, user.assignedCampus || 'Global')
-                .replace(/{grade}|{Grade}/gi, user.grade || '')
-                .replace(/{leadStatus}/gi, user.leadStatus || '')
-                .replace(/{ambassadorName}/gi, user.ambassadorName || '')
-                .replace(/{referralLink}|{ReferralLink}/gi, referralLink)
-        }
-        if (type === 'PROGRAM_LEADS') {
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://5starambassador.com'
-            const referralLink = user.referralCode ? `${baseUrl}/r/${encryptReferralCode(user.referralCode)}` : ''
-
-            return text
-                .replace(/{leadName}|{Name}/gi, user.fullName || 'Friend')
-                .replace(/{mobile}|{Mobile}/gi, user.mobileNumber || '')
-                .replace(/{campus}|{Campus}/gi, user.assignedCampus || '')
-                .replace(/{source}/gi, user.source || '')
-                .replace(/{enquiryDate}/gi, user.enquiryDate || '')
-                .replace(/{referralLink}|{ReferralLink}/gi, referralLink)
-        }
-        // Default: AMBASSADORS
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://5starambassador.com'
-        const referralLink = user.referralCode ? `${baseUrl}/r/${encryptReferralCode(user.referralCode)}` : ''
-
-        let resolvedText = text
-            .replace(/{userName}|{Ambassador}|{Name}/gi, user.fullName || 'User')
-            .replace(/{referralCode}|{code}|{ReferralCode}/gi, user.referralCode || '')
-            .replace(/{referralLink}|{ReferralLink}/gi, referralLink)
-            .replace(/{campus}|{Campus}/gi, user.assignedCampus || 'Global')
-            .replace(/{role}|{Role}/gi, user.role)
-            .replace(/{referralCount}/gi, (user.confirmedReferralCount || 0).toString())
-            .replace(/{pendingReferrals}/gi, (user.pendingReferralCount || 0).toString())
-            .replace(/{mobile}|{Mobile}/gi, user.mobileNumber || '')
-
-        // Handle Dynamic Program Links (e.g. {ProgramLink:slug})
-        if (resolvedText.includes('{ProgramLink:')) {
-            const programRegex = /{ProgramLink:([^}]+)}/gi
-            resolvedText = resolvedText.replace(programRegex, (match, slug) => {
-                if (user.referralCode) {
-                    return `${baseUrl}/offer/${slug}?ref=${user.referralCode}`
-                }
-                return `${baseUrl}/offer/${slug}`
-            })
-        }
-
-        return resolvedText
-    }
 
     try {
         let skip = 0
@@ -197,10 +200,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 }))
             }
             else if (audience.type === 'PROGRAM_LEADS') {
-                const leadWhere: any = {}
-                if (audience.campus && audience.campus !== 'All') {
-                    leadWhere.referrer = { assignedCampus: audience.campus }
-                }
+                const leadWhere = getProgramLeadQuery(audience as any)
 
                 const leads = await prisma.programLead.findMany({
                     where: leadWhere,
@@ -209,6 +209,9 @@ export async function dispatchCampaignBatch(campaignId: number) {
                         visitorName: true,
                         visitorMobile: true,
                         clickedAt: true,
+                        studentName: true,
+                        status: true,
+                        program: { select: { title: true, slug: true } },
                         referrer: { select: { assignedCampus: true, fullName: true, referralCode: true } }
                     },
                     skip: skip,
@@ -217,21 +220,30 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 users = leads.map(l => ({
                     userId: 0,
                     fullName: l.visitorName || 'Friend',
+                    studentName: l.studentName || '',
+                    programName: l.program?.title || '',
+                    programSlug: l.program?.slug || '',
+                    leadStatus: l.status || '',
                     email: '',
                     mobileNumber: l.visitorMobile,
                     assignedCampus: l.referrer?.assignedCampus || '',
                     source: l.referrer?.fullName || 'Program',
-                    referralCode: l.referrer?.referralCode || '',
+                    referrerCode: l.referrer?.referralCode || '',
+                    referralCode: null,
                     enquiryDate: l.clickedAt ? new Date(l.clickedAt).toLocaleDateString('en-IN') : '',
                     role: 'Lead', confirmedReferralCount: 0, DeviceToken: []
                 }))
             }
             else if (audience.type === 'REFERRALS') {
+                const where = getReferralQuery(audience as any)
+
                 const referrals = await prisma.referralLead.findMany({
+                    where,
                     orderBy: { leadId: 'asc' },
                     select: {
                         parentName: true, parentMobile: true, campus: true,
                         gradeInterested: true, leadStatus: true,
+                        studentName: true, academicYear: true,
                         user: { select: { fullName: true, referralCode: true } }
                     },
                     skip: skip,
@@ -240,13 +252,16 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 users = referrals.map(r => ({
                     userId: 0,
                     fullName: r.parentName || 'Parent',
+                    studentName: r.studentName || '',
                     email: '',
                     mobileNumber: r.parentMobile,
                     assignedCampus: r.campus || '',
                     grade: r.gradeInterested || '',
                     leadStatus: r.leadStatus || '',
                     ambassadorName: r.user?.fullName || '',
-                    referralCode: r.user?.referralCode || '',
+                    academicYear: r.academicYear || '',
+                    referrerCode: r.user?.referralCode || '',
+                    referralCode: null, // Referrals don't have code themselves
                     role: 'Referral', confirmedReferralCount: 0, DeviceToken: []
                 }))
             }
@@ -297,8 +312,8 @@ export async function dispatchCampaignBatch(campaignId: number) {
             for (const user of users) {
                 // Email
                 if (isEmail && user.email) {
-                    const subject = aliasTokens(campaign.subject, user)
-                    const body = aliasTokens(campaign.templateBody, user)
+                    const subject = await aliasTokens(campaign.subject, user, audience.type)
+                    const body = await aliasTokens(campaign.templateBody, user, audience.type)
                     promises.push(EmailService.sendCampaignEmail(user.email, subject, body)
                         .then(() => { stats.emailSent++ }).catch(() => { stats.emailFailed++ }))
                 }
@@ -331,18 +346,18 @@ export async function dispatchCampaignBatch(campaignId: number) {
                                 waVars.push((mapping[`static_${key}`] || '').toString().replace(/[\r\n]+/g, ' ').trim())
                             } else if (mappedValue) {
                                 // Placeholder resolution (e.g. {userName} -> "John Doe")
-                                waVars.push(aliasTokens(mappedValue, user, audience.type).toString().replace(/[\r\n]+/g, ' ').trim())
+                                waVars.push((await aliasTokens(mappedValue, user, audience.type)).toString().replace(/[\r\n]+/g, ' ').trim())
                             } else {
                                 waVars.push('')
                             }
                         }
                     } else {
                         // BACKWARD COMPATIBILITY: Fallback to original static defaults if no mapping is defined
-                        waVars.push((user.fullName || 'User').toString().replace(/[\r\n]+/g, ' ').trim())
-                        waVars.push((user.referralCode || '').toString().replace(/[\r\n]+/g, ' ').trim())
-                        waVars.push((user.assignedCampus || '').toString().replace(/[\r\n]+/g, ' ').trim())
-                        waVars.push((user.grade || user.source || '').toString().replace(/[\r\n]+/g, ' ').trim())
-                        waVars.push((user.role || '').toString().replace(/[\r\n]+/g, ' ').trim())
+                        waVars.push((user.fullName || 'User').toString().trim())
+                        waVars.push((user.assignedCampus || '').toString().trim())
+                        waVars.push((user.grade || user.source || '').toString().trim())
+                        waVars.push((user.role || '').toString().trim())
+                        waVars.push((user.referralCode || '').toString().trim())
                     }
                     
                     whatsappRecipients.push({
@@ -360,8 +375,8 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 if (isInApp && user.userId) {
                     notificationsToCreate.push({
                         userId: user.userId,
-                        title: aliasTokens(campaign.subject, user),
-                        message: aliasTokens(campaign.templateBody, user).replace(/<[^>]*>?/gm, '').substring(0, 500),
+                title: await aliasTokens(campaign.subject, user, audience.type),
+                message: (await aliasTokens(campaign.templateBody, user, audience.type)).replace(/<[^>]*>?/gm, '').substring(0, 500),
                         type: 'info',
                         isRead: false,
                         metadata: { campaignId }
@@ -563,3 +578,4 @@ export async function dispatchCampaignBatch(campaignId: number) {
         return { success: false, error: 'Campaign dispatch failed mid-process' }
     }
 }
+

@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getAudienceCount, exportCampaignData, runCampaign, resetStuckCampaign, syncCampaignMetrics, sendIndividualWhatsApp, getWhatsAppTemplates } from '@/app/campaign-actions'
+import { createPortal } from 'react-dom'
+import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getAudienceCount, exportCampaignData, runCampaign, resetStuckCampaign, syncCampaignMetrics, sendIndividualWhatsApp, getWhatsAppTemplates, sendTestCampaignMessage } from '@/app/campaign-actions'
 import { dispatchCampaignBatch } from '@/app/campaign-dispatcher'
 import { getCampuses } from '@/app/campus-actions'
 import { getActivePrograms } from '@/app/program-actions'
@@ -12,6 +13,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { CampaignAnalytics } from './CampaignAnalytics'
 import { WhatsAppLogTable } from './WhatsAppLogTable'
 import { Modal } from '@/components/ui/Modal'
+
+// Helper: portals children to document.body—escapes any CSS transform context
+function ClientPortal({ children, show }: { children: React.ReactNode; show: boolean }) {
+    const [mounted, setMounted] = useState(false)
+    useEffect(() => { setMounted(true) }, [])
+    if (!mounted || !show) return null
+    return createPortal(children, document.body)
+}
 
 export function CampaignManager() {
     const [campaigns, setCampaigns] = useState<any[]>([])
@@ -29,6 +38,11 @@ export function CampaignManager() {
     const [availableTemplates, setAvailableTemplates] = useState<any[]>([])
     const [showLogsModal, setShowLogsModal] = useState(false)
     const [selectedRefId, setSelectedRefId] = useState<string | null>(null)
+    const [isClient, setIsClient] = useState(false)
+    useEffect(() => { setIsClient(true) }, [])
+
+    const [testMobile, setTestMobile] = useState('')
+    const [isSendingTest, setIsSendingTest] = useState(false)
 
     // Confirmation State
     const [confirmState, setConfirmState] = useState<{
@@ -56,6 +70,8 @@ export function CampaignManager() {
             accountHealth: 'Active',
             referralMilestone: 'All',
             leadFunnelStatus: 'All',
+            leadStatus: 'All',
+            programLeadStatus: 'All',
             missingInfo: 'None'
         },
         channels: ['EMAIL'],
@@ -92,6 +108,33 @@ export function CampaignManager() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [JSON.stringify(form.targetAudience), showModal])
+
+    const handleSendTest = async () => {
+        if (!previewCampaign) return
+        if (!testMobile || testMobile.length < 10) {
+            toast.error('Enter a valid mobile number')
+            return
+        }
+
+        setIsSendingTest(true)
+        try {
+            const res = await sendTestCampaignMessage(
+                previewCampaign.id, 
+                testMobile,
+                form.waVariableMapping,
+                form.waTemplateName
+            )
+            if (res.success) {
+                toast.success('Test message dispatched!')
+            } else {
+                toast.error(res.error || 'Failed to send test')
+            }
+        } catch (error) {
+            toast.error('An error occurred during test dispatch')
+        } finally {
+            setIsSendingTest(false)
+        }
+    }
 
     const loadCampaigns = async () => {
         setLoading(true)
@@ -162,7 +205,8 @@ export function CampaignManager() {
                 templateBody: form.templateBody,
                 targetAudience: form.targetAudience,
                 channels: form.channels,
-                waTemplateName: form.waTemplateName
+                waTemplateName: form.waTemplateName,
+                waVariableMapping: form.waVariableMapping
             })
         } else {
             res = await createCampaign({
@@ -171,7 +215,8 @@ export function CampaignManager() {
                 templateBody: form.templateBody,
                 targetAudience: form.targetAudience,
                 channels: form.channels,
-                waTemplateName: form.waTemplateName
+                waTemplateName: form.waTemplateName,
+                waVariableMapping: form.waVariableMapping
             })
         }
         setIsProcessing(false)
@@ -184,7 +229,7 @@ export function CampaignManager() {
                 name: '',
                 subject: '',
                 templateBody: '',
-                targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', missingInfo: 'None' },
+                targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', leadStatus: 'All', programLeadStatus: 'All', missingInfo: 'None' },
                 channels: ['EMAIL'],
                 waTemplateName: '',
                 waVariableMapping: {}
@@ -373,7 +418,7 @@ export function CampaignManager() {
                                 name: '',
                                 subject: '',
                                 templateBody: '',
-                                targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', missingInfo: 'None' },
+                                targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', leadStatus: 'All', programLeadStatus: 'All', missingInfo: 'None' },
                                 channels: ['EMAIL'],
                                 waTemplateName: '',
                                 waVariableMapping: {}
@@ -574,10 +619,11 @@ export function CampaignManager() {
                         </div>
                     )}
 
-                    {/* Modal Layer UI (Glassmorphism Modal) */}
-                    <AnimatePresence>
+                    {/* Modal Layer UI (Glassmorphism Modal) - portaled to escape motion.div transform */}
+                    <ClientPortal show={showModal}>
+                        <AnimatePresence>
                         {showModal && (
-                            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                                 <motion.div
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
@@ -746,9 +792,9 @@ export function CampaignManager() {
                                                                             <option value="">Select Field...</option>
                                                                             {((): { value: string; label: string }[] => {
                                                                                 const type = form.targetAudience.type || 'AMBASSADORS'
-                                                                                const fieldMap: Record<string, { value: string; label: string }[]> = {
-                                                                                        AMBASSADORS: [
-                                                                                        { value: 'Name', label: 'Name' },
+                                                                                const fieldMap: Record<string, { value: string, label: string }[]> = {
+                                                                                    AMBASSADORS: [
+                                                                                        { value: 'Name', label: 'Ambassador Name' },
                                                                                         { value: 'ReferralCode', label: 'Referral Code' },
                                                                                         { value: 'ReferralLink', label: 'Referral Link' },
                                                                                         { value: 'ProgramLink', label: 'External Program Link' },
@@ -767,18 +813,28 @@ export function CampaignManager() {
                                                                                     ],
                                                                                     REFERRALS: [
                                                                                         { value: 'Name', label: 'Parent Name' },
+                                                                                        { value: 'studentName', label: 'Student Name' },
                                                                                         { value: 'Mobile', label: 'Mobile Number' },
                                                                                         { value: 'Campus', label: 'Campus' },
-                                                                                        { value: 'Grade', label: 'Grade' },
+                                                                                        { value: 'Grade', label: 'Grade Interested' },
+                                                                                        { value: 'academicYear', label: 'Academic Year' },
                                                                                         { value: 'leadStatus', label: 'Lead Status' },
-                                                                                        { value: 'ambassadorName', label: 'Ambassador Name' }
+                                                                                        { value: 'ambassadorName', label: 'Ambassador Name' },
+                                                                                        { value: 'referrerLink', label: 'Referrer Link' },
+                                                                                        { value: 'ProgramLink', label: 'Program Link (Optional)' }
                                                                                     ],
                                                                                     PROGRAM_LEADS: [
                                                                                         { value: 'Name', label: 'Lead Name' },
+                                                                                        { value: 'studentName', label: 'Student Name' },
                                                                                         { value: 'Mobile', label: 'Mobile Number' },
                                                                                         { value: 'Campus', label: 'Campus' },
-                                                                                        { value: 'source', label: 'Source' },
-                                                                                        { value: 'enquiryDate', label: 'Enquiry Date' }
+                                                                                        { value: 'programName', label: 'Program Name' },
+                                                                                        { value: 'programLink', label: 'Program Link' },
+                                                                                        { value: 'status', label: 'Lead Status' },
+                                                                                        { value: 'source', label: 'Source (Ambassador)' },
+                                                                                        { value: 'enquiryDate', label: 'Enquiry Date' },
+                                                                                        { value: 'referrerLink', label: 'Referrer Link' },
+                                                                                        { value: 'ProgramLink', label: 'Program Link (Picker)' }
                                                                                     ]
                                                                                 }
                                                                                 return fieldMap[type] || fieldMap['AMBASSADORS']
@@ -860,6 +916,39 @@ export function CampaignManager() {
                                                         </select>
                                                     </div>
                                                 )}
+
+                                                {form.targetAudience.type === 'REFERRALS' && (
+                                                    <div className="space-y-1.5">
+                                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Referral Stage</label>
+                                                        <select
+                                                            value={(form.targetAudience as any).leadStatus || 'All'}
+                                                            onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, leadStatus: e.target.value } as any })}
+                                                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 transition-all font-bold text-indigo-600"
+                                                        >
+                                                            <option value="All">Global (All Stages)</option>
+                                                            <option value="New">New Lead</option>
+                                                            <option value="Contacted">Contacted / Follow-up</option>
+                                                            <option value="Admitted_Confirmed">Admitted / Confirmed</option>
+                                                            <option value="Rejected">Rejected</option>
+                                                        </select>
+                                                    </div>
+                                                )}
+
+                                                {form.targetAudience.type === 'PROGRAM_LEADS' && (
+                                                    <div className="space-y-1.5">
+                                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Campaign Stage</label>
+                                                        <select
+                                                            value={(form.targetAudience as any).programLeadStatus || 'All'}
+                                                            onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, programLeadStatus: e.target.value } as any })}
+                                                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 transition-all font-bold text-emerald-600"
+                                                        >
+                                                            <option value="All">Global (All Stages)</option>
+                                                            <option value="CLICKED">Clicked (Interested)</option>
+                                                            <option value="REGISTERED">Registered / Converted</option>
+                                                        </select>
+                                                    </div>
+                                                )}
+
                                                 <div className="space-y-1.5">
                                                     <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Institutional Node</label>
                                                     <select
@@ -963,18 +1052,26 @@ export function CampaignManager() {
                                                                 ],
                                                                 REFERRALS: [
                                                                     { tag: '{parentName}', label: 'Parent Name' },
+                                                                    { tag: '{studentName}', label: 'Student Name' },
                                                                     { tag: '{parentMobile}', label: 'Mobile' },
                                                                     { tag: '{campus}', label: 'Campus' },
                                                                     { tag: '{grade}', label: 'Grade' },
+                                                                    { tag: '{academicYear}', label: 'Academic Year' },
                                                                     { tag: '{leadStatus}', label: 'Lead Status' },
-                                                                    { tag: '{ambassadorName}', label: 'Ambassador' }
+                                                                    { tag: '{ambassadorName}', label: 'Ambassador' },
+                                                                    { tag: '{referrerLink}', label: 'Referrer Link' }
                                                                 ],
                                                                 PROGRAM_LEADS: [
                                                                     { tag: '{leadName}', label: 'Lead Name' },
+                                                                    { tag: '{studentName}', label: 'Student Name' },
                                                                     { tag: '{mobile}', label: 'Mobile' },
                                                                     { tag: '{campus}', label: 'Campus' },
+                                                                    { tag: '{programName}', label: 'Program Name' },
+                                                                    { tag: '{programLink}', label: 'Program Link' },
+                                                                    { tag: '{status}', label: 'Lead Status' },
                                                                     { tag: '{source}', label: 'Source' },
-                                                                    { tag: '{enquiryDate}', label: 'Enquiry Date' }
+                                                                    { tag: '{enquiryDate}', label: 'Enquiry Date' },
+                                                                    { tag: '{referrerLink}', label: 'Referrer Link' }
                                                                 ]
                                                             }
                                                             return varMap[type] || varMap['AMBASSADORS']
@@ -1044,12 +1141,14 @@ export function CampaignManager() {
                                 </motion.div>
                             </div>
                         )}
-                    </AnimatePresence>
+                        </AnimatePresence>
+                    </ClientPortal>
 
-                    {/* Preview Modal Layer */}
-                    <AnimatePresence>
+                    {/* Preview Modal Layer - portaled to escape motion.div transform */}
+                    <ClientPortal show={!!(showPreviewModal && previewCampaign)}>
+                        <AnimatePresence>
                         {showPreviewModal && previewCampaign && (
-                            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                                 <motion.div
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
@@ -1070,7 +1169,42 @@ export function CampaignManager() {
                                         </button>
                                     </div>
 
-                                    <div className="p-6 space-y-6">
+                                    <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                                        {/* Test Dispatch Mechanism */}
+                                        <div className="p-5 bg-blue-50/50 border border-blue-100/50 rounded-3xl space-y-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="p-1.5 bg-blue-600 rounded-lg text-white">
+                                                    <Smartphone size={14} />
+                                                </div>
+                                                <h4 className="text-[10px] font-black text-blue-900 uppercase tracking-widest">Real-World Test Dispatch</h4>
+                                            </div>
+                                            
+                                            <div className="flex gap-2">
+                                                <div className="relative flex-1">
+                                                    <input 
+                                                        type="text"
+                                                        placeholder="Enter Mobile (e.g. 919876543210)"
+                                                        value={testMobile}
+                                                        onChange={e => setTestMobile(e.target.value)}
+                                                        className="w-full bg-white border border-blue-100 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-100 placeholder:text-gray-300 transition-all font-mono"
+                                                    />
+                                                </div>
+                                                <button
+                                                    onClick={handleSendTest}
+                                                    disabled={isSendingTest || !previewCampaign.channels?.includes('WHATSAPP')}
+                                                    className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-blue-700 active:scale-[0.98] transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale"
+                                                >
+                                                    {isSendingTest ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                                                    {isSendingTest ? 'Sending...' : 'Send Test'}
+                                                </button>
+                                            </div>
+                                            
+                                            {!previewCampaign.channels?.includes('WHATSAPP') && (
+                                                <p className="text-[8px] font-bold text-amber-600 uppercase tracking-tight">WhatsApp channel must be enabled for this campaign to send tests.</p>
+                                            )}
+                                            <p className="text-[9px] font-medium text-blue-700/60 italic leading-relaxed">System will use a sample recipient from your audience to populate variables ({previewCampaign.targetAudience.type}).</p>
+                                        </div>
+
                                         <div className="space-y-1.5">
                                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest font-mono">Simulated Inbox View</p>
                                             <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-inner">
@@ -1129,6 +1263,7 @@ export function CampaignManager() {
                             </div>
                         )}
                     </AnimatePresence>
+                    </ClientPortal>
 
                     <ConfirmDialog
                         isOpen={confirmState.isOpen}
@@ -1159,10 +1294,11 @@ export function CampaignManager() {
                         onCancel={() => setConfirmState({ isOpen: false, type: null })}
                     />
 
-                    {/* Individual Message Modal */}
-                    <AnimatePresence>
-                        {showIndividualModal && (
-                            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    {/* Individual Message Modal - portaled to escape motion.div transform */}
+                    <ClientPortal show={showIndividualModal}>
+                        <AnimatePresence>
+                            {showIndividualModal && (
+                                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                                 <motion.div
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
@@ -1301,28 +1437,31 @@ export function CampaignManager() {
                             </div>
                         )}
                     </AnimatePresence>
+                    </ClientPortal>
                 </div>
             )}
 
-            <Modal
-                isOpen={showLogsModal}
-                onClose={() => setShowLogsModal(false)}
-                title="WhatsApp Delivery Status"
-                subtitle="Granular performance tracking for this campaign run"
-                icon={<MessageSquare size={20} />}
-                variant="indigo"
-                maxWidth="5xl"
-            >
-                <div className="py-4">
-                    {selectedRefId ? (
-                        <WhatsAppLogTable refId={selectedRefId} defaultType="CAMPAIGN" />
-                    ) : (
-                        <div className="p-12 text-center text-slate-400 font-bold italic">
-                            No request ID found for this campaign run.
-                        </div>
-                    )}
-                </div>
-            </Modal>
+            <ClientPortal show={showLogsModal}>
+                <Modal
+                    isOpen={showLogsModal}
+                    onClose={() => setShowLogsModal(false)}
+                    title="WhatsApp Delivery Status"
+                    subtitle="Granular performance tracking for this campaign run"
+                    icon={<MessageSquare size={20} />}
+                    variant="indigo"
+                    maxWidth="5xl"
+                >
+                    <div className="py-4">
+                        {selectedRefId ? (
+                            <WhatsAppLogTable refId={selectedRefId} defaultType="CAMPAIGN" />
+                        ) : (
+                            <div className="p-12 text-center text-slate-400 font-bold italic">
+                                No request ID found for this campaign run.
+                            </div>
+                        )}
+                    </div>
+                </Modal>
+            </ClientPortal>
         </div>
     )
 }
