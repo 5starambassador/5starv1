@@ -160,6 +160,7 @@ model Admin {
   role           AdminRole      @default(Admission_Admin)
   status         AccountStatus  @default(Active)
   notifications  Notification[]
+  assignedTickets SupportTicket[] @relation("AdminAssignedTickets")
 
   @@index([role])
   @@index([assignedCampus])
@@ -354,7 +355,10 @@ model SupportTicket {
   escalationLevel Int             @default(1)
   lastEscalatedAt DateTime?
   user            User            @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  assignedAdmin   Admin?          @relation("AdminAssignedTickets", fields: [assignedAdminId], references: [adminId])
   messages        TicketMessage[]
+  rating          Int?
+  feedback        String?
 }
 
 model TicketMessage {
@@ -363,9 +367,18 @@ model TicketMessage {
   senderId   Int
   senderType String
   message    String
-  isInternal Boolean       @default(false)
-  createdAt  DateTime      @default(now())
+  isInternal    Boolean       @default(false)
+  attachmentUrl String?
+  createdAt     DateTime      @default(now())
   ticket     SupportTicket @relation(fields: [ticketId], references: [id])
+}
+
+model SupportSnippet {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  category  String?
+  createdAt DateTime @default(now())
 }
 
 model Campus {
@@ -754,4 +767,20 @@ enum ProgramRewardType {
   CASH
   POINTS
   NONE
+}
+
+model ErpStudentData {
+  id              Int      @id @default(autoincrement())
+  admissionNumber String   @unique
+  fullName        String
+  parentMobile    String
+  parentName      String?
+  grade           String
+  campusName      String
+  academicYear    String   @default("2025-2026")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([parentMobile])
+  @@index([admissionNumber])
 }
