@@ -76,7 +76,8 @@ export function CampaignManager() {
         },
         channels: ['EMAIL'],
         waTemplateName: '',
-        waVariableMapping: {} as Record<string, string>
+        waVariableMapping: {} as Record<string, string>,
+        waHeaderUrl: ''
     })
 
     // Helper to toggle channels
@@ -122,7 +123,8 @@ export function CampaignManager() {
                 previewCampaign.id, 
                 testMobile,
                 form.waVariableMapping,
-                form.waTemplateName
+                form.waTemplateName,
+                form.waHeaderUrl
             )
             if (res.success) {
                 toast.success('Test message dispatched!')
@@ -206,7 +208,8 @@ export function CampaignManager() {
                 targetAudience: form.targetAudience,
                 channels: form.channels,
                 waTemplateName: form.waTemplateName,
-                waVariableMapping: form.waVariableMapping
+                waVariableMapping: form.waVariableMapping,
+                waHeaderUrl: form.waHeaderUrl
             })
         } else {
             res = await createCampaign({
@@ -216,7 +219,8 @@ export function CampaignManager() {
                 targetAudience: form.targetAudience,
                 channels: form.channels,
                 waTemplateName: form.waTemplateName,
-                waVariableMapping: form.waVariableMapping
+                waVariableMapping: form.waVariableMapping,
+                waHeaderUrl: form.waHeaderUrl
             })
         }
         setIsProcessing(false)
@@ -232,7 +236,8 @@ export function CampaignManager() {
                 targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', leadStatus: 'All', programLeadStatus: 'All', missingInfo: 'None' },
                 channels: ['EMAIL'],
                 waTemplateName: '',
-                waVariableMapping: {}
+                waVariableMapping: {},
+                waHeaderUrl: ''
             })
             loadCampaigns()
         } else {
@@ -313,7 +318,8 @@ export function CampaignManager() {
             targetAudience: c.targetAudience || { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', missingInfo: 'None' },
             channels: c.channels || ['EMAIL'],
             waTemplateName: c.waTemplateName || '',
-            waVariableMapping: c.waVariableMapping || {}
+            waVariableMapping: c.waVariableMapping || {},
+            waHeaderUrl: c.waHeaderUrl || ''
         })
         setShowModal(true)
     }
@@ -421,7 +427,8 @@ export function CampaignManager() {
                                 targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', leadStatus: 'All', programLeadStatus: 'All', missingInfo: 'None' },
                                 channels: ['EMAIL'],
                                 waTemplateName: '',
-                                waVariableMapping: {}
+                                waVariableMapping: {},
+                                waHeaderUrl: ''
                             })
                             setShowModal(true)
                         }}
@@ -756,129 +763,139 @@ export function CampaignManager() {
                                                                 </option>
                                                             ))}
                                                         </select>
-                                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                                                            <ChevronRight size={18} className="text-green-500 rotate-90" />
-                                                        </div>
                                                     </div>
                                                     
                                                     {form.waTemplateName && (
-                                                        <div className="p-4 bg-green-50/50 rounded-2xl border border-green-100 space-y-4">
-                                                            <div className="flex items-center gap-2 text-[10px] font-black text-green-700 uppercase tracking-widest">
-                                                                <Sparkles size={12} /> Variable Precision Mapping
+                                                        <div className="space-y-4 animate-in slide-in-from-top-1 duration-300">
+                                                            <div className="space-y-1.5">
+                                                                <label className="block text-[10px] font-black text-green-600 uppercase tracking-widest px-1">Header Media URL (Optional Rich Preview)</label>
+                                                                <input
+                                                                    className="w-full bg-white border border-green-100 rounded-2xl px-5 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-green-50 focus:border-green-200 transition-all placeholder:text-gray-300"
+                                                                    placeholder="Direct image link or video link (.mp4, .pdf etc)"
+                                                                    value={form.waHeaderUrl}
+                                                                    onChange={e => setForm({ ...form, waHeaderUrl: e.target.value })}
+                                                                />
+                                                                <p className="text-[9px] font-bold text-green-700/60 px-1 italic">Providing an image or video URL here enables a rich visual header on top of the message.</p>
                                                             </div>
-                                                            <p className="text-[11px] font-medium text-green-800 leading-relaxed italic">
-                                                                &ldquo;{availableTemplates.find(t => t.templateName === form.waTemplateName)?.description || 'Approved business communication blueprint.'}&rdquo;
-                                                            </p>
-                                                            
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
-                                                                {((): { label: string; variableKey: string }[] => {
-                                                                    const count = availableTemplates.find(t => t.templateName === form.waTemplateName)?.requiredVariablesCount || 0;
-                                                                    const fields = [];
-                                                                    for (let i = 1; i <= count; i++) {
-                                                                        fields.push({ label: `Variable ${i} ({{${i}}})`, variableKey: i.toString() });
-                                                                    }
-                                                                    return fields;
-                                                                })().map((v) => (
-                                                                    <div key={v.variableKey} className="bg-white/60 p-3 rounded-2xl border border-green-100 shadow-sm transition-all hover:border-green-300">
-                                                                        <p className="text-[9px] font-black text-green-600 uppercase mb-2 px-1 tracking-wider">{v.label}</p>
-                                                                        <select
-                                                                            value={form.waVariableMapping[v.variableKey]?.startsWith('{ProgramLink') ? '{ProgramLink}' : (form.waVariableMapping[v.variableKey] || '')}
-                                                                            onChange={e => setForm({ 
-                                                                                ...form, 
-                                                                                waVariableMapping: { ...form.waVariableMapping, [v.variableKey]: e.target.value } 
-                                                                            })}
-                                                                            className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-[11px] font-bold text-gray-700 focus:ring-2 focus:ring-green-100 transition-all outline-none"
-                                                                        >
-                                                                            <option value="">Select Field...</option>
-                                                                            {((): { value: string; label: string }[] => {
-                                                                                const type = form.targetAudience.type || 'AMBASSADORS'
-                                                                                const fieldMap: Record<string, { value: string, label: string }[]> = {
-                                                                                    AMBASSADORS: [
-                                                                                        { value: 'Name', label: 'Ambassador Name' },
-                                                                                        { value: 'ReferralCode', label: 'Referral Code' },
-                                                                                        { value: 'ReferralLink', label: 'Referral Link' },
-                                                                                        { value: 'ProgramLink', label: 'External Program Link' },
-                                                                                        { value: 'Campus', label: 'Campus' },
-                                                                                        { value: 'Role', label: 'Role' },
-                                                                                        { value: 'Mobile', label: 'Mobile Number' },
-                                                                                        { value: 'referralCount', label: 'Confirmed Referrals' },
-                                                                                        { value: 'pendingReferrals', label: 'Pending Referrals' }
-                                                                                    ],
-                                                                                    STUDENTS: [
-                                                                                        { value: 'Name', label: 'Student Name' },
-                                                                                        { value: 'Campus', label: 'Campus' },
-                                                                                        { value: 'Grade', label: 'Grade' },
-                                                                                        { value: 'Mobile', label: 'Parent Mobile' },
-                                                                                        { value: 'admissionDate', label: 'Admission Date' }
-                                                                                    ],
-                                                                                    REFERRALS: [
-                                                                                        { value: 'Name', label: 'Parent Name' },
-                                                                                        { value: 'studentName', label: 'Student Name' },
-                                                                                        { value: 'Mobile', label: 'Mobile Number' },
-                                                                                        { value: 'Campus', label: 'Campus' },
-                                                                                        { value: 'Grade', label: 'Grade Interested' },
-                                                                                        { value: 'academicYear', label: 'Academic Year' },
-                                                                                        { value: 'leadStatus', label: 'Lead Status' },
-                                                                                        { value: 'ambassadorName', label: 'Ambassador Name' },
-                                                                                        { value: 'referrerLink', label: 'Referrer Link' },
-                                                                                        { value: 'ProgramLink', label: 'Program Link (Optional)' }
-                                                                                    ],
-                                                                                    PROGRAM_LEADS: [
-                                                                                        { value: 'Name', label: 'Lead Name' },
-                                                                                        { value: 'studentName', label: 'Student Name' },
-                                                                                        { value: 'Mobile', label: 'Mobile Number' },
-                                                                                        { value: 'Campus', label: 'Campus' },
-                                                                                        { value: 'programName', label: 'Program Name' },
-                                                                                        { value: 'programLink', label: 'Program Link' },
-                                                                                        { value: 'status', label: 'Lead Status' },
-                                                                                        { value: 'source', label: 'Source (Ambassador)' },
-                                                                                        { value: 'enquiryDate', label: 'Enquiry Date' },
-                                                                                        { value: 'referrerLink', label: 'Referrer Link' },
-                                                                                        { value: 'ProgramLink', label: 'Program Link (Picker)' }
-                                                                                    ]
-                                                                                }
-                                                                                return fieldMap[type] || fieldMap['AMBASSADORS']
-                                                                            })().map(field => (
-                                                                                <option key={field.value} value={`{${field.value}}`}>{field.label}</option>
-                                                                            ))}
-                                                                            <option value="STATIC">Custom / Static Text</option>
-                                                                        </select>
-                                                                        {form.waVariableMapping[v.variableKey]?.startsWith('{ProgramLink') && (
+
+                                                            <div className="p-4 bg-green-50/50 rounded-2xl border border-green-100 space-y-4">
+                                                                <div className="flex items-center gap-2 text-[10px] font-black text-green-700 uppercase tracking-widest">
+                                                                    <Sparkles size={12} /> Variable Precision Mapping
+                                                                </div>
+                                                                <p className="text-[11px] font-medium text-green-800 leading-relaxed italic">
+                                                                    &ldquo;{availableTemplates.find(t => t.templateName === form.waTemplateName)?.description || 'Approved business communication blueprint.'}&rdquo;
+                                                                </p>
+                                                                
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                                                                    {((): { label: string; variableKey: string }[] => {
+                                                                        const count = availableTemplates.find(t => t.templateName === form.waTemplateName)?.requiredVariablesCount || 0;
+                                                                        const fields = [];
+                                                                        for (let i = 1; i <= count; i++) {
+                                                                            fields.push({ label: `Variable ${i} ({{${i}}})`, variableKey: i.toString() });
+                                                                        }
+                                                                        return fields;
+                                                                    })().map((v) => (
+                                                                        <div key={v.variableKey} className="bg-white/60 p-3 rounded-2xl border border-green-100 shadow-sm transition-all hover:border-green-300">
+                                                                            <p className="text-[9px] font-black text-green-600 uppercase mb-2 px-1 tracking-wider">{v.label}</p>
                                                                             <select
-                                                                                className="w-full mt-2 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1.5 text-[10px] font-bold text-indigo-700 focus:outline-none focus:ring-1 focus:ring-indigo-200"
-                                                                                value={form.waVariableMapping[v.variableKey]?.match(/:([^}]+)/)?.[1] || ''}
-                                                                                onChange={e => setForm({
-                                                                                    ...form,
-                                                                                    waVariableMapping: { ...form.waVariableMapping, [v.variableKey]: `{ProgramLink:${e.target.value}}` }
-                                                                                })}
-                                                                            >
-                                                                                <option value="">Select Target Program...</option>
-                                                                                {programs.map(p => (
-                                                                                    <option key={p.id} value={p.slug}>{p.title}</option>
-                                                                                ))}
-                                                                            </select>
-                                                                        )}
-                                                                        {form.waVariableMapping[v.variableKey] === 'STATIC' && (
-                                                                            <input 
-                                                                                className="w-full mt-2 bg-white border border-gray-100 rounded-lg px-2 py-1 text-[10px] font-semibold text-gray-600 focus:outline-none focus:ring-1 focus:ring-green-200"
-                                                                                placeholder="Type static value..."
-                                                                                value={form.waVariableMapping[`static_${v.variableKey}`] || ''}
+                                                                                value={form.waVariableMapping[v.variableKey]?.startsWith('{ProgramLink') ? '{ProgramLink}' : (form.waVariableMapping[v.variableKey] || '')}
                                                                                 onChange={e => setForm({ 
                                                                                     ...form, 
-                                                                                    waVariableMapping: { ...form.waVariableMapping, [`static_${v.variableKey}`]: e.target.value } 
+                                                                                    waVariableMapping: { ...form.waVariableMapping, [v.variableKey]: e.target.value } 
                                                                                 })}
-                                                                            />
-                                                                        )}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                            <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 flex items-center gap-2">
-                                                                <div className="w-6 h-6 bg-white rounded-lg flex items-center justify-center text-indigo-500 shadow-sm border border-indigo-100">
-                                                                    <Database size={12} />
+                                                                                className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-[11px] font-bold text-gray-700 focus:ring-2 focus:ring-green-100 transition-all outline-none"
+                                                                            >
+                                                                                <option value="">Select Field...</option>
+                                                                                {((): { value: string; label: string }[] => {
+                                                                                    const type = form.targetAudience.type || 'AMBASSADORS'
+                                                                                    const fieldMap: Record<string, { value: string, label: string }[]> = {
+                                                                                        AMBASSADORS: [
+                                                                                            { value: 'Name', label: 'Ambassador Name' },
+                                                                                            { value: 'ReferralCode', label: 'Referral Code' },
+                                                                                            { value: 'ReferralLink', label: 'Referral Link' },
+                                                                                            { value: 'ProgramLink', label: 'External Program Link' },
+                                                                                            { value: 'Campus', label: 'Campus' },
+                                                                                            { value: 'Role', label: 'Role' },
+                                                                                            { value: 'Mobile', label: 'Mobile Number' },
+                                                                                            { value: 'referralCount', label: 'Confirmed Referrals' },
+                                                                                            { value: 'pendingReferrals', label: 'Pending Referrals' }
+                                                                                        ],
+                                                                                        STUDENTS: [
+                                                                                            { value: 'Name', label: 'Student Name' },
+                                                                                            { value: 'Campus', label: 'Campus' },
+                                                                                            { value: 'Grade', label: 'Grade' },
+                                                                                            { value: 'Mobile', label: 'Parent Mobile' },
+                                                                                            { value: 'admissionDate', label: 'Admission Date' }
+                                                                                        ],
+                                                                                        REFERRALS: [
+                                                                                            { value: 'Name', label: 'Parent Name' },
+                                                                                            { value: 'studentName', label: 'Student Name' },
+                                                                                            { value: 'Mobile', label: 'Mobile Number' },
+                                                                                            { value: 'Campus', label: 'Campus' },
+                                                                                            { value: 'Grade', label: 'Grade Interested' },
+                                                                                            { value: 'academicYear', label: 'Academic Year' },
+                                                                                            { value: 'leadStatus', label: 'Lead Status' },
+                                                                                            { value: 'ambassadorName', label: 'Ambassador Name' },
+                                                                                            { value: 'referrerLink', label: 'Referrer Link' },
+                                                                                            { value: 'ProgramLink', label: 'Program Link (Optional)' }
+                                                                                        ],
+                                                                                        PROGRAM_LEADS: [
+                                                                                            { value: 'Name', label: 'Lead Name' },
+                                                                                            { value: 'studentName', label: 'Student Name' },
+                                                                                            { value: 'Mobile', label: 'Mobile Number' },
+                                                                                            { value: 'Campus', label: 'Campus' },
+                                                                                            { value: 'programName', label: 'Program Name' },
+                                                                                            { value: 'programLink', label: 'Program Link' },
+                                                                                            { value: 'status', label: 'Lead Status' },
+                                                                                            { value: 'source', label: 'Source (Ambassador)' },
+                                                                                            { value: 'enquiryDate', label: 'Enquiry Date' },
+                                                                                            { value: 'referrerLink', label: 'Referrer Link' },
+                                                                                            { value: 'ProgramLink', label: 'Program Link (Picker)' }
+                                                                                        ]
+                                                                                    }
+                                                                                    return fieldMap[type] || fieldMap['AMBASSADORS']
+                                                                                })().map(field => (
+                                                                                    <option key={field.value} value={`{${field.value}}`}>{field.label}</option>
+                                                                                ))}
+                                                                                <option value="STATIC">Custom / Static Text</option>
+                                                                            </select>
+                                                                            {form.waVariableMapping[v.variableKey]?.startsWith('{ProgramLink') && (
+                                                                                <select
+                                                                                    className="w-full mt-2 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1.5 text-[10px] font-bold text-indigo-700 focus:outline-none focus:ring-1 focus:ring-indigo-200"
+                                                                                    value={form.waVariableMapping[v.variableKey]?.match(/:([^}]+)/)?.[1] || ''}
+                                                                                    onChange={e => setForm({
+                                                                                        ...form,
+                                                                                        waVariableMapping: { ...form.waVariableMapping, [v.variableKey]: `{ProgramLink:${e.target.value}}` }
+                                                                                    })}
+                                                                                >
+                                                                                    <option value="">Select Target Program...</option>
+                                                                                    {programs.map(p => (
+                                                                                        <option key={p.id} value={p.slug}>{p.title}</option>
+                                                                                    ))}
+                                                                                </select>
+                                                                            )}
+                                                                            {form.waVariableMapping[v.variableKey] === 'STATIC' && (
+                                                                                <input 
+                                                                                    className="w-full mt-2 bg-white border border-gray-100 rounded-lg px-2 py-1 text-[10px] font-semibold text-gray-600 focus:outline-none focus:ring-1 focus:ring-green-200"
+                                                                                    placeholder="Type static value..."
+                                                                                    value={form.waVariableMapping[`static_${v.variableKey}`] || ''}
+                                                                                    onChange={e => setForm({ 
+                                                                                        ...form, 
+                                                                                        waVariableMapping: { ...form.waVariableMapping, [`static_${v.variableKey}`]: e.target.value } 
+                                                                                    })}
+                                                                                />
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
-                                                                <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">
-                                                                    Aligning App Data for {estimatedReach || 0} Recipients
-                                                                </p>
+                                                                <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 flex items-center gap-2">
+                                                                    <div className="w-6 h-6 bg-white rounded-lg flex items-center justify-center text-indigo-500 shadow-sm border border-indigo-100">
+                                                                        <Database size={12} />
+                                                                    </div>
+                                                                    <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">
+                                                                        Aligning App Data for {estimatedReach || 0} Recipients
+                                                                    </p>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     )}

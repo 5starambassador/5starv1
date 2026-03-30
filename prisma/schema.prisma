@@ -493,6 +493,7 @@ model Campaign {
   batchSize      Int                 @default(500)
   channels           String[]            @default(["EMAIL"])
   waTemplateName     String?
+  waHeaderUrl        String?
   waVariableMapping  Json?
   logs               CampaignLog[]
   recipients         CampaignRecipient[]
@@ -669,6 +670,7 @@ model WhatsAppLog {
   mobile       String
   template     String?
   content      String
+  waHeaderUrl  String?
   type         String
   status       String
   errorMessage String?

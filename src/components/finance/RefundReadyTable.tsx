@@ -30,9 +30,10 @@ interface RefundReadyTableProps {
     onPageChange?: (page: number) => void
     academicYear?: string
     search?: string
+    onSearchChange?: (val: string) => void
 }
 
-export function RefundReadyTable({ data, totalResults = 0, currentPage = 1, onPageChange, academicYear, search = '' }: RefundReadyTableProps) {
+export function RefundReadyTable({ data, totalResults = 0, currentPage = 1, onPageChange, academicYear, search = '', onSearchChange }: RefundReadyTableProps) {
     const [showExportModal, setShowExportModal] = useState(false)
 
     const handleServerExport = async (start: Date, end: Date, status?: string, selectedColumns?: string[]) => {
@@ -171,6 +172,8 @@ export function RefundReadyTable({ data, totalResults = 0, currentPage = 1, onPa
                     pageCount={Math.ceil((totalResults || 0) / 20)}
                     currentPage={currentPage}
                     onPageChange={onPageChange}
+                    searchValue={search}
+                    onSearchChange={onSearchChange}
                     uniqueKey="userId"
                 />
             </div>

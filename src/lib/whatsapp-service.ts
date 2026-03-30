@@ -79,8 +79,6 @@ class WhatsAppService {
             config = { templateName: 'referral_otp', isEnabled: true, requiredVariablesCount: 1 }
         }
 
-
-
         if (!config) {
             console.warn(`[WhatsApp] No config found for event: ${eventKey}`)
             return { success: false, error: `Event ${eventKey} not configured` }
@@ -114,7 +112,8 @@ class WhatsAppService {
         templateName: string,
         variables: string[] = [],
         type: string = 'SYSTEM',
-        refId?: string
+        refId?: string,
+        headerUrl?: string
     ): Promise<WhatsAppResponse> {
         if (!MSG91_AUTH_KEY || WHATSAPP_PROVIDER === 'mock') {
             return this.sendMock(mobile, templateName, variables, type)
@@ -145,7 +144,7 @@ class WhatsAppService {
                         to_and_components: [
                             {
                                 to: [this.sanitizeMobile(mobile)],
-                                components: this.prepareComponents(templateName, variables)
+                                components: this.prepareComponents(templateName, variables, headerUrl)
                             }
                         ]
                     }
@@ -175,16 +174,16 @@ class WhatsAppService {
                     sentAt: new Date().toISOString(),
                     apiResponse: data 
                 }
-                await this.logMessage(mobile, templateName, variables.join(', '), type, 'SENT', undefined, undefined, trackingRef, metadata)
+                await this.logMessage(mobile, templateName, variables.join(', '), type, 'SENT', messageId, undefined, trackingRef, metadata, headerUrl)
                 return { success: true, messageId }
             } else {
                 const errorMsg = data.message || JSON.stringify(data) || 'WhatsApp API Error'
-                await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, errorMsg, refId)
+                await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, errorMsg, refId, undefined, headerUrl)
                 console.error('WhatsApp API Error detailed:', JSON.stringify(data, null, 2))
                 return { success: false, error: errorMsg }
             }
         } catch (error: any) {
-            await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, error.message, refId)
+            await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, error.message, refId, undefined, headerUrl)
             console.error('WhatsApp Service Exception:', error)
             return { success: false, error: error.message }
         }
@@ -198,7 +197,8 @@ class WhatsAppService {
         recipients: { mobile: string, variables: string[] }[],
         templateName: string,
         type: string = 'SYSTEM',
-        refId?: string
+        refId?: string,
+        headerUrl?: string
     ): Promise<WhatsAppResponse> {
         if (!MSG91_AUTH_KEY || WHATSAPP_PROVIDER === 'mock') {
             const results = await Promise.all(recipients.map(r => this.sendMock(r.mobile, templateName, r.variables, type)))
@@ -225,7 +225,7 @@ class WhatsAppService {
                 const to_and_components = chunk.map(r => {
                     return {
                         to: [this.sanitizeMobile(r.mobile)],
-                        components: this.prepareComponents(templateName, r.variables)
+                        components: this.prepareComponents(templateName, r.variables, headerUrl)
                     }
                 })
 
@@ -261,13 +261,13 @@ class WhatsAppService {
                     const messageId = (data.message_id || data.request_id || '').toString()
                     await Promise.all(chunk.map(r => {
                         const trackingRef = refId || `AUT_${Date.now()}_${Math.random().toString(36).substring(7)}`
-                        return this.logMessage(r.mobile, templateName, r.variables.join(', '), type, 'SENT', messageId, undefined, trackingRef)
+                        return this.logMessage(r.mobile, templateName, r.variables.join(', '), type, 'SENT', messageId, undefined, trackingRef, undefined, headerUrl)
                     }))
                     if (i === 0) mainResponse = { success: true, messageId }
                 } else {
                     const errorMsg = data.message || JSON.stringify(data) || 'WhatsApp API Error'
                     await Promise.all(chunk.map(r =>
-                        this.logMessage(r.mobile, templateName, r.variables.join(', '), type, 'FAILED', undefined, errorMsg, refId)
+                        this.logMessage(r.mobile, templateName, r.variables.join(', '), type, 'FAILED', undefined, errorMsg, refId, undefined, headerUrl)
                     ))
                     console.error('WhatsApp Bulk API Error detailed:', JSON.stringify(data, null, 2))
                     if (i === 0) mainResponse = { success: false, error: errorMsg }
@@ -369,7 +369,8 @@ class WhatsAppService {
         messageId?: string,
         error?: string,
         refId?: string,
-        metadata?: any
+        metadata?: any,
+        waHeaderUrl?: string
     ) {
         try {
             await prisma.whatsAppLog.create({
@@ -380,6 +381,7 @@ class WhatsAppService {
                     type,
                     status,
                     errorMessage: error || null,
+                    waHeaderUrl: waHeaderUrl || null,
                     refId: refId || null,
                     metadata: metadata || (messageId ? { messageId } : undefined)
                 } as any
@@ -395,8 +397,19 @@ class WhatsAppService {
         return { success: true, messageId: 'mock-wa-' + Date.now() }
     }
 
-    private prepareComponents(templateName: string, variables: string[]): any {
+    private prepareComponents(templateName: string, variables: string[], headerUrl?: string): any {
         const components: any = {}
+
+        if (headerUrl && headerUrl.trim() !== '') {
+            const url = headerUrl.trim()
+            // Detect media type: Default to image, but switch to video/document based on extension
+            const isVideo = url.match(/\.(mp4|mov|3gp|m4v|avi)$/i)
+            const isDocument = url.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt)$/i)
+            const mediaType = isVideo ? "video" : isDocument ? "document" : "image"
+            
+            components[`header_1`] = { type: mediaType, value: url }
+        }
+
         const config = this.configCache.get(templateName)
         
         // Strictly trim or pad to match requiredVariablesCount if known

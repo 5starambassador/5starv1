@@ -49,6 +49,7 @@ export async function createCampaign(data: {
     targetAudience?: any,
     channels?: string[],
     waTemplateName?: string,
+    waHeaderUrl?: string,
     waVariableMapping?: any
 }) {
     try {
@@ -67,6 +68,7 @@ export async function createCampaign(data: {
                 channels: data.channels || ['EMAIL'],
                 status: 'DRAFT',
                 waTemplateName: data.waTemplateName || null,
+                waHeaderUrl: data.waHeaderUrl || null,
                 waVariableMapping: data.waVariableMapping || null
             } as any
         })
@@ -88,6 +90,7 @@ export async function updateCampaign(id: number, data: Partial<{
     targetAudience: any,
     channels: string[],
     waTemplateName: string,
+    waHeaderUrl: string,
     waVariableMapping: any
 }>) {
     try {
@@ -686,7 +689,8 @@ export async function sendTestCampaignMessage(
     campaignId: number, 
     testMobile: string, 
     overrideMapping?: any, 
-    overrideTemplateName?: string
+    overrideTemplateName?: string,
+    overrideHeaderUrl?: string
 ) {
     try {
         await checkCampaignAccess()
@@ -920,11 +924,13 @@ export async function sendTestCampaignMessage(
                 }
             })
 
+            const headerUrl = overrideHeaderUrl || (campaign as any).waHeaderUrl || null
             const res = await whatsappService.sendBulkTemplateMessage(
                 [{ mobile: cleanMobile, variables: waVars }],
                 templateName,
                 'CAMPAIGN_TEST',
-                requestId
+                requestId,
+                headerUrl
             )
 
             if (res.success) {

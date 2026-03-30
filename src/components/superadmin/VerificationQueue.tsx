@@ -243,6 +243,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
             if (res.success && res.data) {
                 const headers = activeTab === 'staged' ? [
                     { header: 'Student Name', accessor: (r: any) => r.fullName },
+                    { header: 'Parent Name', accessor: (r: any) => r.parentName || '-' },
                     { header: 'ERP No', accessor: (r: any) => r.admissionNumber },
                     { header: 'Parent Mobile', accessor: (r: any) => r.parentMobile || '-' },
                     { header: 'Grade', accessor: (r: any) => r.grade },
@@ -274,10 +275,27 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
 
     const startEdit = (user: any) => {
         setEditingId(user.userId)
+
+        // 1. Resolve Grade (handle variations like 'PRE MONT' vs 'Pre-Mont')
+        const rawGrade = user.grade || user.matchSuggestion?.grade || ''
+        const matchedGrade = GRADES.find(g =>
+            g.toLowerCase().replace(/[^a-z0-9]/g, '') === rawGrade.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+        ) || ''
+
+        // 2. Resolve Campus ID (handle missing IDs from staging records)
+        let campusId = (user.childCampusId || user.campusId)?.toString() || user.matchSuggestion?.campusId?.toString() || ''
+        if (!campusId) {
+            const campusName = user.assignedCampus || user.matchSuggestion?.campus
+            if (campusName) {
+                const found = campuses.find(c => c.campusName === campusName)
+                if (found) campusId = found.id.toString()
+            }
+        }
+
         setEditForm({
             childEprNo: user.childEprNo || user.matchSuggestion?.admissionNumber || '',
-            grade: user.grade || user.matchSuggestion?.grade || '',
-            childCampusId: user.childCampusId ? user.childCampusId.toString() : (user.matchSuggestion?.campusId?.toString() || ''),
+            grade: matchedGrade || rawGrade,
+            childCampusId: campusId,
             childName: user.childName || user.matchSuggestion?.studentName || ''
         })
     }
@@ -565,6 +583,9 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                     <thead>
                         <tr className="bg-gray-50/50 border-b border-gray-100">
                             <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">{activeTab === 'staged' ? 'Student Name' : 'User Details'}</th>
+                            {activeTab === 'staged' && (
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Parent Name</th>
+                            )}
                             <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">{activeTab === 'staged' ? 'Parent Mobile' : 'Child Details'}</th>
                             <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">{activeTab === 'staged' ? 'Grade / Campus' : 'Benefit Status'}</th>
                             <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">{activeTab === 'staged' ? 'Admission No' : 'Actions'}</th>
@@ -573,14 +594,14 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                     <tbody className="divide-y divide-gray-50">
                         {loading ? (
                             <tr>
-                                <td colSpan={4} className="py-20 text-center">
+                                <td colSpan={activeTab === 'staged' ? 5 : 4} className="py-20 text-center">
                                     <Loader2 className="animate-spin mx-auto text-indigo-600 mb-2" size={32} />
                                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest animate-pulse">Fetching verification requests...</p>
                                 </td>
                             </tr>
                         ) : filteredUsers.length === 0 ? (
                             <tr>
-                                <td colSpan={4} className="py-20 text-center">
+                                <td colSpan={activeTab === 'staged' ? 5 : 4} className="py-20 text-center">
                                     <div className="mx-auto w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
                                         <CheckCircle2 size={32} />
                                     </div>
@@ -593,13 +614,16 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm border border-indigo-100 group-hover:scale-110 transition-transform">
-                                            {student.fullName.charAt(0)}
+                                            {student.fullName?.charAt(0) || '?'}
                                         </div>
                                         <div>
                                             <div className="font-black text-gray-900 text-sm">{student.fullName}</div>
                                             <div className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">ERP Master Record</div>
                                         </div>
                                     </div>
+                                </td>
+                                <td className="px-6 py-4 font-bold text-gray-700">
+                                    {student.parentName || 'N/A'}
                                 </td>
                                 <td className="px-6 py-4 font-bold text-gray-700">
                                     {student.parentMobile || 'N/A'}

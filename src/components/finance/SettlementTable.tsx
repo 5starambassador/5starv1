@@ -38,6 +38,7 @@ interface SettlementTableProps {
     isHistory?: boolean
     onPageChange?: (page: number) => void
     search?: string
+    onSearchChange?: (val: string) => void
 }
 
 export function SettlementTable({ 
@@ -46,7 +47,8 @@ export function SettlementTable({
     currentPage = 1,
     isHistory = false,
     onPageChange,
-    search = ''
+    search = '',
+    onSearchChange
 }: SettlementTableProps) {
     const router = useRouter()
     const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null)
@@ -648,6 +650,8 @@ export function SettlementTable({
                     pageCount={Math.ceil((totalResults || 0) / 20)}
                     currentPage={currentPage}
                     onPageChange={onPageChange}
+                    searchValue={search}
+                    onSearchChange={onSearchChange}
                     enableMultiSelection={true}
                     onSelectionChange={(items) => {
                         setSelectedIds(items.map((i: any) => i.id))

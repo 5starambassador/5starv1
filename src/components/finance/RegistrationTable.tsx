@@ -327,6 +327,8 @@ export function RegistrationTable({
                     pageCount={Math.ceil((totalResults || 0) / 20)}
                     currentPage={currentPage}
                     onPageChange={onPageChange}
+                    searchValue={search}
+                    onSearchChange={onSearchChange}
                     uniqueKey="userId"
                 />
             </div>

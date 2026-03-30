@@ -167,8 +167,6 @@ export async function dispatchCampaignBatch(campaignId: number) {
         console.error('Failed to create initial log', e)
     }
 
-
-
     try {
         let skip = 0
         let hasMore = true
@@ -301,7 +299,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
             }
 
             stats.total += users.length
-            // processedCount moved to bottom of loop to avoid double-counting
+            // Processed count moved to bottom of loop to avoid double-counting
 
             // PROCESS BATCH
             const promises: Promise<void>[] = []
@@ -333,8 +331,6 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     const mapping = (campaign as any).waVariableMapping || {}
                     const waVars: string[] = []
                     
-                    // Determine how many variables to resolve. 
-                    // We use the count from the template config if possible, or fallback to the mapping keys.
                     const mappingKeys = Object.keys(mapping).filter(k => !isNaN(Number(k)))
                     const varCount = mappingKeys.length > 0 ? Math.max(...mappingKeys.map(Number)) : 5
 
@@ -352,7 +348,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                             }
                         }
                     } else {
-                        // BACKWARD COMPATIBILITY: Fallback to original static defaults if no mapping is defined
+                        // BACKWARD COMPATIBILITY
                         waVars.push((user.fullName || 'User').toString().trim())
                         waVars.push((user.assignedCampus || '').toString().trim())
                         waVars.push((user.grade || user.source || '').toString().trim())
@@ -394,7 +390,8 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     whatsappRecipients,
                     (campaign as any).waTemplateName || 'welcome_message',
                     'CAMPAIGN',
-                    campaignRequestId
+                    campaignRequestId,
+                    (campaign as any).waHeaderUrl || null
                 )
                 if (waRes.success) {
                     stats.whatsappSent += whatsappRecipients.length
@@ -406,7 +403,6 @@ export async function dispatchCampaignBatch(campaignId: number) {
 
             // Execute Push (Mock/Real)
             if (isPush && adminFn && pushTokens.length > 0) {
-                // Process in chunks of 500 for FCM
                 const chunks = []
                 for (let i = 0; i < pushTokens.length; i += 500) {
                     chunks.push(pushTokens.slice(i, i + 500))
@@ -432,13 +428,12 @@ export async function dispatchCampaignBatch(campaignId: number) {
             // Update processed count & rate limit safety
             processedCount += users.length
 
-            // THROTTLING: Adaptive cooldown to stay within 60s timeout
             if (users.length === BATCH_SIZE) {
                 console.log(`[CampaignDispatcher] Batch complete. Cooling down for 0.5s... (Processed: ${processedCount})`)
                 await new Promise(resolve => setTimeout(resolve, 500))
             }
 
-            // Log Recipients for Analytics (All Channels)
+            // Log Recipients for Analytics
             const recipientsToCreate: any[] = []
 
             users.forEach((user: any) => {
@@ -497,19 +492,18 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 try {
                     await (prisma as any).campaignRecipient.createMany({
                         data: recipientsToCreate,
-                        skipDuplicates: true // Avoid double logging if logic overlaps
+                        skipDuplicates: true
                     })
                 } catch (e) {
                     console.error('Failed to log recipients', e)
                 }
             }
 
-            // Incremental Log Update for Progress Tracking
+            // Incremental Log Update
             if (logId) {
                 await prisma.campaignLog.update({
                     where: { id: logId },
                     data: {
-                        // Keep the recipientCount fixed to what we calculated at start
                         sentCount: stats.emailSent + stats.pushSent + stats.inAppSent + stats.whatsappSent,
                         failedCount: stats.emailFailed + stats.pushFailed + stats.whatsappFailed,
                         emailSent: stats.emailSent,
@@ -520,10 +514,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 }).catch(e => console.error('Failed to update incremental log', e))
             }
 
-            // Move to next batch
             skip += BATCH_SIZE
-
-            // Simple throttle to avoid rate limits
             await new Promise(r => setTimeout(r, 200))
         }
 
@@ -544,7 +535,6 @@ export async function dispatchCampaignBatch(campaignId: number) {
             })
         }
 
-        // Update Campaign Status
         await prisma.campaign.update({
             where: { id: campaignId },
             data: { status: 'ACTIVE', lastRunAt: new Date() }
@@ -557,7 +547,6 @@ export async function dispatchCampaignBatch(campaignId: number) {
     } catch (error: any) {
         console.error('Batch Dispatch Error:', error)
 
-        // Log Failure
         if (logId) {
             await prisma.campaignLog.update({
                 where: { id: logId },
@@ -569,7 +558,6 @@ export async function dispatchCampaignBatch(campaignId: number) {
             }).catch(e => console.error('Failed to update error log', e))
         }
 
-        // IMPORTANT: Reset Campaign Status so it doesn't get stuck in "SCHEDULED"
         await prisma.campaign.update({
             where: { id: campaignId },
             data: { status: 'ACTIVE' }
@@ -578,4 +566,3 @@ export async function dispatchCampaignBatch(campaignId: number) {
         return { success: false, error: 'Campaign dispatch failed mid-process' }
     }
 }
-
