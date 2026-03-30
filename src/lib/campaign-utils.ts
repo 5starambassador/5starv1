@@ -16,11 +16,12 @@ export type AudienceFilter = {
     campus: string
     activityStatus: string // 'All' | 'Active' | 'Dormant'
 
-    // ─── ENTERPRISE FILTERS ────────────────────────────────────────────────────
     accountHealth?: string      // 'Active' | 'Inactive' | 'All'
     referralMilestone?: string  // '0' | '1' | '2' | '3' | '4' | '5+' | 'All'
     missingInfo?: string        // 'bankDetails' | 'childDetails' | 'None'
     leadFunnelStatus?: string   // 'hasPendingLeads' | 'hasVisitedLeads' | 'hasSubmittedNotConfirmed' | 'hasNoLeads' | 'All'
+    leadStatus?: string         // 'New' | 'Contacted' | 'Admitted_Confirmed' | 'Rejected' | 'All'
+    programLeadStatus?: string  // 'CLICKED' | 'REGISTERED' | 'All'
 }
 
 export const getAmbassadorQuery = (audience: AudienceFilter): Prisma.UserWhereInput => {
@@ -141,4 +142,50 @@ export const getStudentQuery = (audience: AudienceFilter): Prisma.StudentWhereIn
         where.campus = { campusName: audience.campus }
     }
     return where
+}
+
+export const getReferralQuery = (audience: AudienceFilter): Prisma.ReferralLeadWhereInput => {
+    const andClauses: Prisma.ReferralLeadWhereInput[] = []
+
+    // ── Campus ─────────────────────────────────────────────────────────────────
+    if (audience.campus && audience.campus !== 'All') {
+        andClauses.push({ campus: audience.campus })
+    }
+
+    // ── Lead Status (Referral Stage) ───────────────────────────────────────────
+    const status = audience.leadStatus
+    if (status && status !== 'All') {
+        if (status === 'Admitted_Confirmed') {
+            andClauses.push({ leadStatus: { in: [LeadStatus.Admitted, LeadStatus.Confirmed] } })
+        } else if (status === 'Contacted') {
+            andClauses.push({ leadStatus: { in: [LeadStatus.Contacted, LeadStatus.Follow_up, LeadStatus.Interested] } })
+        } else if (status === 'New') {
+            andClauses.push({ leadStatus: LeadStatus.New })
+        } else if (status === 'Rejected') {
+            andClauses.push({ leadStatus: LeadStatus.Rejected })
+        }
+    }
+
+    return andClauses.length > 0 ? { AND: andClauses } : {}
+}
+
+export const getProgramLeadQuery = (audience: AudienceFilter): Prisma.ProgramLeadWhereInput => {
+    const andClauses: Prisma.ProgramLeadWhereInput[] = []
+
+    // ── Campus (via Referrer) ──────────────────────────────────────────────────
+    if (audience.campus && audience.campus !== 'All') {
+        andClauses.push({ referrer: { assignedCampus: audience.campus } })
+    }
+
+    // ── Status (Stage) ────────────────────────────────────────────────────────
+    const status = audience.programLeadStatus
+    if (status && status !== 'All') {
+        if (status === 'CLICKED') {
+            andClauses.push({ status: 'CLICKED' })
+        } else if (status === 'REGISTERED') {
+            andClauses.push({ status: 'REGISTERED' })
+        }
+    }
+
+    return andClauses.length > 0 ? { AND: andClauses } : {}
 }
