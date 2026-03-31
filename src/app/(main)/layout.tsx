@@ -58,15 +58,38 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         const baseAdminPath = isSuperAdmin ? '/superadmin' : (isCampusLevel ? '/campus' : '/admin')
 
         if (permissions.analytics.access && !isAmbassadorRole && !isSuperAdmin) navItems.push({ label: 'Analytics', href: `${baseAdminPath}?view=analytics`, icon: <Shield /> })
-        if (permissions.campusPerformance.access && !isSuperAdmin) navItems.push({ label: 'Campus Management', href: `${baseAdminPath}?view=campuses`, icon: <Building2 /> })
 
-        // These modules might not be ready in AdminClient yet, but if permissions allow, we link them.
-        // We might need to implement these views in AdminClient or condition these links further.
-        if (permissions.userManagement.access && !isSuperAdmin) navItems.push({ label: 'User Management', href: isCampusLevel ? '/campus/users' : `${baseAdminPath}?view=users`, icon: <Users /> })
-        if (permissions.studentManagement.access && !isSuperAdmin) navItems.push({ label: 'Student Management', href: isCampusLevel ? '/campus/students' : `${baseAdminPath}?view=students`, icon: <BookOpen /> })
+        // Unified Campus Management
+        if (permissions.campusPerformance.access && !isAmbassadorRole) {
+            const campusHref = isSuperAdmin ? '/superadmin/campuses' : `${baseAdminPath}?view=campuses`
+            const campusLabel = isSuperAdmin ? 'Campus Control' : 'Campus Management'
+            navItems.push({ label: campusLabel, href: campusHref, icon: <Building2 /> })
+        }
+
+        // Unified User Management
+        if (permissions.userManagement.access && !isAmbassadorRole) {
+            const userHref = isSuperAdmin ? '/superadmin/users' : (isCampusLevel ? '/campus/users' : `${baseAdminPath}?view=users`)
+            const userLabel = isSuperAdmin ? 'User Operations' : 'User Management'
+            navItems.push({ label: userLabel, href: userHref, icon: <Users /> })
+        }
+
+        // Unified Student Management
+        if (permissions.studentManagement.access && !isAmbassadorRole) {
+            const studentHref = isSuperAdmin ? '/superadmin/students' : (isCampusLevel ? '/campus/students' : `${baseAdminPath}?view=students`)
+            const studentLabel = isSuperAdmin ? 'Student Records' : 'Student Management'
+            const studentIcon = isSuperAdmin ? <GraduationCap /> : <BookOpen />
+            navItems.push({ label: studentLabel, href: studentHref, icon: studentIcon })
+        }
+
         if (permissions.adminManagement.access) navItems.push({ label: 'Admin Management', href: `${baseAdminPath}?view=admins`, icon: <UserCog /> })
         if (permissions.reports.access) navItems.push({ label: 'Reports', href: `${baseAdminPath}?view=reports`, icon: <FileDown /> })
-        // Global Referral Module removed (Duplicate for Super Admin)
+        // Unified Referral Pipeline / Tracking Link
+        if (permissions.referralTracking.access && !isAmbassadorRole) {
+            const referralHref = isSuperAdmin ? '/superadmin/referrals' : (isCampusLevel ? '/campus/referrals' : `${baseAdminPath}?view=referrals`)
+            const referralLabel = isCampusLevel ? 'Campus Leads' : 'Referral Pipeline'
+            navItems.push({ label: referralLabel, href: referralHref, icon: <GitFork /> })
+        }
+        
         if (isSuperAdmin) navItems.push({ label: 'Fee Management', href: `/superadmin?view=fees`, icon: <IndianRupee /> })
 
         // Specific management of dashboard types based on permissions
@@ -79,23 +102,21 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         const canSeePermissions = isSuperAdmin || permissions.adminManagement.access
         const canSeeSettings = isSuperAdmin || permissions.settings.access
 
-        if (isSuperAdmin || permissions.campusPerformance.access) navItems.push({ label: 'Campus Control', href: '/superadmin/campuses', icon: <Building2 /> })
-        if (isSuperAdmin || permissions.userManagement.access) navItems.push({ label: 'User Operations', href: '/superadmin/users', icon: <Users /> })
-        if (isSuperAdmin || permissions.studentManagement.access) navItems.push({ label: 'Student Records', href: '/superadmin/students', icon: <GraduationCap /> })
-        if (isSuperAdmin || permissions.paymentApproval.access) navItems.push({ label: 'Beneficiary Verification', href: '/superadmin/verification', icon: <UserCheck /> })
-        if (isSuperAdmin || permissions.referralTracking.access) navItems.push({ label: 'Referral Pipeline', href: '/superadmin/referrals', icon: <GitFork /> })
-        
-        if (isSuperAdmin || (permissions as any).marketingManager?.access) navItems.push({ label: 'Marketing Management', href: '/superadmin?view=marketing', icon: <Megaphone /> })
-        if (isSuperAdmin || permissions.settlements.access) navItems.push({ label: 'Revenue & Payouts', href: '/superadmin?view=settlements', icon: <IndianRupee /> })
-        
-        if ((canSeePermissions || canSeeAutomation) && user.role !== 'Admission Admin') navItems.push({ label: 'Access Control', href: '/superadmin?view=permissions', icon: <Shield /> })
-        if (canSeeSettings) navItems.push({ label: 'Settings', href: '/superadmin?view=settings', icon: <Settings /> })
-        
-        if (isSuperAdmin || permissions.settlements.access) navItems.push({ label: 'Benefit Management', href: '/superadmin/benefits', icon: <Calculator /> })
+        if (!isAmbassadorRole) {
+            if (isSuperAdmin || permissions.paymentApproval.access) navItems.push({ label: 'Beneficiary Verification', href: '/superadmin/verification', icon: <UserCheck /> })
+            
+            if (isSuperAdmin || (permissions as any).marketingManager?.access) navItems.push({ label: 'Marketing Management', href: '/superadmin?view=marketing', icon: <Megaphone /> })
+            if (isSuperAdmin || permissions.settlements.access) navItems.push({ label: 'Revenue & Payouts', href: '/superadmin?view=settlements', icon: <IndianRupee /> })
+            
+            if ((canSeePermissions || canSeeAutomation) && user.role !== 'Admission Admin') navItems.push({ label: 'Access Control', href: '/superadmin?view=permissions', icon: <Shield /> })
+            if (canSeeSettings) navItems.push({ label: 'Settings', href: '/superadmin?view=settings', icon: <Settings /> })
+            
+            if (isSuperAdmin || permissions.settlements.access) navItems.push({ label: 'Benefit Management', href: '/superadmin/benefits', icon: <Calculator /> })
 
-        if (permissions.paymentApproval?.access) {
-            navItems.push({ label: 'Payment Approvals', href: '/superadmin/approvals', icon: <CheckCircle /> })
-            navItems.push({ label: 'Rejection History', href: '/superadmin/approvals/history', icon: <History className="text-red-400" /> })
+            if (permissions.paymentApproval?.access) {
+                navItems.push({ label: 'Payment Approvals', href: '/superadmin/approvals', icon: <CheckCircle /> })
+                navItems.push({ label: 'Rejection History', href: '/superadmin/approvals/history', icon: <History className="text-red-400" /> })
+            }
         }
 
         if (permissions.deletionHub?.access) {
@@ -103,9 +124,6 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         }
         // navItems.push({ label: 'Parent Dashboard Ctrl', href: '/superadmin?view=parent-dash', icon: <Star /> })
 
-        if (isCampusLevel) {
-            permissions.referralTracking.access && navItems.push({ label: 'Campus Leads', href: '/campus/referrals', icon: <List /> })
-        }
 
         // Ambassador Portal Links (Only for Staff, Parents, Alumni, Others)
         if (isAmbassadorRole) {
