@@ -17,6 +17,14 @@ export default function CSVUploader({ type, onClose, userRole }: CSVUploaderProp
 
     useEffect(() => {
         setMounted(true)
+        const html = document.documentElement
+        const body = document.body
+        html.classList.add('no-scroll')
+        body.classList.add('no-scroll')
+        return () => {
+            html.classList.remove('no-scroll')
+            body.classList.remove('no-scroll')
+        }
     }, [])
 
     if (!mounted) return null

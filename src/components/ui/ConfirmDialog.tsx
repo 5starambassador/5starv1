@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertCircle, X, ShieldAlert, Info } from 'lucide-react'
-import { ReactNode } from 'react'
+import { ReactNode, useEffect } from 'react'
 
 interface ConfirmDialogProps {
     isOpen: boolean
@@ -59,6 +59,19 @@ export function ConfirmDialog({
     }
 
     const config = variantConfig[variant]
+
+    useEffect(() => {
+        if (isOpen) {
+            const html = document.documentElement
+            const body = document.body
+            html.classList.add('no-scroll')
+            body.classList.add('no-scroll')
+            return () => {
+                html.classList.remove('no-scroll')
+                body.classList.remove('no-scroll')
+            }
+        }
+    }, [isOpen])
 
     return (
         <AnimatePresence>

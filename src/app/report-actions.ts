@@ -1261,6 +1261,7 @@ export async function generateMasterReferralReport(filters?: { startDate?: strin
             rows.push(row.join(','))
         })
 
+
         return {
             success: true,
             csv: rows.join('\n'),
@@ -1269,6 +1270,126 @@ export async function generateMasterReferralReport(filters?: { startDate?: strin
     } catch (error) {
         console.error('Master Referral Report Error:', error)
         return { success: false, error: 'Failed to generate report' }
+    }
+}
+
+// ===================== REPORT #16: DAILY REFERRAL VISUAL REPORT =====================
+/**
+ * Generates aggregated data for the Daily Referral Summary Dashboard.
+ * Filters:
+ * - targetDate: The "snapshot" date for both cumulative (as of) and daily (on that day) metrics.
+ * - campus: Optional specific campus filter.
+ * - academicYear: Optional specific academic year filter.
+ */
+export async function getDailyReferralReport(filters?: { targetDate?: string, campus?: string, academicYear?: string }) {
+    const admin = await getCurrentUser()
+    const canAccess = await hasPermission('reports')
+    if (!admin || !canAccess) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        const targetDate = filters?.targetDate || new Date().toISOString().split('T')[0]
+        const dateObj = new Date(targetDate)
+        const dayStart = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 0, 0, 0)
+        const dayEnd = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 23, 59, 59)
+
+        // 1. Fetch All Active Campuses (or just the selected one)
+        const campusWhere: any = { isActive: true }
+        if (filters?.campus && filters.campus !== 'All') {
+            campusWhere.campusName = filters.campus
+        }
+
+        const campuses = await prisma.campus.findMany({
+            where: campusWhere,
+            orderBy: { campusName: 'asc' }
+        })
+
+        const reportRows = await Promise.all(campuses.map(async (campus, index) => {
+            const campusName = campus.campusName
+
+            // COMMON WHERE CLAUSE
+            const baseWhere: any = { campus: campusName }
+            if (filters?.academicYear && filters.academicYear !== 'All') {
+                baseWhere.academicYear = filters.academicYear
+            }
+
+            // CUMULATIVE STATS (As of the selected targetDate)
+            const cumulativeTotal = await prisma.referralLead.count({
+                where: { 
+                    ...baseWhere,
+                    createdAt: { lte: dayEnd } 
+                }
+            })
+            
+            const cumulativeAdmitted = await prisma.referralLead.count({
+                where: { 
+                    ...baseWhere,
+                    leadStatus: _LeadStatus.Admitted,
+                    createdAt: { lte: dayEnd }
+                }
+            })
+
+            // DAILY STATS (For selected targetDate)
+            const dailyNew = await prisma.referralLead.count({
+                where: { 
+                    ...baseWhere,
+                    createdAt: { gte: dayStart, lte: dayEnd }
+                }
+            })
+
+            // Admitted Today: We check Students created today who have a referral link
+            const studentWhere: any = {
+                referralLead: { campus: campusName },
+                createdAt: { gte: dayStart, lte: dayEnd }
+            }
+            if (filters?.academicYear && filters.academicYear !== 'All') {
+                studentWhere.academicYear = filters.academicYear
+            }
+
+            const dailyAdmitted = await prisma.student.count({
+                where: studentWhere
+            })
+
+            return {
+                slNo: index + 1,
+                campusName,
+                cumulative: {
+                    total: cumulativeTotal,
+                    admitted: cumulativeAdmitted
+                },
+                daily: {
+                    new: dailyNew,
+                    admitted: dailyAdmitted,
+                    total: dailyNew // Daily Total = New leads submitted on that day
+                }
+            }
+        }))
+
+        // GRAND TOTALS
+        const grandTotals = {
+            cumulative: {
+                total: reportRows.reduce((sum, r) => sum + r.cumulative.total, 0),
+                admitted: reportRows.reduce((sum, r) => sum + r.cumulative.admitted, 0)
+            },
+            daily: {
+                new: reportRows.reduce((sum, r) => sum + r.daily.new, 0),
+                admitted: reportRows.reduce((sum, r) => sum + r.daily.admitted, 0),
+                total: reportRows.reduce((sum, r) => sum + r.daily.total, 0)
+            }
+        }
+
+        return { 
+            success: true, 
+            data: {
+                reportRows,
+                grandTotals,
+                targetDate
+            }
+        }
+    } catch (error) {
+        console.error('Daily Referral Report Error:', error)
+        return { success: false, error: 'Failed' }
     }
 }
 

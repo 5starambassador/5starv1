@@ -10,6 +10,7 @@ import { getUserSettlements } from '@/app/settlement-actions'
 import { getUserReferrals } from '@/app/superadmin-actions'
 import { getAmbassadorLedger } from '@/app/financial-actions'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 
@@ -22,7 +23,7 @@ interface UserDetailPanelProps {
 }
 
 export function UserDetailPanel({ user, onClose, onEdit, onResetPassword, onViewAudit }: UserDetailPanelProps) {
-    const [activeTab, setActiveTab] = useState<'overview' | 'referrals' | 'financials'>('overview')
+    const [mounted, setMounted] = useState(false)
     const [settlements, setSettlements] = useState<any[]>([])
     const [referrals, setReferrals] = useState<any[]>([])
     const [ledger, setLedger] = useState<any[]>([])
@@ -32,9 +33,12 @@ export function UserDetailPanel({ user, onClose, onEdit, onResetPassword, onView
     const [loadingLedger, setLoadingLedger] = useState(false)
 
     useEffect(() => {
+        setMounted(true)
+    }, [])
+
+    useEffect(() => {
         if (user?.userId) {
             // Reset state on user change
-            setActiveTab('overview')
             setSettlements([])
             setReferrals([])
 
@@ -81,424 +85,300 @@ export function UserDetailPanel({ user, onClose, onEdit, onResetPassword, onView
         }
     }, [user?.userId])
 
-    if (!user) return null
-    const stars = calculateStars(user.confirmedReferralCount || 0)
+    // Body scroll locking
+    useEffect(() => {
+        if (user) {
+            document.body.style.overflow = 'hidden'
+            return () => {
+                document.body.style.overflow = 'unset'
+            }
+        }
+    }, [user])
 
-    // Calculate Conversion Rate for this user
+    if (!mounted) return null
+
+    // Calculations - handled safely for potential null user
+    const stars = user ? calculateStars(user.confirmedReferralCount || 0) : { tier: '', starCount: 0 }
     const totalRefs = referrals.length
     const confirmedRefs = referrals.filter(r => r.status === 'Confirmed').length
-    const conversionRate = totalRefs > 0 ? Math.round((confirmedRefs / totalRefs) * 100) : 0
+    // Use user.confirmedReferralCount as the source-of-truth for stats if it's higher than the leads list
+    const effectiveConfirmedCount = Math.max(confirmedRefs, user?.confirmedReferralCount || 0)
+    const conversionRate = totalRefs > 0 ? Math.round((effectiveConfirmedCount / Math.max(totalRefs, effectiveConfirmedCount)) * 100) : 0
 
-    return (
-        <AnimatePresence>
-            <div className="fixed inset-0 z-[60] flex justify-end">
-                {/* Backdrop */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={onClose}
-                    className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-                />
-
-                {/* Main Panel */}
-                <motion.div
-                    initial={{ x: '100%' }}
-                    animate={{ x: 0 }}
-                    exit={{ x: '100%' }}
-                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                    className="relative w-full max-w-lg bg-white shadow-2xl h-full flex flex-col overflow-hidden"
+    const panelContent = (
+        <AnimatePresence mode="wait">
+            {user && (
+                <div 
+                    className="fixed inset-0 z-[150] flex justify-end" 
+                    key="user-detail-panel-root"
                 >
-                    {/* Header */}
-                    <div className="p-8 border-b border-gray-100 bg-gradient-to-br from-gray-50 to-white pb-0">
-                        <div className="flex justify-between items-start mb-6">
-                            <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center border border-red-100 shadow-inner">
-                                    <User size={32} className="text-red-500" />
-                                </div>
-                                <div>
-                                    <h2 className="text-2xl font-black text-gray-900 leading-tight uppercase tracking-tight">
-                                        {user.fullName}
-                                    </h2>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${user.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-gray-50 text-gray-400 border-gray-200'
-                                            }`}>
-                                            {user.status}
-                                        </span>
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">•</span>
-                                        <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">
-                                            {user.role}
-                                        </span>
+                    {/* Backdrop */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="absolute inset-0 bg-black/40 backdrop-blur-[6px]"
+                    />
+
+                    {/* Main Panel - Flush with top/bottom */}
+                    <motion.div
+                        initial={{ x: '100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '100%' }}
+                        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                        className="relative w-full max-w-lg bg-white shadow-[0_0_50px_-12px_rgba(0,0,0,0.3)] h-screen flex flex-col overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header Area */}
+                        <div className="p-8 pb-6 border-b border-gray-100 bg-gradient-to-br from-gray-50/80 to-white backdrop-blur-md">
+                            <div className="flex justify-between items-start mb-6">
+                                <div className="flex items-center gap-5">
+                                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center border border-indigo-100 shadow-inner relative overflow-hidden group">
+                                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <User size={32} className="text-indigo-500 relative z-10" />
                                     </div>
+                                    <div>
+                                        <h2 className="text-2xl font-black text-gray-900 leading-tight uppercase tracking-tight italic">
+                                            {user.fullName}
+                                        </h2>
+                                        <div className="flex items-center gap-2 mt-1.5">
+                                            <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-widest border transition-colors ${
+                                                user.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-gray-50 text-gray-400 border-gray-200'
+                                            }`}>
+                                                {user.status}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">•</span>
+                                            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50/50 px-2 rounded-md">
+                                                {user.role}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={onClose}
+                                    className="w-10 h-10 bg-white border border-gray-100 flex items-center justify-center rounded-xl hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all text-gray-400 shadow-sm active:scale-95"
+                                    title="Close Panel (Esc)"
+                                >
+                                    <X size={20} strokeWidth={3} />
+                                </button>
+                            </div>
+
+                            {/* Standardized Header Cards */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-white/60 rounded-2xl p-4 border border-gray-100 shadow-sm transition-all hover:border-indigo-100 group">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 group-hover:text-indigo-400 transition-colors">Performance</p>
+                                    <p className={`text-sm font-black flex items-center gap-2 ${stars.tier === '5-Star' ? 'text-indigo-600' : 'text-amber-500'}`}>
+                                        <Star size={14} fill="currentColor" /> {stars.tier} Rank
+                                    </p>
+                                </div>
+                                <div className="bg-white/60 rounded-2xl p-4 border border-gray-100 shadow-sm text-right transition-all hover:border-emerald-100 group">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 group-hover:text-emerald-400 transition-colors">Total Pipeline</p>
+                                    <p className="text-sm font-black text-emerald-600">
+                                        {effectiveConfirmedCount} Confirmed
+                                    </p>
                                 </div>
                             </div>
-                            <button
-                                onClick={onClose}
-                                className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400"
-                            >
-                                <X size={24} />
-                            </button>
                         </div>
 
-                        {/* Tabs */}
-                        <div className="flex gap-6 mt-4">
-                            <button
-                                onClick={() => setActiveTab('overview')}
-                                className={`pb-3 text-xs font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'overview' ? 'border-red-600 text-red-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-                            >
-                                <div className="flex items-center gap-2">
-                                    <User size={14} /> Overview
-                                </div>
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('referrals')}
-                                className={`pb-3 text-xs font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'referrals' ? 'border-red-600 text-red-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-                            >
-                                <div className="flex items-center gap-2">
-                                    <Users size={14} /> Referrals
-                                    <span className="bg-gray-100 text-gray-600 px-1.5 rounded text-[9px]">{referrals.length}</span>
-                                </div>
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('financials')}
-                                className={`pb-3 text-xs font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'financials' ? 'border-red-600 text-red-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-                            >
-                                <div className="flex items-center gap-2">
-                                    <Wallet size={14} /> Financials
-                                </div>
-                            </button>
+                        {/* Section Jumper (Mini-Nav) */}
+                        <div className="flex px-8 py-2 border-b border-gray-50 bg-white/50 backdrop-blur-sm gap-6 overflow-x-auto no-scrollbar">
+                            {['Profile', 'Registry', 'Performance', 'Finance', 'Activity'].map((sec) => (
+                                <button
+                                    key={sec}
+                                    onClick={() => {
+                                        const el = document.getElementById(`section-${sec.toLowerCase()}`)
+                                        el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                                    }}
+                                    className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-indigo-600 transition-colors py-2 whitespace-nowrap"
+                                >
+                                    {sec}
+                                </button>
+                            ))}
                         </div>
-                    </div>
 
-                    {/* Scrollable Content */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-10 bg-white">
-
-                        {activeTab === 'overview' && (
-                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
-                                {/* Star Tier Summary - Only on Overview */}
-                                <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center justify-between">
-                                    <div className="flex flex-col">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Efficiency Status</p>
-                                        <p className={`text-sm font-black mt-0.5 ${stars.tier === '5-Star' ? 'text-red-600' : 'text-amber-500'}`}>
-                                            {stars.tier} Member
+                        {/* Scrollable Content */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar-panel p-8 space-y-12 bg-white pb-20">
+                            
+                            {/* 1. Profile Insights */}
+                            <section id="section-profile" className="scroll-mt-4">
+                                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] mb-6 flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full" /> Ambassador Profile
+                                </h3>
+                                <div className="grid grid-cols-2 gap-8">
+                                    <div className="space-y-2 flex flex-col">
+                                        <div className="flex items-center gap-2 text-gray-400">
+                                            <Calendar size={14} />
+                                            <span className="text-[9px] font-black uppercase tracking-widest">Joined On</span>
+                                        </div>
+                                        <p className="text-sm font-bold text-gray-900 pl-6" suppressHydrationWarning>
+                                            {format(new Date(user.createdAt), 'MMMM dd, yyyy')}
                                         </p>
                                     </div>
-                                    <div className="flex items-center gap-0.5">
-                                        {[...Array(5)].map((_, i) => (
-                                            <Star
-                                                key={i}
-                                                size={18}
-                                                fill={i < stars.starCount ? "currentColor" : "none"}
-                                                className={`${i < stars.starCount ? (stars.tier === '5-Star' ? 'text-red-600' : 'text-amber-400') : 'text-gray-200'}`}
-                                                strokeWidth={i < stars.starCount ? 0 : 2}
-                                            />
-                                        ))}
+                                    <div className="space-y-2 flex flex-col">
+                                        <div className="flex items-center gap-2 text-emerald-500">
+                                            <CreditCard size={14} />
+                                            <span className="text-[9px] font-black uppercase tracking-widest">Benefit Status</span>
+                                        </div>
+                                        <p className="text-sm font-black text-emerald-600 pl-6">
+                                            {user.yearFeeBenefitPercent}% Annual Discount
+                                        </p>
                                     </div>
                                 </div>
+                            </section>
 
-                                {/* Engagement Grid */}
-                                <section>
-                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Ambassador Insights</h3>
-                                    <div className="grid grid-cols-2 gap-6">
-                                        <div className="space-y-1.5">
-                                            <div className="flex items-center gap-2 text-red-500">
-                                                <Calendar size={14} />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Joined On</span>
+                            {/* 2. Contact Registry */}
+                            <section id="section-registry" className="scroll-mt-4">
+                                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] mb-6 flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full" /> Contact Registry
+                                </h3>
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between p-5 rounded-2xl bg-gray-50/50 border border-gray-100 hover:bg-white hover:shadow-lg hover:shadow-gray-100/50 transition-all group">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-gray-100 shadow-sm group-hover:scale-110 transition-transform">
+                                                <Smartphone size={18} className="text-indigo-500" />
                                             </div>
-                                            <p className="text-sm font-bold text-gray-900 pl-6" suppressHydrationWarning>
-                                                {format(new Date(user.createdAt), 'MMMM dd, yyyy')}
-                                            </p>
+                                            <div className="text-left">
+                                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Primary Mobile</p>
+                                                <p className="text-sm font-bold text-gray-900 tracking-tight">{user.mobileNumber}</p>
+                                            </div>
                                         </div>
-                                        <div className="space-y-1.5">
-                                            <div className="flex items-center gap-2 text-emerald-500">
-                                                <CreditCard size={14} />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Base Benefit</span>
-                                            </div>
-                                            <p className="text-sm font-black text-emerald-600 pl-6">
-                                                {user.yearFeeBenefitPercent}% Discount
-                                            </p>
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <div className="flex items-center gap-2 text-blue-500">
-                                                <ActivityIcon size={14} />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Loyalty Rank</span>
-                                            </div>
-                                            <p className="text-sm font-black text-blue-600 pl-6">
-                                                {user.longTermBenefitPercent}% Extra
-                                            </p>
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <div className="flex items-center gap-2 text-purple-500">
-                                                <Hash size={14} />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Global ID</span>
-                                            </div>
-                                            <p className="text-sm font-bold text-gray-900 pl-6 font-mono">
-                                                #{user.userId.toString().padStart(6, '0')}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </section>
-
-                                {/* Administrative Details */}
-                                <section>
-                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Profile Details</h3>
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-gray-100">
-                                            <div className="flex items-center gap-3">
-                                                <Smartphone size={16} className="text-gray-400" />
-                                                <div>
-                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Mobile Number</p>
-                                                    <p className="text-sm font-bold text-gray-900">{user.mobileNumber}</p>
-                                                </div>
-                                            </div>
-                                            <span className="text-[10px] font-black bg-red-50 text-red-700 px-3 py-1 rounded-lg border border-red-100 uppercase tracking-widest">
+                                        <div className="flex flex-col items-end">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Passcode</p>
+                                            <span className="text-[11px] font-black bg-indigo-600 text-white px-3 py-1 rounded-lg border border-indigo-700 uppercase tracking-[0.1em] shadow-lg shadow-indigo-100 italic">
                                                 {user.referralCode}
                                             </span>
                                         </div>
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex-1 p-4 rounded-xl bg-gray-50 border border-gray-100">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <Building size={14} className="text-gray-400" />
-                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Campus</p>
-                                                </div>
-                                                <p className="text-sm font-bold text-gray-900 pl-5">{user.assignedCampus || 'Global'}</p>
-                                            </div>
-                                            <div className="flex-1 p-4 rounded-xl bg-gray-50 border border-gray-100">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <Shield size={14} className="text-gray-400" />
-                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Grade</p>
-                                                </div>
-                                                <p className="text-sm font-bold text-gray-900 pl-5">{user.grade || 'N/A'}</p>
-                                            </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-5 rounded-2xl bg-gray-50/50 border border-gray-100 text-left hover:bg-white hover:shadow-lg hover:shadow-gray-100/50 transition-all">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Base Campus</p>
+                                            <p className="text-sm font-bold text-gray-900 flex items-center gap-2 uppercase tracking-tight">
+                                                <Building size={14} className="text-gray-400" /> {user.assignedCampus || 'Global Operations'}
+                                            </p>
                                         </div>
-                                        {user.aadharNo && (
-                                            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <Hash size={14} className="text-gray-400" />
-                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Aadhar Number</p>
-                                                </div>
-                                                <p className="text-sm font-bold text-gray-900 pl-5 font-mono tracking-wider">{user.aadharNo}</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </section>
-
-                                {/* Settlement Bank Details */}
-                                <section>
-                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Settlement Bank Details</h3>
-                                    <div className="space-y-4">
-                                        {(user.bankName || user.accountNumber || user.ifscCode) ? (
-                                            <div className="p-5 rounded-2xl bg-indigo-50/50 border border-indigo-100/50 shadow-inner">
-                                                <div className="flex items-center gap-3 mb-4">
-                                                    <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
-                                                        <Building size={16} />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Institution</p>
-                                                        <p className="text-sm font-black text-indigo-900">{user.bankName || 'Not Specified'}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div className="bg-white/60 p-3 rounded-xl border border-indigo-100/30">
-                                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Account Number</p>
-                                                        <p className="text-xs font-black text-gray-900 font-mono tracking-wider">{user.accountNumber || 'N/A'}</p>
-                                                    </div>
-                                                    <div className="bg-white/60 p-3 rounded-xl border border-indigo-100/30">
-                                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">IFSC Code</p>
-                                                        <p className="text-xs font-black text-gray-900 font-mono">{user.ifscCode || 'N/A'}</p>
-                                                    </div>
-                                                </div>
-                                                {user.bankAccountDetails && user.bankAccountDetails !== 'N/A' && !user.bankName && (
-                                                    <div className="mt-4 p-3 bg-white/40 rounded-xl border border-dashed border-indigo-200">
-                                                        <p className="text-[9px] font-bold text-indigo-400 uppercase mb-1">Legacy Note</p>
-                                                        <p className="text-[10px] text-gray-500 italic leading-relaxed">{user.bankAccountDetails}</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                                                <CreditCard size={24} className="mx-auto text-gray-300 mb-2" />
-                                                <p className="text-xs font-bold text-gray-400 italic">No bank details updated by user yet.</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </section>
-
-                                {/* Recent Activity */}
-                                <section className="pb-8">
-                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Activity Timeline</h3>
-                                    <ActivityHistory userId={user.userId} userName={user.fullName} />
-                                </section>
-                            </motion.div>
-                        )}
-
-                        {activeTab === 'referrals' && (
-                            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                                {/* Conversion Stat Card */}
-                                <div className="bg-indigo-50 rounded-2xl p-5 border border-indigo-100 flex items-center justify-between">
-                                    <div>
-                                        <h4 className="text-xs font-black text-indigo-400 uppercase tracking-widest">Ambassador Conversion</h4>
-                                        <p className="text-2xl font-black text-indigo-900 mt-1">{conversionRate}%</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-[10px] font-bold text-indigo-400 uppercase">Confirmed / Total</p>
-                                        <p className="text-sm font-bold text-indigo-700">{confirmedRefs} / {totalRefs} Leads</p>
+                                        <div className="p-5 rounded-2xl bg-gray-50/50 border border-gray-100 text-left hover:bg-white hover:shadow-lg hover:shadow-gray-100/50 transition-all">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Academic Stage</p>
+                                            <p className="text-sm font-bold text-gray-900 flex items-center gap-2 uppercase tracking-tight">
+                                                <Star size={14} className="text-amber-400" /> {user.grade || 'Staff / Graduate'}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
+                            </section>
 
-                                <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Referral History</h3>
-
-                                {loadingReferrals ? (
-                                    <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600" /></div>
-                                ) : referrals.length > 0 ? (
-                                    <div className="space-y-3">
-                                        {referrals.map((ref) => (
-                                            <div key={ref.id} className="p-4 rounded-xl border border-gray-100 bg-white hover:border-gray-200 transition-all flex items-center justify-between group">
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`w-2 h-10 rounded-full ${ref.status === 'Confirmed' ? 'bg-emerald-400' : ref.status === 'New' ? 'bg-blue-400' : 'bg-gray-300'}`} />
-                                                    <div>
-                                                        <p className="text-sm font-black text-gray-900">{ref.studentName}</p>
-                                                        <p className="text-[10px] font-bold text-gray-400">{format(new Date(ref.date), 'MMM dd, yyyy')}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${ref.status === 'Confirmed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                                        ref.status === 'New' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                                                            'bg-gray-50 text-gray-500 border-gray-200'
-                                                        }`}>
-                                                        {ref.status}
-                                                    </span>
-                                                    {ref.admissionStatus && (
-                                                        <p className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-wide">{ref.admissionStatus}</p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
+                            {/* 3. Performance & Pipeline */}
+                            <section id="section-performance" className="scroll-mt-4">
+                                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] mb-6 flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full" /> Pipeline Health
+                                </h3>
+                                <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-[32px] p-7 border border-indigo-500 shadow-xl shadow-indigo-100 text-white text-left relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl group-hover:scale-125 transition-transform" />
+                                    <div className="flex items-center justify-between relative z-10">
+                                        <div>
+                                            <h4 className="text-[10px] font-black opacity-80 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                <ActivityIcon size={12} /> Target Conversion
+                                            </h4>
+                                            <p className="text-4xl font-black mt-2 tracking-tighter italic">{conversionRate}%</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] font-bold opacity-70 uppercase tracking-widest mb-1">Efficiency Ratio</p>
+                                            <p className="text-base font-black tracking-tight">{effectiveConfirmedCount} / {Math.max(totalRefs, effectiveConfirmedCount)} Leads</p>
+                                        </div>
                                     </div>
-                                ) : (
-                                    <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                                        <Users size={24} className="mx-auto text-gray-300 mb-2" />
-                                        <p className="text-xs font-bold text-gray-400">No referrals made yet by this ambassador.</p>
+                                    <div className="mt-6 h-2 bg-white/10 rounded-full overflow-hidden">
+                                        <motion.div 
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${conversionRate}%` }}
+                                            transition={{ duration: 1, ease: 'easeOut' }}
+                                            className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.5)]" 
+                                        />
                                     </div>
-                                )}
-                            </motion.div>
-                        )}
+                                </div>
+                            </section>
 
-                        {activeTab === 'financials' && (
-                            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                                {/* Financial Stats Overhaul */}
+                            {/* 4. Financial Ledger */}
+                            <section id="section-finance" className="scroll-mt-4 pt-4 border-t border-gray-50">
+                                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] mb-6 flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full" /> Financial Performance
+                                </h3>
+                                
                                 {ledgerSummary && (
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
-                                            <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Total Earned</h4>
-                                            <p className="text-xl font-black text-emerald-900 mt-1">₹{ledgerSummary.totalEarned.toLocaleString()}</p>
+                                    <div className="grid grid-cols-2 gap-4 mb-8">
+                                        <div className="bg-emerald-50/50 rounded-2xl p-5 border border-emerald-100 transition-all hover:bg-emerald-50">
+                                            <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Global Earnings</h4>
+                                            <p className="text-2xl font-black text-emerald-900 tracking-tighter italic">₹{ledgerSummary.totalEarned.toLocaleString()}</p>
                                         </div>
-                                        <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
-                                            <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Total Settled</h4>
-                                            <p className="text-xl font-black text-indigo-900 mt-1">₹{ledgerSummary.totalSettled.toLocaleString()}</p>
-                                        </div>
-                                        <div className="col-span-2 bg-gray-900 rounded-2xl p-4 border border-gray-800 shadow-xl shadow-gray-200">
-                                            <div className="flex justify-between items-center">
-                                                <div>
-                                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Remaining Balance</h4>
-                                                    <p className="text-2xl font-black text-white mt-1">₹{ledgerSummary.outstanding.toLocaleString()}</p>
-                                                </div>
-                                                <div className="p-3 bg-white/10 rounded-xl">
-                                                    <Wallet size={24} className="text-white" />
-                                                </div>
-                                            </div>
+                                        <div className="bg-indigo-50/50 rounded-2xl p-5 border border-indigo-100 text-right transition-all hover:bg-indigo-50">
+                                            <h4 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Pending Payout</h4>
+                                            <p className="text-2xl font-black text-indigo-900 tracking-tighter italic">₹{ledgerSummary.outstanding.toLocaleString()}</p>
                                         </div>
                                     </div>
                                 )}
 
-                                <div className="flex justify-between items-center">
-                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Transaction Ledger</h3>
-                                    <span className="text-[9px] font-bold text-gray-400 bg-gray-50 px-2 py-0.5 rounded border">Cycle: 2026-2027</span>
-                                </div>
-
-                                <div className="space-y-3 pb-8">
+                                <div className="space-y-3">
                                     {loadingLedger ? (
-                                        <div className="flex items-center justify-center py-12">
-                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 opacity-20"></div>
-                                        </div>
+                                        <div className="flex items-center justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 opacity-20" /></div>
                                     ) : ledger.length > 0 ? (
-                                        ledger.map((item) => (
-                                            <div key={item.id} className="relative group">
-                                                {/* Vertical Connector Line */}
-                                                <div className="absolute left-6 top-10 bottom-0 w-px bg-gray-100 group-last:hidden" />
-
-                                                <div className="p-4 rounded-xl border border-gray-100 bg-white shadow-sm flex items-start gap-4 hover:border-red-100 transition-all">
-                                                    <div className={`mt-1 p-2 rounded-lg shrink-0 ${item.direction === 'IN' ? 'bg-emerald-50 text-emerald-600' :
-                                                        item.type === 'WAIVER' ? 'bg-purple-50 text-purple-600' : 'bg-red-50 text-red-600'
-                                                        }`}>
-                                                        {item.direction === 'IN' ? <IndianRupee size={16} /> : <FileText size={16} />}
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <div className="flex justify-between items-start">
-                                                            <div>
-                                                                <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-0.5">
-                                                                    {item.type} {item.txId && `• ${item.txId}`}
-                                                                </p>
-                                                                <p className="text-sm font-black text-gray-900 leading-tight">{item.remarks}</p>
-                                                                <p className="text-[10px] font-bold text-gray-400 mt-1" suppressHydrationWarning>
-                                                                    {format(new Date(item.date), 'dd MMM yyyy, hh:mm a')}
-                                                                </p>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <p className={`text-sm font-black ${item.direction === 'IN' ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                                    {item.direction === 'IN' ? '+' : '-'} ₹{item.amount.toLocaleString()}
-                                                                </p>
-                                                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase ${item.status === 'Processed' || item.status === 'Confirmed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                                                                    }`}>
-                                                                    {item.status}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Breakdown logic for settlements that have it */}
-                                                        {item.remarks && item.remarks.includes('[BREAKDOWN:') && (
-                                                            <div className="mt-2 text-[10px] bg-gray-50 p-2 rounded-lg border border-gray-100 italic text-gray-500">
-                                                                Covers: {item.remarks.split('[BREAKDOWN:')[1].split(']')[0]}
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                        ledger.slice(0, 5).map((item) => (
+                                            <div key={item.id} className="p-4 rounded-xl border border-gray-50 bg-white hover:border-gray-200 transition-all flex items-center gap-4 text-left group">
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner ${item.direction === 'IN' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                                                    <IndianRupee size={16} />
                                                 </div>
+                                                <div className="flex-1">
+                                                    <p className="text-xs font-black text-gray-900 leading-tight group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{item.remarks}</p>
+                                                    <p className="text-[9px] font-bold text-gray-400 mt-0.5" suppressHydrationWarning>{format(new Date(item.date), 'dd MMMM yyyy')}</p>
+                                                </div>
+                                                <p className={`text-sm font-black italic ${item.direction === 'IN' ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                    {item.direction === 'IN' ? '+' : '-'} ₹{item.amount.toLocaleString()}
+                                                </p>
                                             </div>
                                         ))
                                     ) : (
-                                        <div className="p-12 rounded-2xl border border-dashed border-gray-200 text-center">
-                                            <Wallet size={32} className="mx-auto text-gray-200 mb-4" />
-                                            <p className="text-sm font-bold text-gray-400 italic">No financial history available for this cycle.</p>
+                                        <div className="p-10 text-center bg-gray-50/50 rounded-[24px] border border-dashed border-gray-200">
+                                            <p className="text-xs font-bold text-gray-300 italic uppercase tracking-widest">No entries in financial archives</p>
                                         </div>
                                     )}
                                 </div>
-                            </motion.div>
-                        )}
-                    </div>
+                            </section>
 
-                    {/* Footer Actions */}
-                    <div className="p-6 border-t border-gray-100 bg-gray-50/50 grid grid-cols-2 gap-3 z-10 relative">
-                        <button
-                            onClick={() => onEdit?.(user)}
-                            className="py-3.5 px-4 bg-gray-900 hover:bg-black text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-gray-200 transition-all flex items-center justify-center gap-2"
-                        >
-                            Edit Profile
-                        </button>
-                        <button
-                            onClick={() => onResetPassword?.(user.userId, user.fullName, 'user')}
-                            className="py-3.5 px-4 bg-white border border-gray-200 text-gray-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center justify-center gap-2 shadow-sm"
-                        >
-                            <Key size={14} /> Reset PIN
-                        </button>
-                        <button
-                            onClick={() => onViewAudit?.(user)}
-                            className="col-span-2 py-3.5 px-4 bg-white border border-blue-100 text-blue-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-50 transition-all flex items-center justify-center gap-2 shadow-sm"
-                        >
-                            <Shield size={14} /> Full Audit Trail
-                        </button>
-                    </div>
-                </motion.div>
-            </div>
+                            {/* 5. Operation Log */}
+                            <section id="section-activity" className="scroll-mt-4 pt-4 border-t border-gray-50">
+                                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] mb-10 flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full" /> System Operations
+                                </h3>
+                                <ActivityHistory userId={user.userId} userName={user.fullName} />
+                            </section>
+
+                            {/* Operational Footer Actions */}
+                            <div className="pt-8 border-t border-gray-50 bg-white grid grid-cols-2 gap-4">
+                                <button
+                                    onClick={() => onEdit?.(user)}
+                                    className="py-4 px-6 bg-gray-900 hover:bg-black text-white rounded-[20px] font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-gray-200 transition-all flex items-center justify-center gap-2 hover:-translate-y-1 active:scale-95 italic"
+                                >
+                                    Modify Profiling
+                                </button>
+                                <button
+                                    onClick={() => onResetPassword?.(user.userId, user.fullName, 'user')}
+                                    className="py-4 px-6 bg-white border border-gray-200 text-gray-900 rounded-[20px] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-lg active:scale-95 italic"
+                                >
+                                    <Key size={14} /> Security Reset
+                                </button>
+                                <button
+                                    onClick={() => onViewAudit?.(user)}
+                                    className="col-span-2 py-4 px-6 bg-indigo-50/50 border border-indigo-100 text-indigo-600 rounded-[20px] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-indigo-100 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95 italic"
+                                >
+                                    <Shield size={14} /> Comprehensive Audit Node
+                                </button>
+                            </div>
+                            
+                            <div className="h-10" aria-hidden="true" />
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </AnimatePresence>
     )
+
+    return createPortal(panelContent, document.body)
 }

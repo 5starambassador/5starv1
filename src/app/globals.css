@@ -951,6 +951,10 @@ a {
   overflow-y: auto;
 }
 
+.no-scroll {
+  overflow: hidden !important;
+}
+
 .pr-2 {
   padding-right: 0.5rem;
 }

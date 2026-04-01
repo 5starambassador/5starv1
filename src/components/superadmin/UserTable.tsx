@@ -487,7 +487,8 @@ export function UserTable({
     }
 
     return (
-        <div className="space-y-6 animate-fade-in relative">
+        <>
+            <div className="space-y-6 animate-fade-in relative">
             {/* Premium Header */}
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm transition-all hover:shadow-md">
@@ -723,11 +724,13 @@ export function UserTable({
                         enableMultiSelection={true}
                         onSelectionChange={(selected: User[]) => setSelectedUsers(selected)}
                         uniqueKey="userId"
+                        onRowClick={setSelectedUserForDetail}
                     />
                 </div>
             </div>
+        </div>
 
-            {/* Export Modal */}
+        {/* Export Modal (Portal sibling) */}
             {showExportModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
@@ -873,7 +876,7 @@ export function UserTable({
                 onCancel={() => setBulkConfirmation({ isOpen: false, action: null })}
                 isLoading={isProcessing}
             />
-        </div>
+        </>
     )
 }
 

@@ -15,10 +15,12 @@ import {
     FileDown,
     Mail,
     Loader2,
-    Activity
+    Activity,
+    LayoutDashboard
 } from 'lucide-react'
 import { generatePDFReport } from '@/lib/pdf-export'
 import { emailReport } from '@/app/reporting-actions'
+import { DailyReferralDashboard } from '@/components/reports/DailyReferralDashboard'
 import {
     generateReferralPerformanceReport,
     generatePendingLeadsReport,
@@ -58,9 +60,12 @@ export function ReportsPanel({
 }: ReportsPanelProps) {
     const [emailingId, setEmailingId] = useState<string | null>(null)
     const [isExportingId, setIsExportingId] = useState<string | null>(null)
+    const [showVisualSummary, setShowVisualSummary] = useState(false)
     const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' })
     const [selectedCampus, setSelectedCampus] = useState<string>('All')
+    const [academicYear, setAcademicYear] = useState<string>('2025-2026')
     const uniqueCampuses = Array.from(new Set(campuses.map(c => c.campusName || c.campus).filter(Boolean)))
+    const academicYears = ['2024-2025', '2025-2026', '2026-2027']
 
     const handleEmailReport = async (reportId: string) => {
         setEmailingId(reportId)
@@ -280,8 +285,8 @@ export function ReportsPanel({
 
     return (
         <div className="space-y-6 animate-fade-in pb-4">
-            {/* Filter Controls */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-1">
+            {/* Header & Mode Toggle */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-1">
                 <div className="flex flex-col">
                     <h1 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-3">
                         <FileDown className="text-blue-600" size={32} />
@@ -290,7 +295,15 @@ export function ReportsPanel({
                     <p className="text-gray-500 text-sm font-medium mt-1">Download raw data and administrative audit logs.</p>
                 </div>
 
-                <div className="flex flex-wrap gap-3 items-center">
+                <div className="flex flex-wrap items-center gap-4">
+                    <button
+                        onClick={() => setShowVisualSummary(!showVisualSummary)}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${showVisualSummary ? 'bg-amber-500 text-white shadow-amber-200' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'}`}
+                    >
+                        <LayoutDashboard size={14} />
+                        {showVisualSummary ? 'Switch to Export List' : 'Daily Achievement Summary'}
+                    </button>
+
                     <div className="bg-white p-1 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-2">
                         <div className="px-3 py-1 bg-gray-50 rounded-xl border border-gray-100 flex flex-col">
                             <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Analysis Period</label>
@@ -330,56 +343,80 @@ export function ReportsPanel({
                             </select>
                         </div>
                     </div>
+
+                    <div className="bg-white p-1 rounded-2xl border border-gray-200 shadow-sm flex items-center">
+                        <div className="px-3 py-1 bg-gray-50 rounded-xl border border-gray-100 flex flex-col">
+                            <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Academic Year</label>
+                            <select
+                                className="bg-transparent text-[11px] font-bold text-gray-700 focus:outline-none mt-0.5 min-w-[100px] cursor-pointer"
+                                value={academicYear}
+                                onChange={(e) => setAcademicYear(e.target.value)}
+                                suppressHydrationWarning
+                            >
+                                {academicYears.map(year => (
+                                    <option key={year} value={year}>{year}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {reportGroups.map((group) => (
-                    <div key={group.id} className="group relative bg-white rounded-xl border border-gray-200 shadow-sm hover:border-gray-300 transition-all duration-300 overflow-hidden flex flex-col h-full">
-                        <div className="p-6 flex-1 flex flex-col">
-                            <div className="flex justify-between items-start mb-4">
-                                <div className={`w-12 h-12 rounded-xl ${group.bg} flex items-center justify-center`}>
-                                    <group.icon size={24} className={group.text} />
+            {showVisualSummary ? (
+                <DailyReferralDashboard 
+                    globalDateRange={dateRange} 
+                    globalCampus={selectedCampus} 
+                    globalAcademicYear={academicYear} 
+                />
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {reportGroups.map((group) => (
+                        <div key={group.id} className="group relative bg-white rounded-xl border border-gray-200 shadow-sm hover:border-gray-300 transition-all duration-300 overflow-hidden flex flex-col h-full">
+                            <div className="p-6 flex-1 flex flex-col">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className={`w-12 h-12 rounded-xl ${group.bg} flex items-center justify-center`}>
+                                        <group.icon size={24} className={group.text} />
+                                    </div>
+                                </div>
+
+                                <h3 className="text-lg font-bold text-gray-900 mb-1 leading-tight">{group.title}</h3>
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{group.count}</p>
+                                <p className="text-sm text-gray-500 leading-relaxed mb-6 flex-1">{group.desc}</p>
+
+                                <div className="grid grid-cols-2 gap-3 mt-auto">
+                                    <button
+                                        onClick={() => handleDownload(group.id, group.action)}
+                                        disabled={!!isExportingId}
+                                        suppressHydrationWarning
+                                        className="col-span-1 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 hover:border-gray-300 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
+                                    >
+                                        {isExportingId === group.id ? (
+                                            <Loader2 size={14} className="animate-spin text-blue-600" />
+                                        ) : (
+                                            <Download size={14} />
+                                        )}
+                                        <span>{isExportingId === group.id ? 'Loading...' : 'CSV'}</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => handleEmailReport(group.id)}
+                                        disabled={emailingId === group.id}
+                                        suppressHydrationWarning
+                                        className="col-span-1 px-4 py-2.5 rounded-xl bg-gray-900 hover:bg-black text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
+                                    >
+                                        {emailingId === group.id ? (
+                                            <Loader2 size={14} className="animate-spin" />
+                                        ) : (
+                                            <Mail size={14} />
+                                        )}
+                                        <span>Email</span>
+                                    </button>
                                 </div>
                             </div>
-
-                            <h3 className="text-lg font-bold text-gray-900 mb-1 leading-tight">{group.title}</h3>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{group.count}</p>
-                            <p className="text-sm text-gray-500 leading-relaxed mb-6 flex-1">{group.desc}</p>
-
-                            <div className="grid grid-cols-2 gap-3 mt-auto">
-                                <button
-                                    onClick={() => handleDownload(group.id, group.action)}
-                                    disabled={!!isExportingId}
-                                    suppressHydrationWarning
-                                    className="col-span-1 px-4 py-2.5 rounded-xl bg-gray-50 hover:bg-white text-gray-700 hover:text-gray-900 border border-gray-200 hover:border-gray-300 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
-                                >
-                                    {isExportingId === group.id ? (
-                                        <Loader2 size={14} className="animate-spin text-blue-600" />
-                                    ) : (
-                                        <Download size={14} />
-                                    )}
-                                    <span>{isExportingId === group.id ? 'Loading...' : 'CSV'}</span>
-                                </button>
-
-                                <button
-                                    onClick={() => handleEmailReport(group.id)}
-                                    disabled={emailingId === group.id}
-                                    suppressHydrationWarning
-                                    className="col-span-1 px-4 py-2.5 rounded-xl bg-gray-900 hover:bg-black text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
-                                >
-                                    {emailingId === group.id ? (
-                                        <Loader2 size={14} className="animate-spin" />
-                                    ) : (
-                                        <Mail size={14} />
-                                    )}
-                                    <span>Email</span>
-                                </button>
-                            </div>
                         </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
         </div>
     )
 }

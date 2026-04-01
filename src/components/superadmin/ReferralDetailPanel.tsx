@@ -139,6 +139,20 @@ export function ReferralDetailPanel({
         }
     }, [editForm.campus, isEditing])
 
+    // Handle body scroll locking when panel is open
+    useEffect(() => {
+        if (referral) {
+            const html = document.documentElement
+            const body = document.body
+            html.classList.add('no-scroll')
+            body.classList.add('no-scroll')
+            return () => {
+                html.classList.remove('no-scroll')
+                body.classList.remove('no-scroll')
+            }
+        }
+    }, [referral])
+
     if (!referral) return null
 
     const handleConfirm = async () => {
@@ -411,7 +425,7 @@ export function ReferralDetailPanel({
                     </div>
 
                     {/* Scrollable Content */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-10">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar-panel p-8 space-y-10 min-h-0">
                         {/* Lead Breakdown */}
                         <section>
                             <div className="flex items-center justify-between mb-6">
