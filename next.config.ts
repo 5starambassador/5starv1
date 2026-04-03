@@ -13,11 +13,10 @@ const nextConfig: NextConfig = {
       allowedOrigins: [
         'localhost:3000', 
         'localhost:3001', 
-        '5starambassador.com', 
         'www.5starambassador.com',
         'capacitor://localhost', 
         'http://localhost',
-        process.env.VERCEL_URL || '5starv1.vercel.app'
+        process.env.VERCEL_URL || '5starambassador.com'
       ],
     },
   },
