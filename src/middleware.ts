@@ -166,18 +166,16 @@ export async function middleware(request: NextRequest) {
         response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
     }
 
-    // CSP - Optimized for Cashfree & GrayQuest
+    // CSP - Optimized for Cashfree, GrayQuest & Capacitor Mobile
     const isProd = process.env.NODE_ENV === 'production'
     const csp = [
-        "default-src 'self' blob:",
+        "default-src 'self' blob: capacitor: http://localhost:*",
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.cashfree.com https://payments.cashfree.com https://payments.grayquest.com https://grayquest.com https://checkout.grayquest.com",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com",
-        "img-src 'self' data: https:",
-        "frame-src 'self' https://sdk.cashfree.com https://api.cashfree.com https://payments.cashfree.com https://payments.grayquest.com https://grayquest.com https://checkout.grayquest.com",
-        isProd
-            ? "connect-src 'self' https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments.grayquest.com https://grayquest.com https://checkout.grayquest.com"
-            : "connect-src 'self' http://localhost:3000 http://localhost:3001 http://10.0.2.2:3001 http://192.168.0.250:3001 ws://localhost:3001 ws://10.0.2.2:3001 ws://192.168.0.250:3001 https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments.grayquest.com https://grayquest.com https://checkout.grayquest.com",
+        "img-src 'self' data: https: blob:",
+        "frame-src 'self' capacitor: https://sdk.cashfree.com https://api.cashfree.com https://payments.cashfree.com https://payments.grayquest.com https://grayquest.com https://checkout.grayquest.com",
+        "connect-src 'self' capacitor: http://localhost:* https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments.grayquest.com https://grayquest.com https://checkout.grayquest.com",
     ].join('; ')
     response.headers.set('Content-Security-Policy', csp)
 
