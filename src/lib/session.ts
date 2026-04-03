@@ -27,7 +27,7 @@ export async function createSession(userId: number, userType: 'user' | 'admin' =
     // Get client IP for tracking (1.4)
     const clientIp = (await headers()).get('x-forwarded-for')?.split(',')[0] || 'unknown'
 
-    const session = await new SignJWT({ userId, userType, role, status, ip: clientIp, is2faVerified })
+    const session = await new SignJWT({ userId, userType, role, status, is2faVerified })
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
         .setExpirationTime('30d')

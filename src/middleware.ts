@@ -98,11 +98,13 @@ export async function middleware(request: NextRequest) {
     // Logic:
     // A. If Authenticated
     if (user) {
-        // [HARD BLOCK] Redirect Pending users trying to access dashboard
+        // [DISABLED] Strict redirect loops for Pending users on mobile as they cause app exits
+        /*
         if (user.status === 'Pending' && pathname.startsWith('/dashboard')) {
             console.log(`[AUTH] Hard Block: Redirecting Pending user ${user.userId} to payment step`);
             return NextResponse.redirect(new URL('/?step=payment', request.url))
         }
+        */
 
         // 1. If trying to access Auth pages (Login/Register), redirect to dashboard
         if (isAuthRoute) {
