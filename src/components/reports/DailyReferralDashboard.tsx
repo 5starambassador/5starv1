@@ -148,9 +148,117 @@ export function DailyReferralDashboard({
     }
 
     return (
-        <div className="w-full space-y-6 animate-in fade-in duration-700 pb-10">
+        <div id="daily-referral-report" className="w-full space-y-6 animate-in fade-in duration-700 pb-10">
+            <style jsx global>{`
+                @media print {
+                    @page {
+                        size: A4 portrait !important;
+                        margin: 0 !important;
+                    }
+
+                    /* NUCLEAR RESET: Hide everything on the entire website */
+                    body * {
+                        visibility: hidden !important;
+                    }
+                    /* SURGICAL REVEAL: Show ONLY the report and its contents */
+                    #daily-referral-report, #daily-referral-report * {
+                        visibility: visible !important;
+                    }
+                    
+                    /* THE ONE-PAGE LOCK: Force the browser to only acknowledge one page */
+                    html, body {
+                        height: 100% !important;
+                        max-height: 297mm !important;
+                        overflow: clip !important; /* Physically prevents Page 2 */
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: white !important;
+                    }
+
+                    #__next, [class*="layout"], [class*="MainLayout"], main {
+                        height: 0 !important;
+                        min-height: 0 !important;
+                        overflow: visible !important;
+                        background: white !important;
+                    }
+
+                    /* POSITIONING THE REPORT AT THE ABSOLUTE ZERO ORIGIN */
+                    #daily-referral-report {
+                        display: block !important;
+                        position: fixed !important;
+                        top: -35mm !important; /* TRIPLE SNAP TO THE TOP */
+                        left: 0 !important;
+                        width: 210mm !important;
+                        margin: 0 !important;
+                        padding: 0 15mm 0 15mm !important;
+                        background: white !important;
+                        zoom: 0.82 !important; 
+                        box-sizing: border-box !important;
+                        z-index: 2147483647 !important;
+                    }
+
+                    /* VIVID COLOUR ENFORCEMENT */
+                    #daily-referral-report * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        color-adjust: exact !important;
+                        opacity: 1 !important;
+                    }
+
+                    /* EXECUTIVE TABLE STYLING */
+                    table {
+                        width: 100% !important;
+                        border-collapse: collapse !important;
+                        font-size: 8.5pt !important;
+                        border: 1.5px solid #000 !important;
+                        background: white !important;
+                        margin-bottom: 0 !important;
+                    }
+                    th {
+                        background-color: #f1f5f9 !important;
+                        border: 1px solid #000 !important;
+                        padding: 4px !important;
+                        font-weight: 900 !important;
+                    }
+                    td {
+                        border: 1px solid #777 !important;
+                        padding: 2px 4px !important;
+                        line-height: 1.1 !important;
+                        color: #000 !important;
+                        font-weight: 700 !important;
+                    }
+                    .report-print-container h1 {
+                        font-size: 17pt !important;
+                        margin: 0 0 5mm 0 !important;
+                        text-align: center !important;
+                        font-weight: 900 !important;
+                        color: #000 !important;
+                        text-transform: uppercase !important;
+                    }
+                    tfoot td {
+                        background-color: #FFC000 !important; /* VIVID ACHARIYA YELLOW */
+                        font-weight: 900 !important;
+                        border-top: 2.5px solid #000 !important;
+                        padding: 5px !important;
+                        color: #000 !important;
+                    }
+                }
+            `}</style>
+
+
+
+
+
+
+
+
+
+
+
+
+
             {/* Control Bar */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/50 backdrop-blur-xl p-4 rounded-[2rem] border border-white/50 shadow-xl shadow-indigo-100/20">
+            <div className="control-bar flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/50 backdrop-blur-xl p-4 rounded-[2rem] border border-white/50 shadow-xl shadow-indigo-100/20 print:hidden">
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-200">
                         <Calendar size={24} />
@@ -209,10 +317,10 @@ export function DailyReferralDashboard({
             </div>
 
             {/* The High-Fidelity Report Table */}
-            <div className="overflow-hidden bg-white rounded-[1.5rem] border-2 border-slate-900/5 shadow-2xl relative">
-                <div className="overflow-x-auto min-w-[800px]">
-                    <div className="w-full text-center py-6 bg-[#FFFF00] border-b-2 border-slate-900">
-                        <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight italic">Achievement Summary - {new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</h1>
+            <div className="report-print-container overflow-hidden bg-white rounded-[1.5rem] border-2 border-slate-900/5 shadow-2xl relative print:border-none print:shadow-none">
+                <div className="overflow-x-auto min-w-[800px] print:min-w-0 print:overflow-visible">
+                    <div className="w-full text-center py-6 bg-[#FFFF00] border-b-2 border-slate-900 print:py-2">
+                        <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight italic print:text-xl">Achievement Summary - {new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</h1>
                     </div>
 
                     <table className="w-full border-collapse">
@@ -273,7 +381,7 @@ export function DailyReferralDashboard({
             </div>
 
             {/* Legend / Info Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
                 <div className="bg-blue-50 border border-blue-100 p-5 rounded-3xl flex items-center gap-4">
                     <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white">
                         <TrendingUp size={20} />

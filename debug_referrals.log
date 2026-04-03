@@ -46,3 +46,5 @@
 2026-04-01T01:20:07.319Z: getReferralStats called. Filters: {"studentSource":"referral"}
 2026-04-01T01:20:07.320Z: DEBUG: Stats WHERE: {}
 2026-04-01T01:20:09.255Z: DEBUG: getReferralStats Result - Total: 1106, Confirmed: 477, Pending: 594
+2026-04-03T15:38:49.129Z: getReferralStats called. Filters: {"studentSource":"referral"}
+2026-04-03T15:38:49.130Z: DEBUG: Stats WHERE: {}

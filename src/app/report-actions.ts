@@ -177,7 +177,7 @@ export async function generateMonthlyTrendsReport(filters?: { startDate?: string
 
             const confirmed = await prisma.referralLead.count({
                 where: {
-                    leadStatus: _LeadStatus.Confirmed,
+                    leadStatus: { in: [_LeadStatus.Confirmed, _LeadStatus.Admitted] },
                     confirmedDate: { gte: monthStart, lte: monthEnd },
                     ...(filters?.campus && filters.campus !== 'All' && { campus: filters.campus })
                 }
@@ -272,7 +272,7 @@ export async function generateTopPerformersReport(filters?: { campus?: string })
             where: whereClause,
             include: {
                 referrals: {
-                    where: { leadStatus: _LeadStatus.Confirmed }
+                    where: { leadStatus: { in: [_LeadStatus.Confirmed, _LeadStatus.Admitted] } }
                 }
             },
             orderBy: { confirmedReferralCount: 'desc' },
@@ -320,7 +320,7 @@ export async function generateCampusDistributionReport() {
                 prisma.user.count({ where: { referralCode: { not: null }, assignedCampus: stat.assignedCampus, role: 'Parent' } }),
                 prisma.user.count({ where: { referralCode: { not: null }, assignedCampus: stat.assignedCampus, role: 'Staff' } }),
                 prisma.referralLead.count({ where: { campus: stat.assignedCampus } }),
-                prisma.referralLead.count({ where: { campus: stat.assignedCampus, leadStatus: _LeadStatus.Confirmed } })
+                prisma.referralLead.count({ where: { campus: stat.assignedCampus, leadStatus: { in: [_LeadStatus.Confirmed, _LeadStatus.Admitted] } } })
             ])
 
             const conversionRate = totalLeads > 0 ? ((confirmed / totalLeads) * 100).toFixed(1) : '0'
@@ -1325,7 +1325,7 @@ export async function getDailyReferralReport(filters?: { targetDate?: string, ca
             const cumulativeAdmitted = await prisma.referralLead.count({
                 where: { 
                     ...baseWhere,
-                    leadStatus: _LeadStatus.Admitted,
+                    leadStatus: { in: [_LeadStatus.Confirmed, _LeadStatus.Admitted] },
                     createdAt: { lte: dayEnd }
                 }
             })

@@ -411,7 +411,12 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
             }),
             prisma.referralLead.groupBy({
                 by: ['campus'],
-                where: { campus: { not: null }, leadStatus: { in: ['Confirmed', 'Admitted'] }, ...dateFilter, ...yearLeadFilter },
+                where: { 
+                    campus: { not: null }, 
+                    leadStatus: { in: [LeadStatus.Confirmed, LeadStatus.Admitted] }, 
+                    ...dateFilter, 
+                    ...yearLeadFilter 
+                },
                 _count: { _all: true }
             }),
             prisma.referralLead.groupBy({
