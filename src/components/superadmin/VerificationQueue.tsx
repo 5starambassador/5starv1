@@ -744,7 +744,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                                 </span>
                                                 <span className="w-1 h-1 rounded-full bg-gray-300" />
                                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">
-                                                    {user.assignedCampus || user.matchSuggestion?.campus || 'No Campus'}
+                                                    {(user.assignedCampus && user.assignedCampus !== 'Global') ? user.assignedCampus : (user.matchSuggestion?.campus || 'Unassigned')}
                                                 </span>
                                             </div>
                                             {!user.childName && user.matchSuggestion && (

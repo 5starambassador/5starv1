@@ -670,16 +670,75 @@ export async function getAllUsers(options: {
 
         // Use provided campuses or fetch lightweight list to map IDs to Names
         const campuses = providedCampuses || await prisma.campus.findMany({ select: { id: true, campusName: true } })
-        const campusMap = new Map(campuses.map(c => [c.id, c.campusName]))
+        const campusMap: { [key: number]: string } = {}
+        campuses.forEach(c => { campusMap[c.id] = c.campusName })
 
-        const processedUsers = users.map(u => maskPII({
-            ...u,
-            assignedCampus: campusMap.get(u.campusId || 0) || u.assignedCampus,
-            role: u.role as string,
-            referralCode: u.referralCode || '',
-            referralCount: u.confirmedReferralCount,
-            studentFee: u.studentFee || 0
-        }))
+        // --- SMART MATCHING LOGIC (Fixes Global Campus Leak) ---
+        const relevantMobileNumbers = users.map(u => u.mobileNumber).filter((m): m is string => !!m)
+        const relevantEprNumbers = users.map(u => u.childEprNo).filter((e): e is string => !!e)
+
+        const [erpMatches, dbMatches] = await Promise.all([
+            (prisma as any).erpStudentData.findMany({
+                where: {
+                    OR: [
+                        { admissionNumber: { in: relevantEprNumbers } },
+                        { parentMobile: { in: relevantMobileNumbers } }
+                    ]
+                }
+            }),
+            prisma.student.findMany({
+                where: {
+                    OR: [
+                        { admissionNumber: { in: relevantEprNumbers } },
+                        { parent: { mobileNumber: { in: relevantMobileNumbers } } }
+                    ]
+                },
+                include: { 
+                    parent: { select: { mobileNumber: true } },
+                    campus: { select: { campusName: true } } 
+                }
+            })
+        ])
+
+        const matchMap: { [key: string]: { studentName: string, campus: string, grade: string } } = {}
+        // 1. ERP Staging matches
+        erpMatches.forEach((m: any) => {
+            const data = { studentName: m.fullName, campus: m.campusName, grade: m.grade }
+            if (m.admissionNumber) matchMap[m.admissionNumber] = data
+            if (m.parentMobile) matchMap[m.parentMobile] = data
+        });
+        // 2. Main Student matches (Authority)
+        dbMatches.forEach((m: any) => {
+            const data = { studentName: m.fullName, campus: m.campus?.campusName || 'Unknown', grade: m.grade }
+            if (m.admissionNumber) matchMap[m.admissionNumber] = data
+            if (m.parent?.mobileNumber) matchMap[m.parent.mobileNumber] = data
+        });
+
+        const processedUsers = users.map(u => {
+            const match = (u.childEprNo && matchMap[u.childEprNo]) || 
+                         (u.mobileNumber && matchMap[u.mobileNumber])
+            
+            const rawCampus = (u.campusId ? campusMap[u.campusId] : null) || u.assignedCampus
+            
+            // Apply Smart Match if current data is "Global" or missing
+            const isGlobal = rawCampus === 'Global' || !rawCampus
+            const finalCampus = isGlobal && match ? match.campus : (rawCampus || 'Unassigned')
+            const finalGrade = (!u.grade) && match ? match.grade : (u.grade || 'No Grade')
+            
+            // Smart Shadowing for Name: Pull from ERP if missing in User record
+            const finalStudentName = (!u.childName || u.childName === 'N/A') && match ? match.studentName : u.childName
+
+            return maskPII({
+                ...u,
+                childName: finalStudentName,
+                assignedCampus: finalCampus,
+                grade: finalGrade,
+                role: u.role as string,
+                referralCode: u.referralCode || '',
+                referralCount: u.confirmedReferralCount,
+                studentFee: u.studentFee || 0
+            })
+        })
 
         // Audit: log sensitive data access (includes info about masking)
         const isPaginated = !!(page && pageSize)
@@ -766,11 +825,12 @@ export async function getUsersForExport(options: {
 
         // Fetch lightweight list to map IDs to Names
         const campuses = await prisma.campus.findMany({ select: { id: true, campusName: true } })
-        const campusMap = new Map(campuses.map(c => [c.id, c.campusName]))
+        const campusMap: { [key: number]: string } = {}
+        campuses.forEach(c => { campusMap[c.id] = c.campusName })
 
         const processedUsers = users.map(u => ({
             ...u,
-            assignedCampus: campusMap.get(u.campusId || 0) || u.assignedCampus,
+            assignedCampus: (u.campusId ? campusMap[u.campusId] : null) || u.assignedCampus,
             role: u.role as string,
             referralCode: u.referralCode || '',
             referralCount: u.confirmedReferralCount,

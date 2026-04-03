@@ -185,7 +185,9 @@ export function UserTable({
                 <div className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-1.5">
                         <Building size={10} className="text-gray-400" />
-                        <span className="text-[11px] font-bold text-gray-600 truncate max-w-[100px]">{user.assignedCampus || 'Global'}</span>
+                        <span className={`text-[11px] font-bold truncate max-w-[100px] ${(!user.assignedCampus || user.assignedCampus === 'Global') ? 'text-gray-400 font-normal italic' : 'text-gray-600'}`}>
+                            {user.assignedCampus && user.assignedCampus !== 'Global' ? user.assignedCampus : 'Unassigned'}
+                        </span>
                     </div>
                     {user.grade && (
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider pl-4">

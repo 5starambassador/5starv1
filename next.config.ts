@@ -12,8 +12,9 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb',
       allowedOrigins: ['localhost:3000', 'localhost:3001', process.env.VERCEL_URL || '5starv1.vercel.app'],
     },
-
   },
+  // @ts-ignore - allowedDevOrigins is a new feature in Next.js 14.2+
+  allowedDevOrigins: ['127.0.0.1:3001', 'localhost:3001'],
   env: {
     // Expose APP URL to client preference: process.env > calculated fallback
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3001'),

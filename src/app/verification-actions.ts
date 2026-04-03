@@ -71,49 +71,91 @@ export async function getVerifiedUsers(
             prisma.user.count({ where })
         ])
 
-        // 2. Match Suggestions (Look for real student records if childName is missing/generic)
         const relevantMobileNumbers = verifiedUsers.map(u => u.mobileNumber).filter((m): m is string => !!m)
         const relevantEprNumbers = verifiedUsers.map(u => u.childEprNo).filter((e): e is string => !!e)
 
-        const matchingStudents = await prisma.student.findMany({
-            where: {
-                OR: [
-                    { admissionNumber: { in: relevantEprNumbers } },
-                    { parent: { mobileNumber: { in: relevantMobileNumbers } } }
-                ],
-                status: 'Active'
-            },
-            include: {
-                parent: { select: { mobileNumber: true } },
-                campus: { select: { campusName: true } }
+        // --- NEW SMART MATCHING LOGIC (Unified with Pending Queue) ---
+        const [stagingMatches, matchingStudents] = await Promise.all([
+            (prisma as any).erpStudentData.findMany({
+                where: {
+                    OR: [
+                        { admissionNumber: { in: relevantEprNumbers } },
+                        { parentMobile: { in: relevantMobileNumbers } }
+                    ]
+                }
+            }),
+            prisma.student.findMany({
+                where: {
+                    OR: [
+                        { admissionNumber: { in: relevantEprNumbers } },
+                        { parent: { mobileNumber: { in: relevantMobileNumbers } } }
+                    ],
+                    status: 'Active'
+                },
+                include: {
+                    parent: { select: { mobileNumber: true } },
+                    campus: { select: { campusName: true } }
+                }
+            })
+        ]);
+
+        const studentErps: { [key: string]: any } = {};
+        const parentMobiles: { [key: string]: any } = {};
+
+        // 1. ERP Staging Matches
+        (stagingMatches as any[]).forEach((s: any) => {
+            const data = {
+                studentName: s.fullName,
+                grade: s.grade,
+                campus: s.campusName,
+                campusId: undefined,
+                admissionNumber: s.admissionNumber,
+                isStaging: true
             }
-        })
+            if (s.admissionNumber) studentErps[s.admissionNumber] = data
+            if (s.parentMobile) parentMobiles[s.parentMobile] = data
+        });
 
-        const studentErps = new Map<string, typeof matchingStudents[0]>()
-        const parentMobiles = new Map<string, typeof matchingStudents[0]>()
-
-        matchingStudents.forEach(s => {
-            if (s.admissionNumber) studentErps.set(s.admissionNumber, s)
-            if (s.parent?.mobileNumber) parentMobiles.set(s.parent.mobileNumber, s)
-        })
+        // 2. Main Student Matches (Override staging)
+        (matchingStudents as any[]).forEach((s: any) => {
+            const data = {
+                studentName: s.fullName,
+                grade: s.grade,
+                campus: s.campus?.campusName || 'Unknown',
+                campusId: s.campusId,
+                admissionNumber: s.admissionNumber,
+                isStaging: false
+            }
+            if (s.admissionNumber) studentErps[s.admissionNumber] = data
+            if (s.parent?.mobileNumber) parentMobiles[s.parent.mobileNumber] = data
+        });
 
         const usersWithMatches = verifiedUsers.map(u => {
-            const match = (u.childEprNo && studentErps.get(u.childEprNo)) ||
-                (u.mobileNumber && parentMobiles.get(u.mobileNumber))
+            const match = (u.childEprNo && studentErps[u.childEprNo]) ||
+                (u.mobileNumber && parentMobiles[u.mobileNumber])
 
-            if (match) {
-                return {
-                    ...u,
-                    matchSuggestion: {
-                        studentName: match.fullName,
-                        grade: match.grade,
-                        campus: match.campus.campusName,
-                        campusId: match.campusId,
-                        admissionNumber: match.admissionNumber
-                    }
-                }
+            // Fix Global Campus Leak: Pull match into main display if current is Global/Empty
+            const isGlobal = u.assignedCampus === 'Global' || !u.assignedCampus
+            const finalCampus = isGlobal && match ? match.campus : (u.assignedCampus || 'Unassigned')
+            const finalGrade = (!u.grade) && match ? match.grade : (u.grade || 'No Grade')
+            
+            // Smart Shadowing for Name: Pull from ERP if missing in User record
+            const finalStudentName = (!u.childName || u.childName === 'N/A') && match ? match.studentName : u.childName
+
+            return {
+                ...u,
+                assignedCampus: finalCampus,
+                grade: finalGrade,
+                childName: finalStudentName,
+                matchSuggestion: match ? {
+                    studentName: match.studentName,
+                    grade: match.grade,
+                    campus: match.campus,
+                    campusId: match.campusId,
+                    admissionNumber: match.admissionNumber,
+                    isStaging: match.isStaging
+                } : null
             }
-            return { ...u, matchSuggestion: null }
         })
 
         return {
@@ -302,25 +344,29 @@ export async function getPendingVerifications(
             if (s.parent?.mobileNumber) parentMobileMap[s.parent.mobileNumber] = matchData;
         });
 
-        // 5. Attach match suggestions to users
+        // 5. Attach match suggestions to users AND fix Global Campus display
         const usersWithMatches = pendingUsers.map((u: any) => {
             const match = (u.childEprNo && studentErpMap[u.childEprNo]) ||
                 (u.mobileNumber && parentMobileMap[u.mobileNumber]);
 
-            if (match) {
-                return {
-                    ...u,
-                    matchSuggestion: {
-                        studentName: match.studentName,
-                        grade: match.grade,
-                        campus: match.campus,
-                        campusId: match.campusId,
-                        admissionNumber: match.admissionNumber,
-                        isStaging: match.isStaging
-                    }
-                };
-            }
-            return { ...u, matchSuggestion: null };
+            // Fix Global Campus Leak: Pull match into main display if current is Global/Empty
+            const isGlobal = u.assignedCampus === 'Global' || !u.assignedCampus;
+            const finalCampus = isGlobal && match ? match.campus : u.assignedCampus;
+            const finalGrade = (!u.grade) && match ? match.grade : u.grade;
+
+            return {
+                ...u,
+                assignedCampus: finalCampus,
+                grade: finalGrade,
+                matchSuggestion: match ? {
+                    studentName: match.studentName,
+                    grade: match.grade,
+                    campus: match.campus,
+                    campusId: match.campusId,
+                    admissionNumber: match.admissionNumber,
+                    isStaging: match.isStaging
+                } : null
+            };
         });
 
         const verifiedToday = verifiedLogs.reduce((acc: number, log: any) => {
