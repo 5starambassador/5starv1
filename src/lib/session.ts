@@ -36,9 +36,9 @@ export async function createSession(userId: number, userType: 'user' | 'admin' =
     const cookieStore = await cookies()
     cookieStore.set('session', session, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: true, // Required for 'none' sameSite in Play Store APKs
         expires: expiresAt,
-        sameSite: 'lax',
+        sameSite: 'none', // Mandatory for Capacitor / Android APK cross-site access
         path: '/',
     })
 }

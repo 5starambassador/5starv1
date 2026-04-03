@@ -52,3 +52,21 @@
 2026-04-03T16:10:56.840Z: getReferralStats called. Filters: {"studentSource":"referral"}
 2026-04-03T16:10:56.840Z: DEBUG: Stats WHERE: {}
 2026-04-03T16:10:58.286Z: DEBUG: getReferralStats Result - Total: 1171, Confirmed: 490, Pending: 646
+2026-04-03T16:42:26.387Z: getReferralStats called. Filters: {"studentSource":"referral"}
+2026-04-03T16:42:26.388Z: DEBUG: Stats WHERE: {}
+2026-04-03T16:42:27.391Z: DEBUG: getReferralStats Result - Total: 1171, Confirmed: 490, Pending: 646
+2026-04-03T16:47:44.893Z: getReferralStats called. Filters: {"studentSource":"referral"}
+2026-04-03T16:47:44.894Z: DEBUG: Stats WHERE: {}
+2026-04-03T16:47:45.471Z: getReferralStats called. Filters: {"studentSource":"referral"}
+2026-04-03T16:47:45.472Z: DEBUG: Stats WHERE: {}
+2026-04-03T16:47:45.960Z: getReferralStats called. Filters: {"studentSource":"referral"}
+2026-04-03T16:47:45.960Z: DEBUG: Stats WHERE: {}
+2026-04-03T16:47:46.391Z: DEBUG: getReferralStats Result - Total: 1171, Confirmed: 490, Pending: 646
+2026-04-03T16:47:46.440Z: DEBUG: getReferralStats Result - Total: 1171, Confirmed: 490, Pending: 646
+2026-04-03T16:47:46.476Z: getReferralStats called. Filters: {"studentSource":"referral"}
+2026-04-03T16:47:46.476Z: DEBUG: Stats WHERE: {}
+2026-04-03T16:47:46.836Z: DEBUG: getReferralStats Result - Total: 1171, Confirmed: 490, Pending: 646
+2026-04-03T16:47:47.082Z: getReferralStats called. Filters: {"studentSource":"referral"}
+2026-04-03T16:47:47.082Z: DEBUG: Stats WHERE: {}
+2026-04-03T16:47:47.293Z: DEBUG: getReferralStats Result - Total: 1171, Confirmed: 490, Pending: 646
+2026-04-03T16:47:47.798Z: DEBUG: getReferralStats Result - Total: 1171, Confirmed: 490, Pending: 646
