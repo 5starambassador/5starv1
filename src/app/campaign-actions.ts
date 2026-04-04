@@ -909,21 +909,7 @@ export async function sendTestCampaignMessage(
 
             const cleanMobile = testMobile.replace(/\D/g, '')
             const requestId = `test_${campaignId}_${Date.now()}`
-
-            // 🔥 Audit Log: Create a database log entry for test sends so user can see it in dashboard
-            await prisma.whatsAppLog.create({
-                data: {
-                    mobile: cleanMobile,
-                    template: templateName,
-                    type: 'CAMPAIGN_TEST',
-                    status: 'SENT',
-                    content: `Test Variable List: ${waVars.join(' | ')}`,
-                    refId: requestId,
-                    errorMessage: `For Audience: ${type}`,
-                    createdAt: new Date()
-                }
-            })
-
+            // ✅ Redundant manual log removed. whatsappService.sendBulkTemplateMessage handles logging now.
             const headerUrl = overrideHeaderUrl || (campaign as any).waHeaderUrl || null
             const res = await whatsappService.sendBulkTemplateMessage(
                 [{ mobile: cleanMobile, variables: waVars }],

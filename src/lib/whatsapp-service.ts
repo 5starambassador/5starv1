@@ -261,7 +261,15 @@ class WhatsAppService {
                     const messageId = (data.message_id || data.request_id || '').toString()
                     await Promise.all(chunk.map(r => {
                         const trackingRef = refId || `AUT_${Date.now()}_${Math.random().toString(36).substring(7)}`
-                        return this.logMessage(r.mobile, templateName, r.variables.join(', '), type, 'SENT', messageId, undefined, trackingRef, undefined, headerUrl)
+                        
+                        // ✅ Log Sincerity: Log the variables exactly as they were prepared for the API
+                        const preparedComponents = this.prepareComponents(templateName, r.variables, headerUrl)
+                        const preparedVars = Object.values(preparedComponents)
+                            .filter((c: any) => c.type === 'text')
+                            .map((c: any) => c.value)
+                            .join(', ')
+
+                        return this.logMessage(r.mobile, templateName, preparedVars, type, 'SENT', messageId, undefined, trackingRef, undefined, headerUrl)
                     }))
                     if (i === 0) mainResponse = { success: true, messageId }
                 } else {
