@@ -306,6 +306,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
             const pushTokens: string[] = []
             const notificationsToCreate: any[] = []
             const whatsappRecipients: { mobile: string, variables: string[] }[] = []
+            const whatsappButtonVariables: { [mobile: string]: string[] } = {}
 
             for (const user of users) {
                 // Email
@@ -327,27 +328,41 @@ export async function dispatchCampaignBatch(campaignId: number) {
                         continue
                     }
 
-                    // Resolve Variables dynamically based on User Selection in Campaign Manager
                     const mapping = (campaign as any).waVariableMapping || {}
-                    const waVars: string[] = []
-                    
-                    const mappingKeys = Object.keys(mapping).filter(k => !isNaN(Number(k)))
-                    const varCount = mappingKeys.length > 0 ? Math.max(...mappingKeys.map(Number)) : 5
+                    const mappingKeys = Object.keys(mapping).filter(k => {
+                        const cleanKey = k.replace('button_', 'var_')
+                        return !isNaN(Number(cleanKey.replace(/\D/g, '')))
+                    })
 
-                    if (mappingKeys.length > 0) {
-                        for (let i = 1; i <= varCount; i++) {
-                            const key = i.toString()
-                            const mappedValue = mapping[key]
-                            if (mappedValue === 'STATIC') {
-                                waVars.push((mapping[`static_${key}`] || '').toString().replace(/[\r\n]+/g, ' ').trim())
-                            } else if (mappedValue) {
-                                // Placeholder resolution (e.g. {userName} -> "John Doe")
-                                waVars.push((await aliasTokens(mappedValue, user, audience.type)).toString().replace(/[\r\n]+/g, ' ').trim())
-                            } else {
-                                waVars.push('')
-                            }
+                    const waVars: string[] = []
+                    const btnVars: string[] = []
+                    
+                    // Logic: Map regular variables (1, 2, 3...) to waVars 
+                    // and button variables (button_1, button_2...) to btnVars
+                    const maxVar = mappingKeys.length > 0 ? Math.max(...mappingKeys.map(k => Number(k.replace(/\D/g, '')))) : 5
+
+                    for (let i = 1; i <= maxVar; i++) {
+                        const key = i.toString()
+                        const btnKey = `button_${i}`
+                        
+                        // Handle Body Var
+                        const bodyMappedValue = mapping[key]
+                        if (bodyMappedValue === 'STATIC') {
+                            waVars.push((mapping[`static_${key}`] || '').toString().replace(/[\r\n]+/g, ' ').trim())
+                        } else if (bodyMappedValue) {
+                            waVars.push((await aliasTokens(bodyMappedValue, user, audience.type)).toString().replace(/[\r\n]+/g, ' ').trim())
                         }
-                    } else {
+
+                        // Handle Button Var
+                        const btnMappedValue = mapping[btnKey]
+                        if (btnMappedValue === 'STATIC') {
+                            btnVars.push((mapping[`static_${btnKey}`] || '').toString().trim())
+                        } else if (btnMappedValue) {
+                            btnVars.push((await aliasTokens(btnMappedValue, user, audience.type)).toString().trim())
+                        }
+                    }
+
+                    if (mappingKeys.length === 0) {
                         // BACKWARD COMPATIBILITY
                         waVars.push((user.fullName || 'User').toString().trim())
                         waVars.push((user.assignedCampus || '').toString().trim())
@@ -360,6 +375,10 @@ export async function dispatchCampaignBatch(campaignId: number) {
                         mobile: cleanMobile,
                         variables: waVars
                     })
+
+                    if (btnVars.length > 0) {
+                        whatsappButtonVariables[cleanMobile] = btnVars
+                    }
                 }
 
                 // Push
@@ -391,7 +410,8 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     (campaign as any).waTemplateName || 'welcome_message',
                     'CAMPAIGN',
                     campaignRequestId,
-                    (campaign as any).waHeaderUrl || null
+                    (campaign as any).waHeaderUrl || null,
+                    whatsappButtonVariables
                 )
                 if (waRes.success) {
                     stats.whatsappSent += whatsappRecipients.length

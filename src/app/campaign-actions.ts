@@ -632,7 +632,8 @@ export async function syncCampaignMetrics(campaignId: number) {
 export async function sendIndividualWhatsApp(data: {
     mobile: string,
     templateName: string,
-    variables: string[]
+    variables: string[],
+    buttonVariables?: string[]
 }) {
     try {
         await checkCampaignAccess()
@@ -645,10 +646,13 @@ export async function sendIndividualWhatsApp(data: {
             data.mobile,
             data.templateName,
             data.variables,
-            'Campaign' // Marking as Campaign type for logs
+            'Campaign', // 4: type
+            undefined,  // 5: refId
+            undefined,  // 6: headerUrl
+            data.buttonVariables // 7: buttonVariables
         )
 
-        if (res.success) {
+        if (res && res.success) {
             await logAction('Send Individual WhatsApp', 'Marketing', `Direct message to: ${data.mobile} using ${data.templateName}`, undefined)
             return { success: true, messageId: res.messageId }
         } else {
@@ -867,30 +871,40 @@ export async function sendTestCampaignMessage(
             const mapping = overrideMapping || (campaign as any).waVariableMapping || {}
             const templateName = overrideTemplateName || (campaign as any).waTemplateName || 'welcome_message'
             
+            const mappingKeys = Object.keys(mapping).filter(k => {
+                const cleanKey = k.replace('button_', 'var_')
+                return !isNaN(Number(cleanKey.replace(/\D/g, '')))
+            })
+            
             const waVars: string[] = []
-            // Robust key detection: find anything that looks like a number (1, "1", "var_1")
-            const mappingKeys = Object.keys(mapping).filter(k => !isNaN(Number(k.replace(/\D/g, ''))))
+            const btnVars: string[] = []
             const varCount = mappingKeys.length > 0 ? Math.max(...mappingKeys.map(k => Number(k.replace(/\D/g, '')))) : 0
 
             if (mappingKeys.length > 0) {
                 for (let i = 1; i <= varCount; i++) {
                     const key = i.toString()
-                    const altKey = `var_${i}`
-                    const mappedValue = mapping[key] || mapping[altKey]
+                    const btnKey = `button_${i}`
                     
-                    if (mappedValue === 'STATIC') {
-                        const val = (mapping[`static_${key}`] || mapping[`static_${altKey}`] || '').toString().replace(/[\r\n]+/g, ' ').trim()
+                    // Body Var
+                    const bodyMappedValue = mapping[key] || mapping[`var_${key}`]
+                    if (bodyMappedValue === 'STATIC') {
+                        const val = (mapping[`static_${key}`] || mapping[`static_var_${key}`] || '').toString().replace(/[\r\n]+/g, ' ').trim()
                         waVars.push(val)
-                    } else if (mappedValue) {
-                        const resolved = (await aliasTokens(mappedValue, sampleUser, type)).toString().replace(/[\r\n]+/g, ' ').trim()
-                        // Hard Fallback for Campus - never send it empty if we have it in the target
-                        if (mappedValue.toLowerCase().includes('campus') && !resolved) {
+                    } else if (bodyMappedValue) {
+                        const resolved = (await aliasTokens(bodyMappedValue, sampleUser, type)).toString().replace(/[\r\n]+/g, ' ').trim()
+                        if (bodyMappedValue.toLowerCase().includes('campus') && !resolved) {
                             waVars.push(targetCampus || 'Global Campus')
                         } else {
                             waVars.push(resolved || '')
                         }
-                    } else {
-                        waVars.push('')
+                    }
+
+                    // Button Var
+                    const btnMappedValue = mapping[btnKey]
+                    if (btnMappedValue === 'STATIC') {
+                        btnVars.push((mapping[`static_${btnKey}`] || '').toString().trim())
+                    } else if (btnMappedValue) {
+                        btnVars.push((await aliasTokens(btnMappedValue, sampleUser, type)).toString().trim())
                     }
                 }
             } else {
@@ -916,7 +930,8 @@ export async function sendTestCampaignMessage(
                 templateName,
                 'CAMPAIGN_TEST',
                 requestId,
-                headerUrl
+                headerUrl,
+                btnVars.length > 0 ? { [cleanMobile]: btnVars } : {}
             )
 
             if (res.success) {

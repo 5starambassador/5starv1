@@ -113,7 +113,8 @@ class WhatsAppService {
         variables: string[] = [],
         type: string = 'SYSTEM',
         refId?: string,
-        headerUrl?: string
+        headerUrl?: string,
+        buttonVariables: string[] = []
     ): Promise<WhatsAppResponse> {
         if (!MSG91_AUTH_KEY || WHATSAPP_PROVIDER === 'mock') {
             return this.sendMock(mobile, templateName, variables, type)
@@ -143,9 +144,9 @@ class WhatsAppService {
                         },
                         to_and_components: [
                             {
-                                to: [this.sanitizeMobile(mobile)],
-                                components: this.prepareComponents(templateName, variables, headerUrl)
-                            }
+                                 to: [this.sanitizeMobile(mobile)],
+                                 components: this.prepareComponents(templateName, variables, headerUrl, buttonVariables)
+                             }
                         ]
                     }
                 }
@@ -198,7 +199,8 @@ class WhatsAppService {
         templateName: string,
         type: string = 'SYSTEM',
         refId?: string,
-        headerUrl?: string
+        headerUrl?: string,
+        buttonVariables: { [mobile: string]: string[] } = {}
     ): Promise<WhatsAppResponse> {
         if (!MSG91_AUTH_KEY || WHATSAPP_PROVIDER === 'mock') {
             const results = await Promise.all(recipients.map(r => this.sendMock(r.mobile, templateName, r.variables, type)))
@@ -225,7 +227,7 @@ class WhatsAppService {
                 const to_and_components = chunk.map(r => {
                     return {
                         to: [this.sanitizeMobile(r.mobile)],
-                        components: this.prepareComponents(templateName, r.variables, headerUrl)
+                        components: this.prepareComponents(templateName, r.variables, headerUrl, buttonVariables[r.mobile])
                     }
                 })
 
@@ -263,10 +265,10 @@ class WhatsAppService {
                         const trackingRef = refId || `AUT_${Date.now()}_${Math.random().toString(36).substring(7)}`
                         
                         // ✅ Log Sincerity: Log the variables exactly as they were prepared for the API
-                        const preparedComponents = this.prepareComponents(templateName, r.variables, headerUrl)
-                        const preparedVars = Object.values(preparedComponents)
-                            .filter((c: any) => c.type === 'text')
-                            .map((c: any) => c.value)
+                        const preparedComponents = this.prepareComponents(templateName, r.variables, headerUrl, buttonVariables[r.mobile])
+                        const preparedVars = Object.entries(preparedComponents)
+                            .filter(([key, val]: [string, any]) => val.type === 'text' || val.type === 'url')
+                            .map(([key, val]: [string, any]) => `[${key}]: ${val.value}`)
                             .join(', ')
 
                         return this.logMessage(r.mobile, templateName, preparedVars, type, 'SENT', messageId, undefined, trackingRef, undefined, headerUrl)
@@ -405,7 +407,7 @@ class WhatsAppService {
         return { success: true, messageId: 'mock-wa-' + Date.now() }
     }
 
-    private prepareComponents(templateName: string, variables: string[], headerUrl?: string): any {
+    private prepareComponents(templateName: string, variables: string[], headerUrl?: string, buttonVariables: string[] = []): any {
         const components: any = {}
 
         if (headerUrl && headerUrl.trim() !== '') {
@@ -434,6 +436,17 @@ class WhatsAppService {
             const cleanValue = (v || '').toString().replace(/[\r\n]+/g, ' ').trim()
             components[`body_${i + 1}`] = { type: "text", value: cleanValue }
         })
+
+        // 4. Button Variables (button_1, button_2, etc.)
+        if (buttonVariables && buttonVariables.length > 0) {
+            buttonVariables.forEach((v, i) => {
+                const cleanValue = (v || '').toString().trim()
+                if (cleanValue) {
+                    components[`button_${i + 1}`] = { type: "text", value: cleanValue }
+                }
+            })
+        }
+
         return components
     }
 
