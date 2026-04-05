@@ -2,23 +2,36 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Calendar, RefreshCw, ChevronLeft, ChevronRight, Download, Filter, TrendingUp, FileDown } from 'lucide-react'
+import { Calendar, RefreshCw, ChevronLeft, ChevronRight, Download, Filter, TrendingUp, FileDown, Image as ImageIcon } from 'lucide-react'
 import { getDailyReferralReport } from '@/app/report-actions'
+import { toPng } from 'html-to-image'
 import { toast } from 'sonner'
+import { useRef } from 'react'
 
 interface ReportRows {
     slNo: number
     campusName: string
+    potential: number
+    achievement: number
+    conversion: number
+    cumulative: { total: number; admitted: number }
+    daily: { new: number; admitted: number; total: number }
+}
+
+interface GroupSubtotal {
+    potential: number
+    achievement: number
+    conversion: number
     cumulative: { total: number; admitted: number }
     daily: { new: number; admitted: number; total: number }
 }
 
 interface ReportData {
-    reportRows: ReportRows[]
-    grandTotals: {
-        cumulative: { total: number; admitted: number }
-        daily: { new: number; admitted: number; total: number }
-    }
+    schoolRows: ReportRows[]
+    schoolSubtotal: GroupSubtotal
+    collegeRows: ReportRows[]
+    collegeSubtotal: GroupSubtotal
+    grandTotals: GroupSubtotal
     targetDate: string
 }
 
@@ -37,6 +50,8 @@ export function DailyReferralDashboard({
     const [loading, setLoading] = useState(true)
     const [data, setData] = useState<ReportData | null>(null)
     const [isExporting, setIsExporting] = useState(false)
+    const [isImageExporting, setIsImageExporting] = useState(false)
+    const reportRef = useRef<HTMLDivElement>(null)
 
     const fetchReport = async (targetDate: string, campus: string, academicYear: string) => {
         setLoading(true)
@@ -87,30 +102,86 @@ export function DailyReferralDashboard({
         setIsExporting(true)
         try {
             const headers = [
-                'Sl No', 'Campus Name', 
-                `Total Referral (as of ${new Date(date).toLocaleDateString()})`, 
-                'Total Admitted (as of date)', 
+                'Sl No', 'Campus Name', 'Potential Referrals', '% Achieved',
+                'Total Referral (Cumulative)', 
+                'Total Admitted (Cumulative)', 
+                '% Conversion',
                 `Daily Admitted (${new Date(date).toLocaleDateString()})`, 
                 `Daily New (${new Date(date).toLocaleDateString()})`, 
                 'Daily Total'
             ]
             
-            const rows = data.reportRows.map(r => [
-                r.slNo,
-                r.campusName,
-                r.cumulative.total,
-                r.cumulative.admitted,
-                r.daily.admitted,
-                r.daily.new,
-                r.daily.total
+            const rows: any[] = []
+            
+            // Add Schools
+            data.schoolRows.forEach(r => {
+                rows.push([
+                    r.slNo,
+                    `"${r.campusName}"`,
+                    r.potential || 0,
+                    `${(r.achievement || 0).toFixed(1)}%`,
+                    r.cumulative.total,
+                    r.cumulative.admitted,
+                    `${(r.conversion || 0).toFixed(1)}%`,
+                    r.daily.admitted,
+                    r.daily.new,
+                    r.daily.total
+                ])
+            })
+            
+            // School Subtotal
+            rows.push([
+                '-',
+                'SCHOOL SUBTOTAL',
+                data.schoolSubtotal.potential || 0,
+                `${(data.schoolSubtotal.achievement || 0).toFixed(1)}%`,
+                data.schoolSubtotal.cumulative.total,
+                data.schoolSubtotal.cumulative.admitted,
+                `${(data.schoolSubtotal.conversion || 0).toFixed(1)}%`,
+                data.schoolSubtotal.daily.admitted,
+                data.schoolSubtotal.daily.new,
+                data.schoolSubtotal.daily.total
+            ])
+
+            // Add Colleges
+            data.collegeRows.forEach(r => {
+                rows.push([
+                    r.slNo,
+                    `"${r.campusName}"`,
+                    r.potential || 0,
+                    `${(r.achievement || 0).toFixed(1)}%`,
+                    r.cumulative.total,
+                    r.cumulative.admitted,
+                    `${(r.conversion || 0).toFixed(1)}%`,
+                    r.daily.admitted,
+                    r.daily.new,
+                    r.daily.total
+                ])
+            })
+
+            // College Subtotal
+            rows.push([
+                '-',
+                'COLLEGE SUBTOTAL',
+                data.collegeSubtotal.potential || 0,
+                `${(data.collegeSubtotal.achievement || 0).toFixed(1)}%`,
+                data.collegeSubtotal.cumulative.total,
+                data.collegeSubtotal.cumulative.admitted,
+                `${(data.collegeSubtotal.conversion || 0).toFixed(1)}%`,
+                data.collegeSubtotal.daily.admitted,
+                data.collegeSubtotal.daily.new,
+                data.collegeSubtotal.daily.total
             ])
 
             // Add Grand Total
             rows.push([
                 '-',
                 'GRAND TOTAL',
+                data.grandTotals.potential || 0,
+                `${(data.grandTotals.achievement || 0).toFixed(1)}%`,
                 data.grandTotals.cumulative.total,
                 data.grandTotals.cumulative.admitted,
+                `${(data.grandTotals.conversion || 0).toFixed(1)}%`,
                 data.grandTotals.daily.admitted,
                 data.grandTotals.daily.new,
                 data.grandTotals.daily.total
@@ -135,6 +206,44 @@ export function DailyReferralDashboard({
             toast.error('Failed to export CSV')
         } finally {
             setIsExporting(false)
+        }
+    }
+
+    const downloadImage = async () => {
+        if (!reportRef.current || !data) return
+        setIsImageExporting(true)
+        try {
+            // Wait a small bit for any animations to settle
+            await new Promise(resolve => setTimeout(resolve, 100))
+            
+            const dataUrl = await toPng(reportRef.current, { 
+                quality: 1.0, 
+                backgroundColor: '#ffffff',
+                cacheBust: true,
+                skipFonts: true, // Prevents fetch errors when capturing fonts
+                style: {
+                    borderRadius: '0' 
+                },
+                // Skip external CSS that might cause fetch errors
+                filter: (node) => {
+                    const exclusionClasses = ['print-hidden']
+                    if (node.classList) {
+                        return !exclusionClasses.some(cls => node.classList.contains(cls))
+                    }
+                    return true
+                }
+            })
+            
+            const link = document.createElement('a')
+            link.download = `achievement-summary-${date}.png`
+            link.href = dataUrl
+            link.click()
+            toast.success('Image Downloaded successfully')
+        } catch (error) {
+            console.error('Image Export Error:', error)
+            toast.error('Failed to export as Image')
+        } finally {
+            setIsImageExporting(false)
         }
     }
 
@@ -307,6 +416,15 @@ export function DailyReferralDashboard({
                         Download CSV
                     </button>
                     <button 
+                        onClick={downloadImage}
+                        disabled={isImageExporting}
+                        className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-100 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                        title="Download as Image (PNG)"
+                    >
+                        {isImageExporting ? <RefreshCw size={14} className="animate-spin" /> : <ImageIcon size={14} />}
+                        Save as Image
+                    </button>
+                    <button 
                         onClick={() => window.print()}
                         className="p-3 bg-white text-slate-700 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all shadow-sm"
                         title="Print / PDF"
@@ -317,7 +435,7 @@ export function DailyReferralDashboard({
             </div>
 
             {/* The High-Fidelity Report Table */}
-            <div className="report-print-container overflow-hidden bg-white rounded-[1.5rem] border-2 border-slate-900/5 shadow-2xl relative print:border-none print:shadow-none">
+            <div ref={reportRef} className="report-print-container overflow-hidden bg-white rounded-[1.5rem] border-2 border-slate-900/5 shadow-2xl relative print:border-none print:shadow-none">
                 <div className="overflow-x-auto min-w-[800px] print:min-w-0 print:overflow-visible">
                     <div className="w-full text-center py-6 bg-[#FFFF00] border-b-2 border-slate-900 print:py-2">
                         <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight italic print:text-xl">Achievement Summary - {new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</h1>
@@ -325,55 +443,113 @@ export function DailyReferralDashboard({
 
                     <table className="w-full border-collapse">
                         <thead>
-                            {/* Layer 1 Headers */}
-                            <tr className="border-b-2 border-slate-900">
-                                <th rowSpan={2} className="px-4 py-4 bg-[#FFC000] text-slate-900 font-black uppercase text-sm border-r-2 border-slate-900 w-16 text-center">Sl No.</th>
-                                <th rowSpan={2} className="px-6 py-4 bg-[#FFC000] text-slate-900 font-black uppercase text-sm border-r-2 border-slate-900 text-left">Campus Name</th>
-                                <th colSpan={2} className="px-6 py-2 bg-[#DDEBF7] text-blue-900 font-black uppercase text-[11px] tracking-widest border-r-2 border-slate-900 text-center">Total Referral (as of {new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })})</th>
-                                <th colSpan={3} className="px-6 py-2 bg-[#E4DFEC] text-purple-900 font-black uppercase text-[11px] tracking-widest border-slate-900 text-center">Referral on {new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</th>
+                            <tr className="border-b-2 border-slate-900 border-t-4 border-slate-900">
+                                <th rowSpan={2} className="px-4 py-1 text-center text-[10px] font-black text-slate-900 uppercase tracking-wider border-r-2 border-slate-900/10 min-w-[50px] bg-[#FFC000]">Sl No.</th>
+                                <th rowSpan={2} className="px-6 py-1 text-left text-[10px] font-black text-slate-900 uppercase tracking-wider border-r-2 border-slate-900/10 min-w-[150px] bg-[#FFC000]">Campus Name</th>
+                                <th rowSpan={2} className="px-4 py-1 text-center text-[10px] font-black text-slate-800 uppercase tracking-wider border-r-2 border-slate-900/10 w-24 bg-[#FFF2CC]">Potential<br/>Referrals</th>
+                                <th rowSpan={2} className="px-4 py-1 text-center text-[10px] font-black text-slate-900 uppercase tracking-wider border-r-2 border-slate-900/10 w-24 bg-[#FFF2CC]">%<br/>Achieved</th>
+                                
+                                <th colSpan={3} className="px-4 py-1 bg-[#DDEBF7] text-blue-900 font-extrabold uppercase text-[10px] border-r-2 border-slate-900 border-b-2 tracking-tight text-center">Total Referral (As of {new Date(date).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })})</th>
+                                <th colSpan={3} className="px-4 py-1 bg-[#E4DFEC] text-purple-900 font-extrabold uppercase text-[10px] tracking-tight text-center">Referral on {new Date(date).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' })}</th>
                             </tr>
                             {/* Layer 2 Headers */}
                             <tr className="border-b-2 border-slate-900">
-                                <th className="px-4 py-3 bg-[#DDEBF7] text-blue-900 font-black uppercase text-[10px] border-r border-slate-300 text-center w-32">Total</th>
-                                <th className="px-4 py-3 bg-[#DDEBF7] text-blue-900 font-black uppercase text-[10px] border-r-2 border-slate-900 text-center w-32">Admitted</th>
+                                <th className="px-4 py-1 bg-[#DDEBF7] text-blue-900 font-black uppercase text-[10px] border-r border-slate-300 text-center w-28">Total</th>
+                                <th className="px-4 py-1 bg-[#DDEBF7] text-blue-900 font-black uppercase text-[10px] border-r border-slate-300 text-center w-28">Admitted</th>
+                                <th className="px-4 py-1 bg-[#DDEBF7] text-blue-900 font-black uppercase text-[10px] border-r-2 border-slate-900 text-center w-28">% Conv.</th>
                                 
-                                <th className="px-4 py-3 bg-[#E4DFEC] text-purple-900 font-black uppercase text-[10px] border-r border-slate-300 text-center w-32">Admitted</th>
-                                <th className="px-4 py-3 bg-[#E4DFEC] text-purple-900 font-black uppercase text-[10px] border-r border-slate-300 text-center w-32">New</th>
-                                <th className="px-4 py-3 bg-[#E4DFEC] text-purple-900 font-black uppercase text-[10px] text-center w-32">Total</th>
+                                <th className="px-4 py-1 bg-[#E4DFEC] text-purple-900 font-black uppercase text-[10px] border-r border-slate-300 text-center w-32">Admitted</th>
+                                <th className="px-4 py-1 bg-[#E4DFEC] text-purple-900 font-black uppercase text-[10px] border-r border-slate-300 text-center w-32">New</th>
+                                <th className="px-4 py-1 bg-[#E4DFEC] text-purple-900 font-black uppercase text-[10px] text-center w-32">Total</th>
                             </tr>
                         </thead>
 
                         <tbody className="divide-y divide-slate-100">
-                            {data?.reportRows.map((row, idx) => (
+                            {/* SCHOOLS */}
+                            {data?.schoolRows.map((row, idx) => (
                                 <motion.tr 
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: idx * 0.03 }}
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: idx * 0.02 }}
                                     key={row.campusName}
                                     className="hover:bg-slate-50/80 transition-colors group"
                                 >
-                                    <td className="px-4 py-3 text-center font-bold text-slate-500 border-r-2 border-slate-900/5">{row.slNo}</td>
-                                    <td className="px-6 py-3 font-black text-slate-800 uppercase text-xs border-r-2 border-slate-900/5 group-hover:text-blue-600 transition-colors">{row.campusName}</td>
-                                    <td className="px-4 py-3 text-center font-black text-slate-700 bg-blue-50/30 border-r border-slate-100">{row.cumulative.total}</td>
-                                    <td className="px-4 py-3 text-center font-black text-emerald-600 bg-emerald-50/20 border-r-2 border-slate-900/5">{row.cumulative.admitted}</td>
+                                    <td className="px-4 py-1 text-center font-bold text-slate-500 border-r-2 border-slate-900/5">{row.slNo}</td>
+                                    <td className="px-6 py-1 font-black text-slate-800 uppercase text-[10px] border-r-2 border-slate-900/5 group-hover:text-blue-600 transition-colors leading-tight">{row.campusName}</td>
+                                    <td className="px-4 py-1 text-center font-black text-orange-800 bg-[#FFF2CC] border-r-2 border-slate-900/5">{row.potential || 0}</td>
+                                    <td className="px-4 py-1 text-center font-black text-orange-950 bg-[#FFF2CC] border-r-2 border-slate-900/5">{(row.achievement || 0).toFixed(1)}%</td>
+                                    <td className="px-4 py-1 text-center font-black text-slate-700 bg-blue-50/30 border-r border-slate-100">{row.cumulative.total}</td>
+                                    <td className="px-4 py-1 text-center font-black text-emerald-600 bg-emerald-50/20 border-r border-slate-100">{row.cumulative.admitted}</td>
+                                    <td className="px-4 py-1 text-center font-black text-blue-900 bg-blue-50/50 border-r-2 border-slate-900/5">{(row.conversion || 0).toFixed(1)}%</td>
                                     
-                                    <td className="px-4 py-3 text-center font-black text-purple-700 bg-purple-50/30 border-r border-slate-100">{row.daily.admitted}</td>
-                                    <td className="px-4 py-3 text-center font-black text-slate-700 bg-slate-50/30 border-r border-slate-100">{row.daily.new}</td>
-                                    <td className="px-4 py-3 text-center font-black text-slate-900 bg-slate-50/50">{row.daily.total}</td>
+                                    <td className="px-4 py-1 text-center font-black text-purple-700 bg-purple-50/30 border-r border-slate-100">{row.daily.admitted}</td>
+                                    <td className="px-4 py-1 text-center font-black text-slate-700 bg-slate-50/30 border-r border-slate-100">{row.daily.new}</td>
+                                    <td className="px-4 py-1 text-center font-black text-slate-900 bg-slate-50/50">{row.daily.total}</td>
                                 </motion.tr>
                             ))}
+                            
+                            {/* SCHOOL SUBTOTAL */}
+                            <tr className="bg-amber-200 border-y-2 border-slate-900">
+                                <td colSpan={2} className="px-6 py-1.5 text-right font-black text-amber-900 uppercase tracking-wider text-[10px] border-r-2 border-slate-900/5">School Subtotal</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900 bg-[#FFF2CC]/80 border-r-2 border-slate-900/5">{data?.schoolSubtotal.potential}</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900 bg-[#FFF2CC]/80 border-r-2 border-slate-900/5">{(data?.schoolSubtotal.achievement || 0).toFixed(1)}%</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900 border-r border-slate-200">{data?.schoolSubtotal.cumulative.total}</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900 border-r border-slate-200">{data?.schoolSubtotal.cumulative.admitted}</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900 border-r-2 border-slate-900/5">{(data?.schoolSubtotal.conversion || 0).toFixed(1)}%</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900 border-r border-slate-200">{data?.schoolSubtotal.daily.admitted}</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900 border-r border-slate-200">{data?.schoolSubtotal.daily.new}</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900">{data?.schoolSubtotal.daily.total}</td>
+                            </tr>
+
+                            {/* COLLEGES */}
+                            {data?.collegeRows.map((row, idx) => (
+                                <motion.tr 
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: (data?.schoolRows.length || 0 + idx) * 0.02 }}
+                                    key={row.campusName}
+                                    className="hover:bg-slate-50/80 transition-colors group"
+                                >
+                                    <td className="px-4 py-1.5 text-center font-bold text-slate-500 border-r-2 border-slate-900/5">{row.slNo}</td>
+                                    <td className="px-6 py-1.5 font-black text-slate-800 uppercase text-xs border-r-2 border-slate-900/5 group-hover:text-blue-600 transition-colors">{row.campusName}</td>
+                                    <td className="px-4 py-1.5 text-center font-black text-orange-700 bg-orange-50/20 border-r-2 border-slate-900/5">{row.potential || 0}</td>
+                                    <td className="px-4 py-1.5 text-center font-black text-orange-900 bg-orange-50/30 border-r-2 border-slate-900/5">{(row.achievement || 0).toFixed(1)}%</td>
+                                    <td className="px-4 py-1.5 text-center font-black text-slate-700 bg-blue-50/30 border-r border-slate-100">{row.cumulative.total}</td>
+                                    <td className="px-4 py-1.5 text-center font-black text-emerald-600 bg-emerald-50/20 border-r border-slate-100">{row.cumulative.admitted}</td>
+                                    <td className="px-4 py-1.5 text-center font-black text-blue-900 bg-blue-50/50 border-r-2 border-slate-900/5">{(row.conversion || 0).toFixed(1)}%</td>
+                                    
+                                    <td className="px-4 py-1.5 text-center font-black text-purple-700 bg-purple-50/30 border-r border-slate-100">{row.daily.admitted}</td>
+                                    <td className="px-4 py-1.5 text-center font-black text-slate-700 bg-slate-50/30 border-r border-slate-100">{row.daily.new}</td>
+                                    <td className="px-4 py-1.5 text-center font-black text-slate-900 bg-slate-50/50">{row.daily.total}</td>
+                                </motion.tr>
+                            ))}
+
+                            {/* COLLEGE SUBTOTAL */}
+                            <tr className="bg-indigo-100 border-y-2 border-slate-900">
+                                <td colSpan={2} className="px-6 py-1.5 text-right font-black text-indigo-900 uppercase tracking-wider text-[10px] border-r-2 border-slate-900/5">College Subtotal</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900 bg-[#FFF2CC]/80 border-r-2 border-slate-900/5">{data?.collegeSubtotal.potential}</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900 bg-[#FFF2CC]/80 border-r-2 border-slate-900/5">{(data?.collegeSubtotal.achievement || 0).toFixed(1)}%</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900 border-r border-slate-200">{data?.collegeSubtotal.cumulative.total}</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900 border-r border-slate-200">{data?.collegeSubtotal.cumulative.admitted}</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900 border-r-2 border-slate-900/5">{(data?.collegeSubtotal.conversion || 0).toFixed(1)}%</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900 border-r border-slate-200">{data?.collegeSubtotal.daily.admitted}</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900 border-r border-slate-200">{data?.collegeSubtotal.daily.new}</td>
+                                <td className="px-4 py-1.5 text-center font-black text-slate-900">{data?.collegeSubtotal.daily.total}</td>
+                            </tr>
                         </tbody>
 
                         {/* Grand Total Footer */}
                         <tfoot>
-                            <tr className="border-t-4 border-slate-900 bg-[#FFC000]">
-                                <td colSpan={2} className="px-6 py-5 text-right font-black text-slate-900 uppercase tracking-widest text-sm border-r-2 border-slate-900">Grand Total</td>
-                                <td className="px-4 py-5 text-center font-black text-slate-900 text-base border-r border-slate-900/20">{data?.grandTotals.cumulative.total}</td>
-                                <td className="px-4 py-5 text-center font-black text-slate-900 text-base border-r-2 border-slate-900">{data?.grandTotals.cumulative.admitted}</td>
-                                
-                                <td className="px-4 py-5 text-center font-black text-slate-900 text-base border-r border-slate-900/20">{data?.grandTotals.daily.admitted}</td>
-                                <td className="px-4 py-5 text-center font-black text-slate-900 text-base border-r border-slate-900/20">{data?.grandTotals.daily.new}</td>
-                                <td className="px-4 py-5 text-center font-black text-slate-900 text-base">{data?.grandTotals.daily.total}</td>
+                            <tr className="bg-amber-400 border-t-4 border-slate-900 border-b-2">
+                                <td colSpan={2} className="px-6 py-2 text-right font-black text-slate-900 uppercase tracking-widest text-sm border-r-2 border-slate-900/10">Grand Total</td>
+                                <td className="px-4 py-2 text-center font-black text-slate-900 text-sm border-r-2 border-slate-900/10 bg-[#FFF2CC]">{data?.grandTotals.potential || 0}</td>
+                                <td className="px-4 py-2 text-center font-black text-slate-900 text-sm border-r-4 border-slate-900/20 bg-[#FFF2CC]">{(data?.grandTotals.achievement || 0).toFixed(1)}%</td>
+                                <td className="px-4 py-2 text-center font-black text-slate-900 text-sm border-r border-slate-900/10 bg-amber-500/90">{data?.grandTotals.cumulative.total}</td>
+                                <td className="px-4 py-2 text-center font-black text-slate-900 text-sm border-r border-slate-900/10 bg-amber-500/90">{data?.grandTotals.cumulative.admitted}</td>
+                                <td className="px-4 py-2 text-center font-black text-slate-900 text-sm border-r-4 border-slate-900/20 bg-blue-200">{(data?.grandTotals.conversion || 0).toFixed(1)}%</td>
+                                <td className="px-4 py-2 text-center font-black text-slate-900 text-sm border-r border-slate-900/10 bg-amber-500">{data?.grandTotals.daily.admitted}</td>
+                                <td className="px-4 py-2 text-center font-black text-slate-900 text-sm border-r border-slate-900/10 bg-amber-500">{data?.grandTotals.daily.new}</td>
+                                <td className="px-4 py-2 text-center font-black text-slate-900 text-sm bg-amber-500">{data?.grandTotals.daily.total}</td>
                             </tr>
                         </tfoot>
                     </table>

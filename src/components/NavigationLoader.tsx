@@ -22,7 +22,7 @@ export function NavigationLoader() {
             const target = e.target as HTMLElement
             const anchor = target.closest('a')
 
-            if (anchor && anchor.href && !anchor.target && !e.ctrlKey && !e.metaKey) {
+            if (anchor && anchor.href && !anchor.download && !anchor.target && !e.ctrlKey && !e.metaKey) {
                 const url = new URL(anchor.href)
                 const currentUrl = new URL(window.location.href)
 

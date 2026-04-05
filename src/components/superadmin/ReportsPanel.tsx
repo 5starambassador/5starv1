@@ -37,7 +37,9 @@ import {
     generateSettlementIntegrityReport,
     generateMasterPipelineExport,
     generateMasterReferralReport,
-    generateWhatsAppLogReport
+    generateWhatsAppLogReport,
+    generateAppReferralStatusReport,
+    generateAmbassadorMasterRegistry
 } from '@/app/report-actions'
 
 interface ReportsPanelProps {
@@ -63,14 +65,20 @@ export function ReportsPanel({
     const [showVisualSummary, setShowVisualSummary] = useState(false)
     const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' })
     const [selectedCampus, setSelectedCampus] = useState<string>('All')
-    const [academicYear, setAcademicYear] = useState<string>('2025-2026')
+    const [academicYear, setAcademicYear] = useState<string>('All')
     const uniqueCampuses = Array.from(new Set(campuses.map(c => c.campusName || c.campus).filter(Boolean)))
-    const academicYears = ['2024-2025', '2025-2026', '2026-2027']
+    const academicYears = ['All', '2024-2025', '2025-2026', '2026-2027']
 
     const handleEmailReport = async (reportId: string) => {
         setEmailingId(reportId)
         try {
-            const res = await emailReport(reportId)
+            const filters = {
+                startDate: dateRange.start || undefined,
+                endDate: dateRange.end || undefined,
+                campus: selectedCampus !== 'All' ? selectedCampus : undefined,
+                academicYear: academicYear
+            }
+            const res = await emailReport(reportId, filters)
             if (res.success) {
                 toast.success(res.message)
             } else {
@@ -89,7 +97,8 @@ export function ReportsPanel({
         const filters = {
             startDate: dateRange.start || undefined,
             endDate: dateRange.end || undefined,
-            campus: selectedCampus !== 'All' ? selectedCampus : undefined
+            campus: selectedCampus !== 'All' ? selectedCampus : undefined,
+            academicYear: academicYear
         }
         try {
             await onDownloadReport(() => action(filters))
@@ -201,6 +210,32 @@ export function ReportsPanel({
             text: 'text-cyan-700',
             border: 'border-cyan-200',
             action: generateCampusDistributionReport,
+            canEmail: true
+        },
+        {
+            id: 'app-referral-status',
+            title: 'APP User Status',
+            count: 'University Summary',
+            desc: 'Campus-wise registration audit for Staff and Parents with potential referral tracking.',
+            icon: Activity,
+            color: 'from-blue-600 to-blue-700',
+            bg: 'bg-blue-50',
+            text: 'text-blue-800',
+            border: 'border-blue-200',
+            action: generateAppReferralStatusReport,
+            canEmail: true
+        },
+        {
+            id: 'ambassador-registry',
+            title: 'Ambassador Master Registry',
+            count: 'Detailed User Status',
+            desc: 'Individual line-by-line status of all registered ambassadors with contact details.',
+            icon: Users,
+            color: 'from-indigo-600 to-indigo-700',
+            bg: 'bg-indigo-50',
+            text: 'text-indigo-800',
+            border: 'border-indigo-200',
+            action: generateAmbassadorMasterRegistry,
             canEmail: true
         },
         {

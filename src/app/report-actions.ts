@@ -23,7 +23,7 @@ const _UserRole = {
 } as any
 
 // ===================== REPORT #1: REFERRAL PERFORMANCE =====================
-export async function generateReferralPerformanceReport(filters?: { startDate?: string, endDate?: string, campus?: string }) {
+export async function generateReferralPerformanceReport(filters?: { startDate?: string, endDate?: string, campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     const canAccess = await hasPermission('reports')
     if (!admin || !canAccess) {
@@ -48,6 +48,9 @@ export async function generateReferralPerformanceReport(filters?: { startDate?: 
             whereClause.assignedCampus = admin.assignedCampus
         } else if (filters?.campus && filters.campus !== 'All') {
             whereClause.assignedCampus = filters.campus
+        }
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            whereClause.academicYear = filters.academicYear
         }
 
         // Get all users with their referral counts
@@ -87,7 +90,7 @@ export async function generateReferralPerformanceReport(filters?: { startDate?: 
 }
 
 // ===================== REPORT #2: PENDING LEADS =====================
-export async function generatePendingLeadsReport(filters?: { startDate?: string, endDate?: string, campus?: string }) {
+export async function generatePendingLeadsReport(filters?: { startDate?: string, endDate?: string, campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     const canAccess = await hasPermission('reports')
     if (!admin || !canAccess) {
@@ -109,6 +112,9 @@ export async function generatePendingLeadsReport(filters?: { startDate?: string,
         // Campus Filter
         if (filters?.campus && filters.campus !== 'All') {
             whereClause.campus = filters.campus
+        }
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            whereClause.academicYear = filters.academicYear
         }
 
         const pendingLeads = await prisma.referralLead.findMany({
@@ -138,7 +144,7 @@ export async function generatePendingLeadsReport(filters?: { startDate?: string,
 }
 
 // ===================== REPORT #3: MONTHLY TRENDS =====================
-export async function generateMonthlyTrendsReport(filters?: { startDate?: string, endDate?: string, campus?: string }) {
+export async function generateMonthlyTrendsReport(filters?: { startDate?: string, endDate?: string, campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -163,6 +169,9 @@ export async function generateMonthlyTrendsReport(filters?: { startDate?: string
             if (filters?.campus && filters.campus !== 'All') {
                 whereBase.assignedCampus = filters.campus
             }
+            if (filters?.academicYear && filters.academicYear !== 'All') {
+                whereBase.academicYear = filters.academicYear
+            }
 
             const newAmbassadors = await prisma.user.count({
                 where: { ...whereBase, referralCode: { not: null } }
@@ -171,7 +180,8 @@ export async function generateMonthlyTrendsReport(filters?: { startDate?: string
             const newLeads = await prisma.referralLead.count({
                 where: {
                     createdAt: { gte: monthStart, lte: monthEnd },
-                    ...(filters?.campus && filters.campus !== 'All' && { campus: filters.campus })
+                    ...(filters?.campus && filters.campus !== 'All' && { campus: filters.campus }),
+                    ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear })
                 }
             })
 
@@ -179,7 +189,8 @@ export async function generateMonthlyTrendsReport(filters?: { startDate?: string
                 where: {
                     leadStatus: { in: [_LeadStatus.Confirmed, _LeadStatus.Admitted] },
                     confirmedDate: { gte: monthStart, lte: monthEnd },
-                    ...(filters?.campus && filters.campus !== 'All' && { campus: filters.campus })
+                    ...(filters?.campus && filters.campus !== 'All' && { campus: filters.campus }),
+                    ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear })
                 }
             })
 
@@ -212,7 +223,7 @@ export async function generateMonthlyTrendsReport(filters?: { startDate?: string
 }
 
 // ===================== REPORT #4: INACTIVE USERS =====================
-export async function generateInactiveUsersReport(filters?: { campus?: string }) {
+export async function generateInactiveUsersReport(filters?: { campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -226,6 +237,9 @@ export async function generateInactiveUsersReport(filters?: { campus?: string })
 
         if (filters?.campus && filters.campus !== 'All') {
             whereClause.assignedCampus = filters.campus
+        }
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            whereClause.academicYear = filters.academicYear
         }
 
         const inactiveUsers = await prisma.user.findMany({
@@ -256,7 +270,7 @@ export async function generateInactiveUsersReport(filters?: { campus?: string })
 }
 
 // ===================== REPORT #5: TOP PERFORMERS LEADERBOARD =====================
-export async function generateTopPerformersReport(filters?: { campus?: string }) {
+export async function generateTopPerformersReport(filters?: { campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -266,6 +280,9 @@ export async function generateTopPerformersReport(filters?: { campus?: string })
         const whereClause: any = { referralCode: { not: null } }
         if (filters?.campus && filters.campus !== 'All') {
             whereClause.assignedCampus = filters.campus
+        }
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            whereClause.academicYear = filters.academicYear
         }
 
         const topPerformers = await prisma.user.findMany({
@@ -296,7 +313,7 @@ export async function generateTopPerformersReport(filters?: { campus?: string })
 }
 
 // ===================== REPORT #6: CAMPUS DISTRIBUTION =====================
-export async function generateCampusDistributionReport() {
+export async function generateCampusDistributionReport(filters?: { academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -306,7 +323,10 @@ export async function generateCampusDistributionReport() {
         const campusStats = await prisma.user.groupBy({
             by: ['assignedCampus'],
             _count: { userId: true },
-            where: { referralCode: { not: null } }
+            where: { 
+                referralCode: { not: null },
+                ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear })
+            }
         })
 
         const rows: string[] = [
@@ -317,10 +337,10 @@ export async function generateCampusDistributionReport() {
             const campus = stat.assignedCampus || 'Not Assigned'
 
             const [parents, staff, totalLeads, confirmed] = await Promise.all([
-                prisma.user.count({ where: { referralCode: { not: null }, assignedCampus: stat.assignedCampus, role: 'Parent' } }),
-                prisma.user.count({ where: { referralCode: { not: null }, assignedCampus: stat.assignedCampus, role: 'Staff' } }),
-                prisma.referralLead.count({ where: { campus: stat.assignedCampus } }),
-                prisma.referralLead.count({ where: { campus: stat.assignedCampus, leadStatus: { in: [_LeadStatus.Confirmed, _LeadStatus.Admitted] } } })
+                prisma.user.count({ where: { referralCode: { not: null }, assignedCampus: stat.assignedCampus, role: 'Parent', ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear }) } }),
+                prisma.user.count({ where: { referralCode: { not: null }, assignedCampus: stat.assignedCampus, role: 'Staff', ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear }) } }),
+                prisma.referralLead.count({ where: { campus: stat.assignedCampus, ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear }) } }),
+                prisma.referralLead.count({ where: { campus: stat.assignedCampus, leadStatus: { in: [_LeadStatus.Confirmed, _LeadStatus.Admitted] }, ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear }) } })
             ])
 
             const conversionRate = totalLeads > 0 ? ((confirmed / totalLeads) * 100).toFixed(1) : '0'
@@ -335,7 +355,7 @@ export async function generateCampusDistributionReport() {
 }
 
 // ===================== REPORT #7: BENEFIT TIER ANALYSIS =====================
-export async function generateBenefitTierReport(filters?: { campus?: string }) {
+export async function generateBenefitTierReport(filters?: { campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -358,6 +378,9 @@ export async function generateBenefitTierReport(filters?: { campus?: string }) {
         const baseWhere: any = { referralCode: { not: null } }
         if (filters?.campus && filters.campus !== 'All') {
             baseWhere.assignedCampus = filters.campus
+        }
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            baseWhere.academicYear = filters.academicYear
         }
 
         const totalUsers = await prisma.user.count({ where: baseWhere })
@@ -387,7 +410,7 @@ export async function generateBenefitTierReport(filters?: { campus?: string }) {
 }
 
 // ===================== REPORT #8: NEW REGISTRATIONS =====================
-export async function generateNewRegistrationsReport(filters?: { startDate?: string, endDate?: string, campus?: string }) {
+export async function generateNewRegistrationsReport(filters?: { startDate?: string, endDate?: string, campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -405,9 +428,12 @@ export async function generateNewRegistrationsReport(filters?: { startDate?: str
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
             whereClause.createdAt = { gte: thirtyDaysAgo }
         }
-
         if (filters?.campus && filters.campus !== 'All') {
             whereClause.assignedCampus = filters.campus
+        }
+
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            whereClause.academicYear = filters.academicYear
         }
 
         const newUsers = await prisma.user.findMany({
@@ -431,7 +457,7 @@ export async function generateNewRegistrationsReport(filters?: { startDate?: str
 }
 
 // ===================== REPORT #9: STAFF VS PARENT COMPARISON =====================
-export async function generateStaffVsParentReport(filters?: { campus?: string }) {
+export async function generateStaffVsParentReport(filters?: { campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -446,6 +472,10 @@ export async function generateStaffVsParentReport(filters?: { campus?: string })
         const baseWhere: any = { referralCode: { not: null } }
         if (filters?.campus && filters.campus !== 'All') {
             baseWhere.assignedCampus = filters.campus
+        }
+
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            baseWhere.academicYear = filters.academicYear
         }
 
         for (const role of roles) {
@@ -471,7 +501,7 @@ export async function generateStaffVsParentReport(filters?: { campus?: string })
 }
 
 // ===================== REPORT #10: LEAD STATUS PIPELINE =====================
-export async function generateLeadPipelineReport(filters?: { startDate?: string, endDate?: string, campus?: string }) {
+export async function generateLeadPipelineReport(filters?: { startDate?: string, endDate?: string, campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -491,6 +521,9 @@ export async function generateLeadPipelineReport(filters?: { startDate?: string,
         }
         if (filters?.campus && filters.campus !== 'All') {
             baseWhere.campus = filters.campus
+        }
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            baseWhere.academicYear = filters.academicYear
         }
 
         const totalLeads = await prisma.referralLead.count({ where: baseWhere })
@@ -519,7 +552,7 @@ export async function generateLeadPipelineReport(filters?: { startDate?: string,
 }
 
 // ===================== REPORT #11: STAR MILESTONE TRACKER =====================
-export async function generateStarMilestoneReport(filters?: { campus?: string }) {
+export async function generateStarMilestoneReport(filters?: { campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -529,6 +562,9 @@ export async function generateStarMilestoneReport(filters?: { campus?: string })
         const whereClause: any = { referralCode: { not: null } }
         if (filters?.campus && filters.campus !== 'All') {
             whereClause.assignedCampus = filters.campus
+        }
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            whereClause.academicYear = filters.academicYear
         }
 
         const users = await prisma.user.findMany({
@@ -560,7 +596,7 @@ export async function generateStarMilestoneReport(filters?: { campus?: string })
 }
 
 // ===================== DYNAMIC INSIGHTS: CONVERSION FUNNEL =====================
-export async function generateConversionFunnelData(filters?: { startDate?: string, endDate?: string, campus?: string }) {
+export async function generateConversionFunnelData(filters?: { startDate?: string, endDate?: string, campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -575,6 +611,9 @@ export async function generateConversionFunnelData(filters?: { startDate?: strin
         }
         if (filters?.campus && filters.campus !== 'All') {
             whereClause.campus = filters.campus
+        }
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            whereClause.academicYear = filters.academicYear
         }
 
         const stages = [
@@ -618,7 +657,7 @@ export async function generateConversionFunnelData(filters?: { startDate?: strin
 }
 
 // ===================== DYNAMIC INSIGHTS: FINANCIAL ROI =====================
-export async function generateFinancialROIData(filters?: { startDate?: string, endDate?: string, campus?: string }) {
+export async function generateFinancialROIData(filters?: { startDate?: string, endDate?: string, campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -628,6 +667,9 @@ export async function generateFinancialROIData(filters?: { startDate?: string, e
         const whereClause: any = { referralCode: { not: null } }
         if (filters?.campus && filters.campus !== 'All') {
             whereClause.assignedCampus = filters.campus
+        }
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            whereClause.academicYear = filters.academicYear
         }
 
         const users = await prisma.user.findMany({
@@ -690,7 +732,7 @@ export async function generateFinancialROIData(filters?: { startDate?: string, e
 }
 
 // ===================== DYNAMIC INSIGHTS: TARGET ACHIEVEMENT =====================
-export async function generateTargetAchievementData(filters?: { campus?: string }) {
+export async function generateTargetAchievementData(filters?: { campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -723,7 +765,8 @@ export async function generateTargetAchievementData(filters?: { campus?: string 
                     confirmedDate: {
                         gte: new Date(currentYear, currentMonth - 1, 1),
                         lte: new Date(currentYear, currentMonth, 0)
-                    }
+                    },
+                    ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear })
                 }
             })
 
@@ -746,7 +789,7 @@ export async function generateTargetAchievementData(filters?: { campus?: string 
 }
 
 // ===================== DYNAMIC INSIGHTS: STAR MILESTONES =====================
-export async function generateStarMilestonesData(filters?: { campus?: string }) {
+export async function generateStarMilestonesData(filters?: { campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -756,6 +799,9 @@ export async function generateStarMilestonesData(filters?: { campus?: string }) 
         const whereClause: any = { referralCode: { not: null } }
         if (filters?.campus && filters.campus !== 'All') {
             whereClause.assignedCampus = filters.campus
+        }
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            whereClause.academicYear = filters.academicYear
         }
 
         const users = await prisma.user.findMany({
@@ -838,7 +884,7 @@ export async function generateStarMilestonesData(filters?: { campus?: string }) 
 }
 
 // ===================== DYNAMIC INSIGHTS: ADMISSION INTELLIGENCE =====================
-export async function generateAdmissionIntelligenceData(filters?: { campus?: string }) {
+export async function generateAdmissionIntelligenceData(filters?: { campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -859,7 +905,8 @@ export async function generateAdmissionIntelligenceData(filters?: { campus?: str
                 where: {
                     campus: c.campusName,
                     leadStatus: _LeadStatus.Confirmed,
-                    confirmedDate: { not: null }
+                    confirmedDate: { not: null },
+                    ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear })
                 },
                 select: { createdAt: true, confirmedDate: true },
                 orderBy: { confirmedDate: 'desc' },
@@ -921,7 +968,7 @@ export async function generateAdmissionIntelligenceData(filters?: { campus?: str
 }
 
 // ===================== DYNAMIC INSIGHTS: RETENTION & ACTIVITY =====================
-export async function generateRetentionAnalyticsData(filters?: { campus?: string }) {
+export async function generateRetentionAnalyticsData(filters?: { campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -933,7 +980,11 @@ export async function generateRetentionAnalyticsData(filters?: { campus?: string
             : {}
 
         const users = await prisma.user.findMany({
-            where: { isFiveStarMember: true, ...campusWhere },
+            where: { 
+                isFiveStarMember: true, 
+                ...campusWhere,
+                ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear })
+            },
             include: {
                 referrals: {
                     orderBy: { createdAt: 'desc' },
@@ -967,7 +1018,10 @@ export async function generateRetentionAnalyticsData(filters?: { campus?: string
 
         // Pipeline Bottlenecks (Avg Time in Stage)
         const leads = await prisma.referralLead.findMany({
-            where: filters?.campus && filters.campus !== 'All' ? { campus: filters.campus } : {},
+            where: {
+                ...(filters?.campus && filters.campus !== 'All' ? { campus: filters.campus } : {}),
+                ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear })
+            },
             select: { createdAt: true, leadStatus: true, confirmedDate: true }
         })
 
@@ -1099,15 +1153,23 @@ export async function generateWhatsAppLogReport(filters?: { startDate?: string, 
 
 
 // ===================== REPORT #13: SETTLEMENT INTEGRITY =====================
-export async function generateSettlementIntegrityReport() {
+export async function generateSettlementIntegrityReport(filters?: { campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
     }
 
     try {
+        const leadWhere: any = { leadStatus: _LeadStatus.Confirmed }
+        if (filters?.campus && filters.campus !== 'All') {
+            leadWhere.campus = filters.campus
+        }
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            leadWhere.academicYear = filters.academicYear
+        }
+
         const leads = await prisma.referralLead.findMany({
-            where: { leadStatus: _LeadStatus.Confirmed },
+            where: leadWhere,
             include: {
                 user: {
                     select: { fullName: true, mobileNumber: true, userId: true }
@@ -1137,7 +1199,7 @@ export async function generateSettlementIntegrityReport() {
 }
 
 // ===================== REPORT #14: MASTER PIPELINE EXPORT =====================
-export async function generateMasterPipelineExport(filters?: { startDate?: string, endDate?: string, campus?: string }) {
+export async function generateMasterPipelineExport(filters?: { startDate?: string, endDate?: string, campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -1152,6 +1214,9 @@ export async function generateMasterPipelineExport(filters?: { startDate?: strin
         }
         if (filters?.campus && filters.campus !== 'All') {
             whereClause.campus = filters.campus
+        }
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            whereClause.academicYear = filters.academicYear
         }
 
         const leads = await prisma.referralLead.findMany({
@@ -1201,7 +1266,7 @@ export async function generateMasterPipelineExport(filters?: { startDate?: strin
 }
 
 // ===================== REPORT #15: MASTER REFERRAL REPORT (AMBASSADORS + LEADS) =====================
-export async function generateMasterReferralReport(filters?: { startDate?: string, endDate?: string, campus?: string }) {
+export async function generateMasterReferralReport(filters?: { startDate?: string, endDate?: string, campus?: string, academicYear?: string }) {
     const admin = await getCurrentUser()
     if (!admin || !admin.role.includes('Super Admin')) {
         return { success: false, error: 'Unauthorized' }
@@ -1216,6 +1281,9 @@ export async function generateMasterReferralReport(filters?: { startDate?: strin
         }
         if (filters?.campus && filters.campus !== 'All') {
             whereClause.campus = filters.campus
+        }
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            whereClause.academicYear = filters.academicYear
         }
 
         const leads = await prisma.referralLead.findMany({
@@ -1305,7 +1373,18 @@ export async function getDailyReferralReport(filters?: { targetDate?: string, ca
             orderBy: { campusName: 'asc' }
         })
 
+        // SORTING: Schools at top, Colleges (AASC, ACET, ACCHM) at bottom
+        const colleges = ['AASC', 'ACET', 'ACCHM']
+        campuses.sort((a, b) => {
+            const aIsCollege = colleges.includes(a.campusName)
+            const bIsCollege = colleges.includes(b.campusName)
+            if (aIsCollege && !bIsCollege) return 1
+            if (!aIsCollege && bIsCollege) return -1
+            return a.campusName.localeCompare(b.campusName)
+        })
+
         const reportRows = await Promise.all(campuses.map(async (campus, index) => {
+            // ... (rest of individual row fetching logic remains the same)
             const campusName = campus.campusName
 
             // COMMON WHERE CLAUSE
@@ -1351,9 +1430,24 @@ export async function getDailyReferralReport(filters?: { targetDate?: string, ca
                 where: studentWhere
             })
 
+            // TOTAL POTENTIAL (Ambassadors registered * 5)
+            const ambassadorCount = await prisma.user.count({
+                where: {
+                    assignedCampus: campusName,
+                    referralCode: { not: null },
+                    ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear })
+                }
+            })
+            const potential = ambassadorCount * 5
+            const achievement = potential > 0 ? (cumulativeTotal / potential) * 100 : 0
+            const conversion = cumulativeTotal > 0 ? (cumulativeAdmitted / cumulativeTotal) * 100 : 0
+
             return {
                 slNo: index + 1,
                 campusName,
+                potential,
+                achievement,
+                conversion,
                 cumulative: {
                     total: cumulativeTotal,
                     admitted: cumulativeAdmitted
@@ -1366,23 +1460,41 @@ export async function getDailyReferralReport(filters?: { targetDate?: string, ca
             }
         }))
 
-        // GRAND TOTALS
-        const grandTotals = {
-            cumulative: {
-                total: reportRows.reduce((sum, r) => sum + r.cumulative.total, 0),
-                admitted: reportRows.reduce((sum, r) => sum + r.cumulative.admitted, 0)
-            },
-            daily: {
-                new: reportRows.reduce((sum, r) => sum + r.daily.new, 0),
-                admitted: reportRows.reduce((sum, r) => sum + r.daily.admitted, 0),
-                total: reportRows.reduce((sum, r) => sum + r.daily.total, 0)
+        // SEPARATE SCHOOLS AND COLLEGES
+        const schoolRows = reportRows.filter(r => !colleges.includes(r.campusName))
+        const collegeRows = reportRows.filter(r => colleges.includes(r.campusName))
+
+        function calculateGroupTotals(rows: any[]) {
+            const totals = {
+                potential: rows.reduce((sum, r) => sum + r.potential, 0),
+                achievement: 0,
+                conversion: 0,
+                cumulative: {
+                    total: rows.reduce((sum, r) => sum + r.cumulative.total, 0),
+                    admitted: rows.reduce((sum, r) => sum + r.cumulative.admitted, 0)
+                },
+                daily: {
+                    new: rows.reduce((sum, r) => sum + r.daily.new, 0),
+                    admitted: rows.reduce((sum, r) => sum + r.daily.admitted, 0),
+                    total: rows.reduce((sum, r) => sum + r.daily.total, 0)
+                }
             }
+            totals.achievement = totals.potential > 0 ? (totals.cumulative.total / totals.potential) * 100 : 0
+            totals.conversion = totals.cumulative.total > 0 ? (totals.cumulative.admitted / totals.cumulative.total) * 100 : 0
+            return totals
         }
+
+        const schoolSubtotal = calculateGroupTotals(schoolRows)
+        const collegeSubtotal = calculateGroupTotals(collegeRows)
+        const grandTotals = calculateGroupTotals(reportRows)
 
         return { 
             success: true, 
             data: {
-                reportRows,
+                schoolRows,
+                schoolSubtotal,
+                collegeRows,
+                collegeSubtotal,
                 grandTotals,
                 targetDate
             }
@@ -1392,4 +1504,172 @@ export async function getDailyReferralReport(filters?: { targetDate?: string, ca
         return { success: false, error: 'Failed' }
     }
 }
+
+// ===================== REPORT #17: APP USER STATUS (SUMMARY) =====================
+export async function generateAppReferralStatusReport(filters?: { campus?: string, academicYear?: string }) {
+    const admin = await getCurrentUser()
+    if (!admin || !admin.role.includes('Super Admin')) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        const campusWhereBase: any = { isActive: true }
+        if (filters?.campus && filters.campus !== 'All') {
+            campusWhereBase.campusName = filters.campus
+        }
+
+        const campuses = await prisma.campus.findMany({
+            where: campusWhereBase,
+            orderBy: { campusName: 'asc' }
+        })
+
+        const headers = [
+            'Sl No.', 'Campus Name', 'Staff Count', 'Parent Count', 'Both Potential Referral (x5)',
+            'Staff Active', 'Staff Inactive/Pending status',
+            'Parent Active', 'Parent Inactive/Pending status'
+        ]
+
+        const rows: string[] = [headers.join(',')]
+        const totals = {
+            staffCount: 0, parentCount: 0, potential: 0,
+            sActive: 0, sInactivePending: 0,
+            pActive: 0, pInactivePending: 0
+        }
+
+        for (const [index, campus] of campuses.entries()) {
+            const campusName = campus.campusName
+
+            // Counts for Staff
+            const staffStats = await prisma.user.groupBy({
+                by: ['status'],
+                where: { 
+                    assignedCampus: campusName, 
+                    role: 'Staff',
+                    ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear })
+                },
+                _count: { userId: true }
+            })
+
+            // Counts for Parent
+            const parentStats = await prisma.user.groupBy({
+                by: ['status'],
+                where: { 
+                    assignedCampus: campusName, 
+                    role: 'Parent',
+                    ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear })
+                },
+                _count: { userId: true }
+            })
+
+            const extract = (stats: any[]) => {
+                let total = 0, active = 0, inactivePending = 0
+                stats.forEach(s => {
+                    total += s._count.userId
+                    if (s.status === 'Active') {
+                        active += s._count.userId
+                    } else {
+                        // All other statuses (Pending, Inactive, PendingVerification, Suspended)
+                        inactivePending += s._count.userId
+                    }
+                })
+                return { total, active, inactivePending }
+            }
+
+            const s = extract(staffStats)
+            const p = extract(parentStats)
+            const potential = (s.total + p.total) * 5
+
+            rows.push([
+                index + 1,
+                `"${campusName}"`,
+                s.total,
+                p.total,
+                potential,
+                s.active,
+                s.inactivePending,
+                p.active,
+                p.inactivePending
+            ].join(','))
+
+            // Update Totals
+            totals.staffCount += s.total; totals.parentCount += p.total; totals.potential += potential
+            totals.sActive += s.active; totals.sInactivePending += s.inactivePending
+            totals.pActive += p.active; totals.pInactivePending += p.inactivePending
+        }
+
+        // Add Grand Total row
+        rows.push([
+            'Grand Total', '', totals.staffCount, totals.parentCount, totals.potential,
+            totals.sActive, totals.sInactivePending,
+            totals.pActive, totals.pInactivePending
+        ].join(','))
+
+        return { 
+            success: true, 
+            csv: rows.join('\n'), 
+            filename: `app-user-status-${new Date().toISOString().split('T')[0]}.csv` 
+        }
+
+    } catch (error) {
+        console.error('APP User Status Report Error:', error)
+        return { success: false, error: 'Failed' }
+    }
+}
+
+// ===================== REPORT #18: AMBASSADOR MASTER REGISTRY =====================
+export async function generateAmbassadorMasterRegistry(filters?: { campus?: string, academicYear?: string }) {
+    const admin = await getCurrentUser()
+    if (!admin || !admin.role.includes('Super Admin')) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        const whereClause: any = { 
+            referralCode: { not: null },
+            ...(filters?.campus && filters.campus !== 'All' && { assignedCampus: filters.campus }),
+            ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear })
+        }
+
+        const users = await prisma.user.findMany({
+            where: whereClause,
+            orderBy: [
+                { assignedCampus: 'asc' },
+                { fullName: 'asc' }
+            ]
+        })
+
+        const headers = [
+            'Sl No.', 'Ambassador Name', 'Role', 'Campus', 'Mobile', 
+            'Registration Date', 'Account Status', 'Confirmed Referrals', 'Academic Year'
+        ]
+
+        const rows: string[] = [headers.join(',')]
+
+        users.forEach((u, index) => {
+            rows.push([
+                index + 1,
+                `"${u.fullName}"`,
+                u.role,
+                `"${u.assignedCampus || 'Not Assigned'}"`,
+                `="${u.mobileNumber}"`,
+                new Date(u.createdAt).toLocaleDateString('en-GB'),
+                u.status,
+                u.confirmedReferralCount,
+                u.academicYear || 'N/A'
+            ].join(','))
+        })
+
+        return { 
+            success: true, 
+            csv: rows.join('\n'), 
+            filename: `ambassador-master-registry-${new Date().toISOString().split('T')[0]}.csv` 
+        }
+
+    } catch (error) {
+        console.error('Ambassador Master Registry Error:', error)
+        return { success: false, error: 'Failed to generate report' }
+    }
+}
+
+
 

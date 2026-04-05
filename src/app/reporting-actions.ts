@@ -18,7 +18,9 @@ export async function emailReport(reportId: string, criteria?: any) {
         if (reportId === 'users' || reportId === 'ambassador-perf' || reportId === 'top-performers') {
             const users = await prisma.user.findMany({
                 where: {
-                    ...(user.role !== 'Super Admin' && user.assignedCampus ? { assignedCampus: user.assignedCampus } : {})
+                    ...(user.role !== 'Super Admin' && user.assignedCampus ? { assignedCampus: user.assignedCampus } : {}),
+                    ...(criteria?.campus && criteria.campus !== 'All' ? { assignedCampus: criteria.campus } : {}),
+                    ...(criteria?.academicYear && criteria.academicYear !== 'All' ? { academicYear: criteria.academicYear } : {})
                 },
                 include: { referrals: true },
                 orderBy: { confirmedReferralCount: 'desc' },
@@ -58,7 +60,9 @@ export async function emailReport(reportId: string, criteria?: any) {
             const users = await prisma.user.findMany({
                 where: {
                     confirmedReferralCount: { in: [0, 1, 2, 3, 4] },
-                    ...(user.role !== 'Super Admin' && user.assignedCampus ? { assignedCampus: user.assignedCampus } : {})
+                    ...(user.role !== 'Super Admin' && user.assignedCampus ? { assignedCampus: user.assignedCampus } : {}),
+                    ...(criteria?.campus && criteria.campus !== 'All' ? { assignedCampus: criteria.campus } : {}),
+                    ...(criteria?.academicYear && criteria.academicYear !== 'All' ? { academicYear: criteria.academicYear } : {})
                 },
                 take: 50,
                 orderBy: { confirmedReferralCount: 'desc' }
@@ -98,7 +102,9 @@ export async function emailReport(reportId: string, criteria?: any) {
         else if (reportId === 'pipeline-lifecycle' || reportId === 'full-pipeline' || reportId === 'pipeline') {
             const leads = await prisma.referralLead.findMany({
                 where: {
-                    ...(user.role !== 'Super Admin' && user.assignedCampus ? { campus: user.assignedCampus } : {})
+                    ...(user.role !== 'Super Admin' && user.assignedCampus ? { campus: user.assignedCampus } : {}),
+                    ...(criteria?.campus && criteria.campus !== 'All' ? { campus: criteria.campus } : {}),
+                    ...(criteria?.academicYear && criteria.academicYear !== 'All' ? { academicYear: criteria.academicYear } : {})
                 },
                 orderBy: { createdAt: 'desc' },
                 take: 50
@@ -168,13 +174,17 @@ export async function emailReport(reportId: string, criteria?: any) {
             const registrations = await prisma.user.count({
                 where: {
                     createdAt: { gte: new Date(new Date().setMonth(new Date().getMonth() - 1)) },
-                    ...(user.role !== 'Super Admin' && user.assignedCampus ? { assignedCampus: user.assignedCampus } : {})
+                    ...(user.role !== 'Super Admin' && user.assignedCampus ? { assignedCampus: user.assignedCampus } : {}),
+                    ...(criteria?.campus && criteria.campus !== 'All' ? { assignedCampus: criteria.campus } : {}),
+                    ...(criteria?.academicYear && criteria.academicYear !== 'All' ? { academicYear: criteria.academicYear } : {})
                 }
             })
             const leads = await prisma.referralLead.count({
                 where: {
                     createdAt: { gte: new Date(new Date().setMonth(new Date().getMonth() - 1)) },
-                    ...(user.role !== 'Super Admin' && user.assignedCampus ? { campus: user.assignedCampus } : {})
+                    ...(user.role !== 'Super Admin' && user.assignedCampus ? { campus: user.assignedCampus } : {}),
+                    ...(criteria?.campus && criteria.campus !== 'All' ? { campus: criteria.campus } : {}),
+                    ...(criteria?.academicYear && criteria.academicYear !== 'All' ? { academicYear: criteria.academicYear } : {})
                 }
             })
 
