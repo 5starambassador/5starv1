@@ -372,6 +372,24 @@ export function CampaignManager() {
             }
             parts.push(funnelLabels[audience.leadFunnelStatus] || audience.leadFunnelStatus)
         }
+        // ── Show Referral lead status filter ──
+        if (audience.leadStatus && audience.leadStatus !== 'All') {
+            const leadStatusLabels: Record<string, string> = {
+                New: 'New',
+                Contacted: 'Contacted',
+                Admitted_Confirmed: 'Admitted / Confirmed',
+                Rejected: 'Rejected'
+            }
+            parts.push(leadStatusLabels[audience.leadStatus] || audience.leadStatus)
+        }
+        // ── Show Program lead status filter ──
+        if (audience.programLeadStatus && audience.programLeadStatus !== 'All') {
+            parts.push(audience.programLeadStatus.charAt(0) + audience.programLeadStatus.slice(1).toLowerCase())
+        }
+        // ── Show Activity Status filter (Active / Dormant ambassadors) ──
+        if (audience.activityStatus && audience.activityStatus !== 'All') {
+            parts.push(audience.activityStatus === 'Dormant' ? 'Dormant' : 'Recently Active')
+        }
         return parts.length > 0 ? parts.join(' • ') : 'All Active Ambassadors'
     }
 

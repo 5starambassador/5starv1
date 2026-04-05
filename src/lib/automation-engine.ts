@@ -160,12 +160,25 @@ export class AutomationEngine {
               include: { user: true }, 
               take: 100 
           })
+          const freqDays = conditions.intervalDay || 1
+          const freqMs = freqDays * 24 * 60 * 60 * 1000
           for (const lead of leads) {
               if (lead.user?.mobileNumber) {
+                  // Frequency Cap: don't re-send within the intervalDay window
+                  const lastRun = await prisma.automationLog.findFirst({
+                      where: {
+                          ruleId: rule.id,
+                          userId: lead.user.userId,
+                          status: 'SUCCESS',
+                          createdAt: { gte: new Date(Date.now() - freqMs) }
+                      }
+                  })
+                  if (lastRun) continue
+
                   const metadata = { leadId: lead.leadId }
                   const templateKey = this.replaceVariables(rule.actionTarget || rule.triggerEvent || '', metadata)
                   await whatsappService.sendByEvent(lead.user.mobileNumber, templateKey, [lead.user.fullName || 'Parent', lead.studentName || 'Student'], 'SYSTEM')
-                  await this.logExecution(rule.id, lead.user.userId, 'CRON_DAILY', 'SUCCESS', 'Scheduled message to Referral parent', metadata);
+                  await this.logExecution(rule.id, lead.user.userId, 'CRON_DAILY', 'SUCCESS', `Recurring send (every ${freqDays}d) to Referral parent`, metadata);
                   totalProcessed++
               }
           }
@@ -175,12 +188,25 @@ export class AutomationEngine {
               include: { program: true, referrer: true }, 
               take: 100 
           })
+          const freqDays = conditions.intervalDay || 1
+          const freqMs = freqDays * 24 * 60 * 60 * 1000
           for (const p of pLeads) {
               if (p.visitorMobile) {
+                  // Frequency Cap: don't re-send within the intervalDay window
+                  const lastRun = await prisma.automationLog.findFirst({
+                      where: {
+                          ruleId: rule.id,
+                          userId: p.referrerId,
+                          status: 'SUCCESS',
+                          createdAt: { gte: new Date(Date.now() - freqMs) }
+                      }
+                  })
+                  if (lastRun) continue
+
                   const metadata = { leadId: p.id }
                   const templateKey = this.replaceVariables(rule.actionTarget || rule.triggerEvent || '', metadata)
                   await whatsappService.sendByEvent(p.visitorMobile, templateKey, [p.visitorName || 'Visitor', p.program?.title || 'Program'], 'SYSTEM')
-                  await this.logExecution(rule.id, p.referrerId, 'CRON_DAILY', 'SUCCESS', 'Scheduled message to Program Lead', metadata);
+                  await this.logExecution(rule.id, p.referrerId, 'CRON_DAILY', 'SUCCESS', `Recurring send (every ${freqDays}d) to Program Lead`, metadata);
                   totalProcessed++
               }
           }
@@ -190,12 +216,25 @@ export class AutomationEngine {
               include: { parent: true },
               take: 100
           })
+          const freqDays = conditions.intervalDay || 1
+          const freqMs = freqDays * 24 * 60 * 60 * 1000
           for (const s of students) {
               if (s.parent?.mobileNumber) {
+                  // Frequency Cap: don't re-send within the intervalDay window
+                  const lastRun = await prisma.automationLog.findFirst({
+                      where: {
+                          ruleId: rule.id,
+                          userId: s.parent.userId,
+                          status: 'SUCCESS',
+                          createdAt: { gte: new Date(Date.now() - freqMs) }
+                      }
+                  })
+                  if (lastRun) continue
+
                   const metadata = { studentId: s.studentId }
                   const templateKey = this.replaceVariables(rule.actionTarget || rule.triggerEvent || '', metadata)
                   await whatsappService.sendByEvent(s.parent.mobileNumber, templateKey, [s.parent.fullName || 'Parent', s.fullName || 'Student'], 'SYSTEM')
-                  await this.logExecution(rule.id, s.parent.userId, 'CRON_DAILY', 'SUCCESS', 'Scheduled message to Student parent', metadata);
+                  await this.logExecution(rule.id, s.parent.userId, 'CRON_DAILY', 'SUCCESS', `Recurring send (every ${freqDays}d) to Student parent`, metadata);
                   totalProcessed++
               }
           }
@@ -208,20 +247,24 @@ export class AutomationEngine {
           })
           for (const user of targetUsers) {
               if (user.mobileNumber) {
-                  // Frequency Cap (24h cooldown for CRON rules to prevent daily spam)
+                  // Frequency Cap:
+                  // If intervalDay is set (e.g. Day 5), use that as the recurring
+                  // send frequency (every N days). Otherwise default to 1-day cap.
+                  const freqDays = conditions.intervalDay || 1
+                  const freqMs = freqDays * 24 * 60 * 60 * 1000
                   const lastRun = await prisma.automationLog.findFirst({
                       where: { 
                           ruleId: rule.id, 
                           userId: user.userId, 
                           status: 'SUCCESS', 
-                          createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } 
+                          createdAt: { gte: new Date(Date.now() - freqMs) } 
                       }
                   });
                   if (lastRun) continue;
 
                   const templateKey = this.replaceVariables(rule.actionTarget || rule.triggerEvent || '', {})
                   await whatsappService.sendByEvent(user.mobileNumber, templateKey, [user.fullName || 'Ambassador'], 'SYSTEM')
-                  await this.logExecution(rule.id, user.userId, 'CRON_DAILY', 'SUCCESS', 'Scheduled message to Ambassador', {});
+                  await this.logExecution(rule.id, user.userId, 'CRON_DAILY', 'SUCCESS', `Recurring send (every ${freqDays}d) to Ambassador`, {});
                   totalProcessed++
               }
           }
@@ -323,12 +366,11 @@ export class AutomationEngine {
           }
       }
 
-      if (conditions.intervalDay) {
-          const start = new Date(); start.setDate(start.getDate() - conditions.intervalDay);
-          start.setHours(0,0,0,0);
-          const end = new Date(start); end.setHours(23,59,59,999);
-          query.createdAt = { gte: start, lte: end }
-      }
+      // NOTE: intervalDay for USER-type CRON rules is handled as a recurring
+      // FREQUENCY CAP inside runCronRules() — NOT as a registration-date filter.
+      // So we intentionally do NOT add a createdAt filter here for USER queries.
+      // (For REFERRAL_LEAD / PROGRAM_LEAD queries, intervalDay still filters by
+      //  lead creation date in buildLeadQuery / buildProgramLeadQuery.)
 
       return query
   }
