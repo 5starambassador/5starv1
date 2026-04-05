@@ -61,20 +61,28 @@ export async function POST(request: Request) {
                     orderBy: { createdAt: 'desc' }
                 })
 
-                // If MSG91 omitted the refId and returned the request_id, 
-                // search recent logs by mobile and match inside the JSON metadata memory
+                // If MSG91 omitted the refId and returned the wamid/request_id, 
+                // search recent logs by mobile number. For BULK campaign sends, MSG91
+                // returns a batch-level request_id for the API call, and then sends
+                // per-message wamids in delivery callbacks — they never match each other.
+                // So we just find the most recent log for this mobile (within last 48h).
                 if (!log && mobile) {
                     const recentLogs = await prisma.whatsAppLog.findMany({
                         where: {
                             OR: [
                                 { mobile: mobile },
                                 { mobile: '91' + mobile }
-                            ]
+                            ],
+                            createdAt: { gte: new Date(Date.now() - 48 * 60 * 60 * 1000) }
                         },
-                        take: 30, // Increased scope for higher volume sends
+                        take: 10,
                         orderBy: { createdAt: 'desc' }
                     })
-                    log = recentLogs.find((l: any) => l.metadata && l.metadata.messageId === refStr) || null
+                    // Prefer logs that belong to a campaign (refId starts with 'camp_')
+                    log = recentLogs.find((l: any) => l.refId?.startsWith('camp_')) 
+                        || recentLogs.find((l: any) => l.metadata?.messageId === refStr)
+                        || recentLogs[0] 
+                        || null
                 }
                 
                 if (log) break;
@@ -118,7 +126,24 @@ export async function POST(request: Request) {
                 campaignId = parseInt(actualRefStr)
             }
 
-            if (!campaignId && !actualRefStr.startsWith('camp_')) {
+            // WAMID FALLBACK: For bulk sends, MSG91 fires delivery callbacks with the
+            // individual per-message wamid, NOT our custom CRQID. So we look up the
+            // recipient by mobile number to find which campaign they belong to.
+            if (!campaignId && refStr.startsWith('wamid.') && mobile) {
+                const recipient = await (prisma as any).campaignRecipient.findFirst({
+                    where: {
+                        OR: [{ mobile: mobile }, { mobile: '91' + mobile }],
+                        sentAt: { gte: new Date(Date.now() - 48 * 60 * 60 * 1000) } // 48h window
+                    },
+                    orderBy: { sentAt: 'desc' }
+                })
+                if (recipient) {
+                    campaignId = recipient.campaignId
+                    console.log(`[MSG91 Webhook] WAMID fallback: found campaign ${campaignId} for mobile ${mobile}`)
+                }
+            }
+
+            if (!campaignId) {
                 console.warn('[MSG91 Webhook] Could not determine campaign ID from ref:', actualRefStr)
                 continue
             }
