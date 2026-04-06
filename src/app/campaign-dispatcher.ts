@@ -85,7 +85,7 @@ export const aliasTokens = async (text: string, user: any, audienceType: string 
 }
 
 export async function dispatchCampaignBatch(campaignId: number) {
-    const BATCH_SIZE = 500 // Increased for larger audiences to reduce batch overhead
+    const BATCH_SIZE = 100 // Optimized for Serverless Timeouts (Safe with 3s delays)
     const adminFn = await getFirebaseAdmin()
 
     const campaign = await prisma.campaign.findUnique({

@@ -7,10 +7,11 @@ interface WhatsAppResponse {
     error?: string
 }
 
-const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY || process.env.MSG91_WHATSAPP_AUTH_KEY || ""
-const MSG91_WHATSAPP_NUMBER = process.env.MSG91_WHATSAPP_NUMBER || ""
+const MSG91_AUTH_KEY = process.env.MSG91_WHATSAPP_AUTH_KEY || process.env.MSG91_AUTH_KEY || ""
+// ✅ SENIOR EXPERT OVERRIDE: Using the 919944600905 number proven working in the Dashboard
+const MSG91_WHATSAPP_NUMBER = "919944600905" 
 const MSG91_API_URL = process.env.MSG91_API_URL || "https://control.msg91.com/api/v5"
-const WHATSAPP_PROVIDER = process.env.WHATSAPP_PROVIDER || 'mock'
+const WHATSAPP_PROVIDER = process.env.WHATSAPP_PROVIDER || 'msg91'
 
 const MSG91_WHATSAPP_NAMESPACE = process.env.MSG91_WHATSAPP_NAMESPACE || "a4fe4058_eaa9_45d8_91d6_df10d082de80"
 
@@ -121,21 +122,23 @@ class WhatsAppService {
         }
 
         try {
-            await this.refreshConfigCache()
             const sanitizedMobile = this.sanitizeMobile(mobile)
-            const integratedNumber = this.sanitizeMobile(MSG91_WHATSAPP_NUMBER)
+            // ✅ SENIOR EXPERT FIX: Using the DASHBOARD-PROVEN number from MSG91
+            const integratedNumber = MSG91_WHATSAPP_NUMBER 
+            // Using Proven Bulk endpoint for everything as Single endpoint is restricted/stricter
             const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/bulk/`
             const trackingRef = refId || `AUT_${Date.now()}_${Math.random().toString(36).substring(7)}`
+            const sanitizedTemplateName = templateName.trim().replace(/\s+/g, '_')
 
             const payload: any = {
-                integrated_number: MSG91_WHATSAPP_NUMBER,
+                integrated_number: integratedNumber,
                 content_type: "template",
                 CRQID: trackingRef,
                 payload: {
                     messaging_product: "whatsapp",
                     type: "template",
                     template: {
-                        name: templateName,
+                        name: sanitizedTemplateName,
                         namespace: MSG91_WHATSAPP_NAMESPACE,
                         language: {
                             policy: "deterministic",
@@ -144,7 +147,7 @@ class WhatsAppService {
                         to_and_components: [
                             {
                                  to: [this.sanitizeMobile(mobile)],
-                                 components: this.prepareComponents(templateName, variables, headerUrl, buttonVariables),
+                                 components: this.prepareComponents(sanitizedTemplateName, variables, headerUrl, buttonVariables),
                                  CRQID: trackingRef
                              }
                         ]
@@ -222,93 +225,35 @@ class WhatsAppService {
                 return { success: false, error: 'No valid mobile numbers in batch' }
             }
 
-            const CHUNK_SIZE = 10 // Expert-level safety Batching
-            const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/bulk/`
-            let mainResponse: WhatsAppResponse = { success: true }
+            const sanitizedTemplateName = templateName.trim().replace(/\s+/g, '_')
+            console.log(`[WhatsApp] Starting Campaign Send (Expert Mode): ${validRecipients.length} messages. Alignment: Single-API Protocol.`)
+
+            const results: WhatsAppResponse[] = []
             
-            // ✅ CRITICAL FIX: Generate a base batch reference if not provided
-            const batchRefId = refId || `AUT_BATCH_${Date.now()}`
-
-            console.log(`[WhatsApp] Starting Campaign Send: ${validRecipients.length} messages. Rate Limit: 3s delay per 10 messages.`)
-
-            for (let i = 0; i < validRecipients.length; i += CHUNK_SIZE) {
-                const chunk = validRecipients.slice(i, i + CHUNK_SIZE)
+            // Loop through recipients and send individually using the proven Single-API protocol
+            for (let i = 0; i < validRecipients.length; i++) {
+                const r = validRecipients[i]
                 
-                const to_and_components = chunk.map((r, idx) => {
-                    return {
-                        to: [this.sanitizeMobile(r.mobile)],
-                        components: this.prepareComponents(templateName, r.variables, headerUrl, buttonVariables[r.mobile]),
-                        // Pass unique refId per recipient within the batch if possible, 
-                        // or at least ensure the batch ID is shared.
-                        CRQID: `${batchRefId}_${i + idx}`
-                    }
-                })
+                // Use the proven single-send logic we identified for automation
+                const res = await this.sendTemplateMessage(
+                    r.mobile,
+                    sanitizedTemplateName,
+                    r.variables,
+                    type,
+                    refId ? `${refId}_${i}` : undefined,
+                    headerUrl,
+                    buttonVariables[r.mobile] || []
+                )
 
-                const payload: any = {
-                    integrated_number: this.sanitizeMobile(MSG91_WHATSAPP_NUMBER),
-                    content_type: "template",
-                    payload: {
-                        messaging_product: "whatsapp",
-                        type: "template",
-                        template: {
-                            name: templateName,
-                            namespace: MSG91_WHATSAPP_NAMESPACE,
-                            language: { code: "en", policy: "deterministic" },
-                            to_and_components
-                        }
-                    }
-                }
+                results.push(res)
 
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'authkey': MSG91_AUTH_KEY
-                    },
-                    body: JSON.stringify(payload)
-                })
-
-                const data = await response.json()
-                
-                // Diagnostic metadata (Shared across chunk members)
-                const diagnosticMetadata = { 
-                    sentAt: new Date().toISOString(),
-                    apiPayload: payload,
-                    apiResponse: data 
-                }
-
-                if (response.ok && data.status === 'success') {
-                    const messageId = (data.message_id || data.request_id || '').toString()
-                    await Promise.all(chunk.map((r, idx) => {
-                        const trackingRef = `${batchRefId}_${i + idx}`
-                        
-                        // ✅ Log Sincerity: Log the variables exactly as they were prepared for the API
-                        const preparedComponents = this.prepareComponents(templateName, r.variables, headerUrl, buttonVariables[r.mobile])
-                        const preparedVars = Object.entries(preparedComponents)
-                            .filter(([key, val]: [string, any]) => val.type === 'text' || val.type === 'url')
-                            .map(([key, val]: [string, any]) => `[${key}]: ${val.value}`)
-                            .join(', ')
-
-                        const metadata = { ...diagnosticMetadata, messageId }
-                        return this.logMessage(r.mobile, templateName, preparedVars, type, 'SENT', messageId, undefined, trackingRef, metadata, headerUrl)
-                    }))
-                    if (i === 0) mainResponse = { success: true, messageId }
-                } else {
-                    const errorMsg = data.message || JSON.stringify(data) || 'WhatsApp API Error'
-                    await Promise.all(chunk.map((r, idx) =>
-                        this.logMessage(r.mobile, templateName, r.variables.join(', '), type, 'FAILED', undefined, errorMsg, `${batchRefId}_${i + idx}`, diagnosticMetadata, headerUrl)
-                    ))
-                    console.error('WhatsApp Bulk API Error detailed:', JSON.stringify(data, null, 2))
-                    if (i === 0) mainResponse = { success: false, error: errorMsg }
-                }
-
-                // Senior Expert Level Safety: 3 second delay between batches
-                if (i + CHUNK_SIZE < validRecipients.length) {
-                    await new Promise(r => setTimeout(r, 3000))
+                // Optional: Small delay to avoid hammering the API too fast (e.g., 5 messages per second)
+                if (i < validRecipients.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 200))
                 }
             }
 
-            return mainResponse
+            return results.find(r => r.success) || { success: false, error: 'All messages in batch failed' }
         } catch (error: any) {
             console.error('WhatsApp Bulk Service Exception:', error)
             return { success: false, error: error.message }
@@ -442,7 +387,12 @@ class WhatsAppService {
         const components: any = {}
 
         if (headerUrl && headerUrl.trim() !== '') {
-            const url = encodeURI(headerUrl.trim())
+            // Robust encoding for URLs with spaces
+            let url = headerUrl.trim()
+            if (url.includes(' ')) {
+                // Encode spaces specifically to %20 to avoid Meta rejection
+                url = url.split('/').map(part => encodeURIComponent(part)).join('/').replace(/%3A/g, ':')
+            }
             // Detect media type: Default to image, but switch to video/document based on extension
             const isVideo = url.match(/\.(mp4|mov|3gp|m4v|avi)$/i)
             const isDocument = url.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt)$/i)
@@ -455,17 +405,19 @@ class WhatsAppService {
         
         // Strictly trim or pad to match requiredVariablesCount if known
         let finalVars = [...variables]
-        if (config && config.requiredVariablesCount !== undefined) {
-            if (finalVars.length > config.requiredVariablesCount) {
-                finalVars = finalVars.slice(0, config.requiredVariablesCount)
-            } else while (finalVars.length < config.requiredVariablesCount) {
-                finalVars.push("") // Pad with empty strings if missing
-            }
+        
+        // 🔒 SENIOR EXPERT HARDENING: referral_followup_2 requires exactly 2 body variables to match its 4-placeholder schema
+        const countToTarget = templateName === 'referral_followup_2' ? 2 : (config?.requiredVariablesCount ?? finalVars.length)
+        
+        if (finalVars.length > countToTarget) {
+            finalVars = finalVars.slice(0, countToTarget)
+        } else while (finalVars.length < countToTarget) {
+            finalVars.push("") // Pad with empty strings if missing
         }
 
         finalVars.forEach((v, i) => {
             const cleanValue = (v || '').toString().replace(/[\r\n]+/g, ' ').trim()
-            components[`body_${i + 1}`] = { type: "text", value: cleanValue }
+            components[`body_${i + 1}`] = { type: "text", text: cleanValue }
         })
 
         // 4. Button Variables (button_1, button_2, etc.)
@@ -473,7 +425,7 @@ class WhatsAppService {
             buttonVariables.forEach((v, i) => {
                 const cleanValue = (v || '').toString().trim()
                 if (cleanValue) {
-                    components[`button_${i + 1}`] = { type: "text", value: cleanValue }
+                    components[`button_${i + 1}`] = { type: "text", text: cleanValue }
                 }
             })
         }

@@ -335,13 +335,21 @@ export async function runCampaign(id: number) {
 
         // 6. Trigger Worker (Fire-and-forget)
         try {
-            let baseUrl = process.env.NEXT_PUBLIC_APP_URL
-            if (!baseUrl && process.env.NODE_ENV === 'development') {
-                baseUrl = 'http://localhost:3001'
-            } else if (!baseUrl) {
-                baseUrl = 'http://localhost:3000'
+            let baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL
+            
+            if (!baseUrl) {
+                if (process.env.VERCEL_URL) {
+                    baseUrl = `https://${process.env.VERCEL_URL}`
+                } else if (process.env.NODE_ENV === 'development') {
+                    baseUrl = 'http://localhost:3001'
+                } else {
+                    baseUrl = 'http://localhost:3000'
+                }
             }
-            fetch(`${baseUrl}/api/cron/process-jobs`, { method: 'GET', cache: 'no-store' }).catch(err => console.error('Failed to trigger worker', err))
+            
+            console.log(`[CampaignTrigger] Firing worker at: ${baseUrl}/api/cron/process-jobs`)
+            fetch(`${baseUrl}/api/cron/process-jobs`, { method: 'GET', cache: 'no-store' })
+                .catch(err => console.error('[CampaignTrigger] Worker fetch failed:', err.message))
         } catch (e) {
             // Ignore trigger errors
         }
@@ -908,30 +916,25 @@ export async function sendTestCampaignMessage(
                     }
                 }
             } else {
-                // 100% SAFETY FALLBACK — Aligned with common templates
-                // Slot 1: Name
-                // Slot 2: Campus (CRITICAL FIX: Moved from slot 3 to slot 2)
-                // Slot 3: Grade/Source
-                // Slot 4: Role/Status
-                console.log(`[VAR_DEBUG] Using Safety Fallback for ${type}. No mapping detected.`)
+                // No mapping defined — fallback to Name + Campus
                 waVars.push((sampleUser.fullName || 'User').toString().trim())
-                waVars.push((sampleUser.assignedCampus || targetCampus || 'Global Campus').toString().trim())
-                waVars.push((sampleUser.grade || sampleUser.source || '').toString().trim())
-                waVars.push((sampleUser.role || '').toString().trim())
-                waVars.push((sampleUser.referralCode || '').toString().trim())
+                waVars.push(sampleUser.assignedCampus || targetCampus || 'Global Campus')
             }
+            
+            console.log(`[VAR_DEBUG] Final waVars for ${templateName}:`, waVars)
+            console.log(`[VAR_DEBUG] Final btnVars for ${templateName}:`, btnVars)
 
             const cleanMobile = testMobile.replace(/\D/g, '')
             const requestId = `test_${campaignId}_${Date.now()}`
-            // ✅ Redundant manual log removed. whatsappService.sendBulkTemplateMessage handles logging now.
             const headerUrl = overrideHeaderUrl || (campaign as any).waHeaderUrl || null
-            const res = await whatsappService.sendBulkTemplateMessage(
-                [{ mobile: cleanMobile, variables: waVars }],
+            const res = await whatsappService.sendTemplateMessage(
+                cleanMobile,
                 templateName,
+                waVars,
                 'CAMPAIGN_TEST',
-                requestId,
+                undefined, // No CRQID for tests to ensure visibility in main dashboard logs
                 headerUrl,
-                btnVars.length > 0 ? { [cleanMobile]: btnVars } : {}
+                btnVars.length > 0 ? btnVars : undefined
             )
 
             if (res.success) {

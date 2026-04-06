@@ -1,34 +1,22 @@
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { whatsappService } from '../src/lib/whatsapp-service';
 
 async function verify() {
-    console.log('--- FINAL VERIFICATION ---')
+    const testMobile = "917021319772"; // User's mobile
+    console.log("🚀 Testing 100% FIXED Payload with Correct Parameters...");
     
-    // 1. Check PENDING count
-    const pendingCount = await (prisma as any).campaignRecipient.count({
-        where: { status: 'PENDING' }
-    })
-    console.log(`- PENDING Recipients: ${pendingCount} (Should be 0)`)
+    const res = await whatsappService.sendBulkTemplateMessage(
+        [{ mobile: testMobile, variables: ["123456"] }], // Correct count (1) for referral_otp
+        "referral_otp",
+        "CAMPAIGN_TEST",
+        `FINAL_VFY_${Date.now()}`
+    );
 
-    // 2. Check FAILED count for Campaign #14 (Cleanup check)
-    const failed14Count = await (prisma as any).campaignRecipient.count({
-        where: { campaignId: 14, status: 'FAILED' }
-    })
-    console.log(`- Campaign #14 FAILED: ${failed14Count} (Should be 3065)`)
-
-    // 3. Test Sanitization Logic (Internal check)
-    const testValue = "Line 1\nLine 2\r\nLine 3"
-    const sanitized = testValue.toString().replace(/[\r\n]+/g, ' ').trim()
-    console.log(`- Sanitization Test: "${testValue.replace(/\n/g, '\\n')}" -> "${sanitized}"`)
-    
-    if (sanitized === "Line 1 Line 2 Line 3") {
-        console.log("✅ Sanitization logic is robust.")
+    console.log("Result:", JSON.stringify(res, null, 2));
+    if (res.success) {
+        console.log("✅ SUCCESS: Payload accepted. Check phone!");
     } else {
-        console.log("❌ Sanitization logic failed!")
+        console.error("❌ FAILED:", res.error);
     }
-
-    await prisma.$disconnect()
 }
 
-verify()
+verify().catch(console.error);
