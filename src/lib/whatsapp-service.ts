@@ -10,7 +10,7 @@ interface WhatsAppResponse {
 const MSG91_AUTH_KEY = process.env.MSG91_WHATSAPP_AUTH_KEY || process.env.MSG91_AUTH_KEY || ""
 // ✅ SENIOR EXPERT OVERRIDE: Using the 919944600905 number proven working in the Dashboard
 const MSG91_WHATSAPP_NUMBER = "919944600905" 
-const MSG91_API_URL = process.env.MSG91_API_URL || "https://control.msg91.com/api/v5"
+const MSG91_API_URL = process.env.MSG91_API_URL || "https://api.msg91.com/api/v5"
 const WHATSAPP_PROVIDER = process.env.WHATSAPP_PROVIDER || 'msg91'
 
 const MSG91_WHATSAPP_NAMESPACE = process.env.MSG91_WHATSAPP_NAMESPACE || "a4fe4058_eaa9_45d8_91d6_df10d082de80"
