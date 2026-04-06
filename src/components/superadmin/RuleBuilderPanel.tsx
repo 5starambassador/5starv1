@@ -986,7 +986,7 @@ export default function RuleBuilderPanel() {
                                                         />
                                                     </div>
                                                 </div>
-                                                <p className="text-[9px] text-orange-800/60 font-medium italic">Targets users exactly N days after registration. Perfect for automated re-engagement sequences.</p>
+                                                <p className="text-[9px] text-orange-800/60 font-medium italic">Targets users every N days as long as conditions match. Perfect for repeated re-engagement.</p>
                                             </div>
 
                                             {(targetEntity === 'USER' || targetEntity === 'STUDENT') && (

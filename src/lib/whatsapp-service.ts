@@ -76,43 +76,47 @@ class WhatsAppService {
      */
     async sendByEvent(
         mobile: string,
-        eventKey: string,
+        templateName: string,
         variables: string[] = [],
         type: string = 'SYSTEM',
-        refId?: string
+        refId?: string,
+        headerUrl?: string,
+        buttonVariables: string[] = [],
+        userRole?: string,
+        campus?: string
     ): Promise<WhatsAppResponse> {
         // 1. Rate Limiting Safety Buffer (Except for OTPs which might need retry)
-        if (eventKey !== 'REFERRAL_OTP') {
+        if (templateName !== 'REFERRAL_OTP') {
             const lastSent = this.lastSentTime.get(mobile)
             const now = Date.now()
             if (lastSent && (now - lastSent < this.RATE_LIMIT_MS)) {
-                console.warn(`[WhatsApp] Rate limit hit for ${mobile}. Skipping ${eventKey}.`)
+                console.warn(`[WhatsApp] Rate limit hit for ${mobile}. Skipping ${templateName}.`)
                 return { success: false, error: 'Rate limit exceeded. Please wait.' }
             }
             this.lastSentTime.set(mobile, now)
         }
 
         await this.refreshConfigCache()
-        let config = this.configCache.get(eventKey)
+        let config = this.configCache.get(templateName)
 
         // 2. Resilient Fallback for Critical Events (in case DB/Cache fails)
-        if (!config && eventKey === 'REFERRAL_OTP') {
+        if (!config && templateName === 'REFERRAL_OTP') {
             config = { templateName: 'referral_otp', isEnabled: true, requiredVariablesCount: 1 }
         }
 
         if (!config) {
-            console.warn(`[WhatsApp] No config found for event: ${eventKey}`)
-            return { success: false, error: `Event ${eventKey} not configured` }
+            console.warn(`[WhatsApp] No config found for event: ${templateName}`)
+            return { success: false, error: `Event ${templateName} not configured` }
         }
 
         if (!config.isEnabled) {
-            console.log(`[WhatsApp] Skipping ${eventKey} for ${mobile} (Disabled in settings)`)
+            console.log(`[WhatsApp] Skipping ${templateName} for ${mobile} (Disabled in settings)`)
             return { success: false, error: 'Event disabled' }
         }
 
         // 3. Variable Count Validation
         if (variables.length !== config.requiredVariablesCount) {
-            console.error(`[WhatsApp] Variable mismatch for ${eventKey}. Expected ${config.requiredVariablesCount}, got ${variables.length}.`)
+            console.error(`[WhatsApp] Variable mismatch for ${templateName}. Expected ${config.requiredVariablesCount}, got ${variables.length}.`)
             // We still try to send but log a major error
         }
 
@@ -122,7 +126,7 @@ class WhatsAppService {
             return { success: false, error: 'WhatsApp notifications are disabled globally' }
         }
 
-        return this.sendTemplateMessage(mobile, config.templateName, variables, type, refId)
+        return this.sendTemplateMessage(mobile, config.templateName, variables, type, refId, headerUrl, buttonVariables, undefined, userRole, campus)
     }
 
     /**

@@ -12,6 +12,8 @@ interface WhatsAppLog {
     status: string
     refId: string | null
     content: string | null
+    userRole?: string
+    campus?: string
     createdAt: Date
 }
 

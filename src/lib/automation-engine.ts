@@ -93,25 +93,25 @@ export class AutomationEngine {
           const lead = await prisma.referralLead.findFirst({ where: lQuery, include: { user: true } })
           if (lead?.user?.mobileNumber) {
             const templateKey = this.replaceVariables(rule.actionTarget || rule.triggerEvent || '', metadata)
-            await whatsappService.sendByEvent(lead.user.mobileNumber, templateKey, [lead.user.fullName || 'Parent', lead.studentName || 'Student'], 'SYSTEM')
+            await whatsappService.sendByEvent(lead.user.mobileNumber, templateKey, [lead.user.fullName || 'Parent', lead.studentName || 'Student'], 'SYSTEM', undefined, undefined, [], 'Parent', lead.campus || '-')
             await this.logExecution(rule.id, userId, triggerEvent, 'SUCCESS', 'Message dispatched to Referral parent', metadata);
           }
         } else if (targetEntity === 'PROGRAM_LEAD' && metadata?.leadId) {
           const pQuery = this.buildProgramLeadQuery(conditions)
           pQuery.id = metadata.leadId
-          const pLead = await prisma.programLead.findFirst({ where: pQuery, include: { program: true } })
+          const pLead = await prisma.programLead.findFirst({ where: pQuery, include: { program: true, referrer: true } })
           if (pLead?.visitorMobile) {
             const templateKey = this.replaceVariables(rule.actionTarget || rule.triggerEvent || '', metadata)
-            await whatsappService.sendByEvent(pLead.visitorMobile, templateKey, [pLead.visitorName || 'Visitor', pLead.program?.title || 'Program'], 'SYSTEM')
+            await whatsappService.sendByEvent(pLead.visitorMobile, templateKey, [pLead.visitorName || 'Visitor', pLead.program?.title || 'Program'], 'SYSTEM', undefined, undefined, [], 'Lead', pLead.referrer?.assignedCampus || '-')
             await this.logExecution(rule.id, userId, triggerEvent, 'SUCCESS', 'Message dispatched to Program Lead', metadata);
           }
         } else if (targetEntity === 'STUDENT' && metadata?.studentId) {
           const sQuery = this.buildStudentQuery(conditions)
           sQuery.studentId = metadata.studentId
-          const student = await prisma.student.findFirst({ where: sQuery, include: { parent: true } })
+          const student = await prisma.student.findFirst({ where: sQuery, include: { parent: true, campus: true } })
           if (student?.parent?.mobileNumber) {
             const templateKey = this.replaceVariables(rule.actionTarget || rule.triggerEvent || '', metadata)
-            await whatsappService.sendByEvent(student.parent.mobileNumber, templateKey, [student.parent.fullName || 'Parent', student.fullName || 'Student'], 'SYSTEM')
+            await whatsappService.sendByEvent(student.parent.mobileNumber, templateKey, [student.parent.fullName || 'Parent', student.fullName || 'Student'], 'SYSTEM', undefined, undefined, [], 'Parent', student.campus?.campusName || '-')
             await this.logExecution(rule.id, userId, triggerEvent, 'SUCCESS', 'Message dispatched to Student parent', metadata);
           }
         } else {
@@ -121,7 +121,7 @@ export class AutomationEngine {
           const user = await prisma.user.findFirst({ where: uQuery })
           if (user?.mobileNumber) {
             const templateKey = this.replaceVariables(rule.actionTarget || rule.triggerEvent || '', metadata)
-            await whatsappService.sendByEvent(user.mobileNumber, templateKey, [user.fullName || 'Ambassador'], 'SYSTEM')
+            await whatsappService.sendByEvent(user.mobileNumber, templateKey, [user.fullName || 'Ambassador'], 'SYSTEM', undefined, undefined, [], user.role || 'User', user.assignedCampus || '-')
             await this.logExecution(rule.id, userId, triggerEvent, 'SUCCESS', 'Message dispatched to Ambassador', metadata);
           }
         }
@@ -177,7 +177,7 @@ export class AutomationEngine {
 
                   const metadata = { leadId: lead.leadId }
                   const templateKey = this.replaceVariables(rule.actionTarget || rule.triggerEvent || '', metadata)
-                  await whatsappService.sendByEvent(lead.user.mobileNumber, templateKey, [lead.user.fullName || 'Parent', lead.studentName || 'Student'], 'SYSTEM')
+                  await whatsappService.sendByEvent(lead.user.mobileNumber, templateKey, [lead.user.fullName || 'Parent', lead.studentName || 'Student'], 'SYSTEM', undefined, undefined, [], 'Parent', lead.campus || '-')
                   await this.logExecution(rule.id, lead.user.userId, 'CRON_DAILY', 'SUCCESS', `Recurring send (every ${freqDays}d) to Referral parent`, metadata);
                   totalProcessed++
               }
@@ -205,7 +205,7 @@ export class AutomationEngine {
 
                   const metadata = { leadId: p.id }
                   const templateKey = this.replaceVariables(rule.actionTarget || rule.triggerEvent || '', metadata)
-                  await whatsappService.sendByEvent(p.visitorMobile, templateKey, [p.visitorName || 'Visitor', p.program?.title || 'Program'], 'SYSTEM')
+                  await whatsappService.sendByEvent(p.visitorMobile, templateKey, [p.visitorName || 'Visitor', p.program?.title || 'Program'], 'SYSTEM', undefined, undefined, [], 'Lead', p.referrer?.assignedCampus || '-')
                   await this.logExecution(rule.id, p.referrerId, 'CRON_DAILY', 'SUCCESS', `Recurring send (every ${freqDays}d) to Program Lead`, metadata);
                   totalProcessed++
               }
@@ -213,7 +213,7 @@ export class AutomationEngine {
       } else if (conditions.targetEntity === 'STUDENT') {
           const students = await prisma.student.findMany({
               where: this.buildStudentQuery(conditions),
-              include: { parent: true },
+              include: { parent: true, campus: true },
               take: 100
           })
           const freqDays = conditions.intervalDay || 1
@@ -233,23 +233,20 @@ export class AutomationEngine {
 
                   const metadata = { studentId: s.studentId }
                   const templateKey = this.replaceVariables(rule.actionTarget || rule.triggerEvent || '', metadata)
-                  await whatsappService.sendByEvent(s.parent.mobileNumber, templateKey, [s.parent.fullName || 'Parent', s.fullName || 'Student'], 'SYSTEM')
+                  await whatsappService.sendByEvent(s.parent.mobileNumber, templateKey, [s.parent.fullName || 'Parent', s.fullName || 'Student'], 'SYSTEM', undefined, undefined, [], 'Parent', s.campus?.campusName || '-')
                   await this.logExecution(rule.id, s.parent.userId, 'CRON_DAILY', 'SUCCESS', `Recurring send (every ${freqDays}d) to Student parent`, metadata);
                   totalProcessed++
               }
           }
       } else {
-          // Default: USER
           const targetUsers = await prisma.user.findMany({
             where: this.buildUserQuery(conditions),
-            select: { userId: true, mobileNumber: true, fullName: true },
+            select: { userId: true, mobileNumber: true, fullName: true, role: true, assignedCampus: true },
             take: 100
           })
           for (const user of targetUsers) {
               if (user.mobileNumber) {
                   // Frequency Cap:
-                  // If intervalDay is set (e.g. Day 5), use that as the recurring
-                  // send frequency (every N days). Otherwise default to 1-day cap.
                   const freqDays = conditions.intervalDay || 1
                   const freqMs = freqDays * 24 * 60 * 60 * 1000
                   const lastRun = await prisma.automationLog.findFirst({
@@ -263,7 +260,7 @@ export class AutomationEngine {
                   if (lastRun) continue;
 
                   const templateKey = this.replaceVariables(rule.actionTarget || rule.triggerEvent || '', {})
-                  await whatsappService.sendByEvent(user.mobileNumber, templateKey, [user.fullName || 'Ambassador'], 'SYSTEM')
+                  await whatsappService.sendByEvent(user.mobileNumber, templateKey, [user.fullName || 'Ambassador'], 'SYSTEM', undefined, undefined, [], user.role || 'User', user.assignedCampus || '-')
                   await this.logExecution(rule.id, user.userId, 'CRON_DAILY', 'SUCCESS', `Recurring send (every ${freqDays}d) to Ambassador`, {});
                   totalProcessed++
               }
@@ -366,11 +363,9 @@ export class AutomationEngine {
           }
       }
 
-      // NOTE: intervalDay for USER-type CRON rules is handled as a recurring
+      // NOTE: intervalDay for ALL entity types is now handled as a recurring
       // FREQUENCY CAP inside runCronRules() — NOT as a registration-date filter.
-      // So we intentionally do NOT add a createdAt filter here for USER queries.
-      // (For REFERRAL_LEAD / PROGRAM_LEAD queries, intervalDay still filters by
-      //  lead creation date in buildLeadQuery / buildProgramLeadQuery.)
+      // This allows 'Every N Days' re-engagement sequences.
 
       return query
   }
@@ -384,12 +379,7 @@ export class AutomationEngine {
           const pDate = new Date(); pDate.setDate(pDate.getDate() - conditions.daysSinceRegistration);
           query.createdAt = { lt: pDate }
       }
-      if (conditions.intervalDay) {
-          const start = new Date(); start.setDate(start.getDate() - conditions.intervalDay);
-          start.setHours(0,0,0,0);
-          const end = new Date(start); end.setHours(23,59,59,999);
-          query.createdAt = { gte: start, lte: end }
-      }
+      // intervalDay handled as recurring frequency cap in engine
       return query
   }
 
@@ -397,12 +387,7 @@ export class AutomationEngine {
       const query: any = { status: 'Active' }
       if (conditions.campus?.length) query.campus = { campusName: { in: conditions.campus } }
       // Add more specific student filters here if needed
-      if (conditions.intervalDay) {
-          const start = new Date(); start.setDate(start.getDate() - conditions.intervalDay);
-          start.setHours(0,0,0,0);
-          const end = new Date(start); end.setHours(23,59,59,999);
-          query.createdAt = { gte: start, lte: end }
-      }
+      // intervalDay handled as recurring frequency cap in engine
       return query
   }
 
@@ -413,12 +398,7 @@ export class AutomationEngine {
           const pDate = new Date(); pDate.setDate(pDate.getDate() - conditions.daysSinceClick);
           query.clickedAt = { lt: pDate }
       }
-      if (conditions.intervalDay) {
-          const start = new Date(); start.setDate(start.getDate() - conditions.intervalDay);
-          start.setHours(0,0,0,0);
-          const end = new Date(start); end.setHours(23,59,59,999);
-          query.createdAt = { gte: start, lte: end }
-      }
+      // intervalDay handled as recurring frequency cap in engine
       return query
   }
 
