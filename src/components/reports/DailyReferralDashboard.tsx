@@ -213,21 +213,44 @@ export function DailyReferralDashboard({
         if (!reportRef.current || !data) return
         setIsImageExporting(true)
         try {
-            // Wait a small bit for any animations to settle
-            await new Promise(resolve => setTimeout(resolve, 100))
+            // SAFE CAPTURE: Wait 1.5s for all framer-motion and animate-in sequences to settle completely
+            await new Promise(resolve => setTimeout(resolve, 1500))
             
             const dataUrl = await toPng(reportRef.current, { 
                 quality: 1.0, 
+                pixelRatio: 4, // Ultra-high fidelity (4x resolution)
                 backgroundColor: '#ffffff',
                 cacheBust: true,
-                skipFonts: true, // Prevents fetch errors when capturing fonts
+                skipFonts: true, // Set to true to avoid "Failed to fetch" CSS errors
+                // Target the FULL actual height of the content with a huge buffer for safety
+                width: reportRef.current.scrollWidth,
+                height: reportRef.current.scrollHeight + 200, 
                 style: {
-                    borderRadius: '0' 
+                    borderRadius: '0',
+                    overflow: 'visible',
+                    boxShadow: 'none',
+                    margin: '0',
+                    paddingBottom: '100px', // Extra space at bottom of clone
+                    // NUCLEAR RESET: Disable all animations and transforms on the clone to capture final state
+                    animation: 'none',
+                    transition: 'none',
+                    transform: 'none',
+                    // High-quality text rendering fallback
+                    textRendering: 'optimizeLegibility',
+                    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
+                    // Use any cast to bypass strict CSSStyleDeclaration types for vendor prefixes
+                    ...({
+                        'WebkitFontSmoothing': 'antialiased',
+                        'MozOsxFontSmoothing': 'grayscale'
+                    } as any)
                 },
-                // Skip external CSS that might cause fetch errors
                 filter: (node) => {
                     const exclusionClasses = ['print-hidden']
                     if (node.classList) {
+                        // Also skip scrollbars if they appear as elements
+                        if (node.tagName === 'DIV' && node.classList.contains('overflow-x-auto')) {
+                            node.style.overflow = 'visible'
+                        }
                         return !exclusionClasses.some(cls => node.classList.contains(cls))
                     }
                     return true
@@ -506,7 +529,7 @@ export function DailyReferralDashboard({
                                 <motion.tr 
                                     initial={{ opacity: 0, x: -10 }}
                                     animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: (data?.schoolRows.length || 0 + idx) * 0.02 }}
+                                    transition={{ delay: ((data?.schoolRows.length || 0) + idx) * 0.02 }}
                                     key={row.campusName}
                                     className="hover:bg-slate-50/80 transition-colors group"
                                 >
@@ -536,10 +559,7 @@ export function DailyReferralDashboard({
                                 <td className="px-4 py-1.5 text-center font-black text-slate-900 border-r border-slate-200">{data?.collegeSubtotal.daily.new}</td>
                                 <td className="px-4 py-1.5 text-center font-black text-slate-900">{data?.collegeSubtotal.daily.total}</td>
                             </tr>
-                        </tbody>
-
-                        {/* Grand Total Footer */}
-                        <tfoot>
+                            {/* GRAND TOTAL: Moved into tbody for better image capture reliability */}
                             <tr className="bg-amber-400 border-t-4 border-slate-900 border-b-2">
                                 <td colSpan={2} className="px-6 py-2 text-right font-black text-slate-900 uppercase tracking-widest text-sm border-r-2 border-slate-900/10">Grand Total</td>
                                 <td className="px-4 py-2 text-center font-black text-slate-900 text-sm border-r-2 border-slate-900/10 bg-[#FFF2CC]">{data?.grandTotals.potential || 0}</td>
@@ -551,7 +571,7 @@ export function DailyReferralDashboard({
                                 <td className="px-4 py-2 text-center font-black text-slate-900 text-sm border-r border-slate-900/10 bg-amber-500">{data?.grandTotals.daily.new}</td>
                                 <td className="px-4 py-2 text-center font-black text-slate-900 text-sm bg-amber-500">{data?.grandTotals.daily.total}</td>
                             </tr>
-                        </tfoot>
+                        </tbody>
                     </table>
                 </div>
             </div>
