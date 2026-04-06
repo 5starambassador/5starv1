@@ -9,6 +9,7 @@ export type WhatsAppConfigData = {
     id: number
     eventKey: string
     templateName: string
+    templateBody?: string | null
     isEnabled: boolean
     requiredVariablesCount: number
     description: string | null
@@ -37,6 +38,7 @@ export async function updateWhatsAppConfig(id: number, data: Partial<WhatsAppCon
             where: { id },
             data: {
                 templateName: data.templateName,
+                templateBody: data.templateBody,
                 isEnabled: data.isEnabled,
                 requiredVariablesCount: (data as any).requiredVariablesCount,
                 description: data.description
@@ -59,6 +61,7 @@ export async function createWhatsAppConfig(data: Omit<WhatsAppConfigData, 'id'>)
             data: {
                 eventKey: data.eventKey.toUpperCase().replace(/\s+/g, '_'),
                 templateName: data.templateName,
+                templateBody: data.templateBody,
                 isEnabled: data.isEnabled,
                 requiredVariablesCount: (data as any).requiredVariablesCount,
                 description: data.description

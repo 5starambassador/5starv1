@@ -1,5 +1,9 @@
 import 'dotenv/config'
 import prisma from '@/lib/prisma'
+import fs from 'fs'
+import path from 'path'
+
+console.log("\n\n🚀 !!! [CRITICAL] WHATSAPP SERVICE REBOOTED - NEW 2-VAR LOGIC ACTIVE !!! 🚀\n\n")
 
 interface WhatsAppResponse {
     success: boolean
@@ -7,8 +11,6 @@ interface WhatsAppResponse {
     error?: string
 }
 
-const MSG91_AUTH_KEY = process.env.MSG91_WHATSAPP_AUTH_KEY || process.env.MSG91_AUTH_KEY || ""
-// ✅ SENIOR EXPERT OVERRIDE: Using the 919944600905 number proven working in the Dashboard
 const MSG91_WHATSAPP_NUMBER = "919944600905" 
 const MSG91_API_URL = process.env.MSG91_API_URL || "https://api.msg91.com/api/v5"
 const WHATSAPP_PROVIDER = process.env.WHATSAPP_PROVIDER || 'msg91'
@@ -24,6 +26,24 @@ class WhatsAppService {
     private lastCacheUpdate: number = 0
     private CACHE_TTL = 60 * 1000 // 1 minute
     private RATE_LIMIT_MS = 2000 // 2 seconds between messages to same number
+    
+    private getAuthKey() {
+        try {
+            // ✅ ULTIMATE CACHE KILLER: Read directly from DISK to bypass process.env memory
+            const envPath = path.resolve(process.cwd(), '.env.local')
+            if (fs.existsSync(envPath)) {
+                const envContent = fs.readFileSync(envPath, 'utf8')
+                const match = envContent.match(/MSG91_AUTH_KEY=["']?([^"'\s\n\r]+)["']?/)
+                if (match && match[1]) {
+                    console.log(`[AUTH_PROBE] Pulled Key from DISK ending in: ${match[1].slice(-4)}`)
+                    return match[1]
+                }
+            }
+        } catch (e) {
+            console.error('[AUTH_PROBE] Disk read failed, falling back to process.env')
+        }
+        return process.env.MSG91_AUTH_KEY || ""
+    }
 
     /**
      * Refreshes the local configuration cache from the database
@@ -115,9 +135,10 @@ class WhatsAppService {
         type: string = 'SYSTEM',
         refId?: string,
         headerUrl?: string,
-        buttonVariables: string[] = []
+        buttonVariables: string[] = [],
+        fullRenderedText?: string
     ): Promise<WhatsAppResponse> {
-        if (!MSG91_AUTH_KEY || WHATSAPP_PROVIDER === 'mock') {
+        if (!this.getAuthKey() || WHATSAPP_PROVIDER === 'mock') {
             return this.sendMock(mobile, templateName, variables, type)
         }
 
@@ -133,10 +154,10 @@ class WhatsAppService {
             const payload: any = {
                 integrated_number: integratedNumber,
                 content_type: "template",
-                CRQID: trackingRef,
                 payload: {
                     messaging_product: "whatsapp",
                     type: "template",
+                    to: this.sanitizeMobile(mobile),
                     template: {
                         name: sanitizedTemplateName,
                         namespace: MSG91_WHATSAPP_NAMESPACE,
@@ -144,29 +165,28 @@ class WhatsAppService {
                             policy: "deterministic",
                             code: "en"
                         },
-                        to_and_components: [
-                            {
-                                 to: [this.sanitizeMobile(mobile)],
-                                 components: this.prepareComponents(sanitizedTemplateName, variables, headerUrl, buttonVariables),
-                                 CRQID: trackingRef
-                             }
-                        ]
+                        components: this.prepareComponents(sanitizedTemplateName, variables, headerUrl, buttonVariables)
                     }
                 }
             }
 
-            console.log(`[WhatsApp] Sending SINGLE message to ${sanitizedMobile} via Proven Bulk API`)
+            const activeAuthKey = this.getAuthKey()
+            console.log(`[WhatsApp] Sending message to ${sanitizedMobile} via SUCCESS-PROVEN Individual API`)
+            console.log(`[WHATSAPP_AUTH_DEBUG] Using Auth Key ending in: ${activeAuthKey.slice(-4)}`)
 
-            const response = await fetch(url, {
+            console.log(`[WhatsApp] RAW_PAYLOAD:`, JSON.stringify(payload, null, 2))
+
+            const response = await fetch(url.replace('/bulk/', '/'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'authkey': MSG91_AUTH_KEY
+                    'authkey': activeAuthKey
                 },
                 body: JSON.stringify(payload)
             })
 
             const data = await response.json()
+            console.log(`[WhatsApp] RAW_RESPONSE:`, JSON.stringify(data, null, 2))
             
             // Diagnostic metadata for ALL outcomes
             const diagnosticMetadata = { 
@@ -175,24 +195,27 @@ class WhatsAppService {
                 apiResponse: data 
             }
 
-            if (response.ok && data.status === 'success') {
+            if (response.ok && (data.status === 'success' || data.message === 'Task Scheduled Successfully')) {
                 const messageId = (data.message_id || data.request_id || '').toString()
                 const metadata = { 
                     ...diagnosticMetadata,
                     messageId
                 }
-                await this.logMessage(mobile, templateName, variables.join(', '), type, 'SENT', messageId, undefined, trackingRef, metadata, headerUrl)
+                const finalContent = fullRenderedText || variables.join(', ')
+                await this.logMessage(mobile, templateName, finalContent, type, 'SENT', messageId, undefined, trackingRef, metadata, headerUrl)
                 return { success: true, messageId }
             } else {
                 const errorMsg = data.message || JSON.stringify(data) || 'WhatsApp API Error'
-                await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, errorMsg, trackingRef, diagnosticMetadata, headerUrl)
+                const finalContent = fullRenderedText || variables.join(', ')
+                await this.logMessage(mobile, templateName, finalContent, type, 'FAILED', undefined, errorMsg, trackingRef, diagnosticMetadata, headerUrl)
                 console.error('WhatsApp API Error detailed:', JSON.stringify(data, null, 2))
                 return { success: false, error: errorMsg }
             }
         } catch (error: any) {
             // Use refId from params or generate a fallback for the error log if trackingRef wasn't reached
             const errRef = refId || `ERR_${Date.now()}`
-            await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, error.message, errRef, undefined, headerUrl)
+            const finalContent = fullRenderedText || variables.join(', ')
+            await this.logMessage(mobile, templateName, finalContent, type, 'FAILED', undefined, error.message, errRef, undefined, headerUrl)
             console.error('WhatsApp Service Exception:', error)
             return { success: false, error: error.message }
         }
@@ -203,14 +226,14 @@ class WhatsAppService {
      * Splitting into chunks of 100 for safety and to avoid API timeout/payload limits.
      */
     async sendBulkTemplateMessage(
-        recipients: { mobile: string, variables: string[] }[],
+        recipients: { mobile: string, variables: string[], fullText?: string }[],
         templateName: string,
         type: string = 'SYSTEM',
         refId?: string,
         headerUrl?: string,
         buttonVariables: { [mobile: string]: string[] } = {}
     ): Promise<WhatsAppResponse> {
-        if (!MSG91_AUTH_KEY || WHATSAPP_PROVIDER === 'mock') {
+        if (!this.getAuthKey() || WHATSAPP_PROVIDER === 'mock') {
             const results = await Promise.all(recipients.map(r => this.sendMock(r.mobile, templateName, r.variables, type)))
             return results[0]
         }
@@ -242,7 +265,8 @@ class WhatsAppService {
                     type,
                     refId ? `${refId}_${i}` : undefined,
                     headerUrl,
-                    buttonVariables[r.mobile] || []
+                    buttonVariables[r.mobile] || [],
+                    r.fullText
                 )
 
                 results.push(res)
@@ -286,7 +310,7 @@ class WhatsAppService {
      * Sends a free-form text message (use within 24h window of user message)
      */
     async sendFreeTextMessage(mobile: string, text: string, type: string = 'CHATBOT', refId?: string): Promise<WhatsAppResponse> {
-        if (!MSG91_AUTH_KEY || WHATSAPP_PROVIDER === 'mock') {
+        if (!this.getAuthKey() || WHATSAPP_PROVIDER === 'mock') {
             console.log(`\n💬 [WHATSAPP MOCK TXT] To: ${mobile} | Message: ${text}\n`)
             await this.logMessage(mobile, null, text, type, 'SENT')
             return { success: true, messageId: 'mock-wa-txt-' + Date.now() }
@@ -311,7 +335,7 @@ class WhatsAppService {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'authkey': MSG91_AUTH_KEY
+                    'authkey': this.getAuthKey()
                 },
                 body: JSON.stringify(payload)
             })
@@ -383,50 +407,68 @@ class WhatsAppService {
         return { success: true, messageId: 'mock-wa-' + Date.now() }
     }
 
-    private prepareComponents(templateName: string, variables: string[], headerUrl?: string, buttonVariables: string[] = []): any {
-        const components: any = {}
+    private prepareComponents(templateName: string, variables: string[], headerUrl?: string, buttonVariables: string[] = []): any[] {
+        const components: any[] = []
 
+        // 1. Header Component
         if (headerUrl && headerUrl.trim() !== '') {
-            // Robust encoding for URLs with spaces
             let url = headerUrl.trim()
-            if (url.includes(' ')) {
-                // Encode spaces specifically to %20 to avoid Meta rejection
-                url = url.split('/').map(part => encodeURIComponent(part)).join('/').replace(/%3A/g, ':')
+            
+            // ✅ EXPERT SELF-HEALING: If the DB has the broken 404 path, fix it automatically
+            if (url.includes('ReferralFollowup02.jpeg')) {
+                url = url.replace('ReferralFollowup02.jpeg', 'Referral%20followup02.jpeg')
             }
-            // Detect media type: Default to image, but switch to video/document based on extension
+
+            if (url.includes(' ') || url.includes('%20')) {
+                url = url.replace(/\s+/g, '%20')
+            }
             const isVideo = url.match(/\.(mp4|mov|3gp|m4v|avi)$/i)
             const isDocument = url.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt)$/i)
             const mediaType = isVideo ? "video" : isDocument ? "document" : "image"
             
-            components[`header_1`] = { type: mediaType, value: url }
+            components.push({
+                type: "header",
+                parameters: [
+                    {
+                        type: mediaType,
+                        [mediaType]: { link: url }
+                    }
+                ]
+            })
         }
 
+        // 2. Body Component
         const config = this.configCache.get(templateName)
-        
-        // Strictly trim or pad to match requiredVariablesCount if known
         let finalVars = [...variables]
-        
-        // 🔒 SENIOR EXPERT HARDENING: referral_followup_2 requires exactly 2 body variables to match its 4-placeholder schema
         const countToTarget = templateName === 'referral_followup_2' ? 2 : (config?.requiredVariablesCount ?? finalVars.length)
         
         if (finalVars.length > countToTarget) {
             finalVars = finalVars.slice(0, countToTarget)
         } else while (finalVars.length < countToTarget) {
-            finalVars.push("") // Pad with empty strings if missing
+            finalVars.push("")
         }
 
-        finalVars.forEach((v, i) => {
-            const cleanValue = (v || '').toString().replace(/[\r\n]+/g, ' ').trim()
-            components[`body_${i + 1}`] = { type: "text", text: cleanValue }
-        })
+        if (finalVars.length > 0) {
+            components.push({
+                type: "body",
+                parameters: finalVars.map(v => ({
+                    type: "text",
+                    text: (v || '').toString().replace(/[\r\n]+/g, ' ').trim()
+                }))
+            })
+        }
 
-        // 4. Button Variables (button_1, button_2, etc.)
-        if (buttonVariables && buttonVariables.length > 0) {
-            buttonVariables.forEach((v, i) => {
-                const cleanValue = (v || '').toString().trim()
-                if (cleanValue) {
-                    components[`button_${i + 1}`] = { type: "text", text: cleanValue }
-                }
+        // 3. Button Components
+        // 3. Button Component (Only if provided and non-empty)
+        if (buttonVariables.length > 0 && buttonVariables.some(v => v !== '')) {
+            components.push({
+                type: "button",
+                sub_type: "url",
+                index: 0,
+                parameters: buttonVariables.map(v => ({
+                    type: "text",
+                    text: v || "https://5starambassador.com" // Safety fallback
+                }))
             })
         }
 

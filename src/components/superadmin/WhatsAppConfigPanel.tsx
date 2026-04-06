@@ -30,7 +30,7 @@ export default function WhatsAppConfigPanel() {
     const [saving, setSaving] = useState<number | null>(null)
     const [showAddForm, setShowAddForm] = useState(false)
     const [isCreating, setIsCreating] = useState(false)
-    const [newConfig, setNewConfig] = useState({ eventKey: '', templateName: '', description: '', requiredVariablesCount: 2 })
+    const [newConfig, setNewConfig] = useState({ eventKey: '', templateName: '', templateBody: '', description: '', requiredVariablesCount: 2 })
 
     const fetchStats = async () => {
         setLoadingStats(true)
@@ -61,12 +61,12 @@ export default function WhatsAppConfigPanel() {
         fetchStats()
     }, [])
 
-    const handleUpdate = async (id: number, templateName: string, description: string, reqVars: number, isEnabled: boolean) => {
+    const handleUpdate = async (id: number, templateName: string, templateBody: string | null, description: string, reqVars: number, isEnabled: boolean) => {
         setSaving(id)
-        const res = await updateWhatsAppConfig(id, { templateName, description, requiredVariablesCount: reqVars, isEnabled })
+        const res = await updateWhatsAppConfig(id, { templateName, templateBody, description, requiredVariablesCount: reqVars, isEnabled })
         if (res.success) {
             toast.success('Configuration updated')
-            setConfigs(configs.map(c => c.id === id ? { ...c, templateName, description, requiredVariablesCount: reqVars, isEnabled } : c))
+            setConfigs(configs.map(c => c.id === id ? { ...c, templateName, templateBody, description, requiredVariablesCount: reqVars, isEnabled } : c))
         } else {
             toast.error('Failed to update')
         }
@@ -94,7 +94,7 @@ export default function WhatsAppConfigPanel() {
         const res = await createWhatsAppConfig({ ...newConfig, isEnabled: true })
         if (res.success) {
             toast.success('Mapping created successfully')
-            setNewConfig({ eventKey: '', templateName: '', description: '', requiredVariablesCount: 2 })
+            setNewConfig({ eventKey: '', templateName: '', templateBody: '', description: '', requiredVariablesCount: 2 })
             setShowAddForm(false)
             await fetchConfigs()
         } else {
@@ -307,6 +307,15 @@ export default function WhatsAppConfigPanel() {
                                 min="0"
                             />
                         </div>
+                        <div className="md:col-span-3 space-y-1">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Marketing Branding (Template Body)</label>
+                            <textarea
+                                value={newConfig.templateBody}
+                                onChange={(e) => setNewConfig({ ...newConfig, templateBody: e.target.value })}
+                                className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 min-h-[100px] resize-none"
+                                placeholder="Paste your WhatsApp template sentences here to enable 100% audit transparency..."
+                            />
+                        </div>
                     </div>
                     <div className="flex justify-end mt-4">
                         <button
@@ -326,7 +335,7 @@ export default function WhatsAppConfigPanel() {
                     <ConfigCard
                         key={config.id}
                         config={config}
-                        onSave={(tpl, desc, vars, en) => handleUpdate(config.id, tpl, desc, vars, en)}
+                        onSave={(tpl, body, desc, vars, en) => handleUpdate(config.id, tpl, body, desc, vars, en)}
                         onDelete={() => handleDelete(config.id)}
                         isSaving={saving === config.id}
                     />
@@ -348,24 +357,26 @@ export default function WhatsAppConfigPanel() {
 
 function ConfigCard({ config, onSave, onDelete, isSaving }: {
     config: WhatsAppConfigData,
-    onSave: (tpl: string, desc: string, numVars: number, en: boolean) => void,
+    onSave: (tpl: string, body: string | null, desc: string, numVars: number, en: boolean) => void,
     onDelete: () => void,
     isSaving: boolean
 }) {
     const [isEditing, setIsEditing] = useState(false)
     const [template, setTemplate] = useState(config.templateName)
+    const [templateBody, setTemplateBody] = useState(config.templateBody || '')
     const [description, setDescription] = useState(config.description || '')
     const [reqVars, setReqVars] = useState(config.requiredVariablesCount || 0)
     const [enabled, setEnabled] = useState(config.isEnabled)
-    const hasChanges = template !== config.templateName || enabled !== config.isEnabled || description !== (config.description || '') || reqVars !== config.requiredVariablesCount
+    const hasChanges = template !== config.templateName || templateBody !== (config.templateBody || '') || enabled !== config.isEnabled || description !== (config.description || '') || reqVars !== config.requiredVariablesCount
 
     const handleSave = () => {
-        onSave(template, description, reqVars, enabled)
+        onSave(template, templateBody, description, reqVars, enabled)
         setIsEditing(false)
     }
 
     const handleCancel = () => {
         setTemplate(config.templateName)
+        setTemplateBody(config.templateBody || '')
         setDescription(config.description || '')
         setReqVars(config.requiredVariablesCount)
         setEnabled(config.isEnabled)
@@ -402,7 +413,7 @@ function ConfigCard({ config, onSave, onDelete, isSaving }: {
                         onClick={() => {
                             if (!isEditing) {
                                 // Direct toggle if not editing
-                                onSave(config.templateName, config.description || '', config.requiredVariablesCount, !config.isEnabled)
+                                onSave(config.templateName, config.templateBody || '', config.description || '', config.requiredVariablesCount, !config.isEnabled)
                             } else {
                                 // Defer toggle to form state
                                 setEnabled(!enabled)
@@ -435,6 +446,16 @@ function ConfigCard({ config, onSave, onDelete, isSaving }: {
                             onChange={(e) => setDescription(e.target.value)}
                             className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all text-slate-700"
                             placeholder="e.g. Sent when user signs up"
+                        />
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-400 ml-1">Marketing Branding (Template Body)</label>
+                        <textarea
+                            value={templateBody}
+                            onChange={(e) => setTemplateBody(e.target.value)}
+                            className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all text-slate-700 min-h-[100px] resize-none"
+                            placeholder="Paste your WhatsApp template sentences here..."
                         />
                     </div>
 

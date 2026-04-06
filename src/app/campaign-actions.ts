@@ -899,11 +899,16 @@ export async function sendTestCampaignMessage(
                         const val = (mapping[`static_${key}`] || mapping[`static_var_${key}`] || '').toString().replace(/[\r\n]+/g, ' ').trim()
                         waVars.push(val)
                     } else if (bodyMappedValue) {
-                        const resolved = (await aliasTokens(bodyMappedValue, sampleUser, type)).toString().replace(/[\r\n]+/g, ' ').trim()
-                        if (bodyMappedValue.toLowerCase().includes('campus') && !resolved) {
-                            waVars.push(targetCampus || 'Global Campus')
-                        } else {
-                            waVars.push(resolved || '')
+                        try {
+                            const resolved = (await aliasTokens(bodyMappedValue, sampleUser, type)).toString().replace(/[\r\n]+/g, ' ').trim()
+                            if (bodyMappedValue.toLowerCase().includes('campus') && !resolved) {
+                                waVars.push(targetCampus || 'Global Campus')
+                            } else {
+                                waVars.push(resolved || '')
+                            }
+                        } catch (err: any) {
+                            console.error('[Action_Safety] aliasTokens failed (DB Timeout?):', err.message)
+                            waVars.push('')
                         }
                     }
 
@@ -916,9 +921,9 @@ export async function sendTestCampaignMessage(
                     }
                 }
             } else {
-                // No mapping defined — fallback to Name + Campus
-                waVars.push((sampleUser.fullName || 'User').toString().trim())
-                waVars.push(sampleUser.assignedCampus || targetCampus || 'Global Campus')
+                // No mapping defined — fallback to Name + Campus (2 Variables Only)
+                waVars.push((sampleUser?.fullName || 'User').toString().trim())
+                waVars.push(sampleUser?.assignedCampus || targetCampus || 'Global Campus')
             }
             
             console.log(`[VAR_DEBUG] Final waVars for ${templateName}:`, waVars)
@@ -927,6 +932,20 @@ export async function sendTestCampaignMessage(
             const cleanMobile = testMobile.replace(/\D/g, '')
             const requestId = `test_${campaignId}_${Date.now()}`
             const headerUrl = overrideHeaderUrl || (campaign as any).waHeaderUrl || null
+            
+            // WhatsApp Archival Enrichment for Tests: Pull branding from config
+            let waTemplateBody = campaign.templateBody;
+            if (templateName) {
+                const waConfig = await prisma.whatsAppConfig.findFirst({
+                    where: { templateName: templateName }
+                }) as any;
+                if (waConfig?.templateBody) {
+                    waTemplateBody = waConfig.templateBody;
+                }
+            }
+
+            const fullText = await aliasTokens(waTemplateBody, sampleUser, type)
+
             const res = await whatsappService.sendTemplateMessage(
                 cleanMobile,
                 templateName,
@@ -934,11 +953,15 @@ export async function sendTestCampaignMessage(
                 'CAMPAIGN_TEST',
                 undefined, // No CRQID for tests to ensure visibility in main dashboard logs
                 headerUrl,
-                btnVars.length > 0 ? btnVars : undefined
+                btnVars.length > 0 ? btnVars : undefined,
+                fullText
             )
 
             if (res.success) {
-                await logAction('Test Campaign Dispatch', 'Marketing', `Sent test WhatsApp for campaign #${campaignId} (${campaign.name}) to ${testMobile}`, undefined)
+                // ✅ EXPERT OPTIMIZATION: Non-blocking logAction to prevent UI hang
+                logAction('Test Campaign Dispatch', 'Marketing', `Sent test WhatsApp for campaign #${campaignId} (${campaign.name}) to ${testMobile}`, undefined).catch(err => {
+                    console.error('[Action_Safety] Background logAction failed:', err.message)
+                })
                 return { success: true }
             } else {
                 throw new Error('WhatsApp API failed to send test message')

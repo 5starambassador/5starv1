@@ -153,8 +153,9 @@ export async function POST(request: Request) {
             // WAMID FALLBACK: For bulk sends, MSG91 fires delivery callbacks with the
             // individual per-message wamid, NOT our custom CRQID. So we look up the
             // recipient by mobile number to find which campaign they belong to.
-            if (!campaignId && refStr.startsWith('wamid.') && mobile) {
-                const recipient = await (prisma as any).campaignRecipient.findFirst({
+            let recipient: any = null
+            if (!campaignId && mobile && (refStr.startsWith('wamid.') || refStr.startsWith('camp_') || refStr.startsWith('crq_'))) {
+                recipient = await (prisma as any).campaignRecipient.findFirst({
                     where: {
                         OR: [{ mobile: mobile }, { mobile: '91' + mobile }],
                         sentAt: { gte: new Date(Date.now() - 48 * 60 * 60 * 1000) } // 48h window
@@ -163,7 +164,7 @@ export async function POST(request: Request) {
                 })
                 if (recipient) {
                     campaignId = recipient.campaignId
-                    console.log(`[MSG91 Webhook] WAMID fallback: found campaign ${campaignId} for mobile ${mobile}`)
+                    console.log(`[MSG91 Webhook] WAMID/Camp fallback: found campaign ${campaignId} for mobile ${mobile}`)
                 }
             }
 
@@ -175,7 +176,15 @@ export async function POST(request: Request) {
             // Build dynamic where clause to satisfy TypeScript strict requirements
             const campaignLogWhere: any = {};
             if (actualRefStr.startsWith('camp_')) {
-                campaignLogWhere.refId = actualRefStr;
+                // If refStr is camp_30_123_0, strip the final tag to get the batch refId
+                const parts = actualRefStr.split('_');
+                const batchRef = parts.slice(0, 3).join('_');
+                
+                campaignLogWhere.OR = [
+                    { refId: batchRef },
+                    { refId: { startsWith: batchRef } },
+                    { campaignId: campaignId }
+                ];
             } else if (campaignId) {
                 campaignLogWhere.campaignId = campaignId;
             }
@@ -197,8 +206,33 @@ export async function POST(request: Request) {
                     data: updateData
                 })
 
-                // Update recipient status with normalized mobile matching
+                // ✅ EXPERT FINAL SYNC: Update the Individual Activity Log (WhatsAppLog)
+                // This ensures the dashboard UI shows "DELIVERED" checkmarks for this specific student.
                 if (mobile) {
+                    // Normalize mobile for lookup
+                    const cleanMobile = mobile.replace(/\D/g, '').slice(-10)
+                    
+                    // Match by either exact refId OR mobile within local time window
+                    await prisma.whatsAppLog.updateMany({
+                        where: {
+                            mobile: { contains: cleanMobile },
+                            OR: [
+                                { refId: actualRefStr },
+                                { refId: { startsWith: actualRefStr.split('_').slice(0, 3).join('_') } }, // Match parent batch
+                                { createdAt: { gte: new Date(Date.now() - 12 * 60 * 60 * 1000) } } // Within last 12h
+                            ]
+                        },
+                        data: {
+                            status: normalizedStatus,
+                            errorMessage: error ? error.toString() : undefined,
+                            metadata: {
+                                ...(normalizedStatus === 'DELIVERED' ? { deliveredAt: new Date().toISOString() } : {}),
+                                ...(normalizedStatus === 'READ' ? { readAt: new Date().toISOString() } : {}),
+                                providerResponse: log
+                            } as any
+                        }
+                    }).catch((e: any) => console.error('[MSG91 Webhook] Individual WhatsAppLog update error:', e.message))
+
                     await (prisma as any).campaignRecipient.updateMany({
                         where: {
                             campaignId: campaignId,

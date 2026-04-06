@@ -151,8 +151,15 @@ export function WhatsAppLogTable({ defaultType = 'All', refId }: { defaultType?:
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
-                                                <span className="text-xs font-bold text-indigo-600 truncate max-w-[150px]">{log.template || 'Direct Content'}</span>
-                                                {log.content && <span className="text-[10px] text-slate-400 truncate max-w-[200px]">{log.content}</span>}
+                                                <span className="text-xs font-bold text-indigo-600 truncate max-w-[250px]" title={log.template || ''}>{log.template || 'Direct Content'}</span>
+                                                {log.content && (
+                                                    <span 
+                                                        className="text-[10px] text-slate-500 line-clamp-2 max-w-[300px] leading-relaxed" 
+                                                        title={log.content}
+                                                    >
+                                                        {log.content}
+                                                    </span>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">

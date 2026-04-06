@@ -305,14 +305,26 @@ export async function dispatchCampaignBatch(campaignId: number) {
             const promises: Promise<void>[] = []
             const pushTokens: string[] = []
             const notificationsToCreate: any[] = []
-            const whatsappRecipients: { mobile: string, variables: string[] }[] = []
+            const whatsappRecipients: { mobile: string, variables: string[], fullText?: string }[] = []
             const whatsappButtonVariables: { [mobile: string]: string[] } = {}
 
             for (const user of users) {
                 // Email
                 if (isEmail && user.email) {
                     const subject = await aliasTokens(campaign.subject, user, audience.type)
-                    const body = await aliasTokens(campaign.templateBody, user, audience.type)
+                    // WhatsApp Archival Enrichment: We try to find the full professional branding
+                // text from the config if we're using a WhatsApp template.
+                let waTemplateBody = campaign.templateBody;
+                if (campaign.waTemplateName) {
+                    const waConfig = await prisma.whatsAppConfig.findFirst({
+                        where: { templateName: campaign.waTemplateName }
+                    }) as any;
+                    if (waConfig?.templateBody) {
+                        waTemplateBody = waConfig.templateBody;
+                    }
+                }
+
+                const body = await aliasTokens(waTemplateBody, user, audience.type)
                     promises.push(EmailService.sendCampaignEmail(user.email, subject, body)
                         .then(() => { stats.emailSent++ }).catch(() => { stats.emailFailed++ }))
                 }
@@ -371,9 +383,12 @@ export async function dispatchCampaignBatch(campaignId: number) {
                         waVars.push((user.referralCode || '').toString().trim())
                     }
                     
+                    const fullText = await aliasTokens(campaign.templateBody, user, audience.type)
+                    
                     whatsappRecipients.push({
                         mobile: cleanMobile,
-                        variables: waVars
+                        variables: waVars,
+                        fullText: fullText
                     })
 
                     if (btnVars.length > 0) {

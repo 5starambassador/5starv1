@@ -129,14 +129,16 @@ export async function getPaginatedWhatsAppLogs(page: number = 1, pageSize: numbe
             } else if (filters.type === 'CHATBOT') {
                 whereClause.type = { in: ['CHATBOT', 'INBOUND'] }
             } else {
-                whereClause.type = filters.type
+                // ✅ EXPERT OPTIMIZATION: Case-insensitive matching for 'CAMPAIGN' vs 'Campaign'
+                whereClause.type = { equals: filters.type, mode: 'insensitive' }
             }
         } else if (filters?.type === 'All' && (filters as any).excludeCampaigns) {
             whereClause.type = { not: 'CAMPAIGN' }
         }
 
         if ((filters as any)?.refId) {
-            whereClause.refId = (filters as any).refId
+            // ✅ EXPERT OPTIMIZATION: Use startsWith to capture timestamped IDs from recent hardened dispatches
+            whereClause.refId = { startsWith: (filters as any).refId }
         }
 
         const [logs, total] = await Promise.all([
@@ -159,29 +161,55 @@ export async function getPaginatedWhatsAppLogs(page: number = 1, pageSize: numbe
             db.whatsAppLog.count({ where: whereClause })
         ])
 
-        // --- Enriching logs with User/Admin details (Role and Campus) ---
-        const mobiles = Array.from(new Set(logs.map((l: any) => l.mobile)))
+        // --- Enriching logs with User/Admin/Recipient details (Role and Campus) ---
+        const mobiles = Array.from(new Set(logs.map((l: any) => l.mobile))) as string[]
+        const cleanMobiles = mobiles.map((m: string) => m.replace(/^91/, ''))
         
-        // Lookup in User table
-        const users = await db.user.findMany({
-            where: { mobileNumber: { in: mobiles } },
-            select: { mobileNumber: true, role: true, assignedCampus: true }
-        })
+        // 1. Lookup in User table (Live Profile)
+        const [users, admins] = await Promise.all([
+            db.user.findMany({
+                where: { mobileNumber: { in: [...mobiles, ...cleanMobiles] } },
+                select: { mobileNumber: true, role: true, assignedCampus: true }
+            }),
+            db.admin.findMany({
+                where: { adminMobile: { in: [...mobiles, ...cleanMobiles] } },
+                select: { adminMobile: true, role: true, assignedCampus: true }
+            })
+        ])
 
-        // Lookup in Admin table
-        const admins = await db.admin.findMany({
-            where: { adminMobile: { in: mobiles } },
-            select: { adminMobile: true, role: true, assignedCampus: true }
-        })
+        // 2. Identify remaining mobiles for CampaignRecipient fallback
+        const foundMobiles = new Set([
+            ...users.map((u: any) => u.mobileNumber),
+            ...admins.map((a: any) => a.adminMobile)
+        ])
+        const missingMobiles = mobiles.filter((m: string) => !foundMobiles.has(m) && !foundMobiles.has(m.replace(/^91/, '')))
+
+        let campaignRecipients: any[] = []
+        if (missingMobiles.length > 0) {
+            // Check if we have a campaign context from the refId (e.g. camp_30)
+            const campLog = logs.find((l: any) => l.refId?.startsWith('camp_'))
+            const campaignIdStr = campLog?.refId?.split('_')[1]
+            const campaignId = campaignIdStr ? parseInt(campaignIdStr) : undefined
+
+            campaignRecipients = await db.campaignRecipient.findMany({
+                where: { 
+                    mobile: { in: missingMobiles.map((m: string) => m.replace(/^91/, '')) },
+                    ...(campaignId && { campaignId })
+                },
+                select: { mobile: true, role: true, campus: true, campaignId: true }
+            })
+        }
 
         const enrichedLogs = logs.map((log: any) => {
-            const user = users.find((u: any) => u.mobileNumber === log.mobile || `91${u.mobileNumber}` === log.mobile)
-            const admin = admins.find((a: any) => a.adminMobile === log.mobile || `91${a.adminMobile}` === log.mobile)
+            const cleanMobile = log.mobile.replace(/^91/, '')
+            const user = users.find((u: any) => u.mobileNumber === cleanMobile || u.mobileNumber === log.mobile)
+            const admin = admins.find((a: any) => a.adminMobile === cleanMobile || a.adminMobile === log.mobile)
+            const recipient = campaignRecipients.find((r: any) => r.mobile === cleanMobile || r.mobile === log.mobile)
             
             return {
                 ...log,
-                userRole: user?.role || admin?.role || 'User',
-                campus: user?.assignedCampus || admin?.assignedCampus || '-'
+                userRole: user?.role || admin?.role || recipient?.role || 'User',
+                campus: user?.assignedCampus || admin?.assignedCampus || recipient?.campus || '-'
             }
         })
 

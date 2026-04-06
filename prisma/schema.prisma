@@ -658,6 +658,7 @@ model WhatsAppConfig {
   id                     Int      @id @default(autoincrement())
   eventKey               String   @unique
   templateName           String
+  templateBody           String?
   isEnabled              Boolean  @default(true)
   description            String?
   updatedAt              DateTime @updatedAt
