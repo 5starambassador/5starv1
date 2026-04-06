@@ -125,12 +125,7 @@ class WhatsAppService {
             const sanitizedMobile = this.sanitizeMobile(mobile)
             const integratedNumber = this.sanitizeMobile(MSG91_WHATSAPP_NUMBER)
             const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/bulk/`
-            
-            // ✅ CRITICAL FIX: Generate trackingRef BEFORE the API call
             const trackingRef = refId || `AUT_${Date.now()}_${Math.random().toString(36).substring(7)}`
-
-            console.log(`[WhatsApp] Sending to ${sanitizedMobile} via integrated number: ${integratedNumber || 'EMPTY'}`)
-            console.log(`[WhatsApp] Using Namespace: ${MSG91_WHATSAPP_NAMESPACE}`)
 
             const payload: any = {
                 integrated_number: MSG91_WHATSAPP_NUMBER,
@@ -157,8 +152,7 @@ class WhatsAppService {
                 }
             }
 
-            // Always send the trackingRef to MSG91 as CRQID
-            payload.payload.template.to_and_components[0].CRQID = trackingRef
+            console.log(`[WhatsApp] Sending SINGLE message to ${sanitizedMobile} via Proven Bulk API`)
 
             const response = await fetch(url, {
                 method: 'POST',
@@ -228,12 +222,14 @@ class WhatsAppService {
                 return { success: false, error: 'No valid mobile numbers in batch' }
             }
 
-            const CHUNK_SIZE = 100
+            const CHUNK_SIZE = 10 // Expert-level safety Batching
             const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/bulk/`
             let mainResponse: WhatsAppResponse = { success: true }
             
             // ✅ CRITICAL FIX: Generate a base batch reference if not provided
             const batchRefId = refId || `AUT_BATCH_${Date.now()}`
+
+            console.log(`[WhatsApp] Starting Campaign Send: ${validRecipients.length} messages. Rate Limit: 3s delay per 10 messages.`)
 
             for (let i = 0; i < validRecipients.length; i += CHUNK_SIZE) {
                 const chunk = validRecipients.slice(i, i + CHUNK_SIZE)
@@ -306,9 +302,9 @@ class WhatsAppService {
                     if (i === 0) mainResponse = { success: false, error: errorMsg }
                 }
 
-                // Small delay between chunks for safety
+                // Senior Expert Level Safety: 3 second delay between batches
                 if (i + CHUNK_SIZE < validRecipients.length) {
-                    await new Promise(r => setTimeout(r, 200))
+                    await new Promise(r => setTimeout(r, 3000))
                 }
             }
 
