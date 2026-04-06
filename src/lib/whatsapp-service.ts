@@ -170,19 +170,25 @@ class WhatsAppService {
             })
 
             const data = await response.json()
+            
+            // Diagnostic metadata for ALL outcomes
+            const diagnosticMetadata = { 
+                sentAt: new Date().toISOString(),
+                apiPayload: payload,
+                apiResponse: data 
+            }
 
             if (response.ok && data.status === 'success') {
                 const messageId = (data.message_id || data.request_id || '').toString()
                 const metadata = { 
-                    messageId, 
-                    sentAt: new Date().toISOString(),
-                    apiResponse: data 
+                    ...diagnosticMetadata,
+                    messageId
                 }
                 await this.logMessage(mobile, templateName, variables.join(', '), type, 'SENT', messageId, undefined, trackingRef, metadata, headerUrl)
                 return { success: true, messageId }
             } else {
                 const errorMsg = data.message || JSON.stringify(data) || 'WhatsApp API Error'
-                await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, errorMsg, trackingRef, undefined, headerUrl)
+                await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, errorMsg, trackingRef, diagnosticMetadata, headerUrl)
                 console.error('WhatsApp API Error detailed:', JSON.stringify(data, null, 2))
                 return { success: false, error: errorMsg }
             }
@@ -267,6 +273,13 @@ class WhatsAppService {
                 })
 
                 const data = await response.json()
+                
+                // Diagnostic metadata (Shared across chunk members)
+                const diagnosticMetadata = { 
+                    sentAt: new Date().toISOString(),
+                    apiPayload: payload,
+                    apiResponse: data 
+                }
 
                 if (response.ok && data.status === 'success') {
                     const messageId = (data.message_id || data.request_id || '').toString()
@@ -280,13 +293,14 @@ class WhatsAppService {
                             .map(([key, val]: [string, any]) => `[${key}]: ${val.value}`)
                             .join(', ')
 
-                        return this.logMessage(r.mobile, templateName, preparedVars, type, 'SENT', messageId, undefined, trackingRef, undefined, headerUrl)
+                        const metadata = { ...diagnosticMetadata, messageId }
+                        return this.logMessage(r.mobile, templateName, preparedVars, type, 'SENT', messageId, undefined, trackingRef, metadata, headerUrl)
                     }))
                     if (i === 0) mainResponse = { success: true, messageId }
                 } else {
                     const errorMsg = data.message || JSON.stringify(data) || 'WhatsApp API Error'
                     await Promise.all(chunk.map((r, idx) =>
-                        this.logMessage(r.mobile, templateName, r.variables.join(', '), type, 'FAILED', undefined, errorMsg, `${batchRefId}_${i + idx}`, undefined, headerUrl)
+                        this.logMessage(r.mobile, templateName, r.variables.join(', '), type, 'FAILED', undefined, errorMsg, `${batchRefId}_${i + idx}`, diagnosticMetadata, headerUrl)
                     ))
                     console.error('WhatsApp Bulk API Error detailed:', JSON.stringify(data, null, 2))
                     if (i === 0) mainResponse = { success: false, error: errorMsg }
@@ -362,14 +376,20 @@ class WhatsAppService {
             })
 
             const data = await response.json()
+            
+            const diagnosticMetadata = { 
+                sentAt: new Date().toISOString(),
+                apiPayload: payload,
+                apiResponse: data 
+            }
 
             if (response.ok && data.status === 'success') {
                 const messageId = (data.message_id || data.request_id || '').toString()
-                await this.logMessage(mobile, null, text, type, 'SENT', messageId, undefined, trackingRef)
+                await this.logMessage(mobile, null, text, type, 'SENT', messageId, undefined, trackingRef, { ...diagnosticMetadata, messageId })
                 return { success: true, messageId }
             } else {
                 const errorMsg = data.message || 'WhatsApp API Error'
-                await this.logMessage(mobile, null, text, type, 'FAILED', undefined, errorMsg, trackingRef)
+                await this.logMessage(mobile, null, text, type, 'FAILED', undefined, errorMsg, trackingRef, diagnosticMetadata)
                 console.error('WhatsApp API Error:', data)
                 return { success: false, error: errorMsg }
             }
@@ -426,7 +446,7 @@ class WhatsAppService {
         const components: any = {}
 
         if (headerUrl && headerUrl.trim() !== '') {
-            const url = headerUrl.trim()
+            const url = encodeURI(headerUrl.trim())
             // Detect media type: Default to image, but switch to video/document based on extension
             const isVideo = url.match(/\.(mp4|mov|3gp|m4v|avi)$/i)
             const isDocument = url.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt)$/i)
