@@ -136,7 +136,9 @@ class WhatsAppService {
         refId?: string,
         headerUrl?: string,
         buttonVariables: string[] = [],
-        fullRenderedText?: string
+        fullRenderedText?: string,
+        userRole?: string,
+        campus?: string
     ): Promise<WhatsAppResponse> {
         if (!this.getAuthKey() || WHATSAPP_PROVIDER === 'mock') {
             return this.sendMock(mobile, templateName, variables, type)
@@ -202,12 +204,12 @@ class WhatsAppService {
                     messageId
                 }
                 const finalContent = fullRenderedText || variables.join(', ')
-                await this.logMessage(mobile, templateName, finalContent, type, 'SENT', messageId, undefined, trackingRef, metadata, headerUrl)
+                await this.logMessage(mobile, templateName, finalContent, type, 'SENT', messageId, undefined, trackingRef, metadata, headerUrl, userRole, campus)
                 return { success: true, messageId }
             } else {
                 const errorMsg = data.message || JSON.stringify(data) || 'WhatsApp API Error'
                 const finalContent = fullRenderedText || variables.join(', ')
-                await this.logMessage(mobile, templateName, finalContent, type, 'FAILED', undefined, errorMsg, trackingRef, diagnosticMetadata, headerUrl)
+                await this.logMessage(mobile, templateName, finalContent, type, 'FAILED', undefined, errorMsg, trackingRef, diagnosticMetadata, headerUrl, userRole, campus)
                 console.error('WhatsApp API Error detailed:', JSON.stringify(data, null, 2))
                 return { success: false, error: errorMsg }
             }
@@ -215,7 +217,7 @@ class WhatsAppService {
             // Use refId from params or generate a fallback for the error log if trackingRef wasn't reached
             const errRef = refId || `ERR_${Date.now()}`
             const finalContent = fullRenderedText || variables.join(', ')
-            await this.logMessage(mobile, templateName, finalContent, type, 'FAILED', undefined, error.message, errRef, undefined, headerUrl)
+            await this.logMessage(mobile, templateName, finalContent, type, 'FAILED', undefined, error.message, errRef, undefined, headerUrl, userRole, campus)
             console.error('WhatsApp Service Exception:', error)
             return { success: false, error: error.message }
         }
@@ -226,7 +228,7 @@ class WhatsAppService {
      * Splitting into chunks of 100 for safety and to avoid API timeout/payload limits.
      */
     async sendBulkTemplateMessage(
-        recipients: { mobile: string, variables: string[], fullText?: string }[],
+        recipients: { mobile: string, variables: string[], fullText?: string, userRole?: string, campus?: string }[],
         templateName: string,
         type: string = 'SYSTEM',
         refId?: string,
@@ -266,7 +268,9 @@ class WhatsAppService {
                     refId ? `${refId}_${i}` : undefined,
                     headerUrl,
                     buttonVariables[r.mobile] || [],
-                    r.fullText
+                    r.fullText,
+                    r.userRole,
+                    r.campus
                 )
 
                 results.push(res)
@@ -376,7 +380,9 @@ class WhatsAppService {
         error?: string,
         refId?: string,
         metadata?: any,
-        waHeaderUrl?: string
+        waHeaderUrl?: string,
+        userRole?: string,
+        campus?: string
     ) {
         try {
             await prisma.whatsAppLog.create({
@@ -389,6 +395,8 @@ class WhatsAppService {
                     errorMessage: error || null,
                     waHeaderUrl: waHeaderUrl || null,
                     refId: refId || null,
+                    userRole: userRole || 'User',
+                    campus: campus || '-',
                     metadata: {
                         ...(metadata || {}),
                         messageId: messageId || (metadata?.messageId) || null,

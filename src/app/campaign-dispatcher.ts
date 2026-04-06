@@ -305,7 +305,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
             const promises: Promise<void>[] = []
             const pushTokens: string[] = []
             const notificationsToCreate: any[] = []
-            const whatsappRecipients: { mobile: string, variables: string[], fullText?: string }[] = []
+            const whatsappRecipients: { mobile: string, variables: string[], fullText?: string, userRole?: string, campus?: string }[] = []
             const whatsappButtonVariables: { [mobile: string]: string[] } = {}
 
             for (const user of users) {
@@ -388,7 +388,9 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     whatsappRecipients.push({
                         mobile: cleanMobile,
                         variables: waVars,
-                        fullText: fullText
+                        fullText: fullText,
+                        userRole: user.role || 'User',
+                        campus: user.assignedCampus || '-'
                     })
 
                     if (btnVars.length > 0) {

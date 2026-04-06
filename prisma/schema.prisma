@@ -675,6 +675,8 @@ model WhatsAppLog {
   type         String
   status       String
   errorMessage String?
+  userRole     String?
+  campus       String?
   createdAt    DateTime @default(now())
   metadata     Json?
   refId        String?

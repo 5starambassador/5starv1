@@ -950,11 +950,13 @@ export async function sendTestCampaignMessage(
                 cleanMobile,
                 templateName,
                 waVars,
-                'CAMPAIGN_TEST',
-                undefined, // No CRQID for tests to ensure visibility in main dashboard logs
+                'TEST',
+                requestId,
                 headerUrl,
                 btnVars.length > 0 ? btnVars : undefined,
-                fullText
+                fullText,
+                sampleUser.role || 'User',
+                sampleUser.assignedCampus || targetCampus || '-'
             )
 
             if (res.success) {
