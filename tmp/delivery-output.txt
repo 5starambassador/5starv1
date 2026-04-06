@@ -1,0 +1,18 @@
+
+=== CampaignLog #53 ===
+refId stored   : "camp_29_1775410461627"
+whatsappSent   : 715
+whatsappDelivered: 0
+whatsappRead   : 0
+
+=== WhatsApp Log Delivery Report (last 12h) ===
+CAMPAIGN logs with DELIVERED/READ status: 0
+
+Recent CAMPAIGN WhatsApp logs:
+  #83478 | 9566749982 | SENT | refId: camp_29_1775410461627 | 5/4/2026, 11:04:26 pm
+  #83475 | 9894741229 | SENT | refId: camp_29_1775410461627 | 5/4/2026, 11:04:26 pm
+  #83477 | 8681062361 | SENT | refId: camp_29_1775410461627 | 5/4/2026, 11:04:26 pm
+  #83472 | 9092557179 | SENT | refId: camp_29_1775410461627 | 5/4/2026, 11:04:26 pm
+  #83476 | 9962130495 | SENT | refId: camp_29_1775410461627 | 5/4/2026, 11:04:26 pm
+
+Total webhook delivery updates received (all types, last 24h): 0

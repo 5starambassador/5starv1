@@ -125,6 +125,9 @@ class WhatsAppService {
             const sanitizedMobile = this.sanitizeMobile(mobile)
             const integratedNumber = this.sanitizeMobile(MSG91_WHATSAPP_NUMBER)
             const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/bulk/`
+            
+            // ✅ CRITICAL FIX: Generate trackingRef BEFORE the API call
+            const trackingRef = refId || `AUT_${Date.now()}_${Math.random().toString(36).substring(7)}`
 
             console.log(`[WhatsApp] Sending to ${sanitizedMobile} via integrated number: ${integratedNumber || 'EMPTY'}`)
             console.log(`[WhatsApp] Using Namespace: ${MSG91_WHATSAPP_NAMESPACE}`)
@@ -132,6 +135,7 @@ class WhatsAppService {
             const payload: any = {
                 integrated_number: MSG91_WHATSAPP_NUMBER,
                 content_type: "template",
+                CRQID: trackingRef,
                 payload: {
                     messaging_product: "whatsapp",
                     type: "template",
@@ -145,16 +149,16 @@ class WhatsAppService {
                         to_and_components: [
                             {
                                  to: [this.sanitizeMobile(mobile)],
-                                 components: this.prepareComponents(templateName, variables, headerUrl, buttonVariables)
+                                 components: this.prepareComponents(templateName, variables, headerUrl, buttonVariables),
+                                 CRQID: trackingRef
                              }
                         ]
                     }
                 }
             }
 
-            if (refId) {
-                payload.CRQID = refId
-            }
+            // Always send the trackingRef to MSG91 as CRQID
+            payload.payload.template.to_and_components[0].CRQID = trackingRef
 
             const response = await fetch(url, {
                 method: 'POST',
@@ -169,7 +173,6 @@ class WhatsAppService {
 
             if (response.ok && data.status === 'success') {
                 const messageId = (data.message_id || data.request_id || '').toString()
-                const trackingRef = refId || `AUT_${Date.now()}_${Math.random().toString(36).substring(7)}`
                 const metadata = { 
                     messageId, 
                     sentAt: new Date().toISOString(),
@@ -179,12 +182,14 @@ class WhatsAppService {
                 return { success: true, messageId }
             } else {
                 const errorMsg = data.message || JSON.stringify(data) || 'WhatsApp API Error'
-                await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, errorMsg, refId, undefined, headerUrl)
+                await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, errorMsg, trackingRef, undefined, headerUrl)
                 console.error('WhatsApp API Error detailed:', JSON.stringify(data, null, 2))
                 return { success: false, error: errorMsg }
             }
         } catch (error: any) {
-            await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, error.message, refId, undefined, headerUrl)
+            // Use refId from params or generate a fallback for the error log if trackingRef wasn't reached
+            const errRef = refId || `ERR_${Date.now()}`
+            await this.logMessage(mobile, templateName, variables.join(', '), type, 'FAILED', undefined, error.message, errRef, undefined, headerUrl)
             console.error('WhatsApp Service Exception:', error)
             return { success: false, error: error.message }
         }
@@ -220,14 +225,20 @@ class WhatsAppService {
             const CHUNK_SIZE = 100
             const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/bulk/`
             let mainResponse: WhatsAppResponse = { success: true }
+            
+            // ✅ CRITICAL FIX: Generate a base batch reference if not provided
+            const batchRefId = refId || `AUT_BATCH_${Date.now()}`
 
             for (let i = 0; i < validRecipients.length; i += CHUNK_SIZE) {
                 const chunk = validRecipients.slice(i, i + CHUNK_SIZE)
                 
-                const to_and_components = chunk.map(r => {
+                const to_and_components = chunk.map((r, idx) => {
                     return {
                         to: [this.sanitizeMobile(r.mobile)],
-                        components: this.prepareComponents(templateName, r.variables, headerUrl, buttonVariables[r.mobile])
+                        components: this.prepareComponents(templateName, r.variables, headerUrl, buttonVariables[r.mobile]),
+                        // Pass unique refId per recipient within the batch if possible, 
+                        // or at least ensure the batch ID is shared.
+                        CRQID: `${batchRefId}_${i + idx}`
                     }
                 })
 
@@ -246,8 +257,6 @@ class WhatsAppService {
                     }
                 }
 
-                if (refId) payload.CRQID = refId
-
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
@@ -261,8 +270,8 @@ class WhatsAppService {
 
                 if (response.ok && data.status === 'success') {
                     const messageId = (data.message_id || data.request_id || '').toString()
-                    await Promise.all(chunk.map(r => {
-                        const trackingRef = refId || `AUT_${Date.now()}_${Math.random().toString(36).substring(7)}`
+                    await Promise.all(chunk.map((r, idx) => {
+                        const trackingRef = `${batchRefId}_${i + idx}`
                         
                         // ✅ Log Sincerity: Log the variables exactly as they were prepared for the API
                         const preparedComponents = this.prepareComponents(templateName, r.variables, headerUrl, buttonVariables[r.mobile])
@@ -276,15 +285,15 @@ class WhatsAppService {
                     if (i === 0) mainResponse = { success: true, messageId }
                 } else {
                     const errorMsg = data.message || JSON.stringify(data) || 'WhatsApp API Error'
-                    await Promise.all(chunk.map(r =>
-                        this.logMessage(r.mobile, templateName, r.variables.join(', '), type, 'FAILED', undefined, errorMsg, refId, undefined, headerUrl)
+                    await Promise.all(chunk.map((r, idx) =>
+                        this.logMessage(r.mobile, templateName, r.variables.join(', '), type, 'FAILED', undefined, errorMsg, `${batchRefId}_${i + idx}`, undefined, headerUrl)
                     ))
                     console.error('WhatsApp Bulk API Error detailed:', JSON.stringify(data, null, 2))
                     if (i === 0) mainResponse = { success: false, error: errorMsg }
                 }
 
                 // Small delay between chunks for safety
-                if (i + CHUNK_SIZE < recipients.length) {
+                if (i + CHUNK_SIZE < validRecipients.length) {
                     await new Promise(r => setTimeout(r, 200))
                 }
             }
@@ -321,7 +330,7 @@ class WhatsAppService {
     /**
      * Sends a free-form text message (use within 24h window of user message)
      */
-    async sendFreeTextMessage(mobile: string, text: string, type: string = 'CHATBOT'): Promise<WhatsAppResponse> {
+    async sendFreeTextMessage(mobile: string, text: string, type: string = 'CHATBOT', refId?: string): Promise<WhatsAppResponse> {
         if (!MSG91_AUTH_KEY || WHATSAPP_PROVIDER === 'mock') {
             console.log(`\n💬 [WHATSAPP MOCK TXT] To: ${mobile} | Message: ${text}\n`)
             await this.logMessage(mobile, null, text, type, 'SENT')
@@ -331,13 +340,15 @@ class WhatsAppService {
         try {
             const sanitizedMobile = this.sanitizeMobile(mobile)
             const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/`
+            const trackingRef = refId || `AUT_TXT_${Date.now()}_${Math.random().toString(36).substring(7)}`
 
             // Winners format: Flat structure for MSG91 Session Messages
             const payload: any = {
                 integrated_number: this.sanitizeMobile(MSG91_WHATSAPP_NUMBER),
                 recipient_number: sanitizedMobile,
                 content_type: "text",
-                text: text
+                text: text,
+                CRQID: trackingRef
             }
             console.log('[WhatsApp] Sending free-text payload:', JSON.stringify(payload))
 
@@ -354,17 +365,17 @@ class WhatsAppService {
 
             if (response.ok && data.status === 'success') {
                 const messageId = (data.message_id || data.request_id || '').toString()
-                const trackingRef = `AUT_${Date.now()}_${Math.random().toString(36).substring(7)}`
                 await this.logMessage(mobile, null, text, type, 'SENT', messageId, undefined, trackingRef)
                 return { success: true, messageId }
             } else {
                 const errorMsg = data.message || 'WhatsApp API Error'
-                await this.logMessage(mobile, null, text, type, 'FAILED', undefined, errorMsg)
+                await this.logMessage(mobile, null, text, type, 'FAILED', undefined, errorMsg, trackingRef)
                 console.error('WhatsApp API Error:', data)
                 return { success: false, error: errorMsg }
             }
         } catch (error: any) {
-            await this.logMessage(mobile, null, text, type, 'FAILED', undefined, error.message)
+            const errRef = refId || `ERR_TXT_${Date.now()}`
+            await this.logMessage(mobile, null, text, type, 'FAILED', undefined, error.message, errRef)
             console.error('WhatsApp Service Exception:', error)
             return { success: false, error: error.message }
         }
@@ -393,8 +404,12 @@ class WhatsAppService {
                     errorMessage: error || null,
                     waHeaderUrl: waHeaderUrl || null,
                     refId: refId || null,
-                    metadata: metadata || (messageId ? { messageId } : undefined)
-                } as any
+                    metadata: {
+                        ...(metadata || {}),
+                        messageId: messageId || (metadata?.messageId) || null,
+                        loggedAt: new Date().toISOString()
+                    } as any
+                }
             })
         } catch (logErr) {
             console.error('Failed to log WhatsApp message to DB:', logErr)

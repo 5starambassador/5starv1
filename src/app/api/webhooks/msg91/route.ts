@@ -23,49 +23,63 @@ export async function POST(request: Request) {
 
         const body = await request.json()
         console.log('🚀 [MSG91 Webhook] HIT at:', new Date().toISOString())
-        console.log('[MSG91 Webhook] Payload:', JSON.stringify(body, null, 2))
+        // Log payload structure for debugging (if we could see logs)
+        if (process.env.NODE_ENV === 'development') {
+            console.log('[MSG91 Webhook] Payload:', JSON.stringify(body, null, 2))
+        }
 
         const events = Array.isArray(body) ? body : [body]
 
         for (const event of events) {
-            // MSG91 sends varied field names for references
-            const rawId = event.CRQID || event.request_id || event.requestId || event.custom_ref || event.ref_id || event.externalId || event.messageId
-            const rawStatus = event.status || event.eventName || event.event || ''
+            // MSG91 sends varied field names - check ALL possibilities (case-insensitive)
+            const rawId = event.CRQID || event.crqid || event.Crqid || 
+                          event.request_id || event.requestId || 
+                          event.custom_ref || event.ref_id || 
+                          event.externalId || event.messageId || 
+                          event.wamid || event.id
+
+            const rawStatus = event.status || event.eventName || event.event || event.state || ''
             const status = rawStatus.toUpperCase()
-            const rawMobile = event.mobile || event.customerNumber || event.destination
+            const rawMobile = event.mobile || event.customerNumber || event.destination || event.recipient_number || event.to || event.receiver
             const error = event.error || event.reason || event.message || null
 
             // Normalize mobile: remove +, remove 91 prefix if it exists
-            const mobile = rawMobile ? rawMobile.toString().replace(/^\+/, '').replace(/^91/, '') : ''
+            const mobile = rawMobile ? rawMobile.toString().replace(/^\+/, '').replace(/^91/, '').trim() : ''
 
-            console.log(`[MSG91 Webhook] Extracted: ID=${rawId}, Status=${status}, Mobile=${mobile}, Error=${error}`)
+            console.log(`[MSG91 Webhook] Extracted: ID=${rawId}, Status=${status}, Mobile=${mobile}`)
 
-            if (!rawId) {
-                console.warn('[MSG91 Webhook] Missing Reference ID. Event:', JSON.stringify(event))
+            if (!rawId && !mobile) {
+                console.warn('[MSG91 Webhook] Missing BOTH ID and Mobile. Skipping event.')
                 continue
             }
 
-            const refStr = rawId.toString()
-            const normalizedStatus = status === 'DELIVERED' || status === 'DELIVERY' ? 'DELIVERED' 
-                : (status === 'READ' ? 'READ' : status)
+            const refStr = rawId ? rawId.toString().trim() : ''
+            const normalizedStatus = status === 'DELIVERED' || status === 'DELIVERY' || status === 'COMPLETED' ? 'DELIVERED' 
+                : (status === 'READ' ? 'READ' : (status === 'SENT' ? 'SENT' : status))
 
             // --- 1. Universal Update for WhatsAppLog (Unified Feed) ---
             // RACE CONDITION FIX: MSG91 fires webhooks so fast, they often beat our background 
-            // database inserts. If not found, wait and retry up to 3 times (max 2 seconds).
+            // database inserts. If not found, wait and retry up to 3 times (total 5 seconds).
             let log: any = null;
             
-            for (let retry = 0; retry < 3; retry++) {
-                // First try to find by refId directly
-                log = await prisma.whatsAppLog.findFirst({
-                    where: { refId: refStr },
-                    orderBy: { createdAt: 'desc' }
-                })
+            for (let retry = 0; retry < 4; retry++) {
+                // First try to find by refId directly (our generated AUT_... ID)
+                if (refStr && refStr !== 'undefined') {
+                    log = await prisma.whatsAppLog.findFirst({
+                        where: { 
+                            refId: refStr,
+                            OR: [
+                                { mobile: mobile },
+                                { mobile: '91' + mobile }
+                            ].filter(c => c.mobile !== '')
+                        },
+                        orderBy: { createdAt: 'desc' }
+                    })
+                }
 
-                // If MSG91 omitted the refId and returned the wamid/request_id, 
-                // search recent logs by mobile number. For BULK campaign sends, MSG91
-                // returns a batch-level request_id for the API call, and then sends
-                // per-message wamids in delivery callbacks — they never match each other.
-                // So we just find the most recent log for this mobile (within last 48h).
+                // SECONDARY FALLBACK: Match by mobile number AND recent timestamp
+                // This is crucial if MSG91 only returns a internal message_id (wamid) 
+                // and omits our CRQID in the callback.
                 if (!log && mobile) {
                     const recentLogs = await prisma.whatsAppLog.findMany({
                         where: {
@@ -73,44 +87,54 @@ export async function POST(request: Request) {
                                 { mobile: mobile },
                                 { mobile: '91' + mobile }
                             ],
-                            createdAt: { gte: new Date(Date.now() - 48 * 60 * 60 * 1000) }
+                            createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // 24h window
                         },
-                        take: 10,
+                        take: 5,
                         orderBy: { createdAt: 'desc' }
                     })
-                    // Prefer logs that belong to a campaign (refId starts with 'camp_')
-                    log = recentLogs.find((l: any) => l.refId?.startsWith('camp_')) 
-                        || recentLogs.find((l: any) => l.metadata?.messageId === refStr)
-                        || recentLogs[0] 
-                        || null
+                    
+                    // Priority 1: Match by exact messageId if we stored it in metadata
+                    log = recentLogs.find((l: any) => l.metadata?.messageId === refStr || l.metadata?.request_id === refStr)
+                    
+                    // Priority 2: Match by prefix (e.g. if we have a batch ID)
+                    if (!log && refStr) {
+                        log = recentLogs.find((l: any) => l.refId && refStr.startsWith(l.refId))
+                    }
+
+                    // Priority 3: Fallback to the absolute most recent log for this mobile
+                    if (!log) {
+                        log = recentLogs[0]
+                    }
                 }
                 
                 if (log) break;
-                // Wait 800ms before retrying to give the sending thread time to save to DB
-                await new Promise(r => setTimeout(r, 800));
+                // Exponential backoff or simple delay
+                await new Promise(r => setTimeout(r, 1200));
             }
-
-            // Determine the true reference string. If MSG91 only sent request_id, 
-            // we use the refId from the matched database log to find the campaign.
-            const actualRefStr = log?.refId || refStr
 
             if (log) {
                 const currentMetadata = (log.metadata as any) || {}
                 const updatedMetadata = {
                     ...currentMetadata,
                     [`${status.toLowerCase()}At`]: new Date().toISOString(),
-                    lastStatusDetails: event
+                    lastWebhookEvent: event // Store the FULL RAW EVENT in metadata for diagnostics
                 }
 
                 await prisma.whatsAppLog.update({
                     where: { id: log.id },
                     data: {
                         status: normalizedStatus,
-                        metadata: updatedMetadata
+                        metadata: updatedMetadata,
+                        errorMessage: error || log.errorMessage
                     } as any
                 })
                 console.log(`[MSG91 Webhook] Updated WhatsAppLog ${log.id} to ${normalizedStatus}`)
+            } else {
+                console.warn(`[MSG91 Webhook] NO MATCH FOUND for: Mobile=${mobile}, Ref=${refStr}. Skipping campaign logic.`)
             }
+
+            // Determine the true reference string for campaign logic
+            const actualRefStr = log?.refId || refStr
 
             // --- 2. Campaign Specific Logic ---
             if (actualRefStr.startsWith('AUT_')) {

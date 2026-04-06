@@ -1,0 +1,44 @@
+
+================================================================================
+SMART RULES AUDIT ΓÇö 5/4/2026, 10:39:30 pm
+Total Rules: 3
+================================================================================
+
+[#1] Welcome Message ΓÇö ≡ƒƒó ACTIVE
+   Trigger     : EVENT
+   Template    : WELCOME_MESSAGE
+   Target Type : USER/AMBASSADOR (default)
+   Total Sent  : 310
+   Account Hlth: Active
+   Min Referrals: none | Max: none
+   Funnel Stage: All
+   Interval Day: none
+   Campus      : All
+   Last Run    : SUCCESS ΓÇö Message dispatched to Ambassador (5/4/2026, 6:11:51 pm)
+
+[#13] user with  0 referrals ΓÇö ≡ƒƒó ACTIVE
+   Trigger     : CRON_DAILY
+   Template    : REFERRAL_REMINDER
+   Target Type : USER/AMBASSADOR (default)
+   Total Sent  : 0
+   Account Hlth: Active Only (Default)
+   Min Referrals: 0 | Max: 0
+   Funnel Stage: hasNoLeads
+   Interval Day: Day 5
+   Campus      : All
+   Last Run    : Never executed
+
+[#14] Referral followup-1 ΓÇö ΓÜ¬ INACTIVE
+   Trigger     : CRON_DAILY
+   Template    : REFERRAL_FOLLOWUP-1
+   Target Type : REFERRAL_LEAD
+   Total Sent  : 0
+   Lead Status : New
+   Interval Day: Day 2
+   Campus      : All
+   Last Run    : Never executed
+
+================================================================================
+ISSUES FOUND: 0
+================================================================================
+Γ£à All rules are correctly configured.

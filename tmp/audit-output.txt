@@ -1,0 +1,326 @@
+
+================================================================================
+FULL CAMPAIGN AUDIENCE AUDIT ΓÇö 5/4/2026, 10:33:12 pm
+================================================================================
+
+Total Campaigns: 25
+
+[#1] Welcome
+  Status  : ACTIVE
+  Channels: IN_APP, PUSH, EMAIL
+  Type    : AMBASSADORS
+  Campus  : AASC
+  Role           : All
+  Account Health : (none)
+  Activity Status: All
+  Ref Milestone  : (none)
+  Funnel Status  : (none)
+  Missing Info   : (none)
+  Last Run       : Sent=74, Status=COMPLETED
+
+[#3] Referral Adding
+  Status  : ACTIVE
+  Channels: IN_APP
+  Type    : AMBASSADORS
+  Campus  : All
+  Role           : All
+  Account Health : (none)
+  Activity Status: All
+  Ref Milestone  : (none)
+  Funnel Status  : (none)
+  Missing Info   : (none)
+  Last Run       : Sent=4060, Status=COMPLETED
+
+[#4] WOW Workshop Alert ≡ƒÜÇ
+  Status  : ACTIVE
+  Channels: IN_APP
+  Type    : AMBASSADORS
+  Campus  : All
+  Role           : All
+  Account Health : (none)
+  Activity Status: All
+  Ref Milestone  : (none)
+  Funnel Status  : (none)
+  Missing Info   : (none)
+  Last Run       : Sent=4560, Status=COMPLETED
+
+[#5] Message
+  Status  : ACTIVE
+  Channels: IN_APP
+  Type    : AMBASSADORS
+  Campus  : All
+  Role           : All
+  Account Health : (none)
+  Activity Status: All
+  Ref Milestone  : (none)
+  Funnel Status  : (none)
+  Missing Info   : (none)
+  Last Run       : Sent=4560, Status=COMPLETED
+
+[#8] Insta Message
+  Status  : DRAFT
+  Channels: IN_APP
+  Type    : AMBASSADORS
+  Campus  : All
+  Role           : All
+  Account Health : (none)
+  Activity Status: All
+  Ref Milestone  : (none)
+  Funnel Status  : (none)
+  Missing Info   : (none)
+  Last Run       : Sent=5504, Status=COMPLETED
+
+[#9] WOW Workshop
+  Status  : DRAFT
+  Channels: IN_APP
+  Type    : AMBASSADORS
+  Campus  : All
+  Role           : All
+  Account Health : (none)
+  Activity Status: All
+  Ref Milestone  : (none)
+  Funnel Status  : (none)
+  Missing Info   : (none)
+  Last Run       : Sent=7600, Status=COMPLETED
+
+[#10] Submit the Referrals
+  Status  : ACTIVE
+  Channels: IN_APP
+  Type    : AMBASSADORS
+  Campus  : All
+  Role           : All
+  Account Health : Active
+  Activity Status: All
+  Ref Milestone  : 0
+  Funnel Status  : All
+  Missing Info   : None
+  Last Run       : Sent=5559, Status=COMPLETED
+
+[#11] WOW workshop
+  Status  : ACTIVE
+  Channels: IN_APP
+  Type    : AMBASSADORS
+  Campus  : All
+  Role           : All
+  Account Health : Active
+  Activity Status: All
+  Ref Milestone  : All
+  Funnel Status  : All
+  Missing Info   : None
+  Last Run       : Sent=5664, Status=COMPLETED
+
+[#12] Pending accounts
+  Status  : ACTIVE
+  Channels: EMAIL
+  Type    : AMBASSADORS
+  Campus  : All
+  Role           : All
+  Account Health : Inactive
+  Activity Status: All
+  Ref Milestone  : All
+  Funnel Status  : All
+  Missing Info   : None
+  Last Run       : Sent=1326, Status=COMPLETED
+
+[#13] activate your account
+  Status  : ACTIVE
+  Channels: WHATSAPP
+  Type    : AMBASSADORS
+  Campus  : All
+  Role           : All
+  Account Health : Inactive
+  Activity Status: All
+  Ref Milestone  : All
+  Funnel Status  : All
+  Missing Info   : None
+  Last Run       : Sent=0, Status=COMPLETED
+
+[#14] Activate your account
+  Status  : INACTIVE
+  Channels: WHATSAPP
+  Type    : AMBASSADORS
+  Campus  : All
+  Role           : All
+  Account Health : Inactive
+  Activity Status: All
+  Ref Milestone  : All
+  Funnel Status  : All
+  Missing Info   : None
+  Last Run       : Sent=3064, Status=COMPLETED
+
+[#15] Zero Referrals
+  Status  : ACTIVE
+  Channels: WHATSAPP
+  Type    : AMBASSADORS
+  Campus  : All
+  Role           : All
+  Account Health : Active
+  Activity Status: All
+  Ref Milestone  : 0
+  Funnel Status  : All
+  Missing Info   : None
+  Last Run       : Sent=6026, Status=COMPLETED
+
+[#16] zero referral
+  Status  : ACTIVE
+  Channels: IN_APP
+  Type    : AMBASSADORS
+  Campus  : All
+  Role           : All
+  Account Health : Active
+  Activity Status: All
+  Ref Milestone  : 0
+  Funnel Status  : All
+  Missing Info   : None
+  Last Run       : Sent=5901, Status=COMPLETED
+
+[#18] No Referrals
+  Status  : ACTIVE
+  Channels: WHATSAPP
+  Type    : AMBASSADORS
+  Campus  : All
+  Role           : All
+  Account Health : Active
+  Activity Status: All
+  Ref Milestone  : 0
+  Funnel Status  : hasNoLeads
+  Missing Info   : None
+  Last Run       : Sent=5770, Status=COMPLETED
+
+[#19] Zero referrals
+  Status  : ACTIVE
+  Channels: WHATSAPP
+  Type    : AMBASSADORS
+  Campus  : All
+  Role           : All
+  Account Health : Active
+  Activity Status: All
+  Ref Milestone  : 0
+  Funnel Status  : hasNoLeads
+  Missing Info   : None
+  Last Run       : Sent=5770, Status=COMPLETED
+
+[#20] Trichy 0 referrals
+  Status  : ACTIVE
+  Channels: WHATSAPP
+  Type    : AMBASSADORS
+  Campus  : ASM - TRICHY
+  Role           : All
+  Account Health : Active
+  Activity Status: All
+  Ref Milestone  : 0
+  Funnel Status  : hasNoLeads
+  Missing Info   : None
+  Last Run       : Sent=136, Status=COMPLETED
+
+[#21] test
+  Status  : ACTIVE
+  Channels: WHATSAPP
+  Type    : AMBASSADORS
+  Campus  : ABSM - LAWSPET
+  Role           : All
+  Account Health : Active
+  Activity Status: All
+  Ref Milestone  : 0
+  Funnel Status  : hasNoLeads
+  Missing Info   : None
+  Last Run       : Sent=82, Status=COMPLETED
+
+[#22] Asm Trichy 0 Referral
+  Status  : ACTIVE
+  Channels: WHATSAPP
+  Type    : AMBASSADORS
+  Campus  : ASM - TRICHY
+  Role           : All
+  Account Health : Active
+  Activity Status: All
+  Ref Milestone  : 0
+  Funnel Status  : hasNoLeads
+  Missing Info   : None
+  Last Run       : Sent=136, Status=COMPLETED
+
+[#23] Gorimedu 0 Referrals
+  Status  : ACTIVE
+  Channels: WHATSAPP
+  Type    : AMBASSADORS
+  Campus  : ABSM - GORIMEDU
+  Role           : All
+  Account Health : Active
+  Activity Status: All
+  Ref Milestone  : 0
+  Funnel Status  : hasNoLeads
+  Missing Info   : None
+  Last Run       : Sent=87, Status=COMPLETED
+
+[#24] ASM VL 0 Referrals
+  Status  : ACTIVE
+  Channels: WHATSAPP
+  Type    : AMBASSADORS
+  Campus  : ASM - VILLIANUR
+  Role           : All
+  Account Health : Active
+  Activity Status: All
+  Ref Milestone  : 0
+  Funnel Status  : hasNoLeads
+  Missing Info   : None
+  Last Run       : Sent=529, Status=COMPLETED
+
+[#25] ABSM TT 0 Referrals
+  Status  : ACTIVE
+  Channels: WHATSAPP
+  Type    : AMBASSADORS
+  Campus  : ABSM - THENGAITHITTU
+  Role           : All
+  Account Health : Active
+  Activity Status: All
+  Ref Milestone  : 0
+  Funnel Status  : hasNoLeads
+  Missing Info   : None
+  Last Run       : Sent=680, Status=COMPLETED
+
+[#26] New Referral follow-up 1
+  Status  : ACTIVE
+  Channels: WHATSAPP
+  Type    : REFERRALS
+  Campus  : All
+  Lead Status    : New
+  Last Run       : Sent=1040, Status=COMPLETED
+
+[#27] test ambassador
+  Status  : DRAFT
+  Channels: WHATSAPP
+  Type    : REFERRALS
+  Campus  : ABSM - GORIMEDU
+  Lead Status    : New
+  Last Run       : Never dispatched
+
+[#28] Referral follow-up 30/03/26
+  Status  : ACTIVE
+  Channels: WHATSAPP
+  Type    : REFERRALS
+  Campus  : All
+  Lead Status    : New
+  Last Run       : Sent=588, Status=COMPLETED
+
+[#29] Referral follow-up 02
+  Status  : DRAFT
+  Channels: WHATSAPP
+  Type    : REFERRALS
+  Campus  : All
+  Lead Status    : New
+  Last Run       : Never dispatched
+
+================================================================================
+ISSUES FOUND: 10
+================================================================================
+ΓÜá∩╕Å  1. #1 "Welcome" ΓÇö missing 'type' field (old format, defaults to AMBASSADORS)
+ΓÜá∩╕Å  2. #1 "Welcome" ΓÇö missing 'accountHealth' (may target inactive users)
+ΓÜá∩╕Å  3. #3 "Referral Adding" ΓÇö missing 'type' field (old format, defaults to AMBASSADORS)
+ΓÜá∩╕Å  4. #3 "Referral Adding" ΓÇö missing 'accountHealth' (may target inactive users)
+ΓÜá∩╕Å  5. #4 "WOW Workshop Alert ≡ƒÜÇ" ΓÇö missing 'type' field (old format, defaults to AMBASSADORS)
+ΓÜá∩╕Å  6. #4 "WOW Workshop Alert ≡ƒÜÇ" ΓÇö missing 'accountHealth' (may target inactive users)
+ΓÜá∩╕Å  7. #5 "Message" ΓÇö missing 'type' field (old format, defaults to AMBASSADORS)
+ΓÜá∩╕Å  8. #5 "Message" ΓÇö missing 'accountHealth' (may target inactive users)
+ΓÜá∩╕Å  9. #8 "Insta Message" ΓÇö missing 'accountHealth' (may target inactive users)
+ΓÜá∩╕Å  10. #9 "WOW Workshop" ΓÇö missing 'accountHealth' (may target inactive users)
+

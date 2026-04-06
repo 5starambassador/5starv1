@@ -13,6 +13,8 @@ import {
 } from '@/app/automation-rule-actions'
 import { getWhatsAppConfigs, WhatsAppConfigData } from '@/app/whatsapp-config-actions'
 import { getCampusNames } from '@/app/campus-actions'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { PromptDialog } from '@/components/ui/PromptDialog'
 
 export default function RuleBuilderPanel() {
     const [rules, setRules] = useState<AutomationRuleData[]>([])
@@ -22,6 +24,13 @@ export default function RuleBuilderPanel() {
     const [showForm, setShowForm] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
     const [editingRuleId, setEditingRuleId] = useState<number | null>(null)
+
+    // Dialog state for "Premium" experience
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [ruleToDeleteId, setRuleToDeleteId] = useState<number | null>(null)
+    const [isTestPromptOpen, setIsTestPromptOpen] = useState(false)
+    const [ruleToTest, setRuleToTest] = useState<AutomationRuleData | null>(null)
+    const [isProcessingDialog, setIsProcessingDialog] = useState(false)
 
     // Form State
     const [name, setName] = useState('')
@@ -168,19 +177,27 @@ export default function RuleBuilderPanel() {
         setIsSaving(false)
     }
 
-    const handleDelete = async (id: number) => {
-        if (!confirm('Delete this automation rule? This action cannot be undone.')) return
-        const res = await deleteAutomationRule(id)
+    const handleDelete = (id: number) => {
+        setRuleToDeleteId(id)
+        setIsDeleteDialogOpen(true)
+    }
+
+    const confirmDelete = async () => {
+        if (!ruleToDeleteId) return
+        setIsProcessingDialog(true)
+        const res = await deleteAutomationRule(ruleToDeleteId)
         if (res.success) {
             toast.success('Rule deleted')
-            setRules(prev => prev.filter(r => r.id !== id))
-            if (editingRuleId === id) {
+            setRules(prev => prev.filter(r => r.id !== ruleToDeleteId))
+            if (editingRuleId === ruleToDeleteId) {
                 setShowForm(false)
                 resetForm()
             }
+            setIsDeleteDialogOpen(false)
         } else {
             toast.error(res.error || 'Failed to delete')
         }
+        setIsProcessingDialog(false)
     }
 
     const toggleRule = async (rule: AutomationRuleData) => {
@@ -274,21 +291,28 @@ export default function RuleBuilderPanel() {
         setRoles(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])
     }
 
-    const handleTestRun = async (rule: AutomationRuleData) => {
-        const mobile = window.prompt(`Enter a 10-digit mobile number to send a live test message for rule \"${rule.name}\":`)
-        if (!mobile) return
-        if (mobile.replace(/\D/g,'').length < 10) {
+    const handleTestRun = (rule: AutomationRuleData) => {
+        setRuleToTest(rule)
+        setIsTestPromptOpen(true)
+    }
+
+    const confirmTestRun = async (mobile: string) => {
+        if (!ruleToTest) return
+        if (mobile.replace(/\D/g, '').length < 10) {
             toast.error("Please enter a valid 10-digit mobile number")
             return
         }
 
+        setIsProcessingDialog(true)
         const toastId = toast.loading('Firing test message through MSG91...')
-        const res = await testAutomationRule(rule.id, mobile)
+        const res = await testAutomationRule(ruleToTest.id, mobile)
         if (res.success) {
             toast.success(`100% Delivered! Test signal hit MSG91 for ${mobile}`, { id: toastId })
+            setIsTestPromptOpen(false)
         } else {
             toast.error((res as any).error || 'Failed to send test message', { id: toastId })
         }
+        setIsProcessingDialog(false)
     }
     const toggleStatus = (s: string) => {
         setStatuses(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
@@ -1195,6 +1219,33 @@ export default function RuleBuilderPanel() {
                     <span className="font-bold">Live Testing Enabled:</span> Use the "Test Run" button on any rule to fire a live signal to your mobile number. Ensure your templates are approved in the MSG91 portal.
                 </p>
             </div>
+
+            {/* Premium Dialogs */}
+            <ConfirmDialog 
+                isOpen={isDeleteDialogOpen}
+                title="Delete Automation Rule?"
+                description={<p>This action cannot be undone. Rule <span className="font-black text-slate-900">"{rules.find(r => r.id === ruleToDeleteId)?.name}"</span> will be permanently removed.</p>}
+                confirmText="Delete Rule"
+                onConfirm={confirmDelete}
+                onCancel={() => setIsDeleteDialogOpen(false)}
+                isLoading={isProcessingDialog}
+                variant="danger"
+            />
+
+            <PromptDialog 
+                isOpen={isTestPromptOpen}
+                title="Trigger Test Message"
+                description={`Enter a 10-digit mobile number to send a live test message for rule \"${ruleToTest?.name}\":`}
+                placeholder="e.g. 9876543210"
+                confirmText="Fire Test Signal"
+                onConfirm={confirmTestRun}
+                onCancel={() => {
+                    setIsTestPromptOpen(false)
+                    setRuleToTest(null)
+                }}
+                isLoading={isProcessingDialog}
+                variant="info"
+            />
         </div>
     )
 }
