@@ -144,11 +144,8 @@ export async function dispatchCampaignBatch(campaignId: number) {
             const preCount = await getAmbassadorQuery(audience as any);
             totalToProcess = await prisma.user.count({ where: preCount });
         } else if (type === 'PROGRAM_LEADS') {
-            const leadWhere: any = {};
-            if (audience.campus && audience.campus !== 'All') {
-                leadWhere.referrer = { assignedCampus: audience.campus };
-            }
-            totalToProcess = await prisma.programLead.count({ where: leadWhere });
+            const leadWhere = getProgramLeadQuery(audience as any);
+            totalToProcess = await (prisma as any).programLead.count({ where: leadWhere });
         } else if (type === 'REFERRALS') {
             const where = getReferralQuery(audience as any);
             totalToProcess = await prisma.referralLead.count({ where });

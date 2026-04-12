@@ -1498,26 +1498,59 @@ export async function bulkConvertLeadsToStudents(leadIds: number[]) {
                     continue
                 }
 
-                // CREATE STUDENT RECORD
-                await prisma.student.create({
-                    data: {
-                        fullName: lead.studentName,
-                        parentId: actualParentId,
-                        campusId: finalCampusId,
-                        grade: lead.gradeInterested || 'N/A',
-                        section: lead.section,
-                        academicYear: lead.admittedYear || '2025-2026',
-                        referralLeadId: lead.leadId,
-                        admissionNumber: lead.admissionNumber,
-                        ambassadorId: lead.userId,
-                        selectedFeeType: lead.selectedFeeType,
-                        annualFee: lead.annualFee,
-                        baseFee: lead.annualFee || 0,
-                        admissionFeeCollected: (lead as any).admissionFeeCollected,
-                        donationFeeCollected: (lead as any).donationFeeCollected,
-                        status: 'Active'
-                    } as any
-                })
+                // [Smart Link]: Check if a student already exists with this admission number to prevent duplicates
+                let targetStudentId: number | null = null;
+                if (lead.admissionNumber) {
+                    const existingStudent = await prisma.student.findUnique({
+                        where: { admissionNumber: lead.admissionNumber }
+                    });
+                    
+                    if (existingStudent) {
+                        // Found existing student - check for lead conflict
+                        if (existingStudent.referralLeadId && existingStudent.referralLeadId !== lead.leadId) {
+                            errors.push({ id: lead.leadId, reason: `Admission number ${lead.admissionNumber} is already linked to Lead ID ${existingStudent.referralLeadId}` })
+                            continue
+                        }
+                        
+                        // Link existing student to this lead
+                        await prisma.student.update({
+                            where: { studentId: existingStudent.studentId },
+                            data: {
+                                referralLeadId: lead.leadId,
+                                ambassadorId: lead.userId,
+                                // Sync other fields if current lead has more info
+                                annualFee: lead.annualFee || existingStudent.annualFee,
+                                selectedFeeType: lead.selectedFeeType || existingStudent.selectedFeeType
+                            }
+                        });
+                        targetStudentId = existingStudent.studentId;
+                    }
+                }
+
+                if (!targetStudentId) {
+                    // CREATE STUDENT RECORD (Normal path)
+                    const newStudent = await prisma.student.create({
+                        data: {
+                            fullName: lead.studentName,
+                            parentId: actualParentId,
+                            campusId: finalCampusId,
+                            grade: lead.gradeInterested || 'N/A',
+                            section: lead.section,
+                            academicYear: lead.admittedYear || '2025-2026',
+                            referralLeadId: lead.leadId,
+                            admissionNumber: lead.admissionNumber,
+                            ambassadorId: lead.userId,
+                            selectedFeeType: lead.selectedFeeType,
+                            annualFee: lead.annualFee,
+                            baseFee: lead.annualFee || 0,
+                            admissionFeeCollected: (lead as any).admissionFeeCollected,
+                            donationFeeCollected: (lead as any).donationFeeCollected,
+                            status: 'Active'
+                        } as any
+                    })
+                    targetStudentId = newStudent.studentId;
+                }
+
 
                 // UPDATE LEAD STATUS
                 await prisma.referralLead.update({

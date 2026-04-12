@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getAudienceCount, exportCampaignData, runCampaign, resetStuckCampaign, syncCampaignMetrics, sendIndividualWhatsApp, getWhatsAppTemplates, sendTestCampaignMessage } from '@/app/campaign-actions'
 import { dispatchCampaignBatch } from '@/app/campaign-dispatcher'
 import { getCampuses } from '@/app/campus-actions'
-import { getActivePrograms } from '@/app/program-actions'
+import { getAllPrograms } from '@/app/program-actions'
 import { toast } from 'sonner'
 import { Plus, Play, Edit, Trash2, Mail, Clock, CheckCircle2, AlertTriangle, Loader2, Users, Building2, Eye, Filter, Sparkles, Send, Target, ChevronRight, Activity, X, Save, Smartphone, Bell, Download, Database, RefreshCw, MessageSquare, ExternalLink } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -73,6 +73,7 @@ export function CampaignManager() {
             leadFunnelStatus: 'All',
             leadStatus: 'All',
             programLeadStatus: 'All',
+            programId: 'All',
             missingInfo: 'None'
         },
         channels: ['EMAIL'],
@@ -164,7 +165,7 @@ export function CampaignManager() {
         getWhatsAppTemplates().then(res => {
             if (res.success) setAvailableTemplates(res.templates || [])
         })
-        getActivePrograms().then(res => {
+        getAllPrograms().then(res => {
             if (res.success) setPrograms((res as any).programs || [])
         })
     }, [])
@@ -234,7 +235,7 @@ export function CampaignManager() {
                 name: '',
                 subject: '',
                 templateBody: '',
-                targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', leadStatus: 'All', programLeadStatus: 'All', missingInfo: 'None' },
+                targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', leadStatus: 'All', programLeadStatus: 'All', programId: 'All', missingInfo: 'None' },
                 channels: ['EMAIL'],
                 waTemplateName: '',
                 waVariableMapping: {},
@@ -316,7 +317,7 @@ export function CampaignManager() {
             name: c.name,
             subject: c.subject,
             templateBody: c.templateBody,
-            targetAudience: c.targetAudience || { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', missingInfo: 'None' },
+            targetAudience: c.targetAudience || { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', missingInfo: 'None', programId: 'All' },
             channels: c.channels || ['EMAIL'],
             waTemplateName: c.waTemplateName || '',
             waVariableMapping: c.waVariableMapping || {},
@@ -386,6 +387,11 @@ export function CampaignManager() {
         if (audience.programLeadStatus && audience.programLeadStatus !== 'All') {
             parts.push(audience.programLeadStatus.charAt(0) + audience.programLeadStatus.slice(1).toLowerCase())
         }
+        // ── Show Specific Program filter ──
+        if (audience.programId && audience.programId !== 'All') {
+            const prog = programs.find(p => p.id.toString() === audience.programId.toString());
+            if (prog) parts.push(`Program: ${prog.title}`);
+        }
         // ── Show Activity Status filter (Active / Dormant ambassadors) ──
         if (audience.activityStatus && audience.activityStatus !== 'All') {
             parts.push(audience.activityStatus === 'Dormant' ? 'Dormant' : 'Recently Active')
@@ -444,7 +450,7 @@ export function CampaignManager() {
                                 name: '',
                                 subject: '',
                                 templateBody: '',
-                                targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', leadStatus: 'All', programLeadStatus: 'All', missingInfo: 'None' },
+                                targetAudience: { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', leadStatus: 'All', programLeadStatus: 'All', programId: 'All', missingInfo: 'None' },
                                 channels: ['EMAIL'],
                                 waTemplateName: '',
                                 waVariableMapping: {},
@@ -1045,17 +1051,32 @@ export function CampaignManager() {
                                                 )}
 
                                                 {form.targetAudience.type === 'PROGRAM_LEADS' && (
-                                                    <div className="space-y-1.5">
-                                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Campaign Stage</label>
-                                                        <select
-                                                            value={(form.targetAudience as any).programLeadStatus || 'All'}
-                                                            onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, programLeadStatus: e.target.value } as any })}
-                                                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 transition-all font-bold text-emerald-600"
-                                                        >
-                                                            <option value="All">Global (All Stages)</option>
-                                                            <option value="CLICKED">Clicked (Interested)</option>
-                                                            <option value="REGISTERED">Registered / Converted</option>
-                                                        </select>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <div className="space-y-1.5">
+                                                            <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Target Program</label>
+                                                            <select
+                                                                value={(form.targetAudience as any).programId || 'All'}
+                                                                onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, programId: e.target.value } as any })}
+                                                                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 transition-all font-bold text-indigo-600"
+                                                            >
+                                                                <option value="All">Global (All Programs)</option>
+                                                                {programs.map(p => (
+                                                                    <option key={p.id} value={p.id}>{p.title}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Campaign Stage</label>
+                                                            <select
+                                                                value={(form.targetAudience as any).programLeadStatus || 'All'}
+                                                                onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, programLeadStatus: e.target.value } as any })}
+                                                                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 transition-all font-bold text-emerald-600"
+                                                            >
+                                                                <option value="All">Global (All Stages)</option>
+                                                                <option value="CLICKED">Clicked (Interested)</option>
+                                                                <option value="REGISTERED">Registered / Converted</option>
+                                                            </select>
+                                                        </div>
                                                     </div>
                                                 )}
 

@@ -11,6 +11,8 @@ import { AcademicYearFilter } from '@/components/AcademicYearFilter'
 // Imports at top
 
 import { CampusAnalyticsView } from '@/components/campus/CampusAnalyticsView'
+import { getAllProgramLeads } from '@/app/superadmin-actions'
+import { ProgramLeadsTable } from '@/components/superadmin/ProgramLeadsTable'
 
 export const dynamic = 'force-dynamic'
 
@@ -62,6 +64,25 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
                 campusName={user.assignedCampus || 'All Campuses'}
                 currentDays={days}
             />
+        )
+    }
+
+    if (view === 'program-leads') {
+        const leadsRes = await getAllProgramLeads()
+        const allLeads = ('leads' in leadsRes) ? (leadsRes.leads || []) : []
+        
+        // Filter leads based on the campus head's assigned campus for 100% integrity
+        const leads = allLeads.filter((l: any) => 
+            l.referrer?.assignedCampus === user.assignedCampus
+        )
+
+        return (
+            <div className="space-y-6 animate-fade-in">
+                <Link href="/campus" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium">
+                    <ArrowLeft size={16} /> Back to Home
+                </Link>
+                <ProgramLeadsTable leads={leads} />
+            </div>
         )
     }
 

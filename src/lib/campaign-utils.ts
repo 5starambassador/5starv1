@@ -22,6 +22,7 @@ export type AudienceFilter = {
     leadFunnelStatus?: string   // 'hasPendingLeads' | 'hasVisitedLeads' | 'hasSubmittedNotConfirmed' | 'hasNoLeads' | 'All'
     leadStatus?: string         // 'New' | 'Contacted' | 'Admitted_Confirmed' | 'Rejected' | 'All'
     programLeadStatus?: string  // 'CLICKED' | 'REGISTERED' | 'All'
+    programId?: string          // 'All' | Specific ID
 }
 
 export const getAmbassadorQuery = (audience: AudienceFilter): Prisma.UserWhereInput => {
@@ -184,6 +185,14 @@ export const getProgramLeadQuery = (audience: AudienceFilter): Prisma.ProgramLea
             andClauses.push({ status: 'CLICKED' })
         } else if (status === 'REGISTERED') {
             andClauses.push({ status: 'REGISTERED' })
+        }
+    }
+
+    // ── Program Filter ────────────────────────────────────────────────────────
+    if (audience.programId && audience.programId !== 'All') {
+        const pId = parseInt(audience.programId)
+        if (!isNaN(pId)) {
+            andClauses.push({ programId: pId })
         }
     }
 

@@ -1,13 +1,15 @@
 import { getMyProgramLeads } from '@/app/referral-actions'
 import { getActivePrograms } from '@/app/program-actions'
+import { getCurrentUser } from '@/lib/auth-service'
 import { ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
 import { ProgramLeadsList } from './program-leads-list'
 
 export default async function ProgramLeadsPage() {
-    const [leads, programsRes] = await Promise.all([
+    const [leads, programsRes, user] = await Promise.all([
         getMyProgramLeads(),
-        getActivePrograms()
+        getActivePrograms(),
+        getCurrentUser()
     ])
 
     const programs = programsRes.success ? programsRes.programs : []
@@ -27,7 +29,7 @@ export default async function ProgramLeadsPage() {
                     </div>
                 </header>
 
-                <ProgramLeadsList leads={leads} programs={programs} />
+                <ProgramLeadsList leads={leads} programs={programs} user={user} />
             </div>
         </div>
     )
