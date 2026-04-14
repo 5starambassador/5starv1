@@ -41,6 +41,8 @@ interface Liability {
     // Data quality flags
     hasMissingFeeData?: boolean
     missingFeeCampuses?: string[]
+    isNew?: boolean
+    latestActivityDate?: number
 }
 
 interface LiabilityLedgerTableProps {
@@ -162,10 +164,19 @@ export function LiabilityLedgerTable({
             accessorKey: 'fullName',
             sortable: true,
             cell: (row: Liability) => (
-                <div className="w-[150px]">
-                    <div className="font-bold text-gray-900 leading-tight">{row.fullName}</div>
-                    <div className="text-[10px] text-gray-500 font-medium">{row.mobileNumber}</div>
-                    {row.referralCode && <div className="text-[9px] text-gray-400 font-mono">{row.referralCode}</div>}
+                <div className="w-[200px] flex items-start gap-2">
+                    <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                            <div className="font-bold text-gray-900 leading-tight">{row.fullName}</div>
+                            {row.isNew && (
+                                <span className="text-[8px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter animate-pulse shadow-sm shadow-indigo-200">
+                                    NEW
+                                </span>
+                            )}
+                        </div>
+                        <div className="text-[10px] text-gray-500 font-medium">{row.mobileNumber}</div>
+                        {row.referralCode && <div className="text-[9px] text-gray-400 font-mono">{row.referralCode}</div>}
+                    </div>
                 </div >
             )
         },

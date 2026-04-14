@@ -15,6 +15,10 @@ export interface ReferralData {
     admissionFeeCollected?: number
     donationFeeCollected?: number
     specialBonusRate?: number
+    createdAt?: Date | string
+    confirmedDate?: Date | string | null
+    studentCreatedAt?: Date | string | null
+    feeDataMissing?: boolean
 }
 
 export interface UserContext {

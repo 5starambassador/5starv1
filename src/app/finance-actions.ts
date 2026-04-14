@@ -1609,7 +1609,7 @@ export async function getAccruedPayoutLiabilities(
                 },
                 include: {
                     student: {
-                        select: { studentId: true, fullName: true, grade: true, campusId: true, annualFee: true, baseFee: true, campus: { select: { campusName: true } } }
+                        select: { studentId: true, fullName: true, grade: true, campusId: true, annualFee: true, baseFee: true, createdAt: true, campus: { select: { campusName: true } } }
                     }
                 }
             })
@@ -1783,7 +1783,7 @@ export async function getAccruedPayoutLiabilities(
 
             // 3. Map ReferralLeads to ReferralData for the calculator
             const userReferrals = referralMap.get(u.userId) || []
-            const currentReferrals: (ReferralData & { feeDataMissing?: boolean })[] = userReferrals
+            const currentReferrals: ReferralData[] = userReferrals
                 .filter((r: any) => {
                     // 🚨 SENIOR AUDIT GUARD: Exclude Self-Referrals (Own Children)
                     // Policy: Own children not allowed as referrals.
@@ -1829,6 +1829,8 @@ export async function getAccruedPayoutLiabilities(
                         donationFeeCollected: Number(r.donationFeeCollected) || 0,
                         specialBonusRate: Number(specialBonusRate) || 0,
                         createdAt: r.createdAt,
+                        confirmedDate: r.confirmedDate,
+                        studentCreatedAt: r.student?.createdAt,
                         // Fix (Senior Audit): Differentiate missing data by Group
                         feeDataMissing: (isGroupAEligible && !actualChildFee && !specialBonusRate) || 
                                        (!isGroupAEligible && !gFeeFromTable && !specialBonusRate)
@@ -1987,6 +1989,23 @@ export async function getAccruedPayoutLiabilities(
             const hasMissingFeeData = (missingFeeReferrals.length > 0) || (isGroupAEligible && !displayChildFee && slabs.length > 0)
             const missingFeeCampuses = Array.from(new Set(missingFeeReferrals.map((r: any) => r.campusName || `Campus ID ${r.campusId}`)))
 
+            let latestReferralTime = 0
+                for (const r of currentReferrals) {
+                    // Check Entry Date
+                    const time1 = r.createdAt ? new Date(r.createdAt).getTime() : 0
+                    if (!isNaN(time1) && time1 > latestReferralTime) latestReferralTime = time1
+
+                    // Check Confirmation Date
+                    const time2 = r.confirmedDate ? new Date(r.confirmedDate).getTime() : 0
+                    if (!isNaN(time2) && time2 > latestReferralTime) latestReferralTime = time2
+
+                    // Check Admission/Sync Date (Student Creation)
+                    const time3 = r.studentCreatedAt ? new Date(r.studentCreatedAt).getTime() : 0
+                    if (!isNaN(time3) && time3 > latestReferralTime) latestReferralTime = time3
+                }
+
+            const isNew = latestReferralTime > (Date.now() - 48 * 60 * 60 * 1000)
+
             if (isGroupAEligible) {
                 // Unified record for Group A (Staff/Parents)
                 // Only show if they have referrals in THIS specific year (prevents year bleed-through)
@@ -2029,7 +2048,9 @@ export async function getAccruedPayoutLiabilities(
                         ifscCode: (u as any).ifscCode,
                         bankAccountDetails: (u as any).bankAccountDetails,
                         type: 'Unified',
-                        group: 'Group A'
+                        group: 'Group A',
+                        isNew,
+                        latestActivityDate: latestReferralTime
                     })
                 }
             } else if (currentReferrals.length > 0) {
@@ -2071,10 +2092,15 @@ export async function getAccruedPayoutLiabilities(
                     ifscCode: (u as any).ifscCode,
                     bankAccountDetails: (u as any).bankAccountDetails,
                     type: 'Payout',
-                    group: 'Group B'
+                    group: 'Group B',
+                    isNew,
+                    latestActivityDate: latestReferralTime
                 })
             }
         }
+
+        // --- ENHANCEMENT: EXPLICIT SORT BY LATEST ACTIVITY ---
+        liabilities.sort((a, b) => (b.latestActivityDate || 0) - (a.latestActivityDate || 0))
 
         return { success: true, data: liabilities, totalCount: totalAmbassadorsWithRewards }
 
