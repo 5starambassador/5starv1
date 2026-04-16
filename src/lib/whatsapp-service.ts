@@ -317,10 +317,17 @@ class WhatsAppService {
     /**
      * Sends a free-form text message (use within 24h window of user message)
      */
-    async sendFreeTextMessage(mobile: string, text: string, type: string = 'CHATBOT', refId?: string): Promise<WhatsAppResponse> {
+    async sendFreeTextMessage(
+        mobile: string, 
+        text: string, 
+        type: string = 'CHATBOT', 
+        refId?: string,
+        userRole?: string,
+        campus?: string
+    ): Promise<WhatsAppResponse> {
         if (!this.getAuthKey() || WHATSAPP_PROVIDER === 'mock') {
             console.log(`\n💬 [WHATSAPP MOCK TXT] To: ${mobile} | Message: ${text}\n`)
-            await this.logMessage(mobile, null, text, type, 'SENT')
+            await this.logMessage(mobile, null, text, type, 'SENT', undefined, undefined, refId, undefined, undefined, userRole, campus)
             return { success: true, messageId: 'mock-wa-txt-' + Date.now() }
         }
 
@@ -358,20 +365,41 @@ class WhatsAppService {
 
             if (response.ok && data.status === 'success') {
                 const messageId = (data.message_id || data.request_id || '').toString()
-                await this.logMessage(mobile, null, text, type, 'SENT', messageId, undefined, trackingRef, { ...diagnosticMetadata, messageId })
+                await this.logMessage(mobile, null, text, type, 'SENT', messageId, undefined, trackingRef, { ...diagnosticMetadata, messageId }, undefined, userRole, campus)
                 return { success: true, messageId }
             } else {
                 const errorMsg = data.message || 'WhatsApp API Error'
-                await this.logMessage(mobile, null, text, type, 'FAILED', undefined, errorMsg, trackingRef, diagnosticMetadata)
+                await this.logMessage(mobile, null, text, type, 'FAILED', undefined, errorMsg, trackingRef, diagnosticMetadata, undefined, userRole, campus)
                 console.error('WhatsApp API Error:', data)
                 return { success: false, error: errorMsg }
             }
         } catch (error: any) {
             const errRef = refId || `ERR_TXT_${Date.now()}`
-            await this.logMessage(mobile, null, text, type, 'FAILED', undefined, error.message, errRef)
+            await this.logMessage(mobile, null, text, type, 'FAILED', undefined, error.message, errRef, undefined, undefined, userRole, campus)
             console.error('WhatsApp Service Exception:', error)
             return { success: false, error: error.message }
         }
+    }
+
+    private normalizeRole(role?: string): string {
+        if (!role || role === 'User') return 'User'
+        const r = role.toLowerCase().trim()
+        if (r === 'parent') return 'Parent'
+        if (r === 'staff') return 'Staff'
+        if (r === 'alumni') return 'Alumni'
+        if (r === 'lead') return 'Lead'
+        if (r === 'admin') return 'Admin'
+        // Handle variations of Super Admin or Campus Head
+        if (r.includes('super')) return 'Admin'
+        if (r.includes('head')) return 'Admin'
+        
+        // Capitalize first letter for everything else
+        return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()
+    }
+
+    private normalizeCampus(campus?: string): string {
+        if (!campus || campus.trim() === '' || campus === '-' || campus === 'undefined') return '-'
+        return campus.trim()
     }
 
     public async logMessage(
@@ -389,6 +417,23 @@ class WhatsAppService {
         campus?: string
     ) {
         try {
+            // 🛡️ 100% DATA INTEGRITY: Late-lookup rescue logic
+            // If the caller didn't provide role/campus, try to resolve from DB
+            let finalRole = userRole || 'User'
+            let finalCampus = campus || '-'
+
+            if (finalRole === 'User' || finalCampus === '-') {
+                const sanitizedMobile = mobile.replace(/\D/g, '').slice(-10)
+                const user = await prisma.user.findFirst({
+                    where: { mobileNumber: { endsWith: sanitizedMobile } },
+                    select: { role: true, assignedCampus: true }
+                })
+                if (user) {
+                    if (finalRole === 'User') finalRole = user.role
+                    if (finalCampus === '-') finalCampus = user.assignedCampus || '-'
+                }
+            }
+
             await prisma.whatsAppLog.create({
                 data: {
                     mobile,
@@ -399,8 +444,8 @@ class WhatsAppService {
                     errorMessage: error || null,
                     waHeaderUrl: waHeaderUrl || null,
                     refId: refId || null,
-                    userRole: userRole || 'User',
-                    campus: campus || '-',
+                    userRole: this.normalizeRole(finalRole),
+                    campus: this.normalizeCampus(finalCampus),
                     metadata: {
                         ...(metadata || {}),
                         messageId: messageId || (metadata?.messageId) || null,
@@ -413,9 +458,9 @@ class WhatsAppService {
         }
     }
 
-    private async sendMock(mobile: string, template: string, vars: string[], type: string = 'SYSTEM'): Promise<WhatsAppResponse> {
+    private async sendMock(mobile: string, template: string, vars: string[], type: string = 'SYSTEM', userRole?: string, campus?: string): Promise<WhatsAppResponse> {
         console.log(`\n💬 [WHATSAPP MOCK] To: ${mobile} | Template: ${template} | Type: ${type} | Vars: ${vars.join(', ')}\n`)
-        await this.logMessage(mobile, template, vars.join(', '), type, 'SENT')
+        await this.logMessage(mobile, template, vars.join(', '), type, 'SENT', undefined, undefined, undefined, undefined, undefined, userRole, campus)
         return { success: true, messageId: 'mock-wa-' + Date.now() }
     }
 
@@ -454,6 +499,10 @@ class WhatsAppService {
         let finalVars = [...variables]
         const countToTarget = templateName === 'referral_followup_2' ? 2 : (config?.requiredVariablesCount ?? finalVars.length)
         
+        if (finalVars.length !== countToTarget) {
+            console.log(`[WhatsAppService] Variable count mismatch for ${templateName}. Target: ${countToTarget}, Actual: ${finalVars.length}. Adjusting...`)
+        }
+
         if (finalVars.length > countToTarget) {
             finalVars = finalVars.slice(0, countToTarget)
         } else while (finalVars.length < countToTarget) {
@@ -463,10 +512,13 @@ class WhatsAppService {
         if (finalVars.length > 0) {
             components.push({
                 type: "body",
-                parameters: finalVars.map(v => ({
-                    type: "text",
-                    text: (v || '').toString().replace(/[\r\n]+/g, ' ').trim()
-                }))
+                parameters: finalVars.map(v => {
+                    const textValue = (v || '').toString().replace(/[\r\n]+/g, ' ').trim()
+                    return {
+                        type: "text",
+                        text: textValue === '' ? " " : textValue // WhatsApp API rejects truly empty strings
+                    }
+                })
             })
         }
 

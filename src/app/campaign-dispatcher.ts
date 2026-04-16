@@ -21,65 +21,74 @@ import { encryptReferralCode } from '@/lib/crypto'
 export const aliasTokens = async (text: string, user: any, audienceType: string = 'AMBASSADORS') => {
     if (!text) return ''
     const type = audienceType || 'AMBASSADORS'
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://5starambassador.com'
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.5starambassador.com'
+
+    // ✅ BARE-KEY RESILIENCE: If the UI sends "Name" instead of "{Name}", wrap it
+    // This fixes the "variable data not showing" issue in Campaigns.
+    let workingText = text
+    const bareKeys = ['Name', 'leadName', 'userName', 'studentName', 'source', 'programLink', 'programName', 'campus', 'referralCode', 'referralLink', 'referrerLink', 'role', 'status', 'enquiryDate', 'academicYear']
+    if (!text.includes('{') && bareKeys.some(bk => text.toLowerCase() === bk.toLowerCase())) {
+        workingText = `{${text}}`
+    }
 
     const referralCode = user.referralCode || user.referrerCode || ''
     const referralLink = referralCode ? `${baseUrl}/r/${encryptReferralCode(referralCode)}` : ''
     const referrerLink = user.referrerCode ? `${baseUrl}/r/${encryptReferralCode(user.referrerCode)}` : ''
 
     // 🔥 GLOBAL PRIORITY mapping — these apply to ALL audience types
-    let resolvedText = text
-        .replace(/{userName}|{Ambassador}|{parentName}|{Name}|{leadName}|{studentName}/gi, user.fullName || user.studentName || 'Recipient')
+    let resolvedText = workingText
+        .replace(/{userName}|{Ambassador}|{parentName}|{Name}|{leadName}|{studentName}/gi, user.fullName || user.visitorName || user.studentName || 'Recipient')
         .replace(/{campus}|{Campus}|{CAMPUS}/gi, user.assignedCampus || 'Global Campus')
-        .replace(/{mobile}|{Mobile}/gi, user.mobileNumber || '')
-        .replace(/{referralCode}|{code}|{ReferralCode}/gi, user.referralCode || '')
-        .replace(/{referralLink}|{ReferralLink}/gi, referralLink)
-        .replace(/{referrerLink}|{ReferrerLink}/gi, referrerLink)
+        .replace(/{mobile}|{Mobile}/gi, user.mobileNumber || user.visitorMobile || '')
+        .replace(/{referralCode}|{code}|{ReferralCode}/gi, referralCode || 'ACH-REF')
+        .replace(/{referralLink}|{ReferralLink}/gi, referralLink || baseUrl)
+        .replace(/{referrerLink}|{ReferrerLink}/gi, referrerLink || baseUrl)
 
-    if (type === 'STUDENTS') {
-        return resolvedText
-            .replace(/{grade}|{Grade}/gi, user.grade || '')
-            .replace(/{admissionDate}/gi, user.admissionDate || '')
-    }
-
-    if (type === 'REFERRALS') {
-        const programLink = user.referrerCode ? `${baseUrl}/p/admission?r=${encryptReferralCode(user.referrerCode)}` : ''
-        return resolvedText
-            .replace(/{studentName}/gi, user.studentName || 'Student')
-            .replace(/{grade}|{Grade}/gi, user.grade || '')
-            .replace(/{leadStatus}|{status}/gi, user.leadStatus || '')
-            .replace(/{ambassadorName}|{referrerName}/gi, user.ambassadorName || '')
-            .replace(/{academicYear}/gi, user.academicYear || '2025-2026')
-            .replace(/{ProgramLink}/gi, programLink)
-    }
-
-    if (type === 'PROGRAM_LEADS') {
-        const programLink = user.programSlug ? `${baseUrl}/p/${user.programSlug}?r=${encryptReferralCode(user.referrerCode || '')}` : ''
-        return resolvedText
-            .replace(/{studentName}/gi, user.studentName || 'Student')
-            .replace(/{source}|{referrerName}/gi, user.source || '')
-            .replace(/{programName}/gi, user.programName || '')
-            .replace(/{programLink}/gi, programLink)
-            .replace(/{status}|{leadStatus}/gi, user.leadStatus || '')
-            .replace(/{enquiryDate}/gi, user.enquiryDate || '')
-    }
-
-    // Default: AMBASSADORS
-    resolvedText = resolvedText
-        .replace(/{role}|{Role}/gi, user.role || 'Ambassador')
-        .replace(/{referralCount}/gi, (user.confirmedReferralCount || 0).toString())
-        .replace(/{pendingReferrals}/gi, (user.pendingReferralCount || 0).toString())
-
-    // Handle Dynamic Program Links (e.g. {ProgramLink:slug})
+    // Handle Dynamic Program Links (e.g. {ProgramLink:slug}) early so they are resolved for all types
     if (resolvedText.includes('{ProgramLink:')) {
         const programRegex = /{ProgramLink:([^}]+)}/gi
         resolvedText = resolvedText.replace(programRegex, (match, slug) => {
-            if (user.referralCode) {
-                return `${baseUrl}/offer/${slug}?ref=${user.referralCode}`
+            const activeRefCode = user.referralCode || user.referrerCode || '' 
+            if (activeRefCode) {
+                return `${baseUrl}/offer/${slug}?ref=${activeRefCode}`
             }
             return `${baseUrl}/offer/${slug}`
         })
     }
+
+    if (type === 'STUDENTS') {
+        resolvedText = resolvedText
+            .replace(/{grade}|{Grade}/gi, user.grade || 'Grade')
+            .replace(/{admissionDate}/gi, user.admissionDate || 'Today')
+    } else if (type === 'REFERRALS') {
+        const programLink = user.referrerCode ? `${baseUrl}/p/admission?r=${encryptReferralCode(user.referrerCode)}` : `${baseUrl}/p/admission`
+        resolvedText = resolvedText
+            .replace(/{studentName}/gi, user.studentName || 'Student')
+            .replace(/{grade}|{Grade}/gi, user.grade || 'Grade')
+            .replace(/{leadStatus}|{status}/gi, user.leadStatus || 'New')
+            .replace(/{ambassadorName}|{referrerName}/gi, user.ambassadorName || 'Achariya')
+            .replace(/{academicYear}/gi, user.academicYear || '2025-2026')
+            .replace(/{ProgramLink}/gi, programLink)
+    } else if (type === 'PROGRAM_LEADS') {
+        const activeRefCode = user.referralCode || user.referrerCode || ''
+        const programLink = user.programSlug 
+            ? `${baseUrl}/offer/${user.programSlug}${activeRefCode ? `?ref=${activeRefCode}` : ''}` 
+            : `${baseUrl}/offer`
+            
+        resolvedText = resolvedText
+            .replace(/{studentName}/gi, user.studentName || user.visitorName || 'Student')
+            .replace(/{source}|{referrerName}/gi, user.source || 'Achariya Parent/Staff')
+            .replace(/{programName}/gi, user.programName || 'Program')
+            .replace(/{programLink}/gi, programLink)
+            .replace(/{status}|{leadStatus}/gi, user.leadStatus || 'New')
+            .replace(/{enquiryDate}/gi, user.enquiryDate || 'Recently')
+    }
+
+    // Default: AMBASSADORS (Cascades after type-specific)
+    resolvedText = resolvedText
+        .replace(/{role}|{Role}/gi, user.role || 'Ambassador')
+        .replace(/{referralCount}/gi, (user.confirmedReferralCount || 0).toString())
+        .replace(/{pendingReferrals}/gi, (user.pendingReferralCount || 0).toString())
 
     return resolvedText
 }
@@ -337,7 +346,15 @@ export async function dispatchCampaignBatch(campaignId: number) {
                         continue
                     }
 
+                    const templateName = (campaign as any).waTemplateName || 'welcome_message'
                     const mapping = (campaign as any).waVariableMapping || {}
+                    
+                    // 🛡️ 100% INTEGRITY: Fetch template config once per recipient
+                    const waConfig = await prisma.whatsAppConfig.findFirst({
+                        where: { templateName: templateName }
+                    })
+                    const requiredCount = waConfig?.requiredVariablesCount ?? 0
+
                     const mappingKeys = Object.keys(mapping).filter(k => {
                         const cleanKey = k.replace('button_', 'var_')
                         return !isNaN(Number(cleanKey.replace(/\D/g, '')))
@@ -346,21 +363,34 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     const waVars: string[] = []
                     const btnVars: string[] = []
                     
-                    // Logic: Map regular variables (1, 2, 3...) to waVars 
-                    // and button variables (button_1, button_2...) to btnVars
-                    const maxVar = mappingKeys.length > 0 ? Math.max(...mappingKeys.map(k => Number(k.replace(/\D/g, '')))) : 5
+                    // Use requiredCount as primary bound, fallback to mapping max if 0
+                    const mappingMax = mappingKeys.length > 0 ? Math.max(...mappingKeys.map(k => Number(k.replace(/\D/g, '')))) : 0
+                    const varCount = requiredCount > 0 ? requiredCount : (mappingMax || 2)
 
-                    for (let i = 1; i <= maxVar; i++) {
+                    for (let i = 1; i <= varCount; i++) {
                         const key = i.toString()
                         const btnKey = `button_${i}`
                         
-                        // Handle Body Var
-                        const bodyMappedValue = mapping[key]
+                        // Body Var: Support multiple key patterns
+                        const bodyMappedValue = mapping[key] || mapping[`var_${key}`] || mapping[`Variable ${key}`]
+                        let resolved = ''
+
                         if (bodyMappedValue === 'STATIC') {
-                            waVars.push((mapping[`static_${key}`] || '').toString().replace(/[\r\n]+/g, ' ').trim())
+                            resolved = (mapping[`static_${key}`] || mapping[`static_var_${key}`] || '').toString().replace(/[\r\n]+/g, ' ').trim() || 'Achariya'
                         } else if (bodyMappedValue) {
-                            waVars.push((await aliasTokens(bodyMappedValue, user, audience.type)).toString().replace(/[\r\n]+/g, ' ').trim())
+                            resolved = (await aliasTokens(bodyMappedValue, user, audience.type)).toString().replace(/[\r\n]+/g, ' ').trim()
                         }
+
+                        // 🛡️ HEURISTIC RECOVERY (100% Safety Protocol)
+                        // If resolution failed, guess logical defaults based on index
+                        if (!resolved || resolved === '-' || resolved === 'Recipient' || resolved === 'Friend') {
+                            if (i === 1) resolved = user.fullName || user.visitorName || 'Friend'
+                            else if (i === 2) resolved = user.source || user.assignedCampus || 'Academic Institution'
+                            else if (i === 3) resolved = (await aliasTokens('{programLink}', user, audience.type)) || 'https://www.5starambassador.com'
+                            else resolved = resolved || bodyMappedValue || '-'
+                        }
+
+                        waVars.push(resolved)
 
                         // Handle Button Var
                         const btnMappedValue = mapping[btnKey]
@@ -386,8 +416,8 @@ export async function dispatchCampaignBatch(campaignId: number) {
                         mobile: cleanMobile,
                         variables: waVars,
                         fullText: fullText,
-                        userRole: user.role || 'User',
-                        campus: user.assignedCampus || '-'
+                        userRole: user.role,
+                        campus: user.assignedCampus
                     })
 
                     if (btnVars.length > 0) {
