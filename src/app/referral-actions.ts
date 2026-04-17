@@ -49,6 +49,8 @@ export async function sendReferralOtp(mobileInput: string, referralCode?: string
     let destinationMobile = mobile
     let isAmbassadorVerified = false
     let ambassadorName = ''
+    let recipientRole: string = 'Lead'
+    let recipientCampus: string = '-'
 
     if (referralCode) {
         const ambassador = await prisma.user.findUnique({
@@ -58,6 +60,9 @@ export async function sendReferralOtp(mobileInput: string, referralCode?: string
             destinationMobile = ambassador.mobileNumber
             isAmbassadorVerified = true
             ambassadorName = ambassador.fullName
+            // Capture for OTP log metadata
+            recipientRole = ambassador.role
+            recipientCampus = ambassador.assignedCampus || '-'
         }
     }
 
@@ -97,7 +102,17 @@ export async function sendReferralOtp(mobileInput: string, referralCode?: string
         try {
             const settings = await getNotificationSettings()
             if (settings?.whatsappNotifications) {
-                await whatsappService.sendByEvent(destinationMobile, "REFERRAL_OTP", [finalOtp], 'ALERT')
+                await whatsappService.sendByEvent(
+                    destinationMobile, 
+                    "REFERRAL_OTP", 
+                    [finalOtp], 
+                    'ALERT',
+                    undefined,
+                    undefined,
+                    [],
+                    recipientRole,
+                    recipientCampus
+                )
                 console.log('💬 [Referral] WhatsApp OTP triggered for:', destinationMobile)
             }
         } catch (waError) {
@@ -353,7 +368,7 @@ export async function submitReferral(formData: {
                 // 1. Notify Ambassador (Your referral has been submitted...)
                 const ambassadorData = await prisma.user.findUnique({
                     where: { userId: referringUserId },
-                    select: { fullName: true, mobileNumber: true }
+                    select: { fullName: true, mobileNumber: true, role: true, assignedCampus: true }
                 })
 
                 if (ambassadorData?.mobileNumber) {
@@ -362,7 +377,11 @@ export async function submitReferral(formData: {
                         'REFERRAL_SUBMITTED_AMBASSADOR',
                         [ambassadorData.fullName, parentName, campus || 'our'],
                         'SYSTEM',
-                        newLead.leadId.toString()
+                        newLead.leadId.toString(),
+                        undefined,
+                        [],
+                        ambassadorData.role || 'User',
+                        ambassadorData.assignedCampus || '-'
                     )
                 }
 
@@ -372,7 +391,11 @@ export async function submitReferral(formData: {
                     'REFERRAL_SUBMITTED_PARENT',
                     [parentName, ambassadorData?.fullName || 'An Achariya Ambassador', campus || 'our'],
                     'SYSTEM',
-                    newLead.leadId.toString()
+                    newLead.leadId.toString(),
+                    undefined,
+                    [],
+                    'Parent', // Role for the recipient (Parent/Lead)
+                    campus || '-' // Referred Campus
                 )
             }
         } catch (waError) {

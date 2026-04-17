@@ -634,6 +634,7 @@ export function SettlementTable({
                         className="hidden"
                         accept=".csv"
                         onChange={handleFileUpload}
+                        title="Upload settlement CSV"
                     />
                 </div>
             </div>

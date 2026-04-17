@@ -186,6 +186,7 @@ export function FinanceClientTabs({
                                     value={selectedYear}
                                     onChange={(e) => handleYearChange(e.target.value)}
                                     suppressHydrationWarning={true}
+                                    aria-label="Filter by cycle year"
                                     className="bg-transparent text-xs font-bold text-gray-900 outline-none cursor-pointer focus:ring-0"
                                 >
                                     <option value="All">Lifetime (All)</option>

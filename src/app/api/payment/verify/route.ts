@@ -63,27 +63,28 @@ export async function GET(req: Request) {
             })
 
             // CRITICAL: Perform a deep-sync to ensure benefits/slabs/student-records are all in line
-            // 1. WhatsApp Welcome Message (Legacy Logic - Day 0)
+            // ⚡ INTEGRATION: Trigger Welcome Automations & Messages
+            // We send the Welcome Message if status IS NOT Active (First time) OR if it was already active (upgrade/retry)
             if (user?.mobileNumber) {
                 const { whatsappService } = await import('@/lib/whatsapp-service');
                 const encryptedCode = encryptReferralCode(referralCode || '');
                 const marketingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://5starambassador.com'}/r/${encryptedCode}`
-                whatsappService.sendByEvent(user.mobileNumber, 'WELCOME_MESSAGE', [referralCode || 'PENDING', marketingUrl], 'ALERT')
-                    .catch(err => console.error('Failed to send welcome whatsapp:', err))
+                
+                await whatsappService.sendByEvent(
+                    user.mobileNumber, 
+                    'WELCOME_MESSAGE', 
+                    [referralCode || 'PENDING', marketingUrl], 
+                    'ALERT',
+                    undefined,
+                    undefined,
+                    [],
+                    user.role || 'User',
+                    user.assignedCampus || '-'
+                ).catch(err => console.error('Failed to send welcome whatsapp:', err))
             }
 
-            // ⚡ INTEGRATION: Trigger Welcome Automations ONLY if first-time activation
+            // ⚡ Trigger Instant Automations (Smart Rules Engine) ONLY for first-time activation
             if (user?.status !== 'Active') {
-                // 1. WhatsApp Welcome Message (Legacy Logic - Day 0)
-                if (user?.mobileNumber) {
-                    const { whatsappService } = await import('@/lib/whatsapp-service');
-                    const encryptedCode = encryptReferralCode(referralCode || '');
-                    const marketingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://5starambassador.com'}/r/${encryptedCode}`
-                    whatsappService.sendByEvent(user.mobileNumber, 'WELCOME_MESSAGE', [referralCode || 'PENDING', marketingUrl], 'ALERT')
-                        .catch(err => console.error('Failed to send welcome whatsapp:', err))
-                }
-
-                // 2. Trigger Instant Automations (Smart Rules Engine)
                 try {
                     const { automationEngine } = await import('@/lib/automation-engine')
                     await automationEngine.processImmediateEvent('ON_PAYMENT_SUCCESS', updatedPayment.userId, { 

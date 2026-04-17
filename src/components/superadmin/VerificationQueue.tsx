@@ -63,6 +63,10 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
     useClickOutside(campusFilterRef, () => activeFilter === 'campus' && setActiveFilter(null))
     useClickOutside(roleFilterRef, () => activeFilter === 'role' && setActiveFilter(null))
 
+    const isCampusExpanded = activeFilter === 'campus';
+    const isRoleExpanded = activeFilter === 'role';
+    const isGradeExpanded = activeFilter === 'grade';
+
     useEffect(() => {
         setMounted(true)
     }, [])
@@ -372,45 +376,104 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                 <div className="flex flex-1 items-center gap-3 w-full">
 
                     {/* Tabs */}
-                    <div className="flex p-1 bg-gray-100 rounded-xl relative mr-2">
-                        <button
-                            onClick={() => setActiveTab('pending')}
-                            className={`relative px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all z-10 ${activeTab === 'pending' ? "text-white shadow-md bg-amber-500" : "text-gray-500 hover:text-gray-700"}`}
-                            suppressHydrationWarning
-                        >
-                            Pending
-                            <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'pending' ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`} suppressHydrationWarning>
-                                {stats.pending}
-                            </span>
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('verified')}
-                            className={`relative px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all z-10 ${activeTab === 'verified' ? "text-white shadow-md bg-emerald-500" : "text-gray-500 hover:text-gray-700"}`}
-                            suppressHydrationWarning
-                        >
-                            Verified
-                            <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'verified' ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`} suppressHydrationWarning>
-                                {stats.verified}
-                            </span>
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('staged')}
-                            className={`relative px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all z-10 ${activeTab === 'staged' ? "text-white shadow-md bg-indigo-500" : "text-gray-500 hover:text-gray-700"}`}
-                            suppressHydrationWarning
-                        >
-                            <div className="flex items-center gap-1.5">
-                                <Database size={12} />
-                                ERP Master
-                                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'staged' ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`} suppressHydrationWarning>
-                                    {stats.staged}
+                    <div className="flex p-1 bg-gray-100 rounded-xl relative mr-2" role="tablist">
+                        {activeTab === 'pending' ? (
+                            <button
+                                onClick={() => setActiveTab('pending')}
+                                className="relative px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all z-10 text-white shadow-md bg-amber-500"
+                                role="tab"
+                                aria-selected="true"
+                                suppressHydrationWarning
+                            >
+                                Pending
+                                <span className="ml-2 px-1.5 py-0.5 rounded-full text-[10px] bg-white/20 text-white" suppressHydrationWarning>
+                                    {stats.pending}
                                 </span>
-                            </div>
-                        </button>
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setActiveTab('pending')}
+                                className="relative px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all z-10 text-gray-500 hover:text-gray-700"
+                                role="tab"
+                                aria-selected="false"
+                                suppressHydrationWarning
+                            >
+                                Pending
+                                <span className="ml-2 px-1.5 py-0.5 rounded-full text-[10px] bg-gray-200 text-gray-600" suppressHydrationWarning>
+                                    {stats.pending}
+                                </span>
+                            </button>
+                        )}
+
+                        {activeTab === 'verified' ? (
+                            <button
+                                onClick={() => setActiveTab('verified')}
+                                className="relative px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all z-10 text-white shadow-md bg-emerald-500"
+                                role="tab"
+                                aria-selected="true"
+                                suppressHydrationWarning
+                            >
+                                Verified
+                                <span className="ml-2 px-1.5 py-0.5 rounded-full text-[10px] bg-white/20 text-white" suppressHydrationWarning>
+                                    {stats.verified}
+                                </span>
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setActiveTab('verified')}
+                                className="relative px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all z-10 text-gray-500 hover:text-gray-700"
+                                role="tab"
+                                aria-selected="false"
+                                suppressHydrationWarning
+                            >
+                                Verified
+                                <span className="ml-2 px-1.5 py-0.5 rounded-full text-[10px] bg-gray-200 text-gray-600" suppressHydrationWarning>
+                                    {stats.verified}
+                                </span>
+                            </button>
+                        )}
+
+                        {activeTab === 'staged' ? (
+                            <button
+                                onClick={() => setActiveTab('staged')}
+                                className="relative px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all z-10 text-white shadow-md bg-indigo-500"
+                                role="tab"
+                                aria-selected="true"
+                                suppressHydrationWarning
+                            >
+                                <div className="flex items-center gap-1.5">
+                                    <Database size={12} />
+                                    ERP Master
+                                    <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-white/20 text-white" suppressHydrationWarning>
+                                        {stats.staged}
+                                    </span>
+                                </div>
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setActiveTab('staged')}
+                                className="relative px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all z-10 text-gray-500 hover:text-gray-700"
+                                role="tab"
+                                aria-selected="false"
+                                suppressHydrationWarning
+                            >
+                                <div className="flex items-center gap-1.5">
+                                    <Database size={12} />
+                                    ERP Master
+                                    <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-gray-200 text-gray-600" suppressHydrationWarning>
+                                        {stats.staged}
+                                    </span>
+                                </div>
+                            </button>
+                        )}
                     </div>
+
 
                     <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <label htmlFor="verification-search" className="sr-only">Search verification requests</label>
                         <input
+                            id="verification-search"
                             type="text"
                             placeholder="Search by name, Mobile Number or ERP..."
                             className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium"
@@ -425,124 +488,164 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                             suppressHydrationWarning
                         />
                     </div>
-
-                    <div className="relative" ref={campusFilterRef}>
-                        <button
-                            onClick={() => setActiveFilter(activeFilter === 'campus' ? null : 'campus')}
-                            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${filterCampus ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                            suppressHydrationWarning
-                        >
-                            <Building size={14} />
-                            Campus {filterCampus && `(${filterCampus})`}
-                        </button>
-                        {activeFilter === 'campus' && (
-                            <FilterDropdown
-                                label="Campus"
-                                activeValues={filterCampus ? [filterCampus] : []}
-                                options={campuses.map(c => c.campusName)}
-                                onApply={(vals) => {
-                                    setPage(1)
-                                    setFilterCampus(vals[0] || '')
-                                }}
-                                onClose={() => setActiveFilter(null)}
-                            />
-                        )}
-                    </div>
-
-                    <div className="relative">
-                        <button
-                            onClick={() => setActiveFilter(activeFilter === 'role' ? null : 'role')}
-                            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${filterRole ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                            suppressHydrationWarning
-                        >
-                            <UserIcon size={14} />
-                            Role {filterRole && `(${filterRole})`}
-                        </button>
-                        {activeFilter === 'role' && (
-                            <FilterDropdown
-                                label="Role"
-                                activeValues={filterRole ? [filterRole] : []}
-                                options={['Staff', 'Parent']}
-                                onApply={(vals) => {
-                                    setPage(1)
-                                    setFilterRole(vals[0] || '')
-                                }}
-                                onClose={() => setActiveFilter(null)}
-                            />
-                        )}
-                    </div>
-
-                    <div className="relative">
-                        <button
-                            onClick={() => setActiveFilter(activeFilter === 'grade' ? null : 'grade')}
-                            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${filterGrade ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                            suppressHydrationWarning
-                        >
-                            <GraduationCap size={14} />
-                            Grade {filterGrade && `(${filterGrade})`}
-                        </button>
-                        {activeFilter === 'grade' && (
-                            <FilterDropdown
-                                label="Grade"
-                                activeValues={filterGrade ? [filterGrade] : []}
-                                options={[...GRADES]}
-                                onApply={(vals) => {
-                                    setPage(1)
-                                    setFilterGrade(vals[0] || '')
-                                }}
-                                onClose={() => setActiveFilter(null)}
-                            />
-                        )}
-                    </div>
-
-                    {(searchTerm || filterCampus || filterRole || filterGrade) && (
-                        <button
-                            onClick={() => {
-                                setSearchTerm('')
-                                setFilterCampus('')
-                                setFilterRole('')
-                                setFilterGrade('')
-                                setPage(1)
-                            }}
-                            className="px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-xl transition-all flex items-center gap-1 active:scale-95"
-                            suppressHydrationWarning
-                        >
-                            <X size={14} />
-                            Clear
-                        </button>
-                    )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={handleExport}
-                        disabled={loading}
-                        className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl text-xs font-bold shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
-                        title="Download CSV"
-                        suppressHydrationWarning
-                    >
-                        <Download size={16} />
-                        Export
-                    </button>
+                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-wrap gap-4 items-center justify-between">
+                    <div className="flex flex-wrap items-center gap-3">
+                        {isCampusExpanded ? (
+                            <button
+                                onClick={() => setActiveFilter(null)}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${filterCampus ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                aria-expanded="true"
+                                aria-haspopup="true"
+                                aria-label={`Filter by Campus${filterCampus ? `: ${filterCampus}` : ''}`}
+                                suppressHydrationWarning
+                            >
+                                <Building size={14} />
+                                Campus {filterCampus && `(${filterCampus})`}
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setActiveFilter('campus')}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${filterCampus ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                aria-expanded="false"
+                                aria-haspopup="true"
+                                aria-label={`Filter by Campus${filterCampus ? `: ${filterCampus}` : ''}`}
+                                suppressHydrationWarning
+                            >
+                                <Building size={14} />
+                                Campus {filterCampus && `(${filterCampus})`}
+                            </button>
+                        )}
+                        {isCampusExpanded && (
+                            <div className="relative">
+                                <FilterDropdown
+                                    label="Campus"
+                                    activeValues={filterCampus ? [filterCampus] : []}
+                                    options={campuses.map(c => c.campusName)}
+                                    onApply={(vals) => {
+                                        setPage(1)
+                                        setFilterCampus(vals[0] || '')
+                                    }}
+                                    onClose={() => setActiveFilter(null)}
+                                />
+                            </div>
+                        )}
 
-                    <button
-                        onClick={() => setShowBulkUpload(true)}
-                        className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl text-xs font-bold shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2 active:scale-95"
-                        suppressHydrationWarning
-                    >
-                        <Database size={16} />
-                        Upload ERP Data
-                    </button>
+                        <div className="relative">
+                            {isRoleExpanded ? (
+                                <button
+                                    onClick={() => setActiveFilter(null)}
+                                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${filterRole ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                    aria-expanded="true"
+                                    aria-haspopup="true"
+                                    aria-label={`Filter by Role${filterRole ? `: ${filterRole}` : ''}`}
+                                    suppressHydrationWarning
+                                >
+                                    <UserIcon size={14} />
+                                    Role {filterRole && `(${filterRole})`}
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setActiveFilter('role')}
+                                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${filterRole ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                    aria-expanded="false"
+                                    aria-haspopup="true"
+                                    aria-label={`Filter by Role${filterRole ? `: ${filterRole}` : ''}`}
+                                    suppressHydrationWarning
+                                >
+                                    <UserIcon size={14} />
+                                    Role {filterRole && `(${filterRole})`}
+                                </button>
+                            )}
+                            {isRoleExpanded && (
+                                <FilterDropdown
+                                    label="Role"
+                                    activeValues={filterRole ? [filterRole] : []}
+                                    options={['Staff', 'Parent']}
+                                    onApply={(vals) => {
+                                        setPage(1)
+                                        setFilterRole(vals[0] || '')
+                                    }}
+                                    onClose={() => setActiveFilter(null)}
+                                />
+                            )}
+                        </div>
 
-                    <button
-                        onClick={handleBulkVerify}
-                        disabled={isBulking || stats.matched === 0 || activeTab === 'verified'}
-                        className={`px-4 py-2 text-white rounded-xl text-xs font-bold shadow-lg transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50 ${activeTab === 'verified' ? 'bg-gray-300 shadow-none' : 'bg-indigo-600 shadow-indigo-200 hover:bg-indigo-700'}`}
-                        suppressHydrationWarning
-                    >
-                        {isBulking ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
-                        {isBulking ? 'Verifying...' : 'Auto-Verify'}
-                    </button>
+                        <div className="relative">
+                            {isGradeExpanded ? (
+                                <button
+                                    onClick={() => setActiveFilter(null)}
+                                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${filterGrade ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                    aria-expanded="true"
+                                    aria-haspopup="true"
+                                    aria-label={`Filter by Grade${filterGrade ? `: ${filterGrade}` : ''}`}
+                                    suppressHydrationWarning
+                                >
+                                    <GraduationCap size={14} />
+                                    Grade {filterGrade && `(${filterGrade})`}
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setActiveFilter('grade')}
+                                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${filterGrade ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                                    aria-expanded="false"
+                                    aria-haspopup="true"
+                                    aria-label={`Filter by Grade${filterGrade ? `: ${filterGrade}` : ''}`}
+                                    suppressHydrationWarning
+                                >
+                                    <GraduationCap size={14} />
+                                    Grade {filterGrade && `(${filterGrade})`}
+                                </button>
+                            )}
+                            {isGradeExpanded && (
+                                <FilterDropdown
+                                    label="Grade"
+                                    activeValues={filterGrade ? [filterGrade] : []}
+                                    options={[...GRADES]}
+                                    onApply={(vals) => {
+                                        setPage(1)
+                                        setFilterGrade(vals[0] || '')
+                                    }}
+                                    onClose={() => setActiveFilter(null)}
+                                />
+                            )}
+                        </div>
+
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleExport}
+                            disabled={loading}
+                            className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl text-xs font-bold shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
+                            title="Download CSV"
+                            aria-label="Export Data to CSV"
+                            suppressHydrationWarning
+                        >
+                            <Download size={16} />
+                            Export
+                        </button>
+
+                        <button
+                            onClick={() => setShowBulkUpload(true)}
+                            className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl text-xs font-bold shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2 active:scale-95"
+                            suppressHydrationWarning
+                        >
+                            <Database size={16} />
+                            Upload ERP Data
+                        </button>
+
+                        <button
+                            onClick={handleBulkVerify}
+                            disabled={isBulking || serverPotentialMatches === 0 || activeTab === 'verified'}
+                            className={`px-4 py-2 text-white rounded-xl text-xs font-bold shadow-lg transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50 ${activeTab === 'verified' ? 'bg-gray-300 shadow-none' : 'bg-indigo-600 shadow-indigo-200 hover:bg-indigo-700'}`}
+                            suppressHydrationWarning
+                        >
+                            {isBulking ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
+                            {isBulking ? 'Verifying...' : 'Auto-Verify'}
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -579,6 +682,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
 
             {/* Verification List - Table View */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+
                 <table className="w-full border-collapse">
                     <thead>
                         <tr className="bg-gray-50/50 border-b border-gray-100">
@@ -710,6 +814,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                                 className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
                                                 value={editForm.grade}
                                                 onChange={e => setEditForm({ ...editForm, grade: e.target.value })}
+                                                aria-label="Grade"
                                             >
                                                 <option value="">Grade</option>
                                                 {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
@@ -718,6 +823,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                                 className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
                                                 value={editForm.childCampusId}
                                                 onChange={e => setEditForm({ ...editForm, childCampusId: e.target.value })}
+                                                aria-label="Campus"
                                             >
                                                 <option value="">Campus</option>
                                                 {campuses.map(c => <option key={c.id} value={c.id}>{c.campusName}</option>)}
@@ -774,6 +880,7 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                                     onClick={() => handleApprove(user.userId, true)}
                                                     className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100 shadow-sm"
                                                     title="Save & Approve"
+                                                    aria-label={`Save and Approve ${user.fullName}`}
                                                     disabled={!!processing}
                                                 >
                                                     <Save size={14} />
@@ -849,15 +956,24 @@ export default function VerificationQueue({ initialData = [] }: VerificationQueu
                                     else if (page >= totalPages - 2) pageNum = totalPages - 4 + i
                                     else pageNum = page - 2 + i
 
-                                    return (
+                                    return page === pageNum ? (
                                         <button
                                             key={pageNum}
                                             onClick={() => setPage(pageNum)}
-                                            className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${page === pageNum ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'text-gray-500 hover:bg-gray-100'}`}
+                                            className="w-8 h-8 rounded-lg text-xs font-bold transition-all bg-indigo-600 text-white shadow-md shadow-indigo-200"
+                                            aria-current="page"
                                         >
                                             {pageNum}
                                         </button>
-                                    )
+                                    ) : (
+                                        <button
+                                            key={pageNum}
+                                            onClick={() => setPage(pageNum)}
+                                            className="w-8 h-8 rounded-lg text-xs font-bold transition-all text-gray-500 hover:bg-gray-100"
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    );
                                 })}
                             </div>
                             <button

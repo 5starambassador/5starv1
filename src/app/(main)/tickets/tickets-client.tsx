@@ -98,6 +98,7 @@ export function TicketsClient({ tickets, counts, role, adminId }: TicketsClientP
                         onClick={() => router.refresh()}
                         suppressHydrationWarning
                         className="p-4 bg-white border border-gray-100 text-gray-400 hover:text-gray-900 rounded-2xl transition-all shadow-sm hover:shadow-md active:scale-95"
+                        aria-label="Refresh ticket queue"
                     >
                         <RefreshCw size={20} className={isUpdating ? 'animate-spin' : ''} />
                     </button>

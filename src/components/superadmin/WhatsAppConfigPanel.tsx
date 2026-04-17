@@ -267,8 +267,9 @@ export default function WhatsAppConfigPanel() {
                 <div className="bg-white border-2 border-dashed border-indigo-100 rounded-3xl p-6 mb-8 mt-2 animate-in fade-in slide-in-from-top-4 duration-300">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Event Key</label>
+                            <label htmlFor="wa-new-event-key" className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Event Key</label>
                             <input
+                                id="wa-new-event-key"
                                 type="text"
                                 value={newConfig.eventKey}
                                 onChange={(e) => setNewConfig({ ...newConfig, eventKey: e.target.value })}
@@ -277,8 +278,9 @@ export default function WhatsAppConfigPanel() {
                             />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">MSG91 Template Name</label>
+                            <label htmlFor="wa-new-template-name" className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">MSG91 Template Name</label>
                             <input
+                                id="wa-new-template-name"
                                 type="text"
                                 value={newConfig.templateName}
                                 onChange={(e) => setNewConfig({ ...newConfig, templateName: e.target.value })}
@@ -287,8 +289,9 @@ export default function WhatsAppConfigPanel() {
                             />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Short Description</label>
+                            <label htmlFor="wa-new-description" className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Short Description</label>
                             <input
+                                id="wa-new-description"
                                 type="text"
                                 value={newConfig.description}
                                 onChange={(e) => setNewConfig({ ...newConfig, description: e.target.value })}
@@ -297,8 +300,9 @@ export default function WhatsAppConfigPanel() {
                             />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Variable Count</label>
+                            <label htmlFor="wa-new-var-count" className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Variable Count</label>
                             <input
+                                id="wa-new-var-count"
                                 type="number"
                                 value={newConfig.requiredVariablesCount}
                                 onChange={(e) => setNewConfig({ ...newConfig, requiredVariablesCount: parseInt(e.target.value) || 0 })}
@@ -308,8 +312,9 @@ export default function WhatsAppConfigPanel() {
                             />
                         </div>
                         <div className="md:col-span-3 space-y-1">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Marketing Branding (Template Body)</label>
+                            <label htmlFor="wa-new-template-body" className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Marketing Branding (Template Body)</label>
                             <textarea
+                                id="wa-new-template-body"
                                 value={newConfig.templateBody}
                                 onChange={(e) => setNewConfig({ ...newConfig, templateBody: e.target.value })}
                                 className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 min-h-[100px] resize-none"
@@ -409,28 +414,45 @@ function ConfigCard({ config, onSave, onDelete, isSaving }: {
                     >
                         <Trash2 className="h-4 w-4" />
                     </button>
-                    <button
-                        onClick={() => {
-                            if (!isEditing) {
-                                // Direct toggle if not editing
-                                onSave(config.templateName, config.templateBody || '', config.description || '', config.requiredVariablesCount, !config.isEnabled)
-                            } else {
-                                // Defer toggle to form state
-                                setEnabled(!enabled)
-                            }
-                        }}
-                        className={`transition-colors p-1 ${(!isEditing ? config.isEnabled : enabled) ? 'text-emerald-500' : 'text-slate-300'}`}
-                    >
-                        {(!isEditing ? config.isEnabled : enabled) ? <ToggleRight className="h-8 w-8" /> : <ToggleLeft className="h-8 w-8" />}
-                    </button>
+                    {(!isEditing ? config.isEnabled : enabled) ? (
+                        <button
+                            onClick={() => {
+                                if (!isEditing) {
+                                    onSave(config.templateName, config.templateBody || '', config.description || '', config.requiredVariablesCount, false)
+                                } else {
+                                    setEnabled(false)
+                                }
+                            }}
+                            className="transition-colors p-1 text-emerald-500"
+                            aria-label="Disable mapping"
+                        >
+                            <ToggleRight className="h-8 w-8" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => {
+                                if (!isEditing) {
+                                    onSave(config.templateName, config.templateBody || '', config.description || '', config.requiredVariablesCount, true)
+                                } else {
+                                    setEnabled(true)
+                                }
+                            }}
+                            className="transition-colors p-1 text-slate-300"
+                            aria-label="Enable mapping"
+                        >
+                            <ToggleLeft className="h-8 w-8" />
+                        </button>
+                    )}
+
                 </div>
             </div>
 
             {isEditing ? (
                 <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
                     <div className="space-y-1">
-                        <label className="text-xs font-semibold text-slate-400 ml-1">MSG91 Template Name</label>
+                        <label htmlFor={`tpl-name-${config.id}`} className="text-xs font-semibold text-slate-400 ml-1">MSG91 Template Name</label>
                         <textarea
+                            id={`tpl-name-${config.id}`}
                             value={template}
                             onChange={(e) => setTemplate(e.target.value)}
                             className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all text-slate-700 min-h-[50px] resize-none"
@@ -439,8 +461,9 @@ function ConfigCard({ config, onSave, onDelete, isSaving }: {
                     </div>
                     
                     <div className="space-y-1">
-                        <label className="text-xs font-semibold text-slate-400 ml-1">Short Description</label>
+                        <label htmlFor={`tpl-desc-${config.id}`} className="text-xs font-semibold text-slate-400 ml-1">Short Description</label>
                         <input
+                            id={`tpl-desc-${config.id}`}
                             type="text"
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
@@ -450,8 +473,9 @@ function ConfigCard({ config, onSave, onDelete, isSaving }: {
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-xs font-semibold text-slate-400 ml-1">Marketing Branding (Template Body)</label>
+                        <label htmlFor={`tpl-body-${config.id}`} className="text-xs font-semibold text-slate-400 ml-1">Marketing Branding (Template Body)</label>
                         <textarea
+                            id={`tpl-body-${config.id}`}
                             value={templateBody}
                             onChange={(e) => setTemplateBody(e.target.value)}
                             className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all text-slate-700 min-h-[100px] resize-none"
@@ -461,8 +485,9 @@ function ConfigCard({ config, onSave, onDelete, isSaving }: {
 
                     <div className="flex items-center gap-4">
                         <div className="flex-1 space-y-1">
-                            <label className="text-xs font-semibold text-slate-400 ml-1"># Variables</label>
+                            <label htmlFor={`tpl-vars-${config.id}`} className="text-xs font-semibold text-slate-400 ml-1"># Variables</label>
                             <input
+                                id={`tpl-vars-${config.id}`}
                                 type="number"
                                 value={reqVars}
                                 onChange={(e) => setReqVars(Number(e.target.value))}
@@ -485,6 +510,7 @@ function ConfigCard({ config, onSave, onDelete, isSaving }: {
                             disabled={isSaving && hasChanges}
                             onClick={handleCancel}
                             className="p-1.5 bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200"
+                            aria-label="Cancel editing"
                         >
                             <X className="h-4 w-4" />
                         </button>

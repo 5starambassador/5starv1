@@ -9,8 +9,6 @@ import { getAmbassadorQuery, getStudentQuery, getReferralQuery, getProgramLeadQu
 import { EmailService } from '@/lib/email-service'
 import { whatsappService } from '@/lib/whatsapp-service'
 import { UserRole } from '@prisma/client'
-import fs from 'fs'
-import path from 'path'
 import { aliasTokens } from './campaign-dispatcher'
 
 // Helper to check campaign access via the permission matrix
@@ -907,15 +905,12 @@ export async function sendTestCampaignMessage(
                 const varCount = requiredCount > 0 ? requiredCount : mappingMax
 
                 if (varCount > 0) {
-                    const fs = require('fs');
-                    fs.appendFileSync('diag_campaign.log', `\n--- TEST CAMPAIGN ${campaignId} TYPE ${type} ---\n`);
                     for (let i = 1; i <= varCount; i++) {
                         const key = i.toString()
                         const btnKey = `button_${i}`
                         
                         // Body Var: Try multiple key variants ("1" or "var_1" or "Variable 1")
                         const bodyMappedValue = mapping[key] || mapping[`var_${key}`] || mapping[`Variable ${key}`]
-                        fs.appendFileSync('diag_campaign.log', `Var ${key} mapping: ${bodyMappedValue}\n`);
 
                         let resolved = ''
                         if (bodyMappedValue === 'STATIC') {
@@ -939,7 +934,6 @@ export async function sendTestCampaignMessage(
                         }
 
                         waVars.push(resolved)
-                        fs.appendFileSync('diag_campaign.log', `Var ${i} final: ${resolved}\n`);
 
                         // Button Var
                         const btnMappedValue = mapping[btnKey]

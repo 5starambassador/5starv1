@@ -27,6 +27,12 @@ export class ReminderService {
                 paymentStatus: { not: 'Success' },
                 role: { in: ['Parent', 'Staff', 'Alumni', 'Others'] }
             },
+            select: {
+                mobileNumber: true,
+                fullName: true,
+                role: true,
+                assignedCampus: true
+            },
             take: 50 // Batch limit to be safe
         })
 
@@ -39,7 +45,12 @@ export class ReminderService {
                     user.mobileNumber,
                     'PAYMENT_REMINDER',
                     [user.fullName || 'Ambassador', (user as any).studentFee?.toString() || '60000'],
-                    'REMINDER'
+                    'REMINDER',
+                    undefined,
+                    undefined,
+                    [],
+                    user.role || 'User',
+                    user.assignedCampus || '-'
                 )
             }
         }
@@ -70,6 +81,8 @@ export class ReminderService {
                 mobileNumber: true,
                 fullName: true,
                 email: true,
+                role: true,
+                assignedCampus: true,
                 DeviceToken: { select: { token: true } }
             },
             take: 100
@@ -90,7 +103,12 @@ export class ReminderService {
                         user.mobileNumber,
                         'BANK_DETAILS_REMINDER',
                         [name],
-                        'REMINDER'
+                        'REMINDER',
+                        undefined,
+                        undefined,
+                        [],
+                        user.role || 'User',
+                        user.assignedCampus || '-'
                     )
                 }
             } catch (e) {
@@ -207,6 +225,12 @@ export class ReminderService {
                     { assignedCampus: null }
                 ]
             },
+            select: {
+                mobileNumber: true,
+                fullName: true,
+                role: true,
+                assignedCampus: true
+            },
             take: 50
         })
 
@@ -219,7 +243,12 @@ export class ReminderService {
                     parent.mobileNumber,
                     'CHILD_DETAILS_REMINDER',
                     [parent.fullName || 'Parent'],
-                    'REMINDER'
+                    'REMINDER',
+                    undefined,
+                    undefined,
+                    [],
+                    parent.role || 'User',
+                    parent.assignedCampus || '-'
                 )
             }
         }
@@ -241,6 +270,13 @@ export class ReminderService {
                 // referralCount: 0, // REMOVED: Field does not exist
                 confirmedReferralCount: 0
             },
+            select: {
+                mobileNumber: true,
+                fullName: true,
+                role: true,
+                assignedCampus: true,
+                referralCode: true
+            },
             take: 50
         })
 
@@ -253,7 +289,12 @@ export class ReminderService {
                     user.mobileNumber,
                     'REFERRAL_REMINDER',
                     [user.fullName || 'Ambassador', user.referralCode || 'YOURCODE'],
-                    'REMINDER'
+                    'REMINDER',
+                    undefined,
+                    undefined,
+                    [],
+                    user.role || 'User',
+                    user.assignedCampus || '-'
                 )
             }
         }
@@ -270,6 +311,13 @@ export class ReminderService {
                 status: 'Active',
                 confirmedReferralCount: { gte: 1, lt: 5 }
             },
+            select: {
+                mobileNumber: true,
+                fullName: true,
+                role: true,
+                assignedCampus: true,
+                confirmedReferralCount: true
+            },
             take: 50
         })
 
@@ -284,7 +332,12 @@ export class ReminderService {
                     user.mobileNumber,
                     'REFERRAL_MOTIVATION',
                     [user.fullName || 'Ambassador', count.toString(), remaining.toString()],
-                    'REMINDER'
+                    'REMINDER',
+                    undefined,
+                    undefined,
+                    [],
+                    user.role || 'User',
+                    user.assignedCampus || '-'
                 )
             }
         }
@@ -305,7 +358,7 @@ export class ReminderService {
                 leadStatus: { notIn: ['Confirmed', 'Admitted', 'Rejected'] }
             },
             include: {
-                user: { select: { mobileNumber: true, fullName: true } }
+                user: { select: { mobileNumber: true, fullName: true, role: true, assignedCampus: true } }
             },
             take: 50
         })
@@ -319,7 +372,12 @@ export class ReminderService {
                     lead.user.mobileNumber,
                     'REFERRAL_FOLLOWUP',
                     [lead.user.fullName || 'Ambassador', lead.parentName],
-                    'REMINDER'
+                    'REMINDER',
+                    undefined,
+                    undefined,
+                    [],
+                    lead.user.role || 'User',
+                    lead.user.assignedCampus || '-'
                 )
             }
         }
@@ -343,7 +401,7 @@ export class ReminderService {
                 // Since this runs daily, the window ensures we only pick them up once per day cycle.
                 // Ideally we'd flag them, but this acts as a stateless "Daily Sweep".
             },
-            include: { program: true, referrer: true },
+            include: { program: true, referrer: { select: { mobileNumber: true, fullName: true, role: true, assignedCampus: true } } },
             take: 50
         })
 
@@ -356,7 +414,12 @@ export class ReminderService {
                     lead.visitorMobile,
                     'PROGRAM_BROWSE_ABANDON',
                     [lead.program.title, lead.program.publicUrl || 'Link'],
-                    'DRIP'
+                    'DRIP',
+                    undefined,
+                    undefined,
+                    [],
+                    'Lead',
+                    lead.referrer?.assignedCampus || '-'
                 )
             }
 
@@ -366,7 +429,12 @@ export class ReminderService {
                     lead.referrer.mobileNumber,
                     'AMBASSADOR_PROGRAM_NUDGE',
                     [lead.referrer.fullName || 'Ambassador', lead.visitorName || 'Friend', lead.program.title],
-                    'ALERT'
+                    'ALERT',
+                    undefined,
+                    undefined,
+                    [],
+                    lead.referrer.role || 'User',
+                    lead.referrer.assignedCampus || '-'
                 )
             }
         }
@@ -381,7 +449,7 @@ export class ReminderService {
                 // NOTE: Real system should probably mark something as "Notified" separate from Commission.
                 // For MVP, we assume if commission isn't credited, we haven't fully processed them.
             },
-            include: { program: true, referrer: true },
+            include: { program: true, referrer: { select: { mobileNumber: true, fullName: true, role: true, assignedCampus: true } } },
             take: 50
         })
 
@@ -394,7 +462,12 @@ export class ReminderService {
                     lead.visitorMobile,
                     'PROGRAM_REGISTRATION_SUCCESS',
                     [lead.program.title, lead.program.targetUrl || 'Link'],
-                    'ALERT'
+                    'ALERT',
+                    undefined,
+                    undefined,
+                    [],
+                    'Lead',
+                    lead.referrer?.assignedCampus || '-'
                 )
             }
 
@@ -404,7 +477,12 @@ export class ReminderService {
                     lead.referrer.mobileNumber,
                     'AMBASSADOR_PROGRAM_SUCCESS',
                     [lead.visitorName || 'Your Referral', lead.program.title],
-                    'ALERT'
+                    'ALERT',
+                    undefined,
+                    undefined,
+                    [],
+                    lead.referrer.role || 'User',
+                    lead.referrer.assignedCampus || '-'
                 )
             }
         }
@@ -431,7 +509,7 @@ export class ReminderService {
                 createdAt: { gte: day1Start, lte: day1End },
                 role: 'Parent' // Or generic 'User' if applicable to all
             },
-            select: { mobileNumber: true, fullName: true },
+            select: { mobileNumber: true, fullName: true, role: true, assignedCampus: true },
             take: 50
         })
 
@@ -441,7 +519,7 @@ export class ReminderService {
                 createdAt: { gte: day3Start, lte: day3End },
                 role: 'Parent'
             },
-            select: { mobileNumber: true, fullName: true },
+            select: { mobileNumber: true, fullName: true, role: true, assignedCampus: true },
             take: 50
         })
 
@@ -454,7 +532,12 @@ export class ReminderService {
                     user.mobileNumber,
                     'WELCOME_DRIP_DAY1',
                     ['https://youtu.be/example'], // Replace with actual video link
-                    'DRIP'
+                    'DRIP',
+                    undefined,
+                    undefined,
+                    [],
+                    user.role || 'User',
+                    user.assignedCampus || '-'
                 )
             }
         }
@@ -466,7 +549,12 @@ export class ReminderService {
                     user.mobileNumber,
                     'WELCOME_DRIP_DAY3',
                     [user.fullName || 'Ambassador'], // Variable is Name
-                    'DRIP'
+                    'DRIP',
+                    undefined,
+                    undefined,
+                    [],
+                    user.role || 'User',
+                    user.assignedCampus || '-'
                 )
             }
         }
@@ -537,7 +625,12 @@ export class ReminderService {
                         totalLeads.toString(),
                         revenue.toLocaleString('en-IN')
                     ],
-                    'ALERT'
+                    'ALERT',
+                    undefined,
+                    undefined,
+                    [],
+                    admin.role || 'Admin',
+                    admin.assignedCampus || '-'
                 )
                 sentCount++
             }
@@ -560,6 +653,12 @@ export class ReminderService {
                 createdAt: { lt: new Date(Date.now() - 48 * 60 * 60 * 1000) },
                 role: 'Parent'
             },
+            select: {
+                mobileNumber: true,
+                fullName: true,
+                role: true,
+                assignedCampus: true
+            },
             take: 50
         })
 
@@ -572,7 +671,12 @@ export class ReminderService {
                     user.mobileNumber,
                     'KYC_REMINDER',
                     [user.fullName || 'Ambassador'],
-                    'REMINDER'
+                    'REMINDER',
+                    undefined,
+                    undefined,
+                    [],
+                    user.role || 'User',
+                    user.assignedCampus || '-'
                 )
             }
         }

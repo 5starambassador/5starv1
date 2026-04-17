@@ -51,40 +51,48 @@ export function ResetPasswordModal({ isOpen, onClose, target }: ResetPasswordMod
     if (!isOpen || !target) return null
 
     return (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ background: 'white', borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>Reset Password</h3>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-[400px] shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex justify-between items-center mb-5">
+                    <h3 className="text-lg font-black italic text-slate-800 uppercase tracking-tight">Reset Password</h3>
+                    <button 
+                        onClick={onClose} 
+                        className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-red-500"
+                        aria-label="Close modal"
+                    >
                         <X size={20} />
                     </button>
                 </div>
-                <p className="text-sm text-gray-500 mb-6">
-                    Set a new password for <strong>{target.name}</strong> ({target.type}).
+                
+                <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                    Set a new password for <strong className="text-slate-900">{target.name}</strong> (<span className="uppercase text-[10px] font-black tracking-widest">{target.type}</span>).
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
+                <div className="space-y-6">
                     <div>
-                        <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>New Password *</label>
+                        <label htmlFor="new-password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">New Password *</label>
                         <input
+                            id="new-password"
                             type="text"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            style={{ width: '100%', padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '14px' }}
+                            className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-red-500/10 transition-all outline-none"
                             placeholder="Enter new password"
                         />
-                        <p className="text-[10px] text-gray-400 mt-1">Min 6 characters required.</p>
+                        <p className="text-[10px] text-slate-400 font-bold mt-2 ml-1 uppercase tracking-widest leading-tight">Min 6 characters required.</p>
                     </div>
-                    <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                    
+                    <div className="flex gap-3 pt-2">
                         <button
                             onClick={onClose}
-                            style={{ flex: 1, padding: '10px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}
+                            className="flex-1 py-3 px-4 bg-slate-100 text-slate-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={handleExecuteReset}
                             disabled={loading}
-                            style={{ flex: 1, padding: '10px', background: '#DC2626', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}
+                            className="flex-1 py-3 px-4 bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-700 shadow-lg shadow-red-100 transition-all active:scale-95 disabled:opacity-50"
                         >
                             {loading ? 'Resetting...' : 'Confirm Reset'}
                         </button>

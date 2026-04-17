@@ -48,7 +48,7 @@ export function FilterDropdown({
             <div className="p-3 bg-gray-50 border-b border-gray-100 space-y-2">
                 <div className="flex justify-between items-center">
                     <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Filter {label}</span>
-                    <button onClick={onClose}><X size={14} className="text-gray-400 hover:text-red-500" /></button>
+                    <button onClick={onClose} aria-label="Close Filters"><X size={14} className="text-gray-400 hover:text-red-500" /></button>
                 </div>
                 <div className="relative">
                     <Search size={12} className="absolute left-2 top-2 text-gray-400" />
@@ -88,15 +88,32 @@ export function FilterDropdown({
                     filteredOptions.map(opt => {
                         const isSelected = tempSelected.includes(opt)
                         return (
-                            <div
-                                key={opt}
-                                onClick={() => toggleOption(opt)}
-                                className={`px-4 py-2 text-xs flex items-center gap-2 cursor-pointer hover:bg-gray-50 ${isSelected ? 'bg-indigo-50/50' : ''}`}
-                            >
-                                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
-                                    {isSelected && <CheckCircle size={10} className="text-white" />}
-                                </div>
-                                <span className={isSelected ? 'font-semibold text-gray-900' : 'text-gray-600'}>{opt}</span>
+                            <div key={opt}>
+                                {isSelected ? (
+                                    <div
+                                        onClick={() => toggleOption(opt)}
+                                        className="px-4 py-2 text-xs flex items-center gap-2 cursor-pointer hover:bg-gray-50 bg-indigo-50/50"
+                                        role="checkbox"
+                                        aria-checked="true"
+                                        aria-label={`Select ${opt}`}
+                                    >
+                                        <div className="w-4 h-4 rounded border flex items-center justify-center transition-colors bg-indigo-600 border-indigo-600">
+                                            <CheckCircle size={10} className="text-white" />
+                                        </div>
+                                        <span className="font-semibold text-gray-900">{opt}</span>
+                                    </div>
+                                ) : (
+                                    <div
+                                        onClick={() => toggleOption(opt)}
+                                        className="px-4 py-2 text-xs flex items-center gap-2 cursor-pointer hover:bg-gray-50"
+                                        role="checkbox"
+                                        aria-checked="false"
+                                        aria-label={`Select ${opt}`}
+                                    >
+                                        <div className="w-4 h-4 rounded border flex items-center justify-center transition-colors border-gray-300"></div>
+                                        <span className="text-gray-600">{opt}</span>
+                                    </div>
+                                )}
                             </div>
                         )
                     })

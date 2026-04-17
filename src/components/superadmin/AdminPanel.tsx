@@ -171,10 +171,11 @@ export function AdminPanel({ admins, campuses }: AdminPanelProps) {
             >
                 <div className="space-y-6">
                     <div className="space-y-2">
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Full Designation</label>
+                        <label htmlFor="admin-full-name" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Full Designation</label>
                         <div className="relative">
                             <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
                             <input
+                                id="admin-full-name"
                                 className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-5 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-red-50 focus:border-red-200 transition-all"
                                 placeholder="Executive Name"
                                 value={adminForm.adminName}
@@ -184,10 +185,11 @@ export function AdminPanel({ admins, campuses }: AdminPanelProps) {
                     </div>
 
                     <div className="space-y-2">
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Secure Contact</label>
+                        <label htmlFor="admin-secure-mobile" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Secure Contact</label>
                         <div className="relative">
                             <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
                             <input
+                                id="admin-secure-mobile"
                                 className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-5 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-red-50 focus:border-red-200 transition-all"
                                 placeholder="10-Digit Mobile"
                                 value={adminForm.adminMobile}
@@ -198,10 +200,11 @@ export function AdminPanel({ admins, campuses }: AdminPanelProps) {
 
                     {!editingAdmin && (
                         <div className="space-y-2">
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Initial Keyphrase</label>
+                            <label htmlFor="admin-initial-keyphrase" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Initial Keyphrase</label>
                             <div className="relative">
                                 <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
                                 <input
+                                    id="admin-initial-keyphrase"
                                     type="password"
                                     className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-5 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-red-50 focus:border-red-200 transition-all"
                                     placeholder="Leave blank for Mobile default"
@@ -214,8 +217,9 @@ export function AdminPanel({ admins, campuses }: AdminPanelProps) {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">System Role</label>
+                            <label htmlFor="admin-system-role" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">System Role</label>
                             <select
+                                id="admin-system-role"
                                 value={adminForm.role}
                                 onChange={(e) => setAdminForm({ ...adminForm, role: e.target.value as any })}
                                 className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3 text-sm font-black text-gray-900 focus:outline-none focus:ring-4 focus:ring-red-50 focus:border-red-200 transition-all uppercase tracking-tight"
@@ -230,10 +234,11 @@ export function AdminPanel({ admins, campuses }: AdminPanelProps) {
 
                         {(adminForm.role === 'Campus Head' || adminForm.role === 'Campus Admin') && (
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Assigned Node</label>
+                                <label htmlFor="admin-assigned-node" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Assigned Node</label>
                                 <div className="relative">
                                     <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
                                     <select
+                                        id="admin-assigned-node"
                                         value={adminForm.assignedCampus}
                                         onChange={(e) => setAdminForm({ ...adminForm, assignedCampus: e.target.value })}
                                         className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-5 py-3 text-sm font-black text-gray-900 focus:outline-none focus:ring-4 focus:ring-red-50 focus:border-red-200 transition-all uppercase tracking-tight"

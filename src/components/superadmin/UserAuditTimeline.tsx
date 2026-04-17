@@ -78,18 +78,24 @@ export function UserAuditTimeline({ userId, userName, onClose }: UserAuditTimeli
             />
 
             {/* Modal Body */}
-            <div className="bg-white rounded-[40px] w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col relative z-10 border border-gray-100">
+            <div 
+                className="bg-white rounded-[40px] w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col relative z-10 border border-gray-100"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="audit-timeline-title"
+            >
                 {/* Header */}
                 <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-8 text-white relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
                     <div className="flex items-center justify-between relative z-10">
                         <div>
-                            <h3 className="text-2xl font-black uppercase tracking-tight italic">Audit Timeline</h3>
+                            <h3 id="audit-timeline-title" className="text-2xl font-black uppercase tracking-tight italic">Audit Timeline</h3>
                             <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.2em] mt-2">Operational history for {userName}</p>
                         </div>
                         <button
                             onClick={onClose}
                             className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all border border-white/10"
+                            aria-label="Close Audit Timeline"
                         >
                             <X size={20} />
                         </button>
@@ -100,9 +106,11 @@ export function UserAuditTimeline({ userId, userName, onClose }: UserAuditTimeli
                 <div className="bg-gray-50/50 p-4 border-b border-gray-100 flex gap-4 backdrop-blur-md">
                     <div className="flex-1 relative">
                         <select
+                            id="audit-filter-action"
                             value={filterAction}
                             onChange={(e) => setFilterAction(e.target.value)}
                             className="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all appearance-none"
+                            aria-label="Filter logs by Action"
                         >
                             {uniqueActions.map(action => (
                                 <option key={action} value={action}>
@@ -114,9 +122,11 @@ export function UserAuditTimeline({ userId, userName, onClose }: UserAuditTimeli
                     </div>
                     <div className="flex-1 relative">
                         <select
+                            id="audit-filter-module"
                             value={filterModule}
                             onChange={(e) => setFilterModule(e.target.value)}
                             className="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all appearance-none"
+                            aria-label="Filter logs by Module"
                         >
                             {uniqueModules.map(module => (
                                 <option key={module} value={module}>

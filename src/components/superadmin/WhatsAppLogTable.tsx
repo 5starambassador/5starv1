@@ -69,11 +69,13 @@ export function WhatsAppLogTable({ defaultType = 'All', refId }: { defaultType?:
             <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</span>
+                        <label htmlFor="log-status-filter" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</label>
                         <select 
+                            id="log-status-filter"
                             value={filters.status}
                             onChange={(e) => { setFilters({ ...filters, status: e.target.value }); setPage(1); }}
                             className="bg-white border-none rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm focus:ring-2 focus:ring-indigo-100"
+                            aria-label="Filter logs by Status"
                         >
                             <option value="All">All Statuses</option>
                             <option value="SENT">Sent</option>
@@ -83,11 +85,13 @@ export function WhatsAppLogTable({ defaultType = 'All', refId }: { defaultType?:
                         </select>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</span>
+                        <label htmlFor="log-type-filter" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</label>
                         <select 
+                            id="log-type-filter"
                             value={filters.type}
                             onChange={(e) => { setFilters({ ...filters, type: e.target.value, excludeCampaigns: e.target.value === 'All' }); setPage(1); }}
                             className="bg-white border-none rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm focus:ring-2 focus:ring-indigo-100"
+                            aria-label="Filter logs by Type"
                         >
                             <option value="All">All Types</option>
                             <option value="AUTOMATION">Automation Only</option>
@@ -212,6 +216,7 @@ export function WhatsAppLogTable({ defaultType = 'All', refId }: { defaultType?:
                         disabled={page === 1 || loading}
                         onClick={() => setPage(p => Math.max(1, p - 1))}
                         className="p-2 rounded-xl hover:bg-white hover:shadow-sm disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                        aria-label="Previous Page"
                     >
                         <ChevronLeft className="h-5 w-5 text-slate-600" />
                     </button>
@@ -225,11 +230,22 @@ export function WhatsAppLogTable({ defaultType = 'All', refId }: { defaultType?:
                             const pages = [];
                             for (let i = start; i <= end; i++) pages.push(i);
                             
-                            return pages.map(pageNum => (
+                            return pages.map(pageNum => page === pageNum ? (
                                 <button
                                     key={pageNum}
                                     onClick={() => setPage(pageNum)}
-                                    className={`w-8 h-8 rounded-xl text-xs font-black flex items-center justify-center transition-all ${page === pageNum ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-500 hover:bg-white'}`}
+                                    className="w-8 h-8 rounded-xl text-xs font-black flex items-center justify-center transition-all bg-indigo-600 text-white shadow-lg shadow-indigo-100"
+                                    aria-label={`Go to page ${pageNum}`}
+                                    aria-current="page"
+                                >
+                                    {pageNum}
+                                </button>
+                            ) : (
+                                <button
+                                    key={pageNum}
+                                    onClick={() => setPage(pageNum)}
+                                    className="w-8 h-8 rounded-xl text-xs font-black flex items-center justify-center transition-all text-slate-500 hover:bg-white"
+                                    aria-label={`Go to page ${pageNum}`}
                                 >
                                     {pageNum}
                                 </button>
@@ -240,6 +256,7 @@ export function WhatsAppLogTable({ defaultType = 'All', refId }: { defaultType?:
                         disabled={page === totalPages || loading}
                         onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                         className="p-2 rounded-xl hover:bg-white hover:shadow-sm disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                        aria-label="Next Page"
                     >
                         <ChevronRight className="h-5 w-5 text-slate-600" />
                     </button>

@@ -328,6 +328,7 @@ export function StudentTable({
                                 rel="noopener noreferrer"
                                 className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 hover:scale-110 active:scale-95 transition-all shrink-0 shadow-sm"
                                 title="Nudge via WhatsApp"
+                                aria-label={`Nudge ${student.fullName} via WhatsApp`}
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -415,6 +416,7 @@ export function StudentTable({
                         onClick={() => onEdit(student)}
                         className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
                         title="Edit Student"
+                        aria-label={`Edit ${student.fullName}`}
                         suppressHydrationWarning
                     >
                         <Edit size={14} />
@@ -423,6 +425,7 @@ export function StudentTable({
                         onClick={() => setDeleteId(student.studentId)}
                         className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"
                         title="Delete Student"
+                        aria-label={`Delete ${student.fullName}`}
                         suppressHydrationWarning
                     >
                         <Trash2 size={14} />
@@ -431,6 +434,7 @@ export function StudentTable({
                         onClick={() => onRowClick && onRowClick(student)}
                         className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
                         title="View Details"
+                        aria-label={`View details for ${student.fullName}`}
                         suppressHydrationWarning
                     >
                         <Eye size={14} />
@@ -537,12 +541,15 @@ export function StudentTable({
                     {/* Search */}
                     <div className="relative flex-grow md:flex-grow-0 md:w-64 group">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors" size={16} />
+                        <label htmlFor="student-search" className="sr-only">Search Students</label>
                         <input
                             type="text"
+                            id="student-search"
                             placeholder="Search students..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full pl-10 pr-4 h-10 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                            aria-label="Search students by name, mobile, admission number or roll number"
                             suppressHydrationWarning
                         />
                     </div>
@@ -557,37 +564,64 @@ export function StudentTable({
                     {/* Data Filters Column-specific */}
                     <div className="flex items-center gap-2 flex-wrap">
                         <div className="flex items-center gap-1.5 p-1 bg-white border border-gray-200 rounded-2xl shadow-sm">
-                            {[
-                                { id: 'campus', label: 'Campus', icon: Building, count: filters.campus.length, options: filterOptions.campus },
-                                { id: 'grade', label: 'Grade', icon: GraduationCap, count: filters.grade.length, options: filterOptions.grade },
-                                { id: 'status', label: 'Status', icon: CheckCircle, count: filters.status.length, options: filterOptions.status },
-                            ].map((filter) => (
-                                <div key={filter.id} className="relative">
-                                    <button
-                                        onClick={() => setActiveFilter(activeFilter === filter.id ? null : filter.id)}
-                                        className={`h-9 px-3 rounded-xl text-[11px] font-black uppercase tracking-widest border transition-all flex items-center gap-2 whitespace-nowrap ${filter.count > 0
-                                            ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm'
-                                            : 'bg-transparent border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-                                            }`}
-                                        suppressHydrationWarning
-                                    >
-                                        <filter.icon size={12} className={filter.count > 0 ? 'text-indigo-600' : 'text-gray-400'} />
-                                        {filter.label}
-                                        {filter.count > 0 && (
-                                            <span className="ml-1 px-1.5 py-0.5 bg-indigo-600 text-white text-[10px] rounded-full min-w-[1.25rem]">{filter.count}</span>
+                            {(() => {
+                                const filterOptionsList = [
+                                    { id: 'campus', label: 'Campus', icon: Building, count: filters.campus.length, options: filterOptions.campus },
+                                    { id: 'grade', label: 'Grade', icon: GraduationCap, count: filters.grade.length, options: filterOptions.grade },
+                                    { id: 'status', label: 'Status', icon: CheckCircle, count: filters.status.length, options: filterOptions.status },
+                                ];
+                                return filterOptionsList.map((filter) => (
+                                    <div key={filter.id} className="relative">
+                                        {(() => {
+                                            const isActive = activeFilter === filter.id;
+                                            const isSet = filter.count > 0;
+                                            const activeClass = "bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm";
+                                            const inactiveClass = "bg-transparent border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-700";
+                                            
+                                            return isActive ? (
+                                                <button
+                                                    onClick={() => setActiveFilter(null)}
+                                                    className={`h-9 px-3 rounded-xl text-[11px] font-black uppercase tracking-widest border transition-all flex items-center gap-2 whitespace-nowrap ${isSet ? activeClass : inactiveClass}`}
+                                                    aria-label={`Filter by ${filter.label}${isSet ? ` - ${filter.count} selected` : ''}`}
+                                                    aria-expanded="true"
+                                                    aria-haspopup="true"
+                                                    suppressHydrationWarning
+                                                >
+                                                    <filter.icon size={12} className={isSet ? 'text-indigo-600' : 'text-gray-400'} />
+                                                    {filter.label}
+                                                    {isSet && (
+                                                        <span className="ml-1 px-1.5 py-0.5 bg-indigo-600 text-white text-[10px] rounded-full min-w-[1.25rem]">{filter.count}</span>
+                                                    )}
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setActiveFilter(filter.id)}
+                                                    className={`h-9 px-3 rounded-xl text-[11px] font-black uppercase tracking-widest border transition-all flex items-center gap-2 whitespace-nowrap ${isSet ? activeClass : inactiveClass}`}
+                                                    aria-label={`Filter by ${filter.label}${isSet ? ` - ${filter.count} selected` : ''}`}
+                                                    aria-expanded="false"
+                                                    aria-haspopup="true"
+                                                    suppressHydrationWarning
+                                                >
+                                                    <filter.icon size={12} className={isSet ? 'text-indigo-600' : 'text-gray-400'} />
+                                                    {filter.label}
+                                                    {isSet && (
+                                                        <span className="ml-1 px-1.5 py-0.5 bg-indigo-600 text-white text-[10px] rounded-full min-w-[1.25rem]">{filter.count}</span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })()}
+                                        {activeFilter === filter.id && (
+                                            <FilterDropdown
+                                                label={filter.label}
+                                                options={filter.options}
+                                                activeValues={filters[filter.id as keyof typeof filters] as string[]}
+                                                onApply={(vals) => setFilters(prev => ({ ...prev, [filter.id]: vals }))}
+                                                onClose={() => setActiveFilter(null)}
+                                            />
                                         )}
-                                    </button>
-                                    {activeFilter === filter.id && (
-                                        <FilterDropdown
-                                            label={filter.label}
-                                            options={filter.options}
-                                            activeValues={filters[filter.id as keyof typeof filters] as string[]}
-                                            onApply={(vals) => setFilters(prev => ({ ...prev, [filter.id]: vals }))}
-                                            onClose={() => setActiveFilter(null)}
-                                        />
-                                    )}
-                                </div>
-                            ))}
+                                    </div>
+                                ));
+                            })()}
                         </div>
                     </div>
                 </div>
@@ -598,25 +632,56 @@ export function StudentTable({
                     {/* Utility Group (Compact) */}
                     {/* Main Actions Group */}
                     <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200">
-                            <button
-                                onClick={() => setLiveMode(!liveMode)}
-                                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${liveMode ? 'bg-green-100 text-green-700' : 'text-gray-400 hover:bg-white hover:text-gray-600'}`}
-                                title={liveMode ? "Live Mode: ON" : "Live Mode: OFF"}
-                                suppressHydrationWarning
-                            >
-                                <RefreshCcw size={14} className={liveMode ? 'animate-spin' : ''} />
-                            </button>
+                            {liveMode ? (
+                                <button
+                                    onClick={() => setLiveMode(false)}
+                                    className="w-9 h-9 flex items-center justify-center rounded-lg transition-all bg-green-100 text-green-700"
+                                    title="Live Mode: ON"
+                                    aria-label="Disable live database syncing"
+                                    aria-pressed="true"
+                                    suppressHydrationWarning
+                                >
+                                    <RefreshCcw size={14} className="animate-spin" />
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setLiveMode(true)}
+                                    className="w-9 h-9 flex items-center justify-center rounded-lg transition-all text-gray-400 hover:bg-white hover:text-gray-600"
+                                    title="Live Mode: OFF"
+                                    aria-label="Enable live database syncing"
+                                    aria-pressed="false"
+                                    suppressHydrationWarning
+                                >
+                                    <RefreshCcw size={14} />
+                                </button>
+                            )}
+
                             <div className="w-px h-4 bg-gray-200 mx-0.5"></div>
-                            <button
-                                onClick={() => setShowColumnMenu(!showColumnMenu)}
-                                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${showColumnMenu ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:bg-white hover:text-gray-600'}`}
-                                title="Manage Columns"
-                                suppressHydrationWarning={true}
-                            >
-                                <Layout size={14} />
-                            </button>
-                            {/* Column Menu Dropdown (Keep existing logic) */}
+                            {showColumnMenu ? (
+                                <button
+                                    onClick={() => setShowColumnMenu(false)}
+                                    className="w-9 h-9 flex items-center justify-center rounded-lg transition-all bg-white shadow-sm text-indigo-600"
+                                    title="Manage Columns"
+                                    aria-label="Close column visibility menu"
+                                    aria-expanded="true"
+                                    suppressHydrationWarning
+                                >
+                                    <Layout size={14} />
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setShowColumnMenu(true)}
+                                    className="w-9 h-9 flex items-center justify-center rounded-lg transition-all text-gray-400 hover:bg-white hover:text-gray-600"
+                                    title="Manage Columns"
+                                    aria-label="Open column visibility menu"
+                                    aria-expanded="false"
+                                    suppressHydrationWarning
+                                >
+                                    <Layout size={14} />
+                                </button>
+                            )}
+
+                            {/* Column Menu Dropdown */}
                             {showColumnMenu && (
                                 <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-2">Columns</p>
@@ -636,7 +701,6 @@ export function StudentTable({
                             <button
                                 onClick={async () => {
                                     setIsExporting(true)
-                                    // Small delay to allow UI to update if the dataset is massive
                                     setTimeout(() => {
                                         try {
                                             exportToCSV(filteredStudents, 'Student_List', [
@@ -659,6 +723,7 @@ export function StudentTable({
                                 disabled={isExporting}
                                 className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isExporting ? 'bg-indigo-50 text-indigo-600' : 'text-gray-400 hover:bg-white hover:text-gray-600 hover:shadow-sm'}`}
                                 title="Download Results"
+                                aria-label="Download student list as CSV"
                                 suppressHydrationWarning
                             >
                                 <Download size={14} className={isExporting ? 'animate-bounce' : ''} />
@@ -674,6 +739,7 @@ export function StudentTable({
                                     : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
                                     }`}
                                 title="Backfill Fees"
+                                aria-label="Backfill missing fee records"
                                 suppressHydrationWarning
                             >
                                 <CreditCard size={14} className={isBackfilling ? 'animate-pulse' : 'text-gray-400'} />
@@ -686,6 +752,7 @@ export function StudentTable({
                                 onClick={onGenerateReport}
                                 className="h-10 px-4 bg-white border border-dashed border-purple-300 text-purple-700 rounded-xl text-xs font-bold hover:bg-purple-50 hover:border-purple-400 transition-all flex items-center gap-2 shadow-sm"
                                 title="Generate Report"
+                                aria-label="Generate student reports"
                                 suppressHydrationWarning
                             >
                                 <FileText size={14} />
@@ -696,12 +763,12 @@ export function StudentTable({
                         <button
                             onClick={onAddStudent}
                             className="h-10 px-5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                            aria-label="Add new student record"
                             suppressHydrationWarning
                         >
                             <UserPlus size={16} />
                             <span>Add Student</span>
                         </button>
-                    </div>
                 </div>
             </div>
 
@@ -729,20 +796,20 @@ export function StudentTable({
                         </div>
                         <div className="h-4 w-px bg-gray-700"></div>
                         <div className="flex items-center gap-2">
-                            <button onClick={() => handleBulkAction('activate')} disabled={isProcessing} className="px-3 py-1.5 hover:bg-gray-800 rounded-lg text-xs font-bold text-emerald-400 transition-colors flex items-center gap-2">
+                            <button onClick={() => handleBulkAction('activate')} disabled={isProcessing} className="px-3 py-1.5 hover:bg-gray-800 rounded-lg text-xs font-bold text-emerald-400 transition-colors flex items-center gap-2" aria-label="Activate selected students">
                                 <CheckCircle size={14} /> Activate
                             </button>
-                            <button onClick={() => handleBulkAction('suspend')} disabled={isProcessing} className="px-3 py-1.5 hover:bg-gray-800 rounded-lg text-xs font-bold text-amber-400 transition-colors flex items-center gap-2">
+                            <button onClick={() => handleBulkAction('suspend')} disabled={isProcessing} className="px-3 py-1.5 hover:bg-gray-800 rounded-lg text-xs font-bold text-amber-400 transition-colors flex items-center gap-2" aria-label="Suspend selected students">
                                 <XCircle size={14} /> Suspend
                             </button>
-                            <button onClick={() => setShowTransferModal(true)} disabled={isProcessing} className="px-3 py-1.5 hover:bg-gray-800 rounded-lg text-xs font-bold text-indigo-400 transition-colors flex items-center gap-2">
+                            <button onClick={() => setShowTransferModal(true)} disabled={isProcessing} className="px-3 py-1.5 hover:bg-gray-800 rounded-lg text-xs font-bold text-indigo-400 transition-colors flex items-center gap-2" aria-label="Transfer selected students to another campus">
                                 <ArrowRight size={14} /> Transfer
                             </button>
-                            <button onClick={() => handleBulkAction('delete')} disabled={isProcessing} className="px-3 py-1.5 hover:bg-red-900/30 rounded-lg text-xs font-bold text-red-400 transition-colors flex items-center gap-2">
+                            <button onClick={() => handleBulkAction('delete')} disabled={isProcessing} className="px-3 py-1.5 hover:bg-red-900/30 rounded-lg text-xs font-bold text-red-400 transition-colors flex items-center gap-2" aria-label="Delete selected students">
                                 <Trash2 size={14} /> Delete
                             </button>
                         </div>
-                        <button onClick={() => setSelectedStudents([])} className="ml-2 hover:text-white text-gray-500">
+                        <button onClick={() => setSelectedStudents([])} className="ml-2 hover:text-white text-gray-500" aria-label="Clear student selection">
                             <XCircle size={16} />
                         </button>
                     </div>
@@ -777,10 +844,13 @@ export function StudentTable({
                     <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95">
                         <h3 className="text-xl font-black text-gray-900 mb-6">Transfer Students</h3>
                         <p className="text-xs text-gray-500 mb-4">Select target campus for {selectedStudents.length} students.</p>
+                        <label htmlFor="transfer-campus-select" className="sr-only">Target Campus</label>
                         <select
+                            id="transfer-campus-select"
                             value={targetCampusId || ''}
                             onChange={(e) => setTargetCampusId(e.target.value ? Number(e.target.value) : null)}
                             className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-6 text-sm font-bold"
+                            aria-label="Select target campus for student transfer"
                         >
                             <option value="">Select Target Campus</option>
                             {campuses.map((c: any) => (

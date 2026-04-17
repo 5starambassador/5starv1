@@ -64,7 +64,7 @@ export default function MobileSidebarWrapper({ children }: { children: React.Rea
 
             {/* Portal to Body */}
             {mounted && isOpen && createPortal(
-                <div className="fixed inset-0 xl:hidden" style={{ zIndex: 99999 }}>
+                <div className="fixed inset-0 xl:hidden z-[99999]">
                     {/* Backdrop */}
                     <div
                         className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity"
@@ -73,8 +73,7 @@ export default function MobileSidebarWrapper({ children }: { children: React.Rea
 
                     {/* Top Dropdown Drawer - Royal Glass Theme */}
                     <div
-                        className="fixed top-2 left-2 right-2 bg-gradient-to-br from-indigo-900 via-blue-900 to-slate-900 shadow-2xl max-h-[90vh] overflow-hidden flex flex-col rounded-2xl border border-white/20 ring-1 ring-white/10"
-                        style={{ zIndex: 100000 }}
+                        className="fixed top-2 left-2 right-2 bg-gradient-to-br from-indigo-900 via-blue-900 to-slate-900 shadow-2xl max-h-[90vh] overflow-hidden flex flex-col rounded-2xl border border-white/20 ring-1 ring-white/10 z-[100000]"
                     >
                         {/* decorative glow */}
                         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-400/20 blur-[60px] rounded-full pointer-events-none" />
@@ -87,6 +86,7 @@ export default function MobileSidebarWrapper({ children }: { children: React.Rea
                                 <button
                                     onClick={() => setIsOpen(false)}
                                     className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                                    aria-label="Close Mobile Menu"
                                 >
                                     <X size={20} />
                                 </button>

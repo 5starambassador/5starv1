@@ -163,10 +163,12 @@ export function AuditLogPanel() {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                         <input
                             type="text"
+                            id="audit-log-search"
                             placeholder="Search logs..."
                             className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            aria-label="Search audit logs"
                         />
                     </div>
 
@@ -190,6 +192,7 @@ export function AuditLogPanel() {
                     <button
                         onClick={fetchData}
                         className="p-2 text-gray-400 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
+                        aria-label="Refresh audit logs"
                     >
                         <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
                     </button>
@@ -232,6 +235,7 @@ export function AuditLogPanel() {
                         }}
                         disabled={logs.length === 0 || isExporting}
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-lg shadow-gray-200 ${isExporting ? 'bg-gray-100 text-gray-400 cursor-wait' : 'bg-gray-900 text-white hover:bg-black'}`}
+                        aria-label="Export audit logs as CSV"
                     >
                         {isExporting ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
                         {isExporting ? 'Exporting...' : 'Export CSV'}
@@ -272,10 +276,26 @@ export function AuditLogPanel() {
                                             className={`group hover:bg-gray-50/50 transition-all cursor-pointer ${expandedLogId === log.id ? 'bg-gray-50/80 shadow-inner' : ''}`}
                                             onClick={() => toggleExpand(log.id)}
                                         >
-                                            <td className="px-6 py-4">
-                                                <div className={`p-1 rounded bg-gray-100 text-gray-400 transition-transform duration-300 ${expandedLogId === log.id ? 'rotate-90 bg-red-50 text-red-500' : 'group-hover:bg-gray-200'}`}>
-                                                    <ChevronRight size={14} />
-                                                </div>
+                                            <td className="w-8 py-3.5 pl-3 pr-0 text-center">
+                                                {expandedLogId === log.id ? (
+                                                    <div 
+                                                        className="p-1 rounded bg-red-50 text-red-500 rotate-90 transition-transform duration-300"
+                                                        role="button"
+                                                        aria-expanded="true"
+                                                        aria-label="Collapse log details"
+                                                    >
+                                                        <ChevronRight size={14} />
+                                                    </div>
+                                                ) : (
+                                                    <div 
+                                                        className="p-1 rounded bg-gray-100 text-gray-400 group-hover:bg-gray-200 transition-transform duration-300"
+                                                        role="button"
+                                                        aria-expanded="false"
+                                                        aria-label="Expand log details"
+                                                    >
+                                                        <ChevronRight size={14} />
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
@@ -346,13 +366,14 @@ export function AuditLogPanel() {
                                                                                 {log.metadata.requestId}
                                                                             </code>
                                                                         </div>
-                                                                        <button
+                                            <button
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation()
                                                                                 setSearchTerm(log.metadata.requestId)
                                                                                 toast.info('Filtering by Request ID')
                                                                             }}
                                                                             className="flex items-center gap-1.5 px-3 py-1 bg-white border border-gray-200 rounded-lg text-[10px] font-black uppercase text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                                                                            aria-label="Filter logs by this Request ID chain"
                                                                         >
                                                                             <Link size={12} /> Chain This Request
                                                                         </button>
@@ -405,6 +426,7 @@ export function AuditLogPanel() {
                                 }}
                                 disabled={page === 1 || loading}
                                 className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-all shadow-sm active:scale-95"
+                                aria-label="Go to previous page"
                             >
                                 Previous
                             </button>
@@ -415,6 +437,7 @@ export function AuditLogPanel() {
                                 }}
                                 disabled={page === pagination.totalPages || loading}
                                 className="px-6 py-2.5 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black disabled:opacity-50 transition-all shadow-lg shadow-gray-200 active:scale-95"
+                                aria-label="Go to next page"
                             >
                                 Next
                             </button>

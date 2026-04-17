@@ -6,10 +6,12 @@ export function formatIndianCurrency(amount: number): string {
     if (amount === null || amount === undefined || isNaN(amount)) return '0';
     
     const x = amount.toString();
-    var lastThree = x.substring(x.length - 3);
-    var otherNumbers = x.substring(0, x.length - 3);
-    if (otherNumbers != '')
-        lastThree = ',' + lastThree;
-    var res = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + lastThree;
-    return res;
+    const lastThree = x.substring(x.length - 3);
+    const otherNumbers = x.substring(0, x.length - 3);
+    let result = lastThree;
+    if (otherNumbers !== '') {
+        result = ',' + lastThree;
+    }
+    const finalRes = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + result;
+    return finalRes;
 }

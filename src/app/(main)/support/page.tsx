@@ -56,23 +56,23 @@ export default function SupportPage() {
     const inProgressCount = tickets.filter(t => t.status === 'In-Progress').length
     const resolvedCount = tickets.filter(t => t.status === 'Resolved' || t.status === 'Closed').length
 
-    const getStatusColor = (status: string) => {
+    const getStatusClasses = (status: string) => {
         switch (status) {
-            case 'Open': return { bg: 'rgba(59, 130, 246, 0.2)', text: '#60A5FA', border: 'rgba(59, 130, 246, 0.3)' }
-            case 'In-Progress': return { bg: 'rgba(245, 158, 11, 0.2)', text: '#FBBF24', border: 'rgba(245, 158, 11, 0.3)' }
-            case 'Resolved': return { bg: 'rgba(16, 185, 129, 0.2)', text: '#34D399', border: 'rgba(16, 185, 129, 0.3)' }
-            case 'Closed': return { bg: 'rgba(75, 85, 99, 0.4)', text: '#D1D5DB', border: 'rgba(75, 85, 99, 0.5)' }
-            default: return { bg: 'rgba(255, 255, 255, 0.1)', text: '#D1D5DB', border: 'rgba(255, 255, 255, 0.2)' }
+            case 'Open': return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+            case 'In-Progress': return 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+            case 'Resolved': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+            case 'Closed': return 'bg-slate-500/40 text-slate-300 border-slate-500/50'
+            default: return 'bg-white/10 text-slate-300 border-white/20'
         }
     }
 
-    const getPriorityStyle = (priority: string) => {
+    const getPriorityClasses = (priority: string) => {
         switch (priority) {
-            case 'High': return { bg: 'linear-gradient(135deg, #EF4444, #DC2626)', text: 'white' }
-            case 'Urgent': return { bg: 'linear-gradient(135deg, #DC2626, #991B1B)', text: 'white' }
-            case 'Medium': return { bg: 'linear-gradient(135deg, #F59E0B, #D97706)', text: 'white' }
-            case 'Low': return { bg: 'linear-gradient(135deg, #10B981, #059669)', text: 'white' }
-            default: return { bg: '#4B5563', text: 'white' }
+            case 'High': return 'bg-gradient-to-br from-red-500 to-red-600 text-white'
+            case 'Urgent': return 'bg-gradient-to-br from-red-600 to-red-900 text-white'
+            case 'Medium': return 'bg-gradient-to-br from-amber-500 to-amber-600 text-white'
+            case 'Low': return 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white'
+            default: return 'bg-slate-600 text-white'
         }
     }
 
@@ -160,8 +160,8 @@ export default function SupportPage() {
                     ) : (
                         <div className="flex flex-col gap-4">
                             {tickets.map((ticket) => {
-                                const statusStyle = getStatusColor(ticket.status)
-                                const priorityStyle = getPriorityStyle(ticket.priority)
+                                const statusClasses = getStatusClasses(ticket.status)
+                                const priorityClasses = getPriorityClasses(ticket.priority)
                                 const isResolved = ticket.status === 'Resolved' || ticket.status === 'Closed'
                                 const hasRated = !!ticket.rating
 
@@ -171,8 +171,8 @@ export default function SupportPage() {
                                             onClick={() => setSelectedTicket(ticket)}
                                             className="p-7 !bg-gradient-to-br !from-indigo-950/80 !via-indigo-900/40 !to-blue-900/40 border border-white/10 rounded-2xl hover:border-white/20 hover:shadow-2xl transition-all cursor-pointer group active:scale-[0.98]"
                                         >
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                                                <div style={{ flex: 1 }}>
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div className="flex-1">
                                                     <h3 className="text-lg font-bold text-white mb-1.5 group-hover:text-indigo-200 transition-colors">{ticket.subject}</h3>
                                                     <p className="text-sm text-white/60 line-clamp-2">
                                                         {ticket.messages && ticket.messages.length > 0
@@ -182,14 +182,12 @@ export default function SupportPage() {
                                                 </div>
                                                 <div className="flex gap-2 ml-4">
                                                     <span
-                                                        className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                                                        style={{ background: priorityStyle.bg, color: priorityStyle.text }}
+                                                        className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${priorityClasses}`}
                                                     >
                                                         {ticket.priority}
                                                     </span>
                                                     <span
-                                                        className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border"
-                                                        style={{ background: statusStyle.bg, color: statusStyle.text, borderColor: statusStyle.border }}
+                                                        className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${statusClasses}`}
                                                     >
                                                         {ticket.status}
                                                     </span>
@@ -241,17 +239,20 @@ export default function SupportPage() {
                                 <button
                                     onClick={() => setShowNewTicket(false)}
                                     className="p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-colors"
+                                    aria-label="Close Ticket Modal"
                                 >
                                     <X size={20} className="text-white" />
                                 </button>
                             </div>
                             <div className="p-8 flex flex-col gap-6">
                                 <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Category</label>
+                                    <label htmlFor="ticket-category" className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Category</label>
                                     <select
+                                        id="ticket-category"
                                         className="w-full px-5 py-4 rounded-xl border border-white/10 bg-white/5 focus:border-indigo-500 focus:bg-white/10 focus:ring-4 focus:ring-indigo-500/20 transition-all text-sm font-bold text-white outline-none"
                                         value={category}
                                         onChange={(e) => setCategory(e.target.value)}
+                                        aria-label="Select Ticket Category"
                                     >
                                         <option className="bg-slate-900 text-white">Technical Issue</option>
                                         <option className="bg-slate-900 text-white">Benefit Discrepancy</option>
@@ -371,6 +372,7 @@ function CSATRatingCard({ ticketId }: { ticketId: number }) {
                                 onMouseLeave={() => setHover(0)}
                                 onClick={() => setRating(star)}
                                 className="transition-all hover:scale-125 active:scale-95"
+                                aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
                             >
                                 <Star
                                     size={24}

@@ -529,9 +529,9 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                 {/* Support Desk View */}
                 {selectedView === 'support' && (
                     <div className="space-y-6 animate-fade-in">
-                        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #f0f0f0', overflow: 'hidden' }}>
-                            <div style={{ padding: '40px', textAlign: 'center', color: '#9CA3AF' }}>
-                                <MessageSquare size={48} style={{ margin: '0 auto 12px', opacity: 0.2 }} />
+                        <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+                            <div className="p-10 text-center text-slate-400">
+                                <MessageSquare size={48} className="mx-auto mb-3 opacity-20" />
                                 <p>No active support cases. Ambassadors are happy!</p>
                             </div>
                         </div>
@@ -567,8 +567,9 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                 >
                     <div className="space-y-6">
                         <div className="space-y-2">
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Tier Designation</label>
+                            <label htmlFor="slab-tier-name" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Tier Designation</label>
                             <input
+                                id="slab-tier-name"
                                 className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all placeholder:text-gray-300"
                                 placeholder="e.g. Platinum Elite"
                                 value={slabForm.tierName || ''}
@@ -578,10 +579,11 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Referral Threshold</label>
+                                <label htmlFor="slab-referral-threshold" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Referral Threshold</label>
                                 <div className="relative">
                                     <Target className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
                                     <input
+                                        id="slab-referral-threshold"
                                         type="number"
                                         className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-5 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all"
                                         value={slabForm.referralCount || 0}
@@ -590,10 +592,11 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Base Benefit (%)</label>
+                                <label htmlFor="slab-base-benefit" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Base Benefit (%)</label>
                                 <div className="relative">
                                     <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
                                     <input
+                                        id="slab-base-benefit"
                                         type="number"
                                         className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-12 pr-5 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all"
                                         value={slabForm.yearFeeBenefitPercent || 0}

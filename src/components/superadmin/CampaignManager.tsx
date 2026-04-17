@@ -684,6 +684,7 @@ export function CampaignManager() {
                                             </div>
                                             <button
                                                 onClick={() => setShowModal(false)}
+                                                aria-label="Close modal"
                                                 className="p-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
                                             >
                                                 <X size={18} className="text-gray-500" />
@@ -777,7 +778,9 @@ export function CampaignManager() {
                                                         )}
                                                     </div>
                                                     <div className="relative">
+                                                        <label htmlFor="wa-template-select" className="sr-only">Select WhatsApp Template</label>
                                                         <select
+                                                            id="wa-template-select"
                                                             className="w-full bg-green-50/30 border border-green-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-green-50 focus:border-green-200 transition-all appearance-none cursor-pointer"
                                                             value={form.waTemplateName}
                                                             onChange={e => setForm({ ...form, waTemplateName: e.target.value })}
@@ -822,8 +825,9 @@ export function CampaignManager() {
                                                                         return fields;
                                                                     })().map((v) => (
                                                                         <div key={v.variableKey} className="bg-white/60 p-3 rounded-2xl border border-green-100 shadow-sm transition-all hover:border-green-300">
-                                                                            <p className="text-[9px] font-black text-green-600 uppercase mb-2 px-1 tracking-wider">{v.label}</p>
+                                                                            <label htmlFor={`wa-var-map-${v.variableKey}`} className="text-[9px] font-black text-green-600 uppercase mb-2 px-1 tracking-wider block">{v.label}</label>
                                                                             <select
+                                                                                id={`wa-var-map-${v.variableKey}`}
                                                                                 value={form.waVariableMapping[v.variableKey]?.startsWith('{ProgramLink') ? '{ProgramLink}' : (form.waVariableMapping[v.variableKey] || '')}
                                                                                 onChange={e => setForm({ 
                                                                                     ...form, 
@@ -871,7 +875,7 @@ export function CampaignManager() {
                                                                                             { value: 'Mobile', label: 'Mobile Number' },
                                                                                             { value: 'Campus', label: 'Campus' },
                                                                                             { value: 'programName', label: 'Program Name' },
-                                                                                            { value: 'programLink', label: 'Program Link' },
+                                                                                            { value: 'programLink', label: 'Program Link (Automatic)' },
                                                                                             { value: 'status', label: 'Lead Status' },
                                                                                             { value: 'source', label: 'Source (Ambassador)' },
                                                                                             { value: 'enquiryDate', label: 'Enquiry Date' },
@@ -886,7 +890,10 @@ export function CampaignManager() {
                                                                                 <option value="STATIC">Custom / Static Text</option>
                                                                             </select>
                                                                             {form.waVariableMapping[v.variableKey]?.startsWith('{ProgramLink') && (
+                                                                                <>
+                                                                                <label htmlFor={`wa-var-prog-map-${v.variableKey}`} className="sr-only">Select Program for Variable</label>
                                                                                 <select
+                                                                                    id={`wa-var-prog-map-${v.variableKey}`}
                                                                                     className="w-full mt-2 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1.5 text-[10px] font-bold text-indigo-700 focus:outline-none focus:ring-1 focus:ring-indigo-200"
                                                                                     value={form.waVariableMapping[v.variableKey]?.match(/:([^}]+)/)?.[1] || ''}
                                                                                     onChange={e => setForm({
@@ -899,6 +906,12 @@ export function CampaignManager() {
                                                                                         <option key={p.id} value={p.slug}>{p.title}</option>
                                                                                     ))}
                                                                                 </select>
+                                                                                </>
+                                                                            )}
+                                                                            {form.waVariableMapping[v.variableKey] === '{programLink}' && (
+                                                                                <p className="mt-2 text-[10px] font-bold text-indigo-500 italic px-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+                                                                                    <Sparkles size={10} /> Syncs with Campaign Program automatically.
+                                                                                </p>
                                                                             )}
                                                                             {form.waVariableMapping[v.variableKey] === 'STATIC' && (
                                                                                 <input 
@@ -921,8 +934,9 @@ export function CampaignManager() {
                                                                         <ExternalLink size={12} /> Interactive Action Button (Optional)
                                                                     </div>
                                                                     <div className="bg-white/60 p-4 rounded-2xl border border-green-100 shadow-sm">
-                                                                        <p className="text-[9px] font-black text-green-600 uppercase mb-2 px-1 tracking-wider">Button 1 Link (Call-to-Action)</p>
+                                                                        <label htmlFor="wa-btn-1-map" className="text-[9px] font-black text-green-600 uppercase mb-2 px-1 tracking-wider block">Button 1 Link (Call-to-Action)</label>
                                                                         <select
+                                                                            id="wa-btn-1-map"
                                                                             value={form.waVariableMapping['button_1']?.startsWith('{ProgramLink') ? '{ProgramLink}' : (form.waVariableMapping['button_1'] || '')}
                                                                             onChange={e => setForm({ 
                                                                                 ...form, 
@@ -945,7 +959,7 @@ export function CampaignManager() {
                                                                                     ],
                                                                                     PROGRAM_LEADS: [
                                                                                         { value: 'referrerLink', label: 'Referrer Link' },
-                                                                                        { value: 'programLink', label: 'Program Link' },
+                                                                                        { value: 'programLink', label: 'Program Link (Automatic)' },
                                                                                         { value: 'ProgramLink', label: 'Program Link (Picker)' }
                                                                                     ]
                                                                                 }
@@ -957,7 +971,10 @@ export function CampaignManager() {
                                                                         </select>
                                                                         
                                                                         {form.waVariableMapping['button_1']?.startsWith('{ProgramLink') && (
+                                                                            <>
+                                                                            <label htmlFor="wa-btn-1-prog" className="sr-only">Select Program for Button</label>
                                                                             <select
+                                                                                id="wa-btn-1-prog"
                                                                                 className="w-full mt-2 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1.5 text-[10px] font-bold text-indigo-700 focus:outline-none focus:ring-1 focus:ring-indigo-200"
                                                                                 value={form.waVariableMapping['button_1']?.match(/:([^}]+)/)?.[1] || ''}
                                                                                 onChange={e => setForm({
@@ -970,6 +987,12 @@ export function CampaignManager() {
                                                                                     <option key={p.id} value={p.slug}>{p.title}</option>
                                                                                 ))}
                                                                             </select>
+                                                                            </>
+                                                                        )}
+                                                                        {form.waVariableMapping['button_1'] === '{programLink}' && (
+                                                                            <p className="mt-2 text-[10px] font-bold text-indigo-500 italic px-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+                                                                                <Sparkles size={10} /> Syncs with Campaign Program automatically.
+                                                                            </p>
                                                                         )}
                                                                         
                                                                         {form.waVariableMapping['button_1'] === 'STATIC' && (
@@ -1018,8 +1041,9 @@ export function CampaignManager() {
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 {(form.targetAudience.type === 'AMBASSADORS' || !form.targetAudience.type) && (
                                                     <div className="space-y-1.5">
-                                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Structural Role</label>
+                                                        <label htmlFor="audience-role-select" className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Structural Role</label>
                                                         <select
+                                                            id="audience-role-select"
                                                             value={form.targetAudience.role}
                                                             onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, role: e.target.value } })}
                                                             className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 transition-all"
@@ -1035,8 +1059,9 @@ export function CampaignManager() {
 
                                                 {form.targetAudience.type === 'REFERRALS' && (
                                                     <div className="space-y-1.5">
-                                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Referral Stage</label>
+                                                        <label htmlFor="referral-stage-select" className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Referral Stage</label>
                                                         <select
+                                                            id="referral-stage-select"
                                                             value={(form.targetAudience as any).leadStatus || 'All'}
                                                             onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, leadStatus: e.target.value } as any })}
                                                             className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 transition-all font-bold text-indigo-600"
@@ -1053,8 +1078,9 @@ export function CampaignManager() {
                                                 {form.targetAudience.type === 'PROGRAM_LEADS' && (
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                         <div className="space-y-1.5">
-                                                            <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Target Program</label>
+                                                            <label htmlFor="target-program-select" className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Target Program</label>
                                                             <select
+                                                                id="target-program-select"
                                                                 value={(form.targetAudience as any).programId || 'All'}
                                                                 onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, programId: e.target.value } as any })}
                                                                 className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 transition-all font-bold text-indigo-600"
@@ -1066,8 +1092,9 @@ export function CampaignManager() {
                                                             </select>
                                                         </div>
                                                         <div className="space-y-1.5">
-                                                            <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Campaign Stage</label>
+                                                            <label htmlFor="campaign-stage-select" className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Campaign Stage</label>
                                                             <select
+                                                                id="campaign-stage-select"
                                                                 value={(form.targetAudience as any).programLeadStatus || 'All'}
                                                                 onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, programLeadStatus: e.target.value } as any })}
                                                                 className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 transition-all font-bold text-emerald-600"
@@ -1081,8 +1108,9 @@ export function CampaignManager() {
                                                 )}
 
                                                 <div className="space-y-1.5">
-                                                    <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Institutional Node</label>
+                                                    <label htmlFor="audience-campus-select" className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Institutional Node</label>
                                                     <select
+                                                        id="audience-campus-select"
                                                         value={form.targetAudience.campus}
                                                         onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, campus: e.target.value } })}
                                                         className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 transition-all"
@@ -1099,8 +1127,9 @@ export function CampaignManager() {
                                             {(form.targetAudience.type === 'AMBASSADORS' || !form.targetAudience.type) && (
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-gray-200">
                                                     <div className="space-y-1.5">
-                                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Account Health</label>
+                                                        <label htmlFor="account-health-select" className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Account Health</label>
                                                         <select
+                                                            id="account-health-select"
                                                             value={(form.targetAudience as any).accountHealth || 'Active'}
                                                             onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, accountHealth: e.target.value } as any })}
                                                             className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 transition-all"
@@ -1111,8 +1140,9 @@ export function CampaignManager() {
                                                         </select>
                                                     </div>
                                                     <div className="space-y-1.5">
-                                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Referral Milestone</label>
+                                                        <label htmlFor="referral-milestone-select" className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Referral Milestone</label>
                                                         <select
+                                                            id="referral-milestone-select"
                                                             value={(form.targetAudience as any).referralMilestone || 'All'}
                                                             onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, referralMilestone: e.target.value } as any })}
                                                             className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 transition-all"
@@ -1127,8 +1157,9 @@ export function CampaignManager() {
                                                         </select>
                                                     </div>
                                                     <div className="space-y-1.5">
-                                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Missing Info</label>
+                                                        <label htmlFor="missing-info-select" className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Missing Info</label>
                                                         <select
+                                                            id="missing-info-select"
                                                             value={(form.targetAudience as any).missingInfo || 'None'}
                                                             onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, missingInfo: e.target.value } as any })}
                                                             className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 transition-all"
@@ -1139,8 +1170,9 @@ export function CampaignManager() {
                                                         </select>
                                                     </div>
                                                     <div className="space-y-1.5">
-                                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Lead Funnel Stage</label>
+                                                        <label htmlFor="lead-funnel-status-select" className="block text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em] px-1">Lead Funnel Stage</label>
                                                         <select
+                                                            id="lead-funnel-status-select"
                                                             value={(form.targetAudience as any).leadFunnelStatus || 'All'}
                                                             onChange={e => setForm({ ...form, targetAudience: { ...form.targetAudience, leadFunnelStatus: e.target.value } as any })}
                                                             className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-gray-300 transition-all"
@@ -1295,7 +1327,7 @@ export function CampaignManager() {
                                 >
                                     <div className="p-6 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
                                         <h3 className="text-md font-black text-gray-900 uppercase tracking-tighter italic">Workflow Output Preview</h3>
-                                        <button onClick={() => setShowPreviewModal(false)} className="p-2 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-black transition-colors">
+                                        <button onClick={() => setShowPreviewModal(false)} aria-label="Close Preview" className="p-2 bg-white border border-gray-100 rounded-xl text-gray-400 hover:text-black transition-colors">
                                             <X size={20} />
                                         </button>
                                     </div>
@@ -1454,7 +1486,7 @@ export function CampaignManager() {
                                                         <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-[0.15em]">One-off individual message</p>
                                                     </div>
                                                 </div>
-                                                <button onClick={() => setShowIndividualModal(false)} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
+                                                <button onClick={() => setShowIndividualModal(false)} aria-label="Close Individual Message Modal" className="p-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
                                                     <X size={18} className="text-gray-500" />
                                                 </button>
                                             </div>
@@ -1463,8 +1495,9 @@ export function CampaignManager() {
                                         <div className="p-8 space-y-6">
                                             <div className="space-y-4">
                                                 <div className="space-y-1.5">
-                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Recipient Mobile</label>
+                                                    <label htmlFor="indiv-mobile-input" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Recipient Mobile</label>
                                                     <input
+                                                        id="indiv-mobile-input"
                                                         className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 transition-all placeholder:text-gray-300"
                                                         placeholder="e.g. 9876543210"
                                                         value={individualForm.mobile}
@@ -1473,8 +1506,9 @@ export function CampaignManager() {
                                                 </div>
 
                                                 <div className="space-y-1.5">
-                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Select Template</label>
+                                                    <label htmlFor="indiv-template-select" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Select Template</label>
                                                     <select
+                                                        id="indiv-template-select"
                                                         className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-green-50 focus:border-green-100 transition-all"
                                                         value={individualForm.templateName}
                                                         onChange={e => {
@@ -1503,7 +1537,9 @@ export function CampaignManager() {
                                                         <div className="grid grid-cols-2 gap-3">
                                                             {individualForm.variables.map((v, idx) => (
                                                                 <div key={idx} className="space-y-1">
+                                                                    <label htmlFor={`indiv-var-${idx}`} className="sr-only">Variable {idx + 1}</label>
                                                                     <input
+                                                                        id={`indiv-var-${idx}`}
                                                                         className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2 text-xs font-semibold text-gray-700 focus:ring-2 focus:ring-indigo-100"
                                                                         placeholder={`Variable ${idx + 1}`}
                                                                         value={v}
@@ -1521,9 +1557,10 @@ export function CampaignManager() {
 
                                                 <div className="space-y-3 pt-2">
                                                     <div className="flex items-center gap-2 text-[10px] font-black text-indigo-700 uppercase tracking-widest px-1">
-                                                        <ExternalLink size={12} /> Action Button Link (Optional)
+                                                        <ExternalLink size={12} /> <label htmlFor="indiv-btn-input">Action Button Link (Optional)</label>
                                                     </div>
                                                     <input
+                                                        id="indiv-btn-input"
                                                         className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-2.5 text-xs font-bold text-indigo-600 placeholder:text-gray-300 focus:ring-2 focus:ring-indigo-100 transition-all font-mono"
                                                         placeholder="https://clickable-image-link.com"
                                                         value={individualForm.button_1 || ''}

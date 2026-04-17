@@ -283,25 +283,25 @@ export async function syncProgramLeads() {
                 const rows = parseCSV(text)
                 if (rows.length < 2) continue
 
-                // 3. Detect Headers
-                const headers = rows[0].map(h => h.trim().toLowerCase())
+                // 3. Detect Headers (Robustly handle underscores, spaces, hyphens)
+                const normalize = (h: string) => h.trim().toLowerCase().replace(/[_\s-]/g, '')
+                const headers = rows[0].map(h => normalize(h))
 
                 // Better Mobile detection
                 const mobileIndex = headers.findIndex(h =>
                     h === 'mobile' || h === 'phone' || h === 'contact' ||
-                    h.includes('mobile') || h.includes('phone number') || h.includes('contact number')
+                    h.includes('mobile') || h.includes('phonenumber') || h.includes('contactnumber')
                 )
 
-                // Better Name detection (Handle various common column names)
+                // Better Name detection
                 const nameIndex = headers.findIndex(h =>
-                    h === 'name' || h === 'student' || h === 'student name' || h === 'full name' ||
-                    h === 'studentname' || h === 'name of student' ||
+                    h === 'name' || h === 'student' || h === 'studentname' || h === 'fullname' ||
                     h.includes('student') || h.includes('child') || h.includes('candidate') || (h.includes('name') && !h.includes('parent'))
                 )
 
                 // detect Payment Status column
                 const paymentStatusIndex = headers.findIndex(h =>
-                    h.includes('payment status') || h.includes('paymentstatus') || h.includes('order status')
+                    h.includes('paymentstatus') || h.includes('orderstatus') || h.includes('status')
                 )
 
                 if (mobileIndex === -1) {
@@ -309,12 +309,11 @@ export async function syncProgramLeads() {
                     continue
                 }
 
-                // 4. Extract Data
-                const leadsToUpdate = rows.slice(1).map(row => {
+                // 4. Extract and Deduplicate Data (Ensure Success wins over Pending)
+                const rawLeads = rows.slice(1).map(row => {
                     const rawMobile = row[mobileIndex]
                     if (!rawMobile) return null
 
-                    // Normalize to last 10 digits
                     const mobile = rawMobile.replace(/\D/g, '').slice(-10)
                     if (mobile.length !== 10) return null
 
@@ -331,10 +330,39 @@ export async function syncProgramLeads() {
                     return { mobile, studentName, paymentStatus }
                 }).filter((l): l is { mobile: string, studentName: string | null, paymentStatus: string | null } => l !== null)
 
-                if (leadsToUpdate.length === 0) {
+                if (rawLeads.length === 0) {
                     results.push({ program: program.title, status: 'Success', synced: 0, message: 'No valid leads in file' })
                     continue
                 }
+
+                // Deduplicate: Group by mobile and merge the "best" data (Success > Pending, Longest Name)
+                const successKeywords = ['SUCCESS', 'PAID', 'CONFIRMED', 'COMPLETED', 'CAPTURED']
+                const deduplicatedMap = new Map<string, typeof rawLeads[0]>()
+
+                for (const lead of rawLeads) {
+                    const existing = deduplicatedMap.get(lead.mobile)
+                    if (!existing) {
+                        deduplicatedMap.set(lead.mobile, { ...lead })
+                        continue
+                    }
+
+                    // 1. Prioritize Success Status
+                    const isNewSuccess = lead.paymentStatus && successKeywords.includes(lead.paymentStatus)
+                    const isExistingSuccess = existing.paymentStatus && successKeywords.includes(existing.paymentStatus)
+
+                    if (isNewSuccess && !isExistingSuccess) {
+                        existing.paymentStatus = lead.paymentStatus
+                    }
+
+                    // 2. Prioritize Most Complete Name
+                    if (lead.studentName) {
+                        if (!existing.studentName || lead.studentName.length > existing.studentName.length) {
+                            existing.studentName = lead.studentName
+                        }
+                    }
+                }
+
+                const leadsToUpdate = Array.from(deduplicatedMap.values())
 
                 // 5. Update Database
                 let updatedCount = 0
@@ -363,10 +391,10 @@ export async function syncProgramLeads() {
                         try {
                             // Determine internal status based on sheets payment status
                             let newInternalStatus = existingLead.status
-                            const ps = leadData.paymentStatus || ""
+                            const ps = (leadData.paymentStatus || "").toUpperCase()
 
                             // If payment is successful, mark as REGISTERED
-                            if (ps === 'SUCCESS' || ps === 'PAID' || ps === 'CONFIRMED' || ps === 'COMPLETED') {
+                            if (['SUCCESS', 'PAID', 'CONFIRMED', 'COMPLETED', 'CAPTURED'].includes(ps)) {
                                 newInternalStatus = 'REGISTERED'
                             }
 
@@ -398,6 +426,10 @@ export async function syncProgramLeads() {
         }
 
         revalidatePath('/dashboard')
+        revalidatePath('/program-leads')
+        revalidatePath('/superadmin/program-leads', 'page')
+        revalidatePath('/campus', 'layout')
+        
         return { success: true, results }
 
     } catch (error) {

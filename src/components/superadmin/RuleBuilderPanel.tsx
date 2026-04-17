@@ -371,45 +371,92 @@ export default function RuleBuilderPanel() {
                                 <div className="lg:col-span-12">
                                     <label className="text-xs font-bold text-slate-700 mb-2 block italic">Automation Trigger Mode</label>
                                     <div className="flex gap-4">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setTriggerType('CRON_DAILY')
-                                                setTriggerEvent('')
-                                            }}
-                                            className={`flex-1 p-4 rounded-2xl border-2 transition-all text-left flex items-center gap-4 ${triggerType === 'CRON_DAILY' ? 'border-indigo-600 bg-indigo-50 shadow-md' : 'border-slate-100 bg-white hover:border-slate-200'}`}
-                                        >
-                                            <div className={`p-3 rounded-xl ${triggerType === 'CRON_DAILY' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                                                <Calendar className="h-5 w-5" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-black text-slate-800 uppercase tracking-tight">Daily Scan</p>
-                                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-tight">Runs every night for all matching users.</p>
-                                            </div>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setTriggerType('EVENT')
-                                                setTriggerEvent('')
-                                            }}
-                                            className={`flex-1 p-4 rounded-2xl border-2 transition-all text-left flex items-center gap-4 ${triggerType === 'EVENT' ? 'border-orange-600 bg-orange-50 shadow-md' : 'border-slate-100 bg-white hover:border-slate-200'}`}
-                                        >
-                                            <div className={`p-3 rounded-xl ${triggerType === 'EVENT' ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                                                <RefreshCcw className="h-5 w-5" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-black text-slate-800 uppercase tracking-tight">Instant Event</p>
-                                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-tight">Triggers instantly on specific actions.</p>
-                                            </div>
-                                        </button>
+                                        {triggerType === "CRON_DAILY" ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setTriggerType('CRON_DAILY')
+                                                    setTriggerEvent('')
+                                                }}
+                                                aria-pressed="true"
+                                                aria-label="Daily Scan - Trigger rule every night"
+                                                className="flex-1 p-4 rounded-2xl border-2 transition-all text-left flex items-center gap-4 border-indigo-600 bg-indigo-50 shadow-md"
+                                            >
+                                                <div className="p-3 rounded-xl bg-indigo-600 text-white">
+                                                    <Calendar className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black text-slate-800 uppercase tracking-tight">Daily Scan</p>
+                                                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-tight">Runs every night for all matching users.</p>
+                                                </div>
+                                            </button>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setTriggerType('CRON_DAILY')
+                                                    setTriggerEvent('')
+                                                }}
+                                                aria-pressed="false"
+                                                aria-label="Daily Scan - Trigger rule every night"
+                                                className="flex-1 p-4 rounded-2xl border-2 transition-all text-left flex items-center gap-4 border-slate-100 bg-white hover:border-slate-200"
+                                            >
+                                                <div className="p-3 rounded-xl bg-slate-100 text-slate-400">
+                                                    <Calendar className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black text-slate-800 uppercase tracking-tight">Daily Scan</p>
+                                                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-tight">Runs every night for all matching users.</p>
+                                                </div>
+                                            </button>
+                                        )}
+                                        {triggerType === "EVENT" ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setTriggerType('EVENT')
+                                                    setTriggerEvent('')
+                                                }}
+                                                aria-pressed="true"
+                                                aria-label="Instant Event - Trigger rule on specific system actions"
+                                                className="flex-1 p-4 rounded-2xl border-2 transition-all text-left flex items-center gap-4 border-orange-600 bg-orange-50 shadow-md"
+                                            >
+                                                <div className="p-3 rounded-xl bg-orange-600 text-white">
+                                                    <RefreshCcw className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black text-slate-800 uppercase tracking-tight">Instant Event</p>
+                                                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-tight">Triggers instantly on specific actions.</p>
+                                                </div>
+                                            </button>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setTriggerType('EVENT')
+                                                    setTriggerEvent('')
+                                                }}
+                                                aria-pressed="false"
+                                                aria-label="Instant Event - Trigger rule on specific system actions"
+                                                className="flex-1 p-4 rounded-2xl border-2 transition-all text-left flex items-center gap-4 border-slate-100 bg-white hover:border-slate-200"
+                                            >
+                                                <div className="p-3 rounded-xl bg-slate-100 text-slate-400">
+                                                    <RefreshCcw className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black text-slate-800 uppercase tracking-tight">Instant Event</p>
+                                                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-tight">Triggers instantly on specific actions.</p>
+                                                </div>
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="lg:col-span-5">
-                                    <label className="text-xs font-bold text-slate-700 mb-2 block">
+                                    <label htmlFor="rule-trigger-event" className="text-xs font-bold text-slate-700 mb-2 block">
                                         {triggerType === 'CRON_DAILY' ? '1. MSG91 Template Key' : '1. System Event Trigger'}
                                     </label>
                                     <select 
+                                        id="rule-trigger-event"
                                         value={triggerEvent} onChange={e => {
                                             setTriggerEvent(e.target.value)
                                             if (triggerType === 'CRON_DAILY') setActionTarget(e.target.value)
@@ -440,8 +487,9 @@ export default function RuleBuilderPanel() {
 
                                 {triggerType === 'EVENT' && (
                                     <div className="lg:col-span-7">
-                                        <label className="text-xs font-bold text-slate-700 mb-2 block">2. MSG91 Template to SEND</label>
+                                        <label htmlFor="rule-action-template" className="text-xs font-bold text-slate-700 mb-2 block">2. MSG91 Template to SEND</label>
                                         <select 
+                                            id="rule-action-template"
                                             value={actionTarget} onChange={e => setActionTarget(e.target.value)}
                                             className="w-full rounded-xl border-2 border-indigo-200 text-sm font-bold py-2.5 shadow-sm bg-indigo-50 text-indigo-700 focus:ring-indigo-500"
                                         >
@@ -458,8 +506,9 @@ export default function RuleBuilderPanel() {
                                 )}
                                 
                                 <div className={triggerType === 'EVENT' ? 'lg:col-span-5' : 'lg:col-span-7'}>
-                                    <label className="text-xs font-bold text-slate-700 mb-2 block">Rule Name (Internal)</label>
+                                    <label htmlFor="rule-internal-name" className="text-xs font-bold text-slate-700 mb-2 block">Rule Name (Internal)</label>
                                     <input 
+                                        id="rule-internal-name"
                                         type="text" value={name} onChange={e => setName(e.target.value)}
                                         className="w-full rounded-xl border-slate-200 text-sm focus:ring-indigo-500 py-2.5 shadow-sm bg-white"
                                         placeholder="e.g. Welcome Message"
@@ -478,31 +527,45 @@ export default function RuleBuilderPanel() {
                                 {/* -- Target Entity Selector -- */}
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                     {[
-                                        { id: 'USER', label: 'Ambassadors', icon: Users, color: 'indigo' },
-                                        { id: 'REFERRAL_LEAD', label: 'Referrals', icon: UserPlus, color: 'blue' },
-                                        { id: 'PROGRAM_LEAD', label: 'Program Leads', icon: Target, color: 'orange' },
-                                        { id: 'STUDENT', label: 'Students', icon: GraduationCap, color: 'purple' },
+                                        { id: 'USER', label: 'Ambassadors', icon: Users, color: 'indigo', desc: 'Target Ambassadors and registered users' },
+                                        { id: 'REFERRAL_LEAD', label: 'Referrals', icon: UserPlus, color: 'blue', desc: 'Target Prospective Referral Leads' },
+                                        { id: 'PROGRAM_LEAD', label: 'Program Leads', icon: Target, color: 'orange', desc: 'Target Direct Enrollment Leads' },
+                                        { id: 'STUDENT', label: 'Students', icon: GraduationCap, color: 'purple', desc: 'Target Enrolled Students' },
                                     ].map((entity) => {
                                         const Icon = entity.icon
                                         const isActive = targetEntity === entity.id
-                                        return (
+                                        return isActive ? (
                                             <button
                                                 key={entity.id}
                                                 type="button"
                                                 onClick={() => setTargetEntity(entity.id)}
-                                                className={`flex-1 flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all ${
-                                                    isActive 
-                                                        ? `border-${entity.color}-600 bg-white shadow-sm ring-1 ring-${entity.color}-600/20` 
-                                                        : 'border-slate-100 bg-slate-50 opacity-40 hover:opacity-100 hover:border-slate-200'
-                                                }`}
+                                                aria-pressed="true"
+                                                aria-label={entity.desc}
+                                                className={`flex-1 flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all border-${entity.color}-600 bg-white shadow-sm ring-1 ring-${entity.color}-600/20`}
                                             >
-                                                <div className={`p-1.5 rounded-lg ${isActive ? `bg-${entity.color}-600 text-white` : 'bg-slate-200 text-slate-500'}`}>
+                                                <div className={`p-1.5 rounded-lg bg-${entity.color}-600 text-white`}>
                                                     <Icon size={14} />
                                                 </div>
-                                                <span className={`text-[9px] font-black uppercase tracking-tight ${isActive ? `text-${entity.color}-700` : 'text-slate-500'}`}>
+                                                <span className={`text-[9px] font-black uppercase tracking-tight text-${entity.color}-700`}>
                                                     {entity.label}
                                                 </span>
                                             </button>
+                                        ) : (
+                                                <button
+                                                    key={entity.id}
+                                                    type="button"
+                                                    onClick={() => setTargetEntity(entity.id)}
+                                                    aria-pressed="false"
+                                                    aria-label={entity.desc}
+                                                    className="flex-1 flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all border-slate-100 bg-slate-50 opacity-40 hover:opacity-100 hover:border-slate-200"
+                                                >
+                                                    <div className="p-1.5 rounded-lg bg-slate-200 text-slate-500">
+                                                        <Icon size={14} />
+                                                    </div>
+                                                    <span className="text-[9px] font-black uppercase tracking-tight text-slate-500">
+                                                        {entity.label}
+                                                    </span>
+                                                </button>
                                         )
                                     })}
                                 </div>
@@ -543,10 +606,11 @@ export default function RuleBuilderPanel() {
                                                 <>
                                                     {/* Row 1: Structural Role & Institutional Node */}
                                                     <div className="space-y-3">
-                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                        <label htmlFor="filter-user-role" className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                                                             <Filter size={12} /> Structural Role
                                                         </label>
                                                         <select 
+                                                            id="filter-user-role"
                                                             className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-indigo-100 transition-all outline-none"
                                                             onChange={(e) => {
                                                                 const val = e.target.value;
@@ -563,10 +627,11 @@ export default function RuleBuilderPanel() {
                                                         </select>
                                                     </div>
                                                     <div className="space-y-3">
-                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                        <label htmlFor="filter-institutional-node" className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                                                             <MapPin size={12} /> Institutional Node
                                                         </label>
                                                         <select 
+                                                            id="filter-institutional-node"
                                                             className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-indigo-100 transition-all outline-none"
                                                             onChange={(e) => {
                                                                 const val = e.target.value;
@@ -584,10 +649,11 @@ export default function RuleBuilderPanel() {
 
                                                     {/* Row 2: Account Health & Payment Status */}
                                                     <div className="space-y-3">
-                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 px-1 italic">
+                                                        <label htmlFor="filter-account-health" className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 px-1 italic">
                                                             <Filter size={10} /> Account Health
                                                         </label>
                                                         <select 
+                                                            id="filter-account-health"
                                                             className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-indigo-100 transition-all outline-none"
                                                             onChange={(e) => setStatuses(e.target.value === 'All Accounts' ? [] : [e.target.value])}
                                                             value={statuses.length === 0 ? 'All Accounts' : statuses[0]}
@@ -599,10 +665,11 @@ export default function RuleBuilderPanel() {
                                                     </div>
 
                                                     <div className="space-y-3">
-                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                        <label htmlFor="filter-payment-status" className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                                                             <Wallet size={12} /> Payment Status
                                                         </label>
                                                         <select 
+                                                            id="filter-payment-status"
                                                             className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-indigo-100 transition-all outline-none"
                                                             onChange={(e) => setPaymentStatus(e.target.value === 'All Statuses' ? [] : [e.target.value])}
                                                             value={paymentStatus.length === 0 ? 'All Statuses' : paymentStatus[0]}
@@ -616,10 +683,11 @@ export default function RuleBuilderPanel() {
 
                                                     {/* Row 3: Benefit Eligibility & Referral Milestone */}
                                                     <div className="space-y-3">
-                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 px-1 italic">
+                                                        <label htmlFor="filter-benefit-eligibility" className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 px-1 italic">
                                                             <ShieldCheck size={10} /> Benefit Eligibility
                                                         </label>
                                                         <select 
+                                                            id="filter-benefit-eligibility"
                                                             className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-indigo-100 transition-all outline-none"
                                                             onChange={(e) => {
                                                                 const s = e.target.value;
@@ -636,10 +704,11 @@ export default function RuleBuilderPanel() {
                                                     </div>
 
                                                     <div className="space-y-3">
-                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 px-1 italic">
+                                                        <label htmlFor="filter-referral-milestone" className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 px-1 italic">
                                                             <Trophy size={10} /> Referral Milestone
                                                         </label>
                                                         <select 
+                                                            id="filter-referral-milestone"
                                                             className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-indigo-100 transition-all outline-none"
                                                             onChange={(e) => {
                                                                 const val = e.target.value;
@@ -716,10 +785,11 @@ export default function RuleBuilderPanel() {
                                              {targetEntity === 'USER' || targetEntity === 'STUDENT' ? (
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                     <div className="space-y-1.5">
-                                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 italic flex items-center gap-2">
+                                                        <label htmlFor="crm-filter-funnel-stage" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 italic flex items-center gap-2">
                                                             <Filter size={10} /> {targetEntity === 'STUDENT' ? 'Parent Engagement Stage' : 'Lead Funnel Stage'}
                                                         </label>
                                                         <select
+                                                            id="crm-filter-funnel-stage"
                                                             value={leadFunnelStatus}
                                                             onChange={e => setLeadFunnelStatus(e.target.value)}
                                                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-indigo-100 transition-all outline-none"
@@ -732,10 +802,11 @@ export default function RuleBuilderPanel() {
                                                         </select>
                                                     </div>
                                                     <div className="space-y-1.5">
-                                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 italic flex items-center gap-2">
+                                                        <label htmlFor="crm-filter-activity-phase" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 italic flex items-center gap-2">
                                                             <RefreshCcw size={10} /> Target Activity Phase
                                                         </label>
                                                         <select
+                                                            id="crm-filter-activity-phase"
                                                             value={activityStatus}
                                                             onChange={e => setActivityStatus(e.target.value)}
                                                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-indigo-100 transition-all outline-none"
@@ -757,21 +828,38 @@ export default function RuleBuilderPanel() {
                                                             { id: 'REJECTED', label: 'Rejected', values: ['Rejected'] }
                                                         ].map(stage => {
                                                             const isActive = stage.values.every(v => leadStatuses.includes(v))
-                                                            return (
-                                                                <button
-                                                                    key={stage.id} type="button"
-                                                                    onClick={() => {
-                                                                        setLeadStatuses(prev => {
-                                                                            if (isActive) return prev.filter(v => !stage.values.includes(v))
-                                                                            return [...new Set([...prev, ...stage.values])]
-                                                                        })
-                                                                    }}
-                                                                    className={`px-4 py-2 text-[10px] font-black rounded-xl border transition-all uppercase tracking-tight ${isActive ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-indigo-300'}`}
-                                                                >
-                                                                    {stage.label}
-                                                                </button>
-                                                            )
-                                                        })}
+                                                            return isActive ? (
+                                                                    <button
+                                                                        key={stage.id} type="button"
+                                                                        onClick={() => {
+                                                                            setLeadStatuses(prev => {
+                                                                                if (isActive) return prev.filter(v => !stage.values.includes(v))
+                                                                                return [...new Set([...prev, ...stage.values])]
+                                                                            })
+                                                                        }}
+                                                                        aria-pressed="true"
+                                                                        aria-label={`Target stage: ${stage.label}`}
+                                                                        className="px-4 py-2 text-[10px] font-black rounded-xl border transition-all uppercase tracking-tight bg-indigo-600 text-white border-indigo-600 shadow-md"
+                                                                    >
+                                                                        {stage.label}
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        key={stage.id} type="button"
+                                                                        onClick={() => {
+                                                                            setLeadStatuses(prev => {
+                                                                                if (isActive) return prev.filter(v => !stage.values.includes(v))
+                                                                                return [...new Set([...prev, ...stage.values])]
+                                                                            })
+                                                                        }}
+                                                                        aria-pressed="false"
+                                                                        aria-label={`Target stage: ${stage.label}`}
+                                                                        className="px-4 py-2 text-[10px] font-black rounded-xl border transition-all uppercase tracking-tight bg-slate-50 text-slate-500 border-slate-200 hover:border-indigo-300"
+                                                                    >
+                                                                        {stage.label}
+                                                                    </button>
+                                                                )
+                                                            })}
                                                     </div>
                                                     <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight px-1 italic">Multi-select enabled. Leaves blank to target all leads.</p>
                                                 </div>
@@ -829,13 +917,29 @@ export default function RuleBuilderPanel() {
                                                             <p className="text-[9px] text-slate-500 font-bold uppercase">Only trigger for verified Five Star members</p>
                                                         </div>
                                                     </div>
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => setIsFiveStarOnly(!isFiveStarOnly)}
-                                                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isFiveStarOnly ? 'bg-orange-600' : 'bg-slate-300'}`}
-                                                    >
-                                                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isFiveStarOnly ? 'translate-x-5' : 'translate-x-0'}`} />
-                                                    </button>
+                                                        {isFiveStarOnly ? (
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => setIsFiveStarOnly(false)}
+                                                                className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none bg-orange-600"
+                                                                role="switch"
+                                                                aria-checked="true"
+                                                                aria-label="Five Star Ambassadors Only"
+                                                            >
+                                                                <span className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-5" />
+                                                            </button>
+                                                        ) : (
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => setIsFiveStarOnly(true)}
+                                                                className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none bg-slate-300"
+                                                                role="switch"
+                                                                aria-checked="false"
+                                                                aria-label="Five Star Ambassadors Only"
+                                                            >
+                                                                <span className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0" />
+                                                            </button>
+                                                        )}
                                                 </div>
                                             )}
 
@@ -943,15 +1047,17 @@ export default function RuleBuilderPanel() {
                                         <div className="p-5 animate-in fade-in slide-in-from-top-2 duration-300 border-t border-indigo-50 space-y-6">
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 rounded-xl">
                                                 <div>
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Registered After</label>
+                                                    <label htmlFor="registeredAfter" className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Registered After</label>
                                                     <input 
+                                                        id="registeredAfter"
                                                         type="date" value={registeredAfter} onChange={e => setRegisteredAfter(e.target.value)}
                                                         className="w-full rounded-xl border-slate-200 text-sm focus:ring-4 focus:ring-indigo-100 py-3 bg-white shadow-sm outline-none"
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Registered Before</label>
+                                                    <label htmlFor="registeredBefore" className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Registered Before</label>
                                                     <input 
+                                                        id="registeredBefore"
                                                         type="date" value={registeredBefore} onChange={e => setRegisteredBefore(e.target.value)}
                                                         className="w-full rounded-xl border-slate-200 text-sm focus:ring-4 focus:ring-indigo-100 py-3 bg-white shadow-sm outline-none"
                                                     />
@@ -992,17 +1098,20 @@ export default function RuleBuilderPanel() {
                                             {(targetEntity === 'USER' || targetEntity === 'STUDENT') && (
                                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-indigo-50/30 rounded-xl border border-indigo-100/50">
                                                     <div>
-                                                        <label className="text-[10px] font-black text-indigo-900/50 uppercase tracking-widest mb-2 block italic">Account Age (Days)</label>
+                                                        <label htmlFor="accountAge" className="text-[10px] font-black text-indigo-900/50 uppercase tracking-widest mb-2 block italic">Account Age (Days)</label>
                                                         <input 
+                                                            id="accountAge"
                                                             type="number" value={daysInactive} onChange={e => setDaysInactive(e.target.value as any)}
                                                             className="w-full rounded-xl border-indigo-100 text-sm focus:ring-4 focus:ring-indigo-200 py-2.5 bg-white shadow-sm outline-none"
                                                             placeholder="e.g. 7" min="1"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] font-black text-indigo-900/50 uppercase tracking-widest mb-2 block italic">Referral Milestone</label>
+                                                        <label htmlFor="referralMilestone" className="text-[10px] font-black text-indigo-900/50 uppercase tracking-widest mb-2 block italic">Referral Milestone</label>
                                                         <select 
+                                                            id="referralMilestone"
                                                             className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-indigo-100 transition-all outline-none"
+                                                            aria-label="Filter by referral milestone"
                                                             onChange={(e) => {
                                                                 const val = e.target.value;
                                                                 if (val === 'All Referral Counts') { setMinReferrals(''); setMaxReferrals(''); }
@@ -1033,9 +1142,11 @@ export default function RuleBuilderPanel() {
                                                         </select>
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] font-black text-indigo-900/50 uppercase tracking-widest mb-2 block italic">Missing Info</label>
+                                                        <label htmlFor="missingInfo" className="text-[10px] font-black text-indigo-900/50 uppercase tracking-widest mb-2 block italic">Missing Info</label>
                                                         <select 
+                                                            id="missingInfo"
                                                             className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-indigo-100 transition-all outline-none"
+                                                            aria-label="Filter by missing information"
                                                             onChange={(e) => {
                                                                 const val = e.target.value;
                                                                 if (val === 'No Filter') { setReqBankDetails(''); setReqChildDetails(''); }

@@ -13,6 +13,7 @@ import { AcademicYearFilter } from '@/components/AcademicYearFilter'
 import { CampusAnalyticsView } from '@/components/campus/CampusAnalyticsView'
 import { getAllProgramLeads } from '@/app/superadmin-actions'
 import { ProgramLeadsTable } from '@/components/superadmin/ProgramLeadsTable'
+import { AccessibleProgressBar } from '@/components/ui/AccessibleProgressBar'
 
 export const dynamic = 'force-dynamic'
 
@@ -238,12 +239,11 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
                                     {stats?.leadsNew || 0} / {target.leadTarget}
                                 </span>
                             </div>
-                            <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden p-0.5 mb-2">
-                                <div
-                                    className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full shadow-sm transition-all duration-1000 ease-out"
-                                    style={{ width: `${Math.min(100, ((stats?.leadsNew || 0) / target.leadTarget) * 100)}%` }}
-                                ></div>
-                            </div>
+                            <AccessibleProgressBar 
+                                progress={((stats?.leadsNew || 0) / target.leadTarget) * 100}
+                                label="Lead Goal Progress"
+                                colorClasses="bg-gradient-to-r from-blue-500 to-indigo-600"
+                            />
                             <p className="text-[11px] text-gray-400 uppercase font-black tracking-widest text-right">
                                 {Math.round(((stats?.leadsNew || 0) / target.leadTarget) * 100)}% Achieved
                             </p>
@@ -265,12 +265,11 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
                                     {stats?.leadsConfirmed || 0} / {target.admissionTarget}
                                 </span>
                             </div>
-                            <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden p-0.5 mb-2">
-                                <div
-                                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full shadow-sm transition-all duration-1000 ease-out"
-                                    style={{ width: `${Math.min(100, ((stats?.leadsConfirmed || 0) / target.admissionTarget) * 100)}%` }}
-                                ></div>
-                            </div>
+                            <AccessibleProgressBar 
+                                progress={((stats?.leadsConfirmed || 0) / target.admissionTarget) * 100}
+                                label="Admission Goal Progress"
+                                colorClasses="bg-gradient-to-r from-emerald-500 to-teal-500"
+                            />
                             <p className="text-[11px] text-gray-400 uppercase font-black tracking-widest text-right">
                                 {Math.round(((stats?.leadsConfirmed || 0) / target.admissionTarget) * 100)}% Achieved
                             </p>

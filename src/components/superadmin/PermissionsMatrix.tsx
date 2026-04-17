@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BarChart3, Users, BookOpen, ShieldCheck, Building2, Download, IndianRupee, Database, GanttChartSquare, MessageSquare, Settings, UserPlus, Edit, Trash, List, Wallet, ChevronDown, ChevronRight, CheckCircle2, Eye, Key, RotateCcw, ExternalLink, Globe, CreditCard, Percent, Calendar, RefreshCw, FileText, ShieldAlert, Search, Copy } from 'lucide-react'
+import { BarChart3, Users, BookOpen, ShieldCheck, Building2, Download, IndianRupee, Database, GanttChartSquare, MessageSquare, Settings, UserPlus, Edit, Trash, List, Wallet, ChevronDown, ChevronRight, CheckCircle2, Eye, Key, RotateCcw, ExternalLink, Globe, CreditCard, Percent, Calendar, RefreshCw, FileText, ShieldAlert, Search, Copy, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { RolePermissions } from '@/types'
@@ -148,19 +148,19 @@ export function PermissionsMatrix({
 
     return (
         <div className="space-y-6 animate-fade-in pb-10 w-full">
-            <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #f0f0f0', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-2xl shadow-gray-200/50">
                 {/* Header Actions */}
-                <div style={{ padding: '24px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to right, #ffffff, #f9fafb)' }}>
+                <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center bg-gradient-to-r from-white to-gray-50/50 gap-4">
                     <div>
-                        <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
                             Access Control Matrix
-                            <span style={{ fontSize: '10px', padding: '2px 8px', background: '#F3F4F6', color: '#6B7280', borderRadius: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Beta</span>
+                            <span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full uppercase tracking-widest font-bold">Beta</span>
                         </h3>
-                        <p style={{ fontSize: '14px', color: '#6B7280', marginTop: '4px' }}>Manage granular permissions and data visibility scopes across all system roles.</p>
+                        <p className="text-sm text-gray-500 mt-1 font-medium">Manage granular permissions and data visibility scopes across all system roles.</p>
                     </div>
 
-                    <div style={{ flex: 1, maxWidth: '400px', margin: '0 24px', position: 'relative' }}>
-                        <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }}>
+                    <div className="flex-1 w-full md:max-w-md md:mx-6 relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                             <Search size={16} />
                         </div>
                         <input
@@ -168,40 +168,22 @@ export function PermissionsMatrix({
                             placeholder="Search permissions..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '10px 16px 10px 40px',
-                                background: '#F3F4F6',
-                                border: '1px solid #E5E7EB',
-                                borderRadius: '10px',
-                                fontSize: '14px',
-                                outline: 'none',
-                                fontWeight: '500',
-                                transition: 'all 0.2s'
-                            }}
-                            onFocus={(e) => { e.target.style.background = 'white'; e.target.style.borderColor = '#CC0000'; e.target.style.boxShadow = '0 0 0 3px rgba(204, 0, 0, 0.1)' }}
-                            onBlur={(e) => { e.target.style.background = '#F3F4F6'; e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none' }}
+                            className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none transition-all focus:bg-white focus:border-red-500 focus:ring-4 focus:ring-red-50"
                         />
                     </div>
 
                     <button
                         onClick={onSave}
                         disabled={isLoading}
-                        style={{
-                            padding: '12px 24px',
-                            background: isLoading ? '#E5E7EB' : 'linear-gradient(135deg, #CC0000, #EF4444)',
-                            color: isLoading ? '#9CA3AF' : 'white',
-                            border: 'none', borderRadius: '12px',
-                            fontSize: '14px', fontWeight: '700',
-                            cursor: isLoading ? 'not-allowed' : 'pointer',
-                            boxShadow: isLoading ? 'none' : '0 4px 12px rgba(220, 38, 38, 0.3)',
-                            display: 'flex', alignItems: 'center', gap: '8px',
-                            transition: 'all 0.2s',
-                            flexShrink: 0
-                        }}
+                        className={`
+                            px-6 py-3 rounded-xl text-sm font-black flex items-center gap-2 transition-all flex-shrink-0
+                            ${isLoading 
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                : 'bg-gradient-to-br from-red-600 to-red-500 text-white shadow-lg shadow-red-200 hover:shadow-red-300 active:scale-95'}
+                        `}
                     >
                         {isLoading ? (
-                            <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
+                            <Loader2 size={16} className="animate-spin" />
                         ) : (
                             <CheckCircle2 size={16} />
                         )}
@@ -210,22 +192,14 @@ export function PermissionsMatrix({
                 </div>
 
                 {/* Matrix Table */}
-                <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
-                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
-                        <thead style={{ position: 'sticky', top: '0', zIndex: 20 }}>
+                <div className="overflow-x-auto maxWidth-full">
+                    <table className="w-full border-collapse separate border-spacing-0">
+                        <thead className="sticky top-0 z-20">
                             <tr>
-                                <th style={{
-                                    padding: '16px', textAlign: 'left',
-                                    background: 'rgba(255, 255, 255, 1)', // Solid background for sticky
-                                    position: 'sticky', left: 0, zIndex: 30, // Higher than role headers
-                                    borderBottom: '1px solid #E5E7EB',
-                                    borderRight: '1px solid #F3F4F6',
-                                    minWidth: '320px',
-                                    boxShadow: '4px 0 8px -4px rgba(0, 0, 0, 0.1)' // Shadow for scrolling effect
-                                }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <span style={{ fontSize: '11px', fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Module / Capability</span>
-                                        {searchQuery && <span style={{ fontSize: '10px', background: '#FEF2F2', color: '#991B1B', padding: '1px 6px', borderRadius: '4px' }}>Filtered</span>}
+                                <th className="p-4 text-left bg-white sticky left-0 z-30 border-b border-gray-200 border-r border-gray-50 min-w-[320px] shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Module / Capability</span>
+                                        {searchQuery && <span className="text-[10px] bg-red-50 text-red-800 px-1.5 py-0.5 rounded font-bold uppercase">Filtered</span>}
                                     </div>
                                 </th>
                                 {ROLES.map(role => {
@@ -239,28 +213,20 @@ export function PermissionsMatrix({
                                             key={role}
                                             onMouseEnter={() => setHoveredRole(role)}
                                             onMouseLeave={() => setHoveredRole(null)}
-                                            style={{
-                                                padding: '16px 8px', textAlign: 'center',
-                                                background: hoveredRole === role ? '#FEF2F2' : 'rgba(255, 255, 255, 0.95)',
-                                                backdropFilter: 'blur(8px)',
-                                                borderBottom: '1px solid #E5E7EB',
-                                                minWidth: '180px',
-                                                transition: 'background-color 0.2s',
-                                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
-                                            }}
+                                            className={`
+                                                px-2 py-4 text-center border-b border-gray-200 min-w-[180px] transition-colors backdrop-blur-md sticky top-0
+                                                ${hoveredRole === role ? 'bg-red-50/50' : 'bg-white/95'}
+                                            `}
                                         >
-                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                                                <div style={{ fontSize: '13px', fontWeight: '800', color: '#111827' }}>{role}</div>
-                                                <div style={{
-                                                    fontSize: '9px', fontWeight: '700',
-                                                    padding: '2px 6px', borderRadius: '6px',
-                                                    background: activeCount > 0 ? '#ECFDF5' : '#F9FAFB',
-                                                    color: activeCount > 0 ? '#059669' : '#6B7280',
-                                                    border: activeCount > 0 ? '1px solid #10B98133' : '1px solid #E5E7EB'
-                                                }}>
+                                            <div className="flex flex-col items-center gap-1">
+                                                <div className="text-sm font-black text-gray-900 italic uppercase tracking-tighter">{role}</div>
+                                                <div className={`
+                                                    text-[9px] font-black px-2 py-0.5 rounded-lg border uppercase tracking-widest
+                                                    ${activeCount > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm shadow-emerald-700/5' : 'bg-gray-50 text-gray-500 border-gray-100'}
+                                                `}>
                                                     {activeCount} / {totalCount} ACTIVE
                                                 </div>
-                                                <div style={{ display: 'flex', gap: '4px' }}>
+                                                <div className="flex gap-1">
                                                     <button
                                                         onClick={() => {
                                                             const sourceRole = window.prompt(`Copy permissions TO ${role} FROM which role? (${ROLES.filter(r => r !== role).join(', ')})`)
@@ -274,26 +240,16 @@ export function PermissionsMatrix({
                                                             }
                                                         }}
                                                         title={`Copy from another role to ${role}`}
-                                                        style={{
-                                                            background: 'none', border: 'none', cursor: 'pointer',
-                                                            color: '#9CA3AF', padding: '2px', borderRadius: '50%',
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                            visibility: hoveredRole === role ? 'visible' : 'hidden'
-                                                        }}
+                                                        className={`p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all ${hoveredRole === role ? 'opacity-100' : 'opacity-0'}`}
                                                     >
-                                                        <Copy size={10} />
+                                                        <Copy size={12} />
                                                     </button>
                                                     <button
                                                         onClick={() => onReset(role)}
                                                         title={`Reset ${role} to defaults`}
-                                                        style={{
-                                                            background: 'none', border: 'none', cursor: 'pointer',
-                                                            color: '#9CA3AF', padding: '2px', borderRadius: '50%',
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                            visibility: hoveredRole === role ? 'visible' : 'hidden'
-                                                        }}
+                                                        className={`p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all ${hoveredRole === role ? 'opacity-100' : 'opacity-0'}`}
                                                     >
-                                                        <RotateCcw size={10} />
+                                                        <RotateCcw size={12} />
                                                     </button>
                                                 </div>
                                             </div>
@@ -346,48 +302,33 @@ function TableSection({
             {/* Section Header */}
             <tr
                 onClick={onToggleCollapse}
-                style={{ cursor: 'pointer', background: '#F9FAFB' }}
+                className="cursor-pointer bg-gray-50/80 hover:bg-gray-100 transition-colors"
             >
-                <td colSpan={ROLES.length + 1} style={{ padding: '12px 24px', borderBottom: '1px solid #E5E7EB' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {isCollapsed ? <ChevronRight size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-                        <span style={{ fontSize: '12px', fontWeight: '800', color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{section.title}</span>
-                        <div style={{ flex: 1, height: '1px', background: '#E5E7EB', marginLeft: '12px' }}></div>
+                <td colSpan={ROLES.length + 1} className="px-6 py-4 border-b border-gray-200">
+                    <div className="flex items-center gap-3">
+                        {isCollapsed ? <ChevronRight size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+                        <span className="text-[11px] font-black text-gray-600 uppercase tracking-widest">{section.title}</span>
+                        <div className="flex-1 h-px bg-gray-200 ml-4"></div>
                     </div>
                 </td>
             </tr>
 
             {/* Section Rows */}
             {!isCollapsed && section.modules.map((module: any, idx: number) => (
-                <tr key={`${section.id}-${module.key}`} style={{
-                    background: 'white',
-                    borderBottom: '1px dashed #F3F4F6',
-                    transition: 'background-color 0.1s'
-                }}>
-                    {/* Module Name Column - Sticky */}
-                    <td style={{
-                        padding: '16px 16px',
-                        borderRight: '1px solid #F9FAFB',
-                        background: 'white',
-                        position: 'sticky',
-                        left: 0,
-                        zIndex: 10,
-                        boxShadow: '4px 0 8px -4px rgba(0, 0, 0, 0.05)'
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: module.isSub ? '32px' : '8px' }}>
-                            <div style={{
-                                padding: '6px',
-                                background: module.isSub ? 'transparent' : '#F3F4F6',
-                                borderRadius: '8px',
-                                color: module.isSub ? '#9CA3AF' : '#4B5563'
-                            }}>
+                <tr key={`${section.id}-${module.key}`} className="bg-white border-b border-gray-50/50 hover:bg-gray-50/30 transition-colors">
+                    <td className="p-4 border-r border-gray-50 bg-white sticky left-0 z-10 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">
+                        <div className={`flex items-center gap-3 ${module.isSub ? 'ml-8' : 'ml-2'}`}>
+                            <div className={`
+                                p-1.5 rounded-lg transition-colors
+                                ${module.isSub ? 'bg-transparent text-gray-400' : 'bg-gray-100 text-gray-600'}
+                            `}>
                                 <module.icon size={16} strokeWidth={module.isSub ? 2 : 2.5} />
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontWeight: module.isSub ? '500' : '600', fontSize: '13px', color: '#374151' }}>
+                            <div className="flex flex-col">
+                                <span className={`text-[13px] tracking-tight ${module.isSub ? 'font-medium text-gray-500' : 'font-black text-gray-800'}`}>
                                     {module.label}
                                 </span>
-                                {module.isSub && <span style={{ fontSize: '10px', color: '#9CA3AF' }}>Sub-permission</span>}
+                                {module.isSub && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sub-permission</span>}
                             </div>
                         </div>
                     </td>
@@ -432,44 +373,47 @@ function TableSection({
                                 key={role}
                                 onMouseEnter={() => setHoveredRole(role)}
                                 onMouseLeave={() => setHoveredRole(null)}
-                                style={{
-                                    padding: '16px 4px',
-                                    background: hoveredRole === role ? '#FEF2F2' : 'transparent',
-                                    borderRight: '1px solid #F9FAFB',
-                                    textAlign: 'center'
-                                }}
+                                className={`
+                                    px-1 py-4 text-center border-r border-gray-50 transition-colors
+                                    ${hoveredRole === role ? 'bg-red-50/30' : 'bg-transparent'}
+                                `}
                             >
                                 {noData ? (
-                                    <span style={{ color: '#E5E7EB' }}>-</span>
+                                    <span className="text-gray-200">-</span>
                                 ) : shouldHideThisRowForThisRole ? (
-                                    <div style={{ fontSize: '10px', color: '#CBD5E1', fontStyle: 'italic' }}>N/A for {isAmbassadorRole ? 'Ambassador' : 'Admin'}</div>
+                                    <div className="text-[10px] text-gray-300 font-bold uppercase italic tracking-widest leading-tight">N/A</div>
                                 ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                                        <div
-                                            onClick={() => onTogglePermission(role, module.key)}
-                                            style={{
-                                                width: '40px', height: '22px',
-                                                background: accessValue ? '#10B981' : '#E5E7EB',
-                                                borderRadius: '20px',
-                                                position: 'relative',
-                                                cursor: 'pointer',
-                                                boxShadow: accessValue ? '0 2px 4px rgba(16, 185, 129, 0.3)' : 'inset 0 1px 2px rgba(0,0,0,0.1)'
-                                            }}
-                                        >
-                                            <div style={{
-                                                width: '18px', height: '18px',
-                                                background: 'white',
-                                                borderRadius: '50%',
-                                                position: 'absolute',
-                                                left: accessValue ? '20px' : '2px',
-                                                top: '2px',
-                                                transition: 'all 0.2s',
-                                                boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
-                                            }}></div>
-                                        </div>
+                                    <div className="flex flex-col items-center gap-2">
+                                        {accessValue ? (
+                                            <div
+                                                onClick={() => onTogglePermission(role, module.key)}
+                                                className={`
+                                                    w-10 h-5 rounded-full relative cursor-pointer transition-all shadow-sm
+                                                    bg-emerald-500 shadow-emerald-500/20
+                                                `}
+                                                role="switch"
+                                                aria-checked="true"
+                                                aria-label={`${module.label} for ${role}`}
+                                            >
+                                                <div className="w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm left-[22px]"></div>
+                                            </div>
+                                        ) : (
+                                            <div
+                                                onClick={() => onTogglePermission(role, module.key)}
+                                                className={`
+                                                    w-10 h-5 rounded-full relative cursor-pointer transition-all shadow-sm
+                                                    bg-gray-200
+                                                `}
+                                                role="switch"
+                                                aria-checked="false"
+                                                aria-label={`${module.label} for ${role}`}
+                                            >
+                                                <div className="w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm left-0.5"></div>
+                                            </div>
+                                        )}
 
                                         {!isSubKey && (
-                                            <div style={{ opacity: accessValue ? 1 : 0.3, pointerEvents: accessValue ? 'auto' : 'none' }}>
+                                            <div className={`transition-opacity duration-200 ${accessValue ? 'opacity-100' : 'opacity-20 pointer-events-none'}`}>
                                                 <ScopePill
                                                     scope={scopeValue}
                                                     onClick={() => onCycleScope(role, module.key, scopeValue)}
@@ -488,39 +432,33 @@ function TableSection({
 }
 
 const ScopePill = ({ scope, onClick, disabled }: { scope: string, onClick: () => void, disabled?: boolean }) => {
-    let bg = '#F3F4F6'
-    let color = '#374151'
+    let classes = 'bg-gray-100 text-gray-700'
     let label = 'View'
     let icon = <Eye size={10} />
 
     switch (scope) {
         case 'all':
-            bg = '#DBEAFE' // blue-100
-            color = '#1E40AF' // blue-800
+            classes = 'bg-blue-100 text-blue-800'
             label = 'All'
             icon = <Building2 size={10} />
             break
         case 'campus':
-            bg = '#FFEDD5' // orange-100
-            color = '#9A3412' // orange-800
+            classes = 'bg-orange-100 text-orange-800'
             label = 'Campus'
             icon = <Building2 size={10} />
             break
         case 'self':
-            bg = '#F3E8FF' // purple-100
-            color = '#6B21A8' // purple-800
+            classes = 'bg-purple-100 text-purple-800'
             label = 'Self'
             icon = <Users size={10} />
             break
         case 'view-only':
-            bg = '#F3F4F6'
-            color = '#4B5563'
+            classes = 'bg-gray-100 text-gray-600'
             label = 'View'
             icon = <Eye size={10} />
             break
         case 'campus-view':
-            bg = '#E0F2FE' // light sky blue
-            color = '#0369A1' // sky blue 800
+            classes = 'bg-sky-100 text-sky-800'
             label = 'Campus View'
             icon = <Eye size={10} />
             break
@@ -530,16 +468,11 @@ const ScopePill = ({ scope, onClick, disabled }: { scope: string, onClick: () =>
         <button
             onClick={disabled ? undefined : onClick}
             disabled={disabled}
-            style={{
-                display: 'flex', alignItems: 'center', gap: '4px',
-                padding: '4px 8px', borderRadius: '12px',
-                background: bg, color: color,
-                fontSize: '10px', fontWeight: '700',
-                border: 'none', cursor: disabled ? 'default' : 'pointer',
-                textTransform: 'uppercase', letterSpacing: '0.05em',
-                transition: 'all 0.2s',
-                opacity: disabled ? 0.5 : 1
-            }}
+            className={`
+                flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-transparent transition-all
+                ${classes}
+                ${disabled ? 'opacity-50 cursor-default' : 'hover:border-current cursor-pointer active:scale-95 shadow-sm'}
+            `}
             title={`Scope: ${label} (Click to cycle)`}
         >
             {icon}

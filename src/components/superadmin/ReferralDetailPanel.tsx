@@ -376,7 +376,7 @@ export function ReferralDetailPanel({
                                     </div>
                                 </div>
                             </div>
-                            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400">
+                            <button onClick={onClose} aria-label="Close panel" className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400">
                                 <X size={24} />
                             </button>
                         </div>
@@ -461,8 +461,9 @@ export function ReferralDetailPanel({
                             {isEditing ? (
                                 <div className="grid grid-cols-2 gap-6 bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
                                     <div className="space-y-2 col-span-2">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Student Name</label>
+                                        <label htmlFor="edit-student-name" className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Student Name</label>
                                         <input
+                                            id="edit-student-name"
                                             type="text"
                                             value={editForm.studentName}
                                             onChange={e => setEditForm({ ...editForm, studentName: e.target.value })}
@@ -470,8 +471,9 @@ export function ReferralDetailPanel({
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Parent Name</label>
+                                        <label htmlFor="edit-parent-name" className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Parent Name</label>
                                         <input
+                                            id="edit-parent-name"
                                             type="text"
                                             value={editForm.parentName}
                                             onChange={e => setEditForm({ ...editForm, parentName: e.target.value })}
@@ -479,8 +481,9 @@ export function ReferralDetailPanel({
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mobile Number</label>
+                                        <label htmlFor="edit-parent-mobile" className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mobile Number</label>
                                         <input
+                                            id="edit-parent-mobile"
                                             type="text"
                                             value={editForm.parentMobile}
                                             onChange={e => setEditForm({ ...editForm, parentMobile: e.target.value })}
@@ -488,8 +491,9 @@ export function ReferralDetailPanel({
                                         />
                                     </div>
                                     <div className="space-y-2 col-span-2">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Grade Interested</label>
+                                        <label htmlFor="edit-grade" className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Grade Interested</label>
                                         <select
+                                            id="edit-grade"
                                             value={editForm.gradeInterested}
                                             onChange={e => setEditForm({ ...editForm, gradeInterested: e.target.value })}
                                             className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
@@ -502,8 +506,9 @@ export function ReferralDetailPanel({
                                         {fetchingGrades && <span className="text-[9px] text-indigo-500 animate-pulse">Updating grades...</span>}
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Interested Campus</label>
+                                        <label htmlFor="edit-campus" className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Interested Campus</label>
                                         <select
+                                            id="edit-campus"
                                             value={editForm.campus}
                                             onChange={e => setEditForm({ ...editForm, campus: e.target.value })}
                                             className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
@@ -515,8 +520,9 @@ export function ReferralDetailPanel({
                                         </select>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Academic Year</label>
+                                        <label htmlFor="edit-academic-year" className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Academic Year</label>
                                         <select
+                                            id="edit-academic-year"
                                             value={editForm.admittedYear || '2026-2027'}
                                             onChange={e => setEditForm({ ...editForm, admittedYear: e.target.value })}
                                             className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
@@ -616,8 +622,9 @@ export function ReferralDetailPanel({
                                     <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="col-span-2">
-                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">ERP / Admission Number *</label>
+                                                <label htmlFor="confirm-erp" className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">ERP / Admission Number *</label>
                                                 <input
+                                                    id="confirm-erp"
                                                     type="text"
                                                     value={confirmForm.erp}
                                                     onChange={e => setConfirmForm({ ...confirmForm, erp: e.target.value })}
@@ -628,8 +635,9 @@ export function ReferralDetailPanel({
                                             {!isSpecialCampus && (
                                                 <>
                                                     <div>
-                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Fee Plan *</label>
+                                                        <label htmlFor="confirm-fee-plan" className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Fee Plan *</label>
                                                         <select
+                                                            id="confirm-fee-plan"
                                                             value={confirmForm.feeType}
                                                             onChange={e => {
                                                                 const newType = e.target.value as 'OTP' | 'WOTP'
@@ -649,10 +657,11 @@ export function ReferralDetailPanel({
 
                                                     {/* [NEW] Editable Annual Fee Override */}
                                                     <div>
-                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Annual Fee (Override) *</label>
+                                                        <label htmlFor="confirm-annual-fee" className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Annual Fee (Override) *</label>
                                                         <div className="relative">
                                                             <IndianRupee size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                                             <input
+                                                                id="confirm-annual-fee"
                                                                 type="number"
                                                                 value={confirmForm.annualFee}
                                                                 onChange={e => setConfirmForm({ ...confirmForm, annualFee: parseInt(e.target.value) || 0 })}
@@ -662,10 +671,11 @@ export function ReferralDetailPanel({
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Admission Fee *</label>
+                                                        <label htmlFor="confirm-adm-fee" className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Admission Fee *</label>
                                                         <div className="relative">
                                                             <IndianRupee size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                                             <input
+                                                                id="confirm-adm-fee"
                                                                 type="number"
                                                                 value={confirmForm.admFee}
                                                                 onChange={e => setConfirmForm({ ...confirmForm, admFee: parseInt(e.target.value) || 0 })}
@@ -674,10 +684,11 @@ export function ReferralDetailPanel({
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Donation Fee *</label>
+                                                        <label htmlFor="confirm-don-fee" className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Donation Fee *</label>
                                                         <div className="relative">
                                                             <IndianRupee size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                                             <input
+                                                                id="confirm-don-fee"
                                                                 type="number"
                                                                 value={confirmForm.donFee}
                                                                 onChange={e => setConfirmForm({ ...confirmForm, donFee: parseInt(e.target.value) || 0 })}
@@ -698,6 +709,7 @@ export function ReferralDetailPanel({
                                     </div>
                                 )}
                             </section>
+
                         )}
 
                         {/* Confirmation Details (If Confirmed/Admitted) */}
@@ -768,8 +780,9 @@ export function ReferralDetailPanel({
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 block">Fee Plan *</label>
+                                            <label htmlFor="edit-confirm-fee-plan" className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 block">Fee Plan *</label>
                                             <select
+                                                id="edit-confirm-fee-plan"
                                                 value={confirmForm.feeType}
                                                 onChange={e => {
                                                     const newType = e.target.value as 'OTP' | 'WOTP'
@@ -787,10 +800,11 @@ export function ReferralDetailPanel({
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 block">Annual Fee</label>
+                                            <label htmlFor="edit-confirm-annual-fee" className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 block">Annual Fee</label>
                                             <div className="relative">
                                                 <IndianRupee size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                                 <input
+                                                    id="edit-confirm-annual-fee"
                                                     type="number"
                                                     value={confirmForm.annualFee}
                                                     onChange={e => setConfirmForm({ ...confirmForm, annualFee: parseInt(e.target.value) || 0 })}
@@ -799,10 +813,11 @@ export function ReferralDetailPanel({
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 block">Admission Fee</label>
+                                            <label htmlFor="edit-confirm-adm-fee" className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 block">Admission Fee</label>
                                             <div className="relative">
                                                 <IndianRupee size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                                 <input
+                                                    id="edit-confirm-adm-fee"
                                                     type="number"
                                                     value={confirmForm.admFee}
                                                     onChange={e => setConfirmForm({ ...confirmForm, admFee: parseInt(e.target.value) || 0 })}
@@ -811,10 +826,11 @@ export function ReferralDetailPanel({
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 block">Donation Fee</label>
+                                            <label htmlFor="edit-confirm-don-fee" className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 block">Donation Fee</label>
                                             <div className="relative">
                                                 <IndianRupee size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                                 <input
+                                                    id="edit-confirm-don-fee"
                                                     type="number"
                                                     value={confirmForm.donFee}
                                                     onChange={e => setConfirmForm({ ...confirmForm, donFee: parseInt(e.target.value) || 0 })}

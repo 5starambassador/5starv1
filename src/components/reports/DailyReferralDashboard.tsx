@@ -406,6 +406,7 @@ export function DailyReferralDashboard({
                 <div className="flex flex-wrap items-center justify-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
                     <button 
                         onClick={prevDay}
+                        aria-label="Previous Day"
                         className="p-2 hover:bg-white hover:text-blue-600 rounded-xl transition-all text-slate-500 hover:shadow-sm"
                     >
                         <ChevronLeft size={20} />
@@ -413,9 +414,11 @@ export function DailyReferralDashboard({
                     
                     <div className="px-4 py-2 bg-white rounded-xl shadow-sm border border-slate-200">
                         <input 
+                            id="audit-dashboard-date"
                             type="date"
                             value={date}
                             onChange={(e) => handleDateChange(e.target.value)}
+                            aria-label="Filter by date"
                             className="bg-transparent border-none text-sm font-black text-slate-800 focus:outline-none focus:ring-0 w-[140px] cursor-pointer"
                         />
                     </div>
@@ -423,6 +426,7 @@ export function DailyReferralDashboard({
                     <button 
                         onClick={nextDay}
                         disabled={date === new Date().toISOString().split('T')[0]}
+                        aria-label="Next Day"
                         className="p-2 hover:bg-white hover:text-blue-600 rounded-xl transition-all text-slate-500 hover:shadow-sm disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500"
                     >
                         <ChevronRight size={20} />

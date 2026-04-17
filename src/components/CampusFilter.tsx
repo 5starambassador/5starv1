@@ -46,6 +46,7 @@ export function CampusFilter() {
                 value={currentCampus}
                 onChange={(e) => handleCampusChange(e.target.value)}
                 className="bg-transparent border-none focus:ring-0 text-[11px] font-black uppercase tracking-widest text-gray-700 cursor-pointer outline-none"
+                aria-label="Filter by Campus"
             >
                 <option value="All">All Campuses</option>
                 {campuses.map((c) => (

@@ -81,7 +81,7 @@ function FilterDropdown({
             <div className="p-3 bg-gray-50 border-b border-gray-100 space-y-2">
                 <div className="flex justify-between items-center">
                     <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Filter {label}</span>
-                    <button onClick={onClose}><X size={14} className="text-gray-400 hover:text-red-500" /></button>
+                    <button onClick={onClose} aria-label="Close filter"><X size={14} className="text-gray-400 hover:text-red-500" /></button>
                 </div>
                 <div className="relative">
                     <Search size={12} className="absolute left-2 top-2 text-gray-400" />
@@ -351,6 +351,7 @@ export function ReferralManagementTable({
                         e.stopPropagation()
                         handleFilterClick(paramKey)
                     }}
+                    aria-label={`Filter ${label}`}
                     className={`p-1.5 rounded-lg transition-all ${isActive ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-500/20' : 'hover:bg-gray-100 text-gray-400 hover:text-gray-600'}`}
                     suppressHydrationWarning
                 >
@@ -746,6 +747,7 @@ export function ReferralManagementTable({
             cell: (row: any) => (
                 <button
                     onClick={() => setSelectedLeadForDetail(row)}
+                    aria-label="View details"
                     className="p-2 rounded-xl text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all border border-gray-100 shadow-sm bg-white hover:scale-110 active:scale-95"
                     title="View Details"
                     suppressHydrationWarning
@@ -952,8 +954,10 @@ export function ReferralManagementTable({
             {/* Filters */}
             <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100 flex flex-wrap gap-4 mb-6">
                 <div className="flex-1 min-w-[200px] relative">
+                    <label htmlFor="referral-search" className="sr-only">Search referrals</label>
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     <input
+                        id="referral-search"
                         type="text"
                         placeholder="Search parents, students, mobile..."
                         value={search}
@@ -964,7 +968,9 @@ export function ReferralManagementTable({
                 </div>
 
                 {/* Dynamic Filters */}
+                <label htmlFor="role-filter-adv" className="sr-only">Filter by Role</label>
                 <select
+                    id="role-filter-adv"
                     value={searchParams.get('role') || ''}
                     onChange={(e) => updateParam('role', e.target.value)}
                     className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-red-500/20"
@@ -976,20 +982,26 @@ export function ReferralManagementTable({
                 </select>
 
                 {showCampusFilter && (
-                    <select
-                        value={searchParams.get('campus') || ''}
-                        onChange={(e) => updateParam('campus', e.target.value)}
-                        className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-red-500/20"
-                        suppressHydrationWarning={true}
-                    >
-                        <option value="">All Campuses</option>
-                        {campusList.map(c => (
-                            <option key={c.id} value={c.campusName}>{c.campusName}</option>
-                        ))}
-                    </select>
+                    <>
+                        <label htmlFor="campus-filter-adv" className="sr-only">Filter by Campus</label>
+                        <select
+                            id="campus-filter-adv"
+                            value={searchParams.get('campus') || ''}
+                            onChange={(e) => updateParam('campus', e.target.value)}
+                            className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-red-500/20"
+                            suppressHydrationWarning={true}
+                        >
+                            <option value="">All Campuses</option>
+                            {campusList.map(c => (
+                                <option key={c.id} value={c.campusName}>{c.campusName}</option>
+                            ))}
+                        </select>
+                    </>
                 )}
 
+                <label htmlFor="fee-filter-adv" className="sr-only">Filter by Plan</label>
                 <select
+                    id="fee-filter-adv"
                     value={searchParams.get('feeType') || ''}
                     onChange={(e) => updateParam('feeType', e.target.value)}
                     className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-red-500/20"
@@ -1000,7 +1012,9 @@ export function ReferralManagementTable({
                     <option value="WOTP">WOTP</option>
                 </select>
 
+                <label htmlFor="grade-filter-adv" className="sr-only">Filter by Grade</label>
                 <select
+                    id="grade-filter-adv"
                     value={searchParams.get('grade') || ''}
                     onChange={(e) => updateParam('grade', e.target.value)}
                     className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-red-500/20"
@@ -1012,7 +1026,9 @@ export function ReferralManagementTable({
                     ))}
                 </select>
 
+                <label htmlFor="status-filter-adv" className="sr-only">Filter by Status</label>
                 <select
+                    id="status-filter-adv"
                     value={searchParams.get('status') || ''}
                     onChange={(e) => updateParam('status', e.target.value)}
                     className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-red-500/20"
@@ -1028,7 +1044,9 @@ export function ReferralManagementTable({
 
                 {/* Date Filter (Keeping Date Range here as it's global) */}
                 <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-2">
+                    <label htmlFor="date-from-adv" className="sr-only">From Date</label>
                     <input
+                        id="date-from-adv"
                         type="date"
                         value={searchParams.get('from') || ''}
                         onChange={(e) => {
@@ -1037,8 +1055,10 @@ export function ReferralManagementTable({
                         suppressHydrationWarning={true}
                         className="py-2 text-sm font-medium text-gray-700 focus:outline-none"
                     />
-                    <span className="text-gray-400">-</span>
+                    <span className="text-gray-400" aria-hidden="true">-</span>
+                    <label htmlFor="date-to-adv" className="sr-only">To Date</label>
                     <input
+                        id="date-to-adv"
                         type="date"
                         value={searchParams.get('to') || ''}
                         onChange={(e) => {
@@ -1107,7 +1127,9 @@ export function ReferralManagementTable({
                         <div className="flex items-center gap-3">
                             {canBulkApprove && (
                                 <div className="flex items-center gap-2 pr-3 border-r border-white/10">
+                                    <label htmlFor="bulk-fee-select" className="sr-only">Select Bulk Fee Plan</label>
                                     <select
+                                        id="bulk-fee-select"
                                         value={bulkFeeType}
                                         onChange={(e) => setBulkFeeType(e.target.value as any)}
                                         className="bg-gray-800 text-white text-xs font-bold rounded-lg px-3 py-1.5 outline-none border border-white/5 focus:border-red-500"
@@ -1163,6 +1185,7 @@ export function ReferralManagementTable({
 
                             <button
                                 onClick={() => setSelectedIds([])}
+                                aria-label="Clear selection"
                                 className="text-white/40 hover:text-white p-2 transition-colors"
                             >
                                 <X size={18} />
@@ -1265,7 +1288,7 @@ export function ReferralManagementTable({
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
                         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <h3 className="font-bold text-gray-900">Edit Referral Details</h3>
-                            <button onClick={() => setEditingLead(null)} className="p-1 hover:bg-gray-200 rounded-full text-gray-500">
+                            <button onClick={() => setEditingLead(null)} aria-label="Close modal" className="p-1 hover:bg-gray-200 rounded-full text-gray-500">
                                 <X size={18} />
                             </button>
                         </div>
@@ -1315,8 +1338,9 @@ export function ReferralManagementTable({
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Parent Name (Lead)</label>
+                                            <label htmlFor="edit-parent-name" className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Parent Name (Lead)</label>
                                             <input
+                                                id="edit-parent-name"
                                                 type="text"
                                                 value={editingLead.parentName}
                                                 onChange={e => setEditingLead({ ...editingLead, parentName: e.target.value })}
@@ -1324,8 +1348,9 @@ export function ReferralManagementTable({
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Student Name</label>
+                                            <label htmlFor="edit-student-name" className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Student Name</label>
                                             <input
+                                                id="edit-student-name"
                                                 type="text"
                                                 value={editingLead.studentName || ''}
                                                 onChange={e => setEditingLead({ ...editingLead, studentName: e.target.value })}
@@ -1337,8 +1362,9 @@ export function ReferralManagementTable({
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Mobile</label>
+                                            <label htmlFor="edit-parent-mobile" className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Mobile</label>
                                             <input
+                                                id="edit-parent-mobile"
                                                 type="text"
                                                 value={editingLead.parentMobile}
                                                 onChange={e => setEditingLead({ ...editingLead, parentMobile: e.target.value })}
@@ -1346,8 +1372,9 @@ export function ReferralManagementTable({
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Grade</label>
+                                            <label htmlFor="edit-lead-grade" className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Grade</label>
                                             <select
+                                                id="edit-lead-grade"
                                                 value={editingLead.gradeInterested || ''}
                                                 onChange={e => handleLeadUpdate({ gradeInterested: e.target.value })}
                                                 className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-red-500/20"
@@ -1379,8 +1406,9 @@ export function ReferralManagementTable({
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Campus</label>
+                                            <label htmlFor="edit-lead-campus" className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Campus</label>
                                             <select
+                                                id="edit-lead-campus"
                                                 value={editingLead.campus || ''}
                                                 onChange={e => handleLeadUpdate({ campus: e.target.value })}
                                                 className="w-full px-3 py-2 border rounded-lg text-sm font-bold bg-white focus:ring-red-500/20"
@@ -1393,8 +1421,9 @@ export function ReferralManagementTable({
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Academic Year</label>
+                                            <label htmlFor="edit-lead-year" className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Academic Year</label>
                                             <select
+                                                id="edit-lead-year"
                                                 value={editingLead.admittedYear || '2026-2027'}
                                                 onChange={e => handleLeadUpdate({ admittedYear: e.target.value })}
                                                 className="w-full px-3 py-2 border rounded-lg text-sm font-bold bg-white focus:ring-red-500/20"
@@ -1417,8 +1446,9 @@ export function ReferralManagementTable({
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Lead Status</label>
+                                            <label htmlFor="edit-lead-status" className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Lead Status</label>
                                             <select
+                                                id="edit-lead-status"
                                                 value={editingLead.leadStatus}
                                                 onChange={e => setEditingLead({ ...editingLead, leadStatus: e.target.value })}
                                                 className="w-full px-3 py-2 border border-amber-200 rounded-lg text-xs font-bold bg-amber-50/30 focus:ring-amber-500/20"
@@ -1447,8 +1477,9 @@ export function ReferralManagementTable({
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Fee Plan</label>
+                                            <label htmlFor="edit-lead-fee-plan" className="text-[10px] font-bold text-amber-800/60 uppercase mb-1 block">Fee Plan</label>
                                             <select
+                                                id="edit-lead-fee-plan"
                                                 value={editingLead.selectedFeeType || ''}
                                                 onChange={e => handleLeadUpdate({ selectedFeeType: e.target.value })}
                                                 className="w-full px-3 py-2 border border-amber-200 rounded-lg text-xs font-bold bg-amber-50/30 focus:ring-amber-500/20"

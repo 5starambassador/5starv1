@@ -14,11 +14,34 @@ interface ProgramLeadsListProps {
 export function ProgramLeadsList({ leads, programs = [], user }: ProgramLeadsListProps) {
     const [filter, setFilter] = useState<'ALL' | 'REGISTERED' | 'CLICKED'>('ALL')
 
-    // Group by status
-    const registered = leads.filter(l => l.status === 'REGISTERED')
-    const clicked = leads.filter(l => l.status === 'CLICKED')
+    // Deduplicate: Group by mobile + program and pick best/latest
+    const deduplicatedLeads = Object.values(
+        leads.reduce((acc: Record<string, any>, lead) => {
+            const key = `${lead.visitorMobile}-${lead.programId}`
+            const existing = acc[key]
+            if (!existing) {
+                acc[key] = lead
+            } else {
+                const existingIsReg = existing.status === 'REGISTERED'
+                const newIsReg = lead.status === 'REGISTERED'
 
-    const displayedLeads = filter === 'ALL' ? leads :
+                if (newIsReg && !existingIsReg) {
+                    acc[key] = lead
+                } else if (new Date(lead.clickedAt) > new Date(existing.clickedAt)) {
+                    if (newIsReg === existingIsReg) {
+                        acc[key] = lead
+                    }
+                }
+            }
+            return acc
+        }, {})
+    )
+
+    // Group by status
+    const registered = deduplicatedLeads.filter(l => l.status === 'REGISTERED')
+    const clicked = deduplicatedLeads.filter(l => l.status === 'CLICKED')
+
+    const displayedLeads = filter === 'ALL' ? deduplicatedLeads :
         filter === 'REGISTERED' ? registered : clicked
 
     return (

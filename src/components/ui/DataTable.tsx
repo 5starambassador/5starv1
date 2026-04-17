@@ -254,6 +254,7 @@ export function DataTable<T>({
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-red transition-colors" size={16} />
                         <input
                             type="text"
+                            id="table-global-search"
                             placeholder={searchPlaceholder}
                             value={searchTerm}
                             onChange={(e) => {
@@ -263,6 +264,7 @@ export function DataTable<T>({
                                 if (!manualPagination) setInternalPage(1)
                             }}
                             className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary-red/10 focus:border-primary-red"
+                            aria-label={searchPlaceholder || "Search table"}
                             suppressHydrationWarning
                         />
                         {searchTerm && (
@@ -274,6 +276,7 @@ export function DataTable<T>({
                                 }}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 hover:bg-gray-200 rounded-full transition-all"
                                 title="Clear search"
+                                aria-label="Clear search"
                                 suppressHydrationWarning
                             >
                                 <X size={14} />
@@ -283,27 +286,49 @@ export function DataTable<T>({
                 )}
             </div>
 
-            <div className="bg-white rounded-[32px] border border-gray-100/50 shadow-2xl shadow-gray-200/40 overflow-x-auto backdrop-blur-xl" style={{ minHeight: '300px' }}>
+            <div className="bg-white rounded-[32px] border border-gray-100/50 shadow-2xl shadow-gray-200/40 overflow-x-auto backdrop-blur-xl min-h-[300px]">
                 <table className="w-full border-collapse block md:table">
                     <thead className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 hidden md:table-header-group">
                         <tr>
                             {enableMultiSelection && (
                                 <th className="p-4 pl-6 w-4">
-                                    <div
-                                        onClick={handleSelectAll}
-                                        className="cursor-pointer text-gray-400 hover:text-red-600 transition-colors"
-                                        suppressHydrationWarning={true}
-                                    >
-                                        {selectedRows.size > 0 && selectedRows.size === filteredData.length ? (
+                                    {selectedRows.size > 0 && selectedRows.size === filteredData.length ? (
+                                        <div
+                                            onClick={handleSelectAll}
+                                            className="cursor-pointer text-gray-400 hover:text-primary-red transition-colors"
+                                            role="checkbox"
+                                            aria-checked="true"
+                                            aria-label="Select all rows"
+                                            suppressHydrationWarning={true}
+                                        >
                                             <CheckSquare size={20} />
-                                        ) : selectedRows.size > 0 ? (
+                                        </div>
+                                    ) : selectedRows.size > 0 ? (
+                                        <div
+                                            onClick={handleSelectAll}
+                                            className="cursor-pointer text-gray-400 hover:text-primary-red transition-colors"
+                                            role="checkbox"
+                                            aria-checked="mixed"
+                                            aria-label="Select all rows"
+                                            suppressHydrationWarning={true}
+                                        >
                                             <MinusSquare size={20} />
-                                        ) : (
+                                        </div>
+                                    ) : (
+                                        <div
+                                            onClick={handleSelectAll}
+                                            className="cursor-pointer text-gray-400 hover:text-primary-red transition-colors"
+                                            role="checkbox"
+                                            aria-checked="false"
+                                            aria-label="Select all rows"
+                                            suppressHydrationWarning={true}
+                                        >
                                             <Square size={20} />
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
                                 </th>
                             )}
+
                             {columns.map((column, i) => {
                                 const isFiltered = isColumnFiltered(i)
                                 return (
@@ -330,29 +355,47 @@ export function DataTable<T>({
 
                                             {column.filterable && (
                                                 <div className="relative">
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            setOpenFilterColumn(openFilterColumn === i ? null : i)
-                                                            setFilterSearchTerm('')
-                                                        }}
-                                                        className={`p-2 rounded-lg transition-all ${isFiltered ? 'bg-red-100 text-red-600 shadow-sm' : 'hover:bg-white hover:shadow-sm text-gray-300 hover:text-gray-500'}`}
-                                                        suppressHydrationWarning
-                                                    >
-                                                        <Filter size={14} fill={isFiltered ? "currentColor" : "none"} strokeWidth={2.5} />
-                                                    </button>
+                                                    {openFilterColumn === i ? (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                setOpenFilterColumn(null)
+                                                                setFilterSearchTerm('')
+                                                            }}
+                                                            className={`p-2 rounded-lg transition-all ${isFiltered ? 'bg-red-100 text-red-600 shadow-sm' : 'bg-white shadow-sm text-gray-500'}`}
+                                                            aria-label={`Close ${typeof column.header === 'string' ? column.header : 'column'} filter`}
+                                                            aria-expanded="true"
+                                                            suppressHydrationWarning
+                                                        >
+                                                            <Filter size={14} fill={isFiltered ? "currentColor" : "none"} strokeWidth={2.5} />
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                setOpenFilterColumn(i)
+                                                                setFilterSearchTerm('')
+                                                            }}
+                                                            className={`p-2 rounded-lg transition-all ${isFiltered ? 'bg-red-100 text-red-600 shadow-sm' : 'hover:bg-white hover:shadow-sm text-gray-300 hover:text-gray-500'}`}
+                                                            aria-label={`Open ${typeof column.header === 'string' ? column.header : 'column'} filter`}
+                                                            aria-expanded="false"
+                                                            suppressHydrationWarning
+                                                        >
+                                                            <Filter size={14} fill={isFiltered ? "currentColor" : "none"} strokeWidth={2.5} />
+                                                        </button>
+                                                    )}
+
 
                                                     {/* Filter Dropdown Popover */}
                                                     {openFilterColumn === i && (
                                                         <div
                                                             ref={filterRef}
-                                                            className="absolute top-full right-0 mt-3 w-64 bg-white/95 backdrop-blur-xl rounded-[24px] shadow-2xl shadow-gray-200/50 border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 overflow-hidden"
-                                                            style={{ minWidth: '240px' }}
+                                                            className="absolute top-full right-0 mt-3 w-64 bg-white/95 backdrop-blur-xl rounded-[24px] shadow-2xl shadow-gray-200/50 border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 overflow-hidden min-w-[240px]"
                                                             onClick={(e) => e.stopPropagation()}
                                                         >
                                                             <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
                                                                 <span className="text-xs font-black uppercase tracking-wider text-gray-500">Filter {column.header}</span>
-                                                                <button onClick={() => setOpenFilterColumn(null)} className="text-gray-400 hover:text-red-500 transition-colors" suppressHydrationWarning><X size={16} /></button>
+                                                                <button onClick={() => setOpenFilterColumn(null)} className="text-gray-400 hover:text-red-500 transition-colors" aria-label="Close filter" suppressHydrationWarning><X size={16} /></button>
                                                             </div>
                                                             <div className="p-3 border-b border-gray-50">
                                                                 <div className="relative">
@@ -365,6 +408,7 @@ export function DataTable<T>({
                                                                         value={filterSearchTerm}
                                                                         onChange={(e) => setFilterSearchTerm(e.target.value)}
                                                                         autoFocus
+                                                                        aria-label="Search filter values"
                                                                         suppressHydrationWarning
                                                                     />
                                                                 </div>
@@ -446,13 +490,29 @@ export function DataTable<T>({
                                         >
                                             {enableMultiSelection && (
                                                 <td className="hidden md:table-cell p-4 pl-6" onClick={(e) => e.stopPropagation()}>
-                                                    <div
-                                                        onClick={() => toggleRowSelection(rowId, row)}
-                                                        className={`cursor-pointer transition-colors ${isSelected ? 'text-red-600' : 'text-gray-300 hover:text-gray-400'}`}
-                                                        suppressHydrationWarning={true}
-                                                    >
-                                                        {isSelected ? <CheckSquare size={20} /> : <Square size={20} />}
-                                                    </div>
+                                                    {isSelected ? (
+                                                        <div
+                                                            onClick={() => toggleRowSelection(rowId, row)}
+                                                            className="cursor-pointer transition-colors text-red-600"
+                                                            role="checkbox"
+                                                            aria-checked="true"
+                                                            aria-label="Select row"
+                                                            suppressHydrationWarning={true}
+                                                        >
+                                                            <CheckSquare size={20} />
+                                                        </div>
+                                                    ) : (
+                                                        <div
+                                                            onClick={() => toggleRowSelection(rowId, row)}
+                                                            className="cursor-pointer transition-colors text-gray-300 hover:text-gray-400"
+                                                            role="checkbox"
+                                                            aria-checked="false"
+                                                            aria-label="Select row"
+                                                            suppressHydrationWarning={true}
+                                                        >
+                                                            <Square size={20} />
+                                                        </div>
+                                                    )}
                                                 </td>
                                             )}
 
@@ -519,7 +579,7 @@ export function DataTable<T>({
                 </p>
 
                 <div className="flex items-center gap-3">
-                    <button
+                        <button
                         onClick={(e) => {
                             e.preventDefault()
                             const next = Math.max(1, currentPage - 1)
@@ -531,6 +591,7 @@ export function DataTable<T>({
                             ? 'bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed'
                             : 'bg-white border-gray-200 text-gray-600 hover:border-red-200 hover:text-red-600 hover:shadow-lg hover:shadow-red-500/10 active:scale-95'
                             }`}
+                        aria-label="Previous page"
                         suppressHydrationWarning
                     >
                         <ChevronLeft size={18} strokeWidth={2.5} />
@@ -562,8 +623,13 @@ export function DataTable<T>({
                                 pages.push(totalPages)
                             }
 
-                            return pages.map((p, i) => (
-                                typeof p === 'number' ? (
+                        return pages.map((p, i) => {
+                            if (typeof p !== 'number') {
+                                return <span key={i} className="px-2 text-gray-400 font-bold tracking-widest">...</span>
+                            }
+
+                            if (currentPage === p) {
+                                return (
                                     <button
                                         key={i}
                                         onClick={(e) => {
@@ -571,20 +637,32 @@ export function DataTable<T>({
                                             if (!manualPagination) setInternalPage(p)
                                             onPageChange?.(p)
                                         }}
-                                        className={`w-10 h-10 rounded-xl text-sm font-bold transition-all duration-200 ${currentPage === p
-                                            ? 'bg-gradient-to-br from-red-600 to-red-700 text-white shadow-xl shadow-red-600/20 scale-105'
-                                            : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 border border-transparent'
-                                            }`}
+                                        className="w-10 h-10 rounded-xl text-sm font-bold transition-all duration-200 bg-gradient-to-br from-red-600 to-red-700 text-white shadow-xl shadow-red-600/20 scale-105"
+                                        aria-current="page"
                                         suppressHydrationWarning
                                     >
                                         {p}
                                     </button>
-                                ) : (
-                                    <span key={i} className="px-2 text-gray-400 font-bold tracking-widest">...</span>
                                 )
-                            ))
-                        })()}
-                    </div>
+                            }
+
+                            return (
+                                <button
+                                    key={i}
+                                    onClick={(e) => {
+                                        e.preventDefault()
+                                        if (!manualPagination) setInternalPage(p)
+                                        onPageChange?.(p)
+                                    }}
+                                    className="w-10 h-10 rounded-xl text-sm font-bold transition-all duration-200 text-gray-500 hover:bg-gray-100 hover:text-gray-900 border border-transparent"
+                                    suppressHydrationWarning
+                                >
+                                    {p}
+                                </button>
+                            )
+                        })
+                    })()}
+                </div>
 
                     <button
                         onClick={(e) => {
@@ -598,6 +676,7 @@ export function DataTable<T>({
                             ? 'bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed'
                             : 'bg-white border-gray-200 text-gray-600 hover:border-red-200 hover:text-red-600 hover:shadow-lg hover:shadow-red-500/10 active:scale-95'
                             }`}
+                        aria-label="Next page"
                         suppressHydrationWarning
                     >
                         <ChevronRight size={18} strokeWidth={2.5} />

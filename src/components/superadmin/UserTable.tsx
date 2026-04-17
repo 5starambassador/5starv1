@@ -158,6 +158,7 @@ export function UserTable({
                                     rel="noopener noreferrer"
                                     className="w-6 h-6 rounded-md bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 hover:scale-110 active:scale-95 transition-all shadow-sm"
                                     title="Nudge via WhatsApp"
+                                    aria-label={`Send WhatsApp nudge to ${user.fullName}`}
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
@@ -282,6 +283,7 @@ export function UserTable({
                         onClick={() => setSelectedUserForDetail(user)}
                         className="p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all border border-gray-100 shadow-sm bg-white hover:scale-110 active:scale-95"
                         title="View Details"
+                        aria-label={`View details for ${user.fullName}`}
                         suppressHydrationWarning
                     >
                         <ArrowRight size={16} strokeWidth={2.5} />
@@ -291,6 +293,7 @@ export function UserTable({
                             <button
                                 onClick={() => onToggleStatus(user.userId, user.status)}
                                 className={`p-2 rounded-xl transition-all shadow-sm bg-white border border-gray-100 flex items-center justify-center hover:scale-110 active:scale-95 ${user.status === 'Active' ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-50' : 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50'}`}
+                                aria-label={user.status === 'Active' ? `Deactivate ${user.fullName}` : `Activate ${user.fullName}`}
                                 suppressHydrationWarning
                             >
                                 {user.status === 'Active' ? <XCircle size={16} strokeWidth={2.5} /> : <CheckCircle size={16} strokeWidth={2.5} />}
@@ -300,6 +303,7 @@ export function UserTable({
                                 className="p-2 rounded-xl text-red-500 hover:text-white hover:bg-red-500 transition-all border border-red-50 shadow-sm bg-white hover:scale-110 active:scale-95 group"
                                 suppressHydrationWarning
                                 title="Move to Archive"
+                                aria-label={`Archive ${user.fullName}`}
                             >
                                 <Trash2 size={16} strokeWidth={2.5} className="group-hover:animate-pulse" />
                             </button>
@@ -570,34 +574,68 @@ export function UserTable({
 
                 {/* Role Filter */}
                 <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100 items-center gap-1">
-                    {['Parent', 'Staff', 'Alumni', 'Others'].map(role => (
-                        <button
-                            key={role}
-                            onClick={() => {
-                                onRoleFilterChange(prev => prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role])
-                            }}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${roleFilterValue.includes(role) ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
-                            suppressHydrationWarning
-                        >
-                            {role}
-                        </button>
-                    ))}
+                    {['Parent', 'Staff', 'Alumni', 'Others'].map(role => {
+                        const isActive = roleFilterValue.includes(role)
+                        return isActive ? (
+                            <button
+                                key={role}
+                                onClick={() => {
+                                    onRoleFilterChange(prev => prev.filter(r => r !== role))
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all bg-indigo-600 text-white shadow-md"
+                                aria-pressed="true"
+                                suppressHydrationWarning
+                            >
+                                {role}
+                            </button>
+                        ) : (
+                            <button
+                                key={role}
+                                onClick={() => {
+                                    onRoleFilterChange(prev => [...prev, role])
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all text-gray-400 hover:text-gray-600"
+                                aria-pressed="false"
+                                suppressHydrationWarning
+                            >
+                                {role}
+                            </button>
+                        )
+                    })}
+
                 </div>
 
                 {/* Status Filter */}
                 <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100 items-center gap-1">
-                    {['Active', 'Inactive', 'Suspended', 'Pending', 'Deleted'].map(status => (
-                        <button
-                            key={status}
-                            onClick={() => {
-                                onStatusFilterChange((prev: string[]) => prev.includes(status) ? prev.filter((s: string) => s !== status) : [...prev, status])
-                            }}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${statusFilterValue.includes(status) ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
-                            suppressHydrationWarning
-                        >
-                            {status}
-                        </button>
-                    ))}
+                    {['Active', 'Inactive', 'Suspended', 'Pending', 'Deleted'].map(status => {
+                        const isActive = statusFilterValue.includes(status)
+                        return isActive ? (
+                            <button
+                                key={status}
+                                onClick={() => {
+                                    onStatusFilterChange((prev: string[]) => prev.filter((s: string) => s !== status))
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all bg-red-600 text-white shadow-md"
+                                aria-pressed="true"
+                                suppressHydrationWarning
+                            >
+                                {status}
+                            </button>
+                        ) : (
+                            <button
+                                key={status}
+                                onClick={() => {
+                                    onStatusFilterChange((prev: string[]) => [...prev, status])
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all text-gray-400 hover:text-gray-600"
+                                aria-pressed="false"
+                                suppressHydrationWarning
+                            >
+                                {status}
+                            </button>
+                        )
+                    })}
+
                 </div>
 
                 {/* Source Filter */}
@@ -621,15 +659,34 @@ export function UserTable({
 
                 {/* Campus Filter Dropdown */}
                 <div className="relative" ref={campusDropdownRef}>
-                    <button
-                        onClick={() => setShowCampusDropdown(!showCampusDropdown)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${showCampusDropdown || campusFilterValue.length > 0 ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' : 'bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100'}`}
-                        suppressHydrationWarning
-                    >
-                        <Building size={12} />
-                        Filter Campus {campusFilterValue.length > 0 && `(${campusFilterValue.length})`}
-                        <ChevronDown size={12} className={`ml-1 transition-transform ${showCampusDropdown ? 'rotate-180' : ''}`} />
-                    </button>
+                    {showCampusDropdown ? (
+                        <button
+                            onClick={() => setShowCampusDropdown(false)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${campusFilterValue.length > 0 ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' : 'bg-indigo-600 text-white border-indigo-600'}`}
+                            aria-expanded="true"
+                            aria-haspopup="true"
+                            aria-label="Filter by Campus"
+                            suppressHydrationWarning
+                        >
+                            <Building size={12} />
+                            Filter Campus {campusFilterValue.length > 0 && `(${campusFilterValue.length})`}
+                            <ChevronDown size={12} className="ml-1 transition-transform rotate-180" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => setShowCampusDropdown(true)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${campusFilterValue.length > 0 ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' : 'bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100'}`}
+                            aria-expanded="false"
+                            aria-haspopup="true"
+                            aria-label="Filter by Campus"
+                            suppressHydrationWarning
+                        >
+                            <Building size={12} />
+                            Filter Campus {campusFilterValue.length > 0 && `(${campusFilterValue.length})`}
+                            <ChevronDown size={12} className="ml-1 transition-transform" />
+                        </button>
+                    )}
+
 
                     {showCampusDropdown && (
                         <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 z-50 animate-in fade-in zoom-in-95 duration-200">
@@ -747,12 +804,17 @@ export function UserTable({
             </div>
         </div>
 
-        {/* Export Modal (Portal sibling) */}
+            {/* Export Modal (Portal sibling) */}
             {showExportModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in duration-200">
+                <div 
+                    className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-in fade-in duration-200"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="export-modal-title"
+                >
                     <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-bold text-gray-900">Export Data</h3>
+                            <h3 id="export-modal-title" className="text-lg font-bold text-gray-900">Export Data</h3>
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setAllColumns(true)}
@@ -773,8 +835,9 @@ export function UserTable({
                             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Date Range (Optional)</p>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">From</label>
+                                    <label htmlFor="export-from" className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">From</label>
                                     <input
+                                        id="export-from"
                                         type="date"
                                         value={exportDateRange.from}
                                         onChange={(e) => setExportDateRange(prev => ({ ...prev, from: e.target.value }))}
@@ -782,8 +845,9 @@ export function UserTable({
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">To</label>
+                                    <label htmlFor="export-to" className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">To</label>
                                     <input
+                                        id="export-to"
                                         type="date"
                                         value={exportDateRange.to}
                                         onChange={(e) => setExportDateRange(prev => ({ ...prev, to: e.target.value }))}

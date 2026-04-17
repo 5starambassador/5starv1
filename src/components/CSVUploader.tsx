@@ -41,6 +41,7 @@ export default function CSVUploader({ type, onClose, userRole }: CSVUploaderProp
                 <button
                     onClick={onClose}
                     className="absolute top-4 right-4 z-10 p-2 bg-white/80 hover:bg-white rounded-full text-gray-500 hover:text-gray-900 transition-colors shadow-sm border border-gray-100"
+                    aria-label="Close CSV uploader"
                 >
                     <X size={20} />
                 </button>

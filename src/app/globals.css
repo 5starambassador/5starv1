@@ -813,24 +813,24 @@ a {
 /* Premium Redesign Utilities */
 .glass-card {
   background: var(--ui-surface);
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border: 1px solid var(--ui-surface-border);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
 }
 
 .glass-panel {
   background: var(--ui-surface);
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--ui-surface-border);
   box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.03);
 }
 
 .glass-card-dark {
   background: rgba(17, 24, 39, 0.6);
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }
@@ -1009,7 +1009,12 @@ a {
 
 .scrollbar-none {
   -ms-overflow-style: none;
-  scrollbar-width: none;
+}
+
+@supports (scrollbar-width: none) {
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
 }
 
 /* Forceful Sidebar/Topbar Visibility Overrides */

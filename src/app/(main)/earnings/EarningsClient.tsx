@@ -12,6 +12,7 @@ import { GlassCard } from '../../../components/ui/GlassCard'
 import { PageAnimate, PageItem } from '../../../components/PageAnimate'
 import { useClickOutside } from '@/hooks/use-click-outside'
 import Link from 'next/link'
+import { AccessibleProgressBar } from '@/components/ui/AccessibleProgressBar'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -308,18 +309,17 @@ export function EarningsClient({ stats, user, activeYears, selectedYear }: Earni
                             </div>
 
                             <div className="mt-6">
-                                {/* Progress bar: scales to next milestone of 5 */}
-                                <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden mb-2">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-amber-600 via-amber-400 to-amber-500 rounded-full shadow-[0_0_10px_rgba(251,191,36,0.4)] transition-all duration-700"
-                                        style={{ width: `${Math.min(100, ((stats.referralCount % 5 || stats.referralCount) / 5) * 100)}%` }}
-                                    />
+                                <AccessibleProgressBar 
+                                    progress={((stats.referralCount % 5 || stats.referralCount) / 5) * 100}
+                                    label="Referral Efficiency Progress"
+                                    colorClasses="bg-gradient-to-r from-amber-600 via-amber-400 to-amber-500"
+                                    className="!bg-white/5 h-2"
+                                />
                                 </div>
                                 <div className="flex justify-between text-[8px] font-bold text-white/20 uppercase tracking-[0.2em]">
                                     <span>Milestone {Math.floor(stats.referralCount / 5) * 5}</span>
                                     <span>Next: {(Math.floor(stats.referralCount / 5) + 1) * 5}</span>
                                 </div>
-                            </div>
 
                             {/* Referral yield vs bonus credits */}
                             {stats.bonusCredits > 0 && (

@@ -214,7 +214,7 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
                                 Escalate
                             </button>
                         )}
-                        <button onClick={onClose} suppressHydrationWarning className="p-3 bg-white/10 hover:bg-white/20 rounded-2xl text-white transition-all">
+                        <button onClick={onClose} suppressHydrationWarning className="p-3 bg-white/10 hover:bg-white/20 rounded-2xl text-white transition-all" aria-label="Close chat">
                             <X size={20} />
                         </button>
                     </div>
@@ -365,6 +365,7 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
                                         setFilePreview(null)
                                     }}
                                     className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors"
+                                    aria-label="Remove selected file"
                                 >
                                     <Trash2 size={16} />
                                 </button>
@@ -379,11 +380,13 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
                             onChange={handleFileChange}
                             className="hidden"
                             accept="image/*,application/pdf,.doc,.docx,.txt"
+                            title="Upload attachment"
                         />
                         <button
                             onClick={() => fileInputRef.current?.click()}
                             disabled={isSending}
                             className={`w-[70px] h-[70px] rounded-[2rem] flex items-center justify-center transition-all bg-gray-50 border border-gray-100 text-gray-400 hover:text-indigo-600 hover:border-indigo-100 hover:bg-white active:scale-95 ${isSending ? 'opacity-50 pointer-events-none' : ''}`}
+                            aria-label="Attach file"
                         >
                             <Paperclip size={24} />
                         </button>
@@ -400,6 +403,7 @@ export function TicketChatModal({ ticket, currentUserType, currentUserId, onClos
                             onClick={handleSend}
                             disabled={!newMessage.trim() || isSending || (ticket.status === 'Resolved' && currentUserType === 'User')}
                             suppressHydrationWarning
+                            aria-label="Send message"
                             className={`w-[70px] h-[70px] rounded-[2rem] flex items-center justify-center transition-all shadow-lg active:scale-90 ${!newMessage.trim() || isSending || ticket.status === 'Resolved'
                                 ? 'bg-gray-100 text-gray-300 pointer-events-none shadow-none'
                                 : isInternal

@@ -1,0 +1,7 @@
+External Programs:
+- ID: 2, Title: "Divya Drishty & Divya Vidya ΓÇô Workshop", Slug: "divya-drishty-divya-vidya-workshop", Target: "https://wowschooling.in/wow-academy-payment-form/", Active: true
+- ID: 6, Title: "Test Program 2", Slug: "test-program-v2", Target: "https://example.com", Active: false
+- ID: 7, Title: "WOW Summer Camp", Slug: "wow-summer-camp", Target: "wowschooling.in/wow-summercampoffer-workshop", Active: true
+- ID: 5, Title: "Test Program 2", Slug: "test-program-2", Target: "https://example.com", Active: false
+- ID: 1, Title: "Test External Program", Slug: "test-external-program", Target: "https://google.com", Active: false
+- ID: 4, Title: "Test Program", Slug: "test-program-v1", Target: "https://example.com", Active: false

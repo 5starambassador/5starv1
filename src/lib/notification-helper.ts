@@ -92,7 +92,7 @@ export async function notifyReferralConfirmed(userId: number, referralDetails: R
     try {
         const user = await prisma.user.findUnique({
             where: { userId },
-            select: { mobileNumber: true }
+            select: { mobileNumber: true, role: true, assignedCampus: true }
         })
         if (user?.mobileNumber) {
             // Template: "Great news! {{1}}'s referral has been confirmed. You now have {{2}} confirmed referrals!"
@@ -100,7 +100,12 @@ export async function notifyReferralConfirmed(userId: number, referralDetails: R
                 user.mobileNumber,
                 "REFERRAL_CONFIRMED",
                 [referralDetails.parentName, currentCount.toString()],
-                'ALERT'
+                'ALERT',
+                undefined,
+                undefined,
+                [],
+                user.role || 'User',
+                user.assignedCampus || '-'
             )
         }
     } catch (waError) {
@@ -139,11 +144,21 @@ export async function notifyFiveStarAchievement(userId: number, userName: string
     try {
         const user = await prisma.user.findUnique({
             where: { userId },
-            select: { mobileNumber: true }
+            select: { mobileNumber: true, role: true, assignedCampus: true }
         })
         if (user?.mobileNumber) {
             // Template: "🌟 Congratulations {{1}}! You've achieved 5-Star status!"
-            await whatsappService.sendByEvent(user.mobileNumber, "FIVE_STAR_ACHIEVEMENT", [userName], 'ALERT')
+            await whatsappService.sendByEvent(
+                user.mobileNumber, 
+                "FIVE_STAR_ACHIEVEMENT", 
+                [userName], 
+                'ALERT',
+                undefined,
+                undefined,
+                [],
+                user.role || 'User',
+                user.assignedCampus || '-'
+            )
         }
     } catch (waError) {
         console.error('WhatsApp 5-Star Alert Failed:', waError)
@@ -181,7 +196,7 @@ export async function notifySettlementProcessed(userId: number, amount: number, 
     try {
         const user = await prisma.user.findUnique({
             where: { userId },
-            select: { mobileNumber: true }
+            select: { mobileNumber: true, role: true, assignedCampus: true }
         })
         if (user?.mobileNumber) {
             // Template: "Your settlement of ₹{{1}} has been processed successfully. Thank you!"
@@ -189,7 +204,12 @@ export async function notifySettlementProcessed(userId: number, amount: number, 
                 user.mobileNumber,
                 "SETTLEMENT_PROCESSED",
                 [amount.toLocaleString('en-IN')],
-                'ALERT'
+                'ALERT',
+                undefined,
+                undefined,
+                [],
+                user.role || 'User',
+                user.assignedCampus || '-'
             )
         }
     } catch (waError) {
@@ -241,11 +261,21 @@ export async function notifyTicketResponse(userId: number, ticketDetails: { subj
     try {
         const user = await prisma.user.findUnique({
             where: { userId },
-            select: { mobileNumber: true }
+            select: { mobileNumber: true, role: true, assignedCampus: true }
         })
         if (user?.mobileNumber) {
             // Template: "Hi! There is a new response on your support ticket: {{1}}. Please log in to view."
-            await whatsappService.sendByEvent(user.mobileNumber, "TICKET_RESPONSE", [ticketDetails.subject], 'ALERT')
+            await whatsappService.sendByEvent(
+                user.mobileNumber, 
+                "TICKET_RESPONSE", 
+                [ticketDetails.subject], 
+                'ALERT',
+                undefined,
+                undefined,
+                [],
+                user.role || 'User',
+                user.assignedCampus || '-'
+            )
         }
     } catch (waError) {
         console.error('WhatsApp Ticket Alert Failed:', waError)
@@ -270,7 +300,7 @@ export async function notifyVerificationApproved(userId: number) {
     try {
         const user = await prisma.user.findUnique({
             where: { userId },
-            select: { mobileNumber: true, fullName: true }
+            select: { mobileNumber: true, fullName: true, role: true, assignedCampus: true }
         })
         if (user?.mobileNumber) {
             // Template: kyc_approved (Name, Link)
@@ -279,7 +309,12 @@ export async function notifyVerificationApproved(userId: number) {
                 user.mobileNumber,
                 "KYC_APPROVED",
                 [user.fullName || 'Ambassador', `${baseUrl}/dashboard`],
-                'ALERT'
+                'ALERT',
+                undefined,
+                undefined,
+                [],
+                user.role || 'User',
+                user.assignedCampus || '-'
             )
         }
     } catch (waError) {
@@ -305,7 +340,7 @@ export async function notifyVerificationRejected(userId: number, reason?: string
     try {
         const user = await prisma.user.findUnique({
             where: { userId },
-            select: { mobileNumber: true, fullName: true }
+            select: { mobileNumber: true, fullName: true, role: true, assignedCampus: true }
         })
         if (user?.mobileNumber) {
             // Template: kyc_rejected (Name, Reason)
@@ -313,7 +348,12 @@ export async function notifyVerificationRejected(userId: number, reason?: string
                 user.mobileNumber,
                 "KYC_REJECTED",
                 [user.fullName || 'Ambassador', reason || 'Details provided are incomplete/incorrect'],
-                'ALERT'
+                'ALERT',
+                undefined,
+                undefined,
+                [],
+                user.role || 'User',
+                user.assignedCampus || '-'
             )
         }
     } catch (waError) {
@@ -358,7 +398,7 @@ export async function notifyProgramLaunch(programTitle: string, slug: string) {
     // We fetch all active users
     const activeUsers = await prisma.user.findMany({
         where: { status: 'Active' },
-        select: { userId: true, mobileNumber: true }
+        select: { userId: true, mobileNumber: true, role: true, assignedCampus: true }
     })
 
     if (activeUsers.length === 0) return
@@ -383,7 +423,12 @@ export async function notifyProgramLaunch(programTitle: string, slug: string) {
                     user.mobileNumber,
                     'PROGRAM_LAUNCH',
                     [programTitle, programUrl],
-                    'CAMPAIGN'
+                    'CAMPAIGN',
+                    undefined,
+                    undefined,
+                    [],
+                    user.role || 'User',
+                    user.assignedCampus || '-'
                 )
                 sentCount++
                 // Simple throttle to avoid hitting rate limits instantly

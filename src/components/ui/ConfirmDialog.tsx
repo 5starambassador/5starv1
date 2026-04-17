@@ -94,6 +94,10 @@ export function ConfirmDialog({
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                         className="bg-white w-full max-w-sm rounded-[42px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)] overflow-hidden relative border border-gray-100/50"
                         onClick={(e) => e.stopPropagation()}
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-labelledby="confirm-dialog-title"
+                        aria-describedby="confirm-dialog-description"
                     >
                         {/* Top Decoration */}
                         <div className={`h-2 w-full bg-gradient-to-r ${config.bg}`} />
@@ -105,10 +109,10 @@ export function ConfirmDialog({
                                     {config.icon}
                                 </div>
                                 <div className="space-y-2">
-                                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">
+                                    <h3 id="confirm-dialog-title" className="text-xl font-black text-gray-900 uppercase tracking-tight">
                                         {title}
                                     </h3>
-                                    <div className="text-sm font-bold text-gray-400 leading-relaxed px-2">
+                                    <div id="confirm-dialog-description" className="text-sm font-bold text-gray-400 leading-relaxed px-2">
                                         {description}
                                     </div>
                                 </div>
@@ -139,6 +143,7 @@ export function ConfirmDialog({
                         <button
                             onClick={onCancel}
                             className="absolute top-6 right-6 p-2 rounded-xl text-gray-300 hover:text-gray-500 transition-all"
+                            aria-label="Close dialog"
                         >
                             <X size={18} />
                         </button>

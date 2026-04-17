@@ -61,8 +61,7 @@ export function CollapsibleSidebar({ navItems, user, logoutAction }: Collapsible
         <>
             {/* Sidebar */}
             <aside
-                style={{ width: sidebarWidth, minWidth: sidebarWidth }}
-                className="desktop-sidebar hidden xl:flex flex-col border-r border-white/10 p-0 fixed top-0 left-0 bottom-0 z-20 bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#1e1b4b] shadow-[20px_0_80px_rgba(0,0,0,0.8)] transition-[width] duration-300 ease-in-out"
+                className={`desktop-sidebar hidden xl:flex flex-col border-r border-white/10 p-0 fixed top-0 left-0 bottom-0 z-40 bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#1e1b4b] shadow-[20px_0_80px_rgba(0,0,0,0.8)] transition-all duration-300 ease-in-out ${collapsed ? 'w-[64px]' : 'w-[280px]'}`}
             >
                 {/* Royal accents */}
                 <div className="absolute top-0 right-0 w-[1px] h-full bg-gradient-to-b from-transparent via-white/20 to-transparent" />
@@ -145,10 +144,10 @@ export function CollapsibleSidebar({ navItems, user, logoutAction }: Collapsible
 
                 {/* Floating tooltip for collapsed mode */}
                 {collapsed && tooltip && (
-                    <div
-                        className="fixed z-[200] pointer-events-none"
-                        style={{ left: '72px', top: tooltip.y, transform: 'translateY(-50%)' }}
-                    >
+                    <div className="fixed z-[200] pointer-events-none left-[72px] -translate-y-1/2 top-[var(--tooltip-y)]">
+                        <style>{`
+                            :root { --tooltip-y: ${tooltip.y}px; }
+                        `}</style>
                         <div className="bg-gray-900 text-white text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg shadow-xl border border-white/10 whitespace-nowrap">
                             {tooltip.label}
                         </div>
@@ -157,13 +156,13 @@ export function CollapsibleSidebar({ navItems, user, logoutAction }: Collapsible
                 )}
 
                 {/* Footer */}
+                <div className={`md:hidden fixed inset-0 bg-black/50 z-[45] transition-opacity duration-300 ${!collapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={toggle} />
                 <div className={`mt-auto border-t border-white/10 bg-black/20 transition-all duration-300 ${collapsed ? 'px-1 py-3' : 'px-4 py-4'}`}>
                     {collapsed ? (
                         // Collapsed footer: avatar only
                         <div className="flex flex-col items-center gap-2">
                             <Link href="/profile" className="no-underline" title={user.fullName}>
-                                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black text-white shadow-xl ring-2 ring-white/10"
-                                    style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #0ea5e9 100%)' }}>
+                                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black text-white shadow-xl ring-2 ring-white/10 bg-gradient-to-br from-indigo-600 to-sky-500">
                                     {user.fullName[0].toUpperCase()}
                                 </div>
                             </Link>
@@ -179,8 +178,7 @@ export function CollapsibleSidebar({ navItems, user, logoutAction }: Collapsible
                         // Expanded footer
                         <div className="flex flex-col gap-3">
                             <Link href="/profile" className="flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-2xl p-3 border border-white/5 transition-all no-underline text-inherit">
-                                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-base font-black text-white shadow-xl flex-shrink-0 ring-2 ring-white/10"
-                                    style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #0ea5e9 100%)' }}>
+                                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-base font-black text-white shadow-xl flex-shrink-0 ring-2 ring-white/10 bg-gradient-to-br from-indigo-600 to-sky-500">
                                     {user.fullName[0].toUpperCase()}
                                 </div>
                                 <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
@@ -208,20 +206,31 @@ export function CollapsibleSidebar({ navItems, user, logoutAction }: Collapsible
                 </div>
 
                 {/* Toggle Button */}
-                <button
-                    onClick={toggle}
-                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-12 bg-[#1e293b] border border-white/20 rounded-r-xl flex items-center justify-center text-gray-400 hover:text-amber-400 hover:bg-[#334155] transition-all shadow-lg z-30"
-                    title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                >
-                    {collapsed
-                        ? <ChevronRight size={14} />
-                        : <ChevronLeft size={14} />
-                    }
-                </button>
+                {collapsed ? (
+                    <button
+                        onClick={toggle}
+                        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-12 bg-[#1e293b] border border-white/20 rounded-r-xl flex items-center justify-center text-gray-400 hover:text-amber-400 hover:bg-[#334155] transition-all shadow-lg z-30"
+                        title="Expand sidebar"
+                        aria-label="Expand sidebar"
+                        aria-expanded="false"
+                    >
+                        <ChevronRight size={14} />
+                    </button>
+                ) : (
+                    <button
+                        onClick={toggle}
+                        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-12 bg-[#1e293b] border border-white/20 rounded-r-xl flex items-center justify-center text-gray-400 hover:text-amber-400 hover:bg-[#334155] transition-all shadow-lg z-30"
+                        title="Collapse sidebar"
+                        aria-label="Collapse sidebar"
+                        aria-expanded="true"
+                    >
+                        <ChevronLeft size={14} />
+                    </button>
+                )}
             </aside>
 
             {/* Spacer that matches sidebar width */}
-            <div style={{ width: sidebarWidth, minWidth: sidebarWidth, flexShrink: 0 }} className="hidden xl:block transition-[width] duration-300 ease-in-out" />
+            <div className={`hidden xl:block transition-all duration-300 ease-in-out flex-shrink-0 ${collapsed ? 'w-[64px]' : 'w-[280px]'}`} />
         </>
     )
 }

@@ -28,6 +28,9 @@ export class ChatbotService {
             )
         }
 
+        const role = user.role
+        const campus = user.assignedCampus || '-'
+
         switch (keyword) {
             case 'STATUS':
                 return this.handleStatus(user)
@@ -51,7 +54,7 @@ export class ChatbotService {
                 })
                 
                 console.log(`[Chatbot] AI Response for ${user.mobileNumber}: ${aiResponse}`)
-                return whatsappService.sendFreeTextMessage(user.mobileNumber, aiResponse)
+                return whatsappService.sendFreeTextMessage(user.mobileNumber, aiResponse, 'CHATBOT', undefined, role, campus)
         }
     }
 
@@ -67,7 +70,7 @@ export class ChatbotService {
         message += `Referral Code: *${user.referralCode}*\n`
         message += `Referrals: ${user.confirmedReferralCount} Confirmed`
 
-        return whatsappService.sendFreeTextMessage(user.mobileNumber, message)
+        return whatsappService.sendFreeTextMessage(user.mobileNumber, message, 'CHATBOT', undefined, user.role, user.assignedCampus || '-')
     }
 
     private async handleLeads(user: any) {
@@ -80,7 +83,11 @@ export class ChatbotService {
         if (leads.length === 0) {
             return whatsappService.sendFreeTextMessage(
                 user.mobileNumber,
-                "You don't have any referrals yet. Start sharing your link to earn! 🚀"
+                "You don't have any referrals yet. Start sharing your link to earn! 🚀",
+                'CHATBOT',
+                undefined,
+                user.role,
+                user.assignedCampus || '-'
             )
         }
 
@@ -91,7 +98,7 @@ export class ChatbotService {
         })
         message += `\nView all at: https://ambassador.achariya.in/referrals`
 
-        return whatsappService.sendFreeTextMessage(user.mobileNumber, message)
+        return whatsappService.sendFreeTextMessage(user.mobileNumber, message, 'CHATBOT', undefined, user.role, user.assignedCampus || '-')
     }
 
     private async handlePayout(user: any) {
@@ -111,7 +118,7 @@ export class ChatbotService {
 
         message += `Bank Details: ${user.bankAccountDetails ? '✅ Updated' : '⚠️ Missing'}`
 
-        return whatsappService.sendFreeTextMessage(user.mobileNumber, message)
+        return whatsappService.sendFreeTextMessage(user.mobileNumber, message, 'CHATBOT', undefined, user.role, user.assignedCampus || '-')
     }
 
     private async handleHelp(user: any) {
@@ -122,12 +129,12 @@ export class ChatbotService {
         message += `👉 *PAYOUT*: Check earnings\n`
         message += `👉 *HELP*: see this menu`
 
-        return whatsappService.sendFreeTextMessage(user.mobileNumber, message)
+        return whatsappService.sendFreeTextMessage(user.mobileNumber, message, 'CHATBOT', undefined, user.role, user.assignedCampus || '-')
     }
 
     private async handleDefault(user: any) {
         const message = `Hi ${user.fullName.split(' ')[0]}! I didn't recognize that command. Type *HELP* to see what I can do for you! 🤖`
-        return whatsappService.sendFreeTextMessage(user.mobileNumber, message)
+        return whatsappService.sendFreeTextMessage(user.mobileNumber, message, 'CHATBOT', undefined, user.role, user.assignedCampus || '-')
     }
 
     private sanitizeMobile(mobile: string): string {

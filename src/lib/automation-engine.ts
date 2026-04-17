@@ -414,7 +414,17 @@ export class AutomationEngine {
       if (user?.fullName) finalName = user.fullName
 
       const templateKey = rule.actionTarget || rule.triggerEvent || ''
-      const res = await whatsappService.sendByEvent(testMobileNumber, templateKey, [finalName, 'Test Campus'], 'SYSTEM')
+      const res = await whatsappService.sendByEvent(
+          testMobileNumber, 
+          templateKey, 
+          [finalName, 'Test Campus'], 
+          'SYSTEM',
+          undefined,
+          undefined,
+          [],
+          user?.role || 'Admin',
+          user?.assignedCampus || '-'
+      )
       
       if (res.success) {
           return { success: true, message: `Test signal sent to MSG91 for ${testMobileNumber}.`, messageId: res.messageId }
