@@ -1,4 +1,5 @@
 'use client'
+// [Turbopack Reset] Forcing chunk regeneration to resolve stale build error
 
 import { useState, useEffect } from 'react'
 import { Network } from '@capacitor/network'

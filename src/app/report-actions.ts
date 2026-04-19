@@ -694,8 +694,8 @@ export async function generateFinancialROIData(filters?: { startDate?: string, e
             const confirmedReferrals = user.referrals
             if (confirmedReferrals.length > 0) {
                 // Precision: Sum up actual annualFee from confirmed leads, or fallback to default
-                const actualRevenue = confirmedReferrals.reduce((sum: number, r: any) => sum + (r.annualFee || 60000), 0)
-                const benefitPerYear = (user.studentFee || 60000) * (user.yearFeeBenefitPercent / 100)
+                const actualRevenue = confirmedReferrals.reduce((sum: number, r: any) => sum + (r.annualFee || 0), 0)
+                const benefitPerYear = (user.studentFee || 0) * (user.yearFeeBenefitPercent / 100)
 
                 totalRevenue += actualRevenue
                 totalBenefitCost += benefitPerYear

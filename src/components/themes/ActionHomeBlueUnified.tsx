@@ -155,7 +155,7 @@ export function ActionHomeBlueUnified({
     const benefitPercent = user.yearFeeBenefitPercent || 0
     const potentialBenefitPercent = user.potentialFeeBenefitPercent || 0
     // If user.studentFee is present (from props via page.tsx), use it. But overrides take precedence for Benefit Logic.
-    const totalFee = user.studentFee || 60000
+    const totalFee = user.studentFee || 0
 
     // Labels based on role (or if overrides are used, assume Commission/Earnings style?)
     const isParent = user.role === 'Parent'

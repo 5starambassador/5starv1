@@ -44,7 +44,7 @@ export class ReminderService {
                 await whatsappService.sendByEvent(
                     user.mobileNumber,
                     'PAYMENT_REMINDER',
-                    [user.fullName || 'Ambassador', (user as any).studentFee?.toString() || '60000'],
+                    [user.fullName || 'Ambassador', (user as any).studentFee?.toString() || '0'],
                     'REMINDER',
                     undefined,
                     undefined,

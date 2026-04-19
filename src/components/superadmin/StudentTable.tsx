@@ -12,7 +12,7 @@ import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FilterDropdown } from '@/components/ui/FilterDropdown'
-import { Student } from '@/types'
+import { Student, GradeFee } from '@/types'
 import { AcademicYearFilter } from '@/components/AcademicYearFilter'
 import { StudentSourceFilter } from '@/components/StudentSourceFilter'
 import { exportToCSV } from '@/lib/export-utils'
@@ -31,6 +31,7 @@ interface StudentTableProps {
     onBackfillFees?: () => void
     isBackfilling?: boolean
     onGenerateReport?: () => void
+    gradeFees?: GradeFee[]
 }
 
 export function StudentTable({
@@ -45,7 +46,8 @@ export function StudentTable({
     campuses = [],
     onBackfillFees,
     isBackfilling = false,
-    onGenerateReport
+    onGenerateReport,
+    gradeFees = []
 }: StudentTableProps) {
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -144,6 +146,19 @@ export function StudentTable({
         status: ['Active', 'Suspended', 'Inactive', 'Deleted'],
         feeType: ['One Time', 'Installment']
     }), [initialStudents])
+
+    // Fee Lookup Map for dynamic resolution
+    const feeLookupMap = useMemo(() => {
+        const map = new Map<string, { otp: number; wotp: number }>()
+        gradeFees.forEach(f => {
+            const key = `${f.campusId}-${f.grade}-${f.academicYear}`
+            map.set(key, {
+                otp: f.annualFee_otp || 0,
+                wotp: f.annualFee_wotp || 0
+            })
+        })
+        return map
+    }, [gradeFees])
 
     // --- Actions ---
 
@@ -372,7 +387,21 @@ export function StudentTable({
                 filterable: true,
                 cell: (student: Student) => {
                     const plan = (student as any).selectedFeeType || 'WOTP'
-                    const annualFee = (student as any).annualFee ?? student.baseFee ?? 0
+                    const academicYear = student.academicYear || '2025-2026'
+                    
+                    let annualFee = (student as any).annualFee ?? student.baseFee ?? 0
+                    let isSuggested = false
+
+                    // Smart Lookup if stored fee is 0
+                    if (annualFee === 0 && feeLookupMap.size > 0) {
+                        const key = `${student.campusId}-${student.grade}-${academicYear}`
+                        const masterFee = feeLookupMap.get(key)
+                        if (masterFee) {
+                            annualFee = plan === 'OTP' ? masterFee.otp : masterFee.wotp
+                            isSuggested = true
+                        }
+                    }
+
                     return (
                         <div className="space-y-1">
                             <Badge
@@ -384,7 +413,11 @@ export function StudentTable({
                             >
                                 {plan}
                             </Badge>
-                            <p className="text-[11px] font-black text-gray-900" suppressHydrationWarning>
+                            <p 
+                                className={`text-[11px] font-black tracking-tight ${isSuggested ? 'text-indigo-400 italic' : 'text-gray-900'}`} 
+                                suppressHydrationWarning
+                            >
+                                {isSuggested && <span className="mr-0.5 opacity-70">≈</span>}
                                 {annualFee > 0 ? `₹${annualFee.toLocaleString()}` : 'N/A'}
                             </p>
                         </div>

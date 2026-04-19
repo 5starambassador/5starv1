@@ -33,8 +33,8 @@ export default async function ReferralsPage() {
     grade1Fees.forEach(gf => {
         if (!campusFeeMap[gf.academicYear]) campusFeeMap[gf.academicYear] = {}
         campusFeeMap[gf.academicYear][gf.campusId] = {
-            otp: gf.annualFee_otp || 60000,
-            wotp: gf.annualFee_wotp || 60000
+            otp: gf.annualFee_otp || 0,
+            wotp: gf.annualFee_wotp || 0
         }
     })
 

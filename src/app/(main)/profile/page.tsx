@@ -39,7 +39,7 @@ export default async function ProfilePage() {
 
         const stats = await getUserRevenueStats(userId, user.role, {
             childInAchariya: (user as any).childInAchariya,
-            studentFee: (user as any).studentFee || 60000,
+            studentFee: (user as any).studentFee || 0,
             isFiveStarMember: (user as any).isFiveStarMember
         })
 

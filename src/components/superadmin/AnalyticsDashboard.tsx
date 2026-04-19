@@ -57,7 +57,7 @@ export function AnalyticsDashboard({ analyticsData: initialAnalytics, trendData,
                 othersCount: campusPerf.othersCount || 0,
                 totalStudents: campusPerf.totalStudents || 0,
                 avgLeadsPerAmbassador: campusPerf.ambassadors > 0 ? Number((campusPerf.totalLeads / campusPerf.ambassadors).toFixed(2)) : 0,
-                totalEstimatedRevenue: campusPerf.confirmed * 60000,
+                totalEstimatedRevenue: campusPerf.confirmed * 0,
                 systemWideBenefits: campusPerf.systemWideBenefits || 0,
                 prevBenefits: campusPerf.prevBenefits || 0,
                 prevAmbassadors: 0, // Not explicitly tracked per campus yet but could be derived

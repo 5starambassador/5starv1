@@ -257,7 +257,7 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
             othersCount,
             userRoleDistribution,
             avgLeadsPerAmbassador: totalAmbassadors > 0 ? Number((finalTotalLeads / totalAmbassadors).toFixed(2)) : 0,
-            totalEstimatedRevenue: totalConfirmed * 60000,
+            totalEstimatedRevenue: totalConfirmed * 0, // Placeholder: Should ideally be sum of specific fees, but resetting default to 0 for now.
             missingStudentCount,
             prevAmbassadors,
             prevLeads,

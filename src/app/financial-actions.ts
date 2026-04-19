@@ -95,7 +95,7 @@ export async function getAmbassadorLedger(userId: number, academicYear: string =
         const calc = calculateTotalBenefit(calculatorReferrals, {
             role: u.role as any,
             childInAchariya: u.childInAchariya,
-            studentFee: u.studentFee || 60000,
+            studentFee: u.studentFee || 0,
             isFiveStarLastYear: u.isFiveStarMember,
             previousYearReferrals: historicalFormatted
         }, slabs as any)

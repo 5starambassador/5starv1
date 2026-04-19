@@ -414,7 +414,7 @@ export async function registerUser(formData: any) {
     }
 
     // Fetch fee based on campus and grade
-    let studentFee = 60000
+    let studentFee = 0
     let assignedCampusName = null
 
     if (campusId) {
@@ -633,7 +633,7 @@ export async function createPendingUser(formData: any) {
         }
     }
 
-    let studentFee = 60000
+    let studentFee = 0
     let assignedCampusName = null
 
     if (campusId) {

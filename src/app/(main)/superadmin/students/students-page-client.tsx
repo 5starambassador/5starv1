@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { X, User as UserIcon, CheckCircle, Clock, CreditCard, RefreshCcw } from 'lucide-react'
-import { Student, User, Campus, BulkStudentData } from '@/types'
+import { Student, User, Campus, BulkStudentData, GradeFee } from '@/types'
 import { StudentTable } from '@/components/superadmin/StudentTable'
 import { StudentDetailPanel } from '@/components/superadmin/StudentDetailPanel'
 import CSVUploader from '@/components/CSVUploader'
@@ -18,9 +18,10 @@ interface StudentsPageClientProps {
     students: Student[]
     users: User[]
     campuses: Campus[]
+    gradeFees: GradeFee[]
 }
 
-export default function StudentsPageClient({ students, users, campuses }: StudentsPageClientProps) {
+export default function StudentsPageClient({ students, users, campuses, gradeFees }: StudentsPageClientProps) {
     const router = useRouter()
     const [searchQuery, setSearchQuery] = useState('')
     const [showStudentModal, setShowStudentModal] = useState(false)
@@ -313,6 +314,7 @@ export default function StudentsPageClient({ students, users, campuses }: Studen
                 onBackfillFees={handleBackfillFees}
                 isBackfilling={isBackfilling}
                 onGenerateReport={handleGenerateReport}
+                gradeFees={gradeFees}
             />
             {/* Detail Panel */}
             <AnimatePresence>
@@ -320,6 +322,7 @@ export default function StudentsPageClient({ students, users, campuses }: Studen
                     student={selectedStudentForDetail}
                     users={users}
                     campuses={campuses}
+                    gradeFees={gradeFees}
                     onClose={() => setSelectedStudentForDetail(null)}
                     onEdit={(student) => {
                         setSelectedStudentForDetail(null)

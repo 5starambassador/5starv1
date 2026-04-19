@@ -1513,7 +1513,7 @@ export function ReferralManagementTable({
                                                     value={editingLead.annualFee || ''}
                                                     onChange={e => setEditingLead({ ...editingLead, annualFee: e.target.value ? Number(e.target.value) : null })}
                                                     className="w-full pl-7 pr-3 py-2 border border-amber-200 rounded-lg text-sm bg-amber-50/30 font-mono font-bold focus:ring-amber-500/20"
-                                                    placeholder="60000"
+                                                    placeholder="Annual Fee"
                                                     suppressHydrationWarning={true}
                                                 />
                                             </div>

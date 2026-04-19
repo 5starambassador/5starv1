@@ -107,6 +107,7 @@ export function normalizeAcademicYear(year: string | null | undefined): string {
 
 /**
  * Normalizes grade names for consistent matching (e.g., Roman to Arabic).
+ * Handles: "Grade - 8" -> "GRADE-8", "Grade 8" -> "GRADE-8", "Mont I" -> "MONT-1"
  * @param grade - The grade string to normalize.
  * @returns Normalized grade string.
  */
@@ -116,34 +117,44 @@ export function normalizeGrade(grade: string | null | undefined): string {
     let normalized = grade
         .toUpperCase()                    // Convert to uppercase
         .replace(/\s+/g, ' ')             // Normalize multiple spaces to single space
-        .replace(/\s*-\s*/g, '-')         // Remove spaces around hyphens
         .trim()
 
-    // Convert Roman numerals to Arabic numbers
+    // 1. Standardize common prefixes: "PRE MONT" -> "PRE-MONT", "MONT I" -> "MONT-I"
+    // This adds a hyphen if missing between the name and the level/number
+    normalized = normalized.replace(/^(GRADE|MONT|LKG|UKG|PREMONT|NURSERY|PRE)\s*(\d+|I+V*X*)/, '$1-$2')
+    
+    // Special case for "PRE-MONT" vs "PRE MONT"
+    normalized = normalized.replace(/^PRE\s+MONT/, 'PRE-MONT')
+
+    // Clean up spaces around hyphens (e.g., "GRADE - 1" -> "GRADE-1")
+    normalized = normalized.replace(/\s*-\s*/g, '-')
+
+    // 2. Convert Roman numerals to Arabic numbers
     const romanMap: { [key: string]: string } = {
-        'I': '1',
-        'II': '2',
-        'III': '3',
-        'IV': '4',
-        'V': '5',
-        'VI': '6',
-        'VII': '7',
-        'VIII': '8',
-        'IX': '9',
-        'X': '10',
-        'XI': '11',
-        'XII': '12'
+        'XII': '12', 'XI': '11', 'X': '10', 'IX': '9', 'VIII': '8',
+        'VII': '7', 'VI': '6', 'V': '5', 'IV': '4', 'III': '3', 'II': '2', 'I': '1'
     }
 
-    // Replace roman numerals at the end of grade names
-    // e.g., "MONT-II" -> "MONT-2", "GRADE-XII" -> "GRADE-12"
+    // Replace roman numerals (order matters: longest first to avoid partial matches)
     Object.keys(romanMap).forEach(roman => {
-        const regex = new RegExp(`-${roman}$`, 'g')
-        normalized = normalized.replace(regex, `-${romanMap[roman]}`)
-        // Also handle space separator
+        // Match at the end after a hyphen: "GRADE-IV" -> "GRADE-4"
+        const hyphenRegex = new RegExp(`-${roman}$`, 'g')
+        normalized = normalized.replace(hyphenRegex, `-${romanMap[roman]}`)
+        
+        // Match at the end after a space: "GRADE IV" -> "GRADE-4"
         const spaceRegex = new RegExp(` ${roman}$`, 'g')
         normalized = normalized.replace(spaceRegex, `-${romanMap[roman]}`)
+
+        // Standalone Roman numerals: "IV" -> "GRADE-4" (Assuming standalone means Grade)
+        if (normalized === roman) {
+            normalized = `GRADE-${romanMap[roman]}`
+        }
     })
+
+    // 3. Final cleanup: If it's just a number "1", assume "GRADE-1"
+    if (/^\d+$/.test(normalized)) {
+        normalized = `GRADE-${normalized}`
+    }
 
     return normalized
 }

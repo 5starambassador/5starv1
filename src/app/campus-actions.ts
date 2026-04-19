@@ -317,7 +317,7 @@ export async function getCampusAnalytics(campusName: string) {
 
         // Total estimated savings/incentives
         const totalEstimatedValue = referrals.reduce((sum, r) => {
-            const fee = r.user.studentFee || 60000
+            const fee = r.user.studentFee || 0
             const percent = r.user.yearFeeBenefitPercent || 0
             return sum + (fee * percent / 100)
         }, 0)

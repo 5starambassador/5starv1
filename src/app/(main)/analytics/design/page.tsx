@@ -22,7 +22,7 @@ export default async function AnalyticsDesignPage() {
     const isBenefitActive = userData.benefitStatus === 'Active'
 
     // Fee Calculation
-    const totalFee = userData.studentFee || 60000
+    const totalFee = userData.studentFee || 0
     const benefitPercent = userData.yearFeeBenefitPercent || 0
     const benefitValue = (totalFee * benefitPercent) / 100
 

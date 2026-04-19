@@ -130,7 +130,7 @@ export async function getMyEarningsStats(academicYear?: string): Promise<{
         const context: any = {
             role: user.role as any,
             childInAchariya: (user as any).childInAchariya,
-            studentFee: dynamicFee || (user as any).studentFee || 60000,
+            studentFee: dynamicFee || (user as any).studentFee || 0,
             isFiveStarLastYear: (user as any).isFiveStarMember,
             previousYearReferrals: []
         }
@@ -162,7 +162,7 @@ export async function getMyEarningsStats(academicYear?: string): Promise<{
                     campusId: r.campusId || 0,
                     campusName: r.campus,
                     grade: r.gradeInterested,
-                    actualFee: r.student?.annualFee || r.annualFee || 60000,
+                    actualFee: r.student?.annualFee || r.annualFee || 0,
                     campusGrade1Fee: g1Fee,
                     admissionFeeCollected: r.admissionFeeCollected || 0,
                     donationFeeCollected: r.donationFeeCollected || 0,
@@ -177,7 +177,7 @@ export async function getMyEarningsStats(academicYear?: string): Promise<{
                 campusId: r.campusId || 0,
                 campusName: r.campus,
                 grade: r.gradeInterested,
-                actualFee: r.student?.annualFee || r.annualFee || 60000
+                actualFee: r.student?.annualFee || r.annualFee || 0
             }))
 
         context.previousYearReferrals = historicalFormatted

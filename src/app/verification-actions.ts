@@ -439,7 +439,7 @@ export async function approveVerification(userId: number, updatedDetails?: {
         const discountPercent = existingStudents === 0 ? (user.yearFeeBenefitPercent || 0) : 0
 
         // 4. Calculate Fee based on final grade/campus
-        let newFee = 60000 
+        let newFee = 0 
         if (finalGrade && finalCampusId) {
             const currentYearRecord = await prisma.academicYear.findFirst({ where: { isCurrent: true } })
             const currentYear = currentYearRecord?.year || "2025-2026"
@@ -511,7 +511,7 @@ export async function rejectVerification(userId: number, reason?: string) {
             where: { userId },
             data: {
                 benefitStatus: 'Inactive',
-                studentFee: 60000 // Reset to base
+                studentFee: 0 // Reset to base
             }
         })
 

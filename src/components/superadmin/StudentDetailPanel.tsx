@@ -3,8 +3,8 @@ import { X, User, Edit, Hash, School, GraduationCap, Percent, Wallet, Phone, Shi
 import { toast } from 'sonner'
 import { getGradesForCampus } from '@/lib/grade-utils'
 import { getGradeFee } from '@/app/student-actions'
-import { Student, User as UserType, Campus } from '@/types'
-import { useState, useEffect } from 'react'
+import { Student, User as UserType, Campus, GradeFee } from '@/types'
+import { useState, useEffect, useMemo } from 'react'
 import { Badge } from '@/components/ui/Badge'
 
 interface StudentDetailPanelProps {
@@ -15,9 +15,10 @@ interface StudentDetailPanelProps {
     onEdit: (student: Student) => void
     onUpdate?: (id: number, data: any) => Promise<{ success: boolean; error?: string }>
     onViewParent: (parentId: number) => void
+    gradeFees?: GradeFee[]
 }
 
-export function StudentDetailPanel({ student, users, campuses, onClose, onEdit, onUpdate, onViewParent }: StudentDetailPanelProps) {
+export function StudentDetailPanel({ student, users, campuses, onClose, onEdit, onUpdate, onViewParent, gradeFees = [] }: StudentDetailPanelProps) {
     const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'guardians' | 'timeline'>('overview')
     const [isEditing, setIsEditing] = useState(false)
     const [editForm, setEditForm] = useState<any>({})
@@ -39,6 +40,16 @@ export function StudentDetailPanel({ student, users, campuses, onClose, onEdit, 
             })
         }
     }, [student])
+
+    // Fee Lookup Map
+    const feeLookupMap = useMemo(() => {
+        const map = new Map<string, { otp: number; wotp: number }>()
+        gradeFees.forEach(f => {
+            const key = `${f.campusId}-${f.grade}-${f.academicYear}`
+            map.set(key, { otp: f.annualFee_otp || 0, wotp: f.annualFee_wotp || 0 })
+        })
+        return map
+    }, [gradeFees])
 
     const handleSave = async () => {
         if (!onUpdate || !student) return
@@ -382,17 +393,50 @@ export function StudentDetailPanel({ student, users, campuses, onClose, onEdit, 
                                             />
                                         </div>
                                     ) : (
-                                        <p className="text-lg font-black text-gray-900 mt-1">
-                                            {((student as any).annualFee || student.baseFee)
-                                                ? `₹${((student as any).annualFee || student.baseFee).toLocaleString()}`
-                                                : 'N/A'}
-                                        </p>
+                                        (() => {
+                                            const plan = (student as any).selectedFeeType || 'WOTP'
+                                            const academicYear = student.academicYear || '2025-2026'
+                                            let annualFee = (student as any).annualFee || student.baseFee || 0
+                                            let isSuggested = false
+
+                                            if (annualFee === 0 && feeLookupMap.size > 0) {
+                                                const key = `${student.campusId}-${student.grade}-${academicYear}`
+                                                const masterFee = feeLookupMap.get(key)
+                                                if (masterFee) {
+                                                    annualFee = plan === 'OTP' ? masterFee.otp : masterFee.wotp
+                                                    isSuggested = true
+                                                }
+                                            }
+
+                                            return (
+                                                <p className={`text-lg font-black mt-1 ${isSuggested ? 'text-indigo-500 italic' : 'text-gray-900'}`}>
+                                                    {isSuggested && <span className="mr-1 opacity-70">≈</span>}
+                                                    {annualFee > 0 ? `₹${annualFee.toLocaleString()}` : 'N/A'}
+                                                </p>
+                                            )
+                                        })()
                                     )}
                                 </div>
                                 <div className="p-4 rounded-xl bg-gray-900 text-white shadow-lg">
                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Net Payable</p>
                                     <p className="text-lg font-black text-white mt-1">
-                                        ₹{((parseInt(isEditing ? editForm.baseFee : ((student as any).annualFee ?? student.baseFee)) || 0) * (1 - ((isEditing ? editForm.discountPercent : student.discountPercent) || 0) / 100)).toLocaleString()}
+                                        {(() => {
+                                            let baseValue = parseInt(isEditing ? editForm.baseFee : ((student as any).annualFee ?? student.baseFee)) || 0
+                                            
+                                            // Smart lookup fallback for Net Payable calculation
+                                            if (!isEditing && baseValue === 0) {
+                                                const key = `${student.campusId}-${student.grade}-${student.academicYear || '2025-2026'}`
+                                                const masterFee = feeLookupMap.get(key)
+                                                if (masterFee) {
+                                                    const plan = (student as any).selectedFeeType || 'WOTP'
+                                                    baseValue = plan === 'OTP' ? masterFee.otp : masterFee.wotp
+                                                }
+                                            }
+
+                                            const discount = (isEditing ? editForm.discountPercent : student.discountPercent) || 0
+                                            const netValue = baseValue * (1 - discount / 100)
+                                            return `₹${netValue.toLocaleString()}`
+                                        })()}
                                     </p>
                                 </div>
                             </div>

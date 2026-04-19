@@ -72,7 +72,7 @@ export function calculateTotalBenefit(
     let appBonusPercentResult = 0
 
     // SAFETY: Use the dynamic student fee provided in context (Campus + Grade specific)
-    const safeStudentFee = (!user.studentFee || user.studentFee < 1000) ? 60000 : user.studentFee
+    const safeStudentFee = (!user.studentFee || user.studentFee < 1000) ? 0 : user.studentFee
 
     // 1. Calculate Historic Base Value (Fixed Cash Sum derived from Top 5 Previous Year Referrals)
     // Formula: SUM(3% x Actual Fee)

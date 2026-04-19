@@ -58,7 +58,7 @@ export function ReferralsList({ referrals, user, slabs, activeYears, settlements
         const context: UserContext = {
             role: user?.role as any || 'Parent',
             childInAchariya: user?.childInAchariya,
-            studentFee: user?.studentFee || 60000,
+            studentFee: user?.studentFee || 0,
             isFiveStarLastYear: user?.isFiveStarMember,
             previousYearReferrals: [] // Simplified for now
         }
@@ -72,7 +72,7 @@ export function ReferralsList({ referrals, user, slabs, activeYears, settlements
                 campusId: r.campusId || 0,
                 campusName: r.campus,
                 grade: r.gradeInterested,
-                actualFee: r.student?.annualFee || r.annualFee || 60000,
+                actualFee: r.student?.annualFee || r.annualFee || 0,
                 campusGrade1Fee: g1Fee || 0,
                 admissionFeeCollected: r.admissionFeeCollected || 0,
                 donationFeeCollected: r.donationFeeCollected || 0

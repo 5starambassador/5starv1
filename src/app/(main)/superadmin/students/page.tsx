@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { redirect } from 'next/navigation'
 import { getAllStudents, getAllUsers } from '@/app/superadmin-actions'
 import { getCampuses } from '@/app/campus-actions'
+import { getFeeStructure } from '@/app/fee-actions'
 import StudentsPageClient from './students-page-client'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
@@ -36,16 +37,19 @@ export default async function SuperAdminStudentsPage({ searchParams }: PageProps
     if (user.role !== 'Super Admin') redirect('/dashboard')
 
     const year = Array.isArray(params.year) ? params.year[0] : params.year
+    const yearString = (Array.isArray(year) ? year[0] : year) || '2025-2026'
     const source = (Array.isArray(params.source) ? params.source[0] : params.source || 'referral') as 'referral' | 'all' | 'organic'
 
     // Parallel Fetching
-    const [students, usersResult, campusesData] = await Promise.all([
+    const [students, usersResult, campusesData, feeData] = await Promise.all([
         getAllStudents(year, source),
         getAllUsers({ academicYear: year }), // Needed for parent lookup in modals
-        getCampuses()
+        getCampuses(),
+        getFeeStructure({ academicYear: yearString })
     ])
 
     const users = Array.isArray(usersResult) ? usersResult : usersResult.users
+    const gradeFees = feeData.success && feeData.data ? feeData.data : []
 
     return (
         <ErrorBoundary>
@@ -54,6 +58,7 @@ export default async function SuperAdminStudentsPage({ searchParams }: PageProps
                     students={serializeData(students)}
                     users={serializeData(users)}
                     campuses={campusesData.campuses || []}
+                    gradeFees={serializeData(gradeFees) || []}
                 />
             </Suspense>
         </ErrorBoundary>

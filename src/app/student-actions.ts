@@ -7,6 +7,7 @@ import { canEdit } from '@/lib/permission-service'
 import { generateSmartReferralCode } from '@/lib/referral-service'
 import { syncUserStats, revalidateDashboard } from './sync-actions'
 import { EXCLUDED_FROM_SLAB } from '@/lib/reward-constants'
+import { normalizeGrade } from '@/lib/utils'
 
 export async function getStudents(filters?: { campusId?: number, parentId?: number, status?: string }) {
     const user = await getCurrentUser()
@@ -50,7 +51,7 @@ export async function getGradeFee(campusId: number, grade: string, academicYear:
             AND "grade" = $2
             AND "academicYear" = $3
             LIMIT 1
-        `, campusId, grade, academicYear)
+        `, campusId, normalizeGrade(grade), academicYear)
 
         // If no fee found for the specific year, try to find ANY fee for this grade/campus (fallback to latest)
         // This handles cases where student has '2025-2026' but system only has '2026-2027' fees
@@ -61,7 +62,7 @@ export async function getGradeFee(campusId: number, grade: string, academicYear:
                 AND "grade" = $2
                 ORDER BY "academicYear" DESC
                 LIMIT 1
-            `, campusId, grade)
+            `, campusId, normalizeGrade(grade))
         }
 
         if (gradeFees.length > 0) return gradeFees[0].fee
@@ -150,7 +151,7 @@ export async function addStudent(data: {
                     AND "grade" = $2
                     AND "academicYear" = $3
                     LIMIT 1
-                `, data.campusId, data.grade, data.academicYear || '2025-2026')
+                `, data.campusId, normalizeGrade(data.grade), data.academicYear || '2025-2026')
 
                 if (gradeFees.length > 0) bFee = gradeFees[0].fee
                 else bFee = 0
@@ -232,7 +233,7 @@ export async function updateStudent(studentId: number, data: Partial<{
                     AND "grade" = $2
                     AND "academicYear" = $3
                     LIMIT 1
-                `, data.campusId, data.grade, data.academicYear || '2025-2026')
+                `, data.campusId, normalizeGrade(data.grade), data.academicYear || '2025-2026')
 
                 if (gradeFees.length > 0) updateData.baseFee = gradeFees[0].fee
             }
@@ -333,13 +334,16 @@ export async function convertLeadToStudent(leadId: number, studentDetails: {
             let bFee = 0
             if (campusId && lead.gradeInterested) {
                 const gradeFees: any[] = await tx.$queryRaw`
-                    SELECT "annualFee" FROM "GradeFee" 
+                    SELECT "annualFee_otp", "annualFee_wotp" FROM "GradeFee" 
                     WHERE "campusId" = ${campusId} 
-                    AND "grade" = ${lead.gradeInterested} 
+                    AND "grade" = ${normalizeGrade(lead.gradeInterested)} 
                     AND "academicYear" = ${lead.admittedYear || '2025-2026'}
                     LIMIT 1
                 `
-                if (gradeFees.length > 0) bFee = gradeFees[0].annualFee
+                if (gradeFees.length > 0) {
+                    const type = lead.selectedFeeType === 'OTP' ? 'annualFee_otp' : 'annualFee_wotp'
+                    bFee = gradeFees[0][type] || gradeFees[0].annualFee_wotp || 0
+                }
             }
 
             // 4. Create Student
@@ -434,6 +438,7 @@ export async function bulkAddStudents(students: Array<{
     ambassadorMobile?: string
     ambassadorName?: string
     academicYear?: string
+    feeType?: 'OTP' | 'WOTP'
 }>) {
     const user = await getCurrentUser()
     if (!user || (!user.role.includes('Admin') && !user.role.includes('CampusHead'))) {
@@ -552,15 +557,15 @@ export async function bulkAddStudents(students: Array<{
 
             // Perform Student Upsert (Create or Update based on ERP No)
             await prisma.$transaction(async (tx) => {
-                // Calculate Fees (Reusing logic with tx)
                 let bFee = 0
+                const fType = s.feeType || 'WOTP'
                 const gradeFees: any[] = await tx.$queryRawUnsafe(`
-                    SELECT "annualFee_wotp" as "annualFee" FROM "GradeFee" 
+                    SELECT "annualFee_${fType.toLowerCase()}" as "annualFee" FROM "GradeFee" 
                     WHERE "campusId" = $1
                     AND "grade" = $2
                     AND "academicYear" = $3
                     LIMIT 1
-                `, campus.id, s.grade, s.academicYear || '2025-2026')
+                `, campus.id, normalizeGrade(s.grade), s.academicYear || '2025-2026')
                 if (gradeFees.length > 0) bFee = gradeFees[0].annualFee
 
                 const dPercent = parent.yearFeeBenefitPercent || 0
@@ -579,7 +584,8 @@ export async function bulkAddStudents(students: Array<{
                             baseFee: bFee,
                             discountPercent: dPercent,
                             status: 'Active',
-                            academicYear: s.academicYear || '2025-2026'
+                            academicYear: s.academicYear || '2025-2026',
+                            selectedFeeType: s.feeType || 'WOTP'
                         },
                         create: {
                             fullName: s.fullName,
@@ -593,7 +599,8 @@ export async function bulkAddStudents(students: Array<{
                             baseFee: bFee,
                             discountPercent: dPercent,
                             status: 'Active',
-                            academicYear: s.academicYear || '2025-2026'
+                            academicYear: s.academicYear || '2025-2026',
+                            selectedFeeType: s.feeType || 'WOTP'
                         }
                     })
                 } else {
@@ -610,7 +617,8 @@ export async function bulkAddStudents(students: Array<{
                             baseFee: bFee,
                             discountPercent: dPercent,
                             status: 'Active',
-                            academicYear: s.academicYear || '2025-2026'
+                            academicYear: s.academicYear || '2025-2026',
+                            selectedFeeType: s.feeType || 'WOTP'
                         }
                     })
                 }

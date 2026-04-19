@@ -169,7 +169,7 @@ export function DashboardClient({
             const yearFees = (campusFeeMap as any)[year] || (campusFeeMap as any)[currentYear]
             const fees = yearFees ? (yearFees as any)[r.campusId] : null
 
-            const g1Fee = fees?.wotp || fees?.otp || 60000
+            const g1Fee = fees?.wotp || fees?.otp || 0
 
             // Dynamic rewards from constants (Special bonus rates)
             const specialBonusRate = (r as any).specialBonusRate || 0
@@ -180,7 +180,7 @@ export function DashboardClient({
                 campusName: r.campus || '',
                 grade: r.gradeInterested || '',
                 campusGrade1Fee: g1Fee,
-                actualFee: r.student?.annualFee || r.student?.baseFee || r.annualFee || 60000,
+                actualFee: r.student?.annualFee || r.student?.baseFee || r.annualFee || 0,
                 admissionFeeCollected: r.student?.admissionFeeCollected || r.admissionFeeCollected || 0,
                 donationFeeCollected: r.student?.donationFeeCollected || r.donationFeeCollected || 0,
                 specialBonusRate: specialBonusRate
@@ -217,14 +217,14 @@ export function DashboardClient({
         const userContext: UserContext = {
             role: user.role as 'Parent' | 'Staff' | 'Alumni' | 'Others',
             childInAchariya: user.childInAchariya,
-            studentFee: dynamicStudentFee || user.studentFee || 60000,
+            studentFee: dynamicStudentFee || user.studentFee || 0,
             isFiveStarLastYear: user.isFiveStarMember,
             previousYearReferrals: historicalReferrals.map((r: any) => ({
                 id: r.leadId,
                 campusId: r.campusId || 0,
                 campusName: r.campus || '',
                 grade: r.gradeInterested || '',
-                actualFee: r.student?.annualFee || r.student?.baseFee || r.annualFee || 60000
+                actualFee: r.student?.annualFee || r.student?.baseFee || r.annualFee || 0
             }))
         }
 
@@ -433,7 +433,7 @@ export function DashboardClient({
                     status: user.status || 'Pending',
                     empId: user.empId,
                     assignedCampus: user.assignedCampus,
-                    studentFee: dynamicStudentFee || 60000,
+                    studentFee: dynamicStudentFee || 0,
                     isFiveStarMember: user.isFiveStarMember
                 }}
                 recentReferrals={recentReferralsDisplay}

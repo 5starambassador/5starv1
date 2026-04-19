@@ -525,7 +525,7 @@ export async function getAmbassadorName(referralCode: string) {
  */
 export async function getDynamicFeeForUser() {
     const user = await getCurrentUser()
-    if (!user) return 60000 // Default fallback
+    if (!user) return 0 // Default fallback
 
     try {
         // 1. If Parent, try to find their student's Fee Structure
@@ -553,10 +553,10 @@ export async function getDynamicFeeForUser() {
         }
 
         // 2. If Staff/Other or no matching GradeFee found, default to user's stored fee or system default
-        return (user as any).studentFee || 60000
+        return (user as any).studentFee || 0
 
     } catch (error) {
         console.error("Error fetching dynamic fee:", error)
-        return (user as any).studentFee || 60000
+        return (user as any).studentFee || 0
     }
 }

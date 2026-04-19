@@ -114,7 +114,7 @@ export async function syncUserStats(userId: number) {
                 childName: user.childName || latestStudent.fullName,
                 grade: user.grade || latestStudent.grade,
                 childCampusId: user.childCampusId || latestStudent.campusId, // Sync Campus
-                studentFee: user.studentFee || latestStudent.annualFee || 60000,
+                studentFee: user.studentFee || latestStudent.annualFee || 0,
             }
         }
 

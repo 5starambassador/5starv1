@@ -64,8 +64,8 @@ export default async function DashboardPage() {
     grade1Fees.forEach(gf => {
         if (!campusFeeMap[gf.academicYear]) campusFeeMap[gf.academicYear] = {}
         campusFeeMap[gf.academicYear][gf.campusId] = {
-            otp: gf.annualFee_otp || 60000,
-            wotp: gf.annualFee_wotp || 60000
+            otp: gf.annualFee_otp || 0,
+            wotp: gf.annualFee_wotp || 0
         }
     })
 
@@ -183,7 +183,7 @@ export default async function DashboardPage() {
             settlements={serializedSettlements}
             campusFeeMap={campusFeeMap as any}
             slabs={slabsResult.data || []}
-            dynamicStudentFee={dynamicStudentFee || 60000}
+            dynamicStudentFee={dynamicStudentFee || 0}
             monthStats={monthStats}
             whatsappUrl={whatsappUrl}
             notifications={notifications || []}

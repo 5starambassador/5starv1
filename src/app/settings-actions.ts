@@ -59,7 +59,7 @@ export async function getSystemSettings() {
     const defaultSettings = {
         allowNewRegistrations: false, // Fail-closed default
         currentAcademicYear: '2025-2026',
-        defaultStudentFee: 60000,
+        defaultStudentFee: 0,
         maintenanceMode: false,
         allowManualPayments: true,
         id: 0,

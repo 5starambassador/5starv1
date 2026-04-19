@@ -35,7 +35,7 @@ export function BenefitManagement({ initialSlabs }: Props) {
 
     // Simulator State
     const [simCount, setSimCount] = useState<number>(3)
-    const [simFee, setSimFee] = useState<number>(60000)
+    const [simFee, setSimFee] = useState<number>(0)
     const [simRole, setSimRole] = useState<'Parent' | 'Staff' | 'Alumni' | 'Others'>('Parent')
     const [simHasChild, setSimHasChild] = useState(true)
     const [simPartnerType, setSimPartnerType] = useState<'Standard' | 'Long Term'>('Standard')

@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client'
 import { getCurrentUser } from '@/lib/auth-service'
 import { revalidatePath } from 'next/cache'
 import { logAction } from '@/lib/audit-logger'
+import { normalizeGrade, normalizeAcademicYear } from '@/lib/utils'
 
 // Type for bulk upload
 export interface BulkFeeData {
@@ -184,7 +185,10 @@ export async function syncStudentFees(campusId?: number, academicYear?: string, 
         // Build Map: "CampusID-Grade-AY" -> { otp, wotp }
         const feeMap = new Map<string, { otp: number; wotp: number }>()
         fees.forEach(f => {
-            const key = `${f.campusId}-${f.grade.trim()}-${f.academicYear.trim()}`
+            // Normalize GradeFee entry for consistent map lookup
+            const normGrade = normalizeGrade(f.grade)
+            const normAY = normalizeAcademicYear(f.academicYear)
+            const key = `${f.campusId}-${normGrade}-${normAY}`
             feeMap.set(key, { otp: f.annualFee_otp || 0, wotp: f.annualFee_wotp || 0 })
         })
 
@@ -193,8 +197,9 @@ export async function syncStudentFees(campusId?: number, academicYear?: string, 
         const updates = []
 
         for (const s of students) {
-            const sGrade = s.grade.trim()
-            const sAy = (s.academicYear || '2026-2027').trim()
+            // Normalize Student entry for lookup
+            const sGrade = normalizeGrade(s.grade)
+            const sAy = normalizeAcademicYear(s.academicYear || '2026-2027')
             const key = `${s.campusId}-${sGrade}-${sAy}`
 
             // For student sync, we need to know WHICH fee type they have.
@@ -205,7 +210,10 @@ export async function syncStudentFees(campusId?: number, academicYear?: string, 
             })
 
             const feeRule = feeMap.get(key)
-            if (!feeRule) continue
+            if (!feeRule) {
+                console.log(`[SYNC] Still no match for ${s.studentId} (${s.fullName}): ${key}`)
+                continue
+            }
 
             const standardFee = studentRecord?.selectedFeeType === 'WOTP'
                 ? feeRule.wotp
@@ -290,7 +298,7 @@ export async function bulkDeleteFeeStructures(ids: number[]) {
 // ========= Get Staff Base Fee (Grade-1) =========
 export async function getStaffBaseFee(campusName: string): Promise<number> {
     try {
-        if (!campusName) return 60000
+        if (!campusName) return 0
 
         // 1. Find Campus ID
         const campus = await prisma.campus.findFirst({
@@ -302,7 +310,7 @@ export async function getStaffBaseFee(campusName: string): Promise<number> {
 
         if (!campus) {
             console.warn(`Campus not found for Staff Fee lookup: ${campusName}`)
-            return 60000
+            return 0
         }
 
         // 2. Fetch Grade-1 Fee (Try 2026-2027 first, then 2025-2026)
@@ -337,9 +345,9 @@ export async function getStaffBaseFee(campusName: string): Promise<number> {
             return feeFallback.annualFee_otp
         }
 
-        return 60000 // Default fallback
+        return 0 // Default fallback
     } catch (error) {
         console.error('Error fetching staff base fee:', error)
-        return 60000
+        return 0
     }
 }
