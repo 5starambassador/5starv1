@@ -7,6 +7,14 @@ import { logAction } from '@/lib/audit-logger'
 import { getAmbassadorQuery, getStudentQuery, getReferralQuery, getProgramLeadQuery } from '@/lib/campaign-utils'
 import { encryptReferralCode } from '@/lib/crypto'
 
+// Helper to ensure names are properly capitalized for 100% professional delivery
+const toTitleCase = (str: string) => {
+    if (!str) return ''
+    return str.toString().split(' ')
+        .map(w => w.charAt(0).toUpperCase() + w.substr(1).toLowerCase())
+        .join(' ')
+}
+
 /**
  * Dispatches a campaign to a large audience using Batching.
  * - Emails: Sent via EmailService
@@ -26,7 +34,7 @@ export const aliasTokens = async (text: string, user: any, audienceType: string 
     // ✅ BARE-KEY RESILIENCE: If the UI sends "Name" instead of "{Name}", wrap it
     // This fixes the "variable data not showing" issue in Campaigns.
     let workingText = text
-    const bareKeys = ['Name', 'leadName', 'userName', 'studentName', 'source', 'programLink', 'programName', 'campus', 'referralCode', 'referralLink', 'referrerLink', 'role', 'status', 'enquiryDate', 'academicYear']
+    const bareKeys = ['Name', 'leadName', 'userName', 'studentName', 'source', 'ambassadorName', 'programLink', 'programName', 'campus', 'referralCode', 'referralLink', 'referrerLink', 'role', 'status', 'enquiryDate', 'academicYear']
     if (!text.includes('{') && bareKeys.some(bk => text.toLowerCase() === bk.toLowerCase())) {
         workingText = `{${text}}`
     }
@@ -35,14 +43,8 @@ export const aliasTokens = async (text: string, user: any, audienceType: string 
     const referralLink = referralCode ? `${baseUrl}/r/${encryptReferralCode(referralCode)}` : ''
     const referrerLink = user.referrerCode ? `${baseUrl}/r/${encryptReferralCode(user.referrerCode)}` : ''
 
-    // 🔥 GLOBAL PRIORITY mapping — these apply to ALL audience types
+    // 1. Initial Tokens common to all (Rules move to FALLBACK at bottom for 100% priority safety)
     let resolvedText = workingText
-        .replace(/{userName}|{Ambassador}|{parentName}|{Name}|{leadName}|{studentName}/gi, user.fullName || user.visitorName || user.studentName || 'Recipient')
-        .replace(/{campus}|{Campus}|{CAMPUS}/gi, user.assignedCampus || 'Global Campus')
-        .replace(/{mobile}|{Mobile}/gi, user.mobileNumber || user.visitorMobile || '')
-        .replace(/{referralCode}|{code}|{ReferralCode}/gi, referralCode || 'ACH-REF')
-        .replace(/{referralLink}|{ReferralLink}/gi, referralLink || baseUrl)
-        .replace(/{referrerLink}|{ReferrerLink}/gi, referrerLink || baseUrl)
 
     // Handle Dynamic Program Links (e.g. {ProgramLink:slug}) early so they are resolved for all types
     if (resolvedText.includes('{ProgramLink:')) {
@@ -58,6 +60,7 @@ export const aliasTokens = async (text: string, user: any, audienceType: string 
 
     if (type === 'STUDENTS') {
         resolvedText = resolvedText
+            .replace(/{studentName}/gi, user.studentName || 'Student')
             .replace(/{grade}|{Grade}/gi, user.grade || 'Grade')
             .replace(/{admissionDate}/gi, user.admissionDate || 'Today')
     } else if (type === 'REFERRALS') {
@@ -68,7 +71,6 @@ export const aliasTokens = async (text: string, user: any, audienceType: string 
             .replace(/{leadStatus}|{status}/gi, user.leadStatus || 'New')
             .replace(/{ambassadorName}|{referrerName}/gi, user.ambassadorName || 'Achariya')
             .replace(/{academicYear}/gi, user.academicYear || '2025-2026')
-            .replace(/{ProgramLink}/gi, programLink)
     } else if (type === 'PROGRAM_LEADS') {
         const activeRefCode = user.referralCode || user.referrerCode || ''
         const programLink = user.programSlug 
@@ -83,14 +85,23 @@ export const aliasTokens = async (text: string, user: any, audienceType: string 
             .replace(/{status}|{leadStatus}/gi, user.leadStatus || 'New')
             .replace(/{enquiryDate}/gi, user.enquiryDate || 'Recently')
     }
-
-    // Default: AMBASSADORS (Cascades after type-specific)
+    
+    // 🔥 FALLBACK GLOBAL MAPPING — These apply only if not already replaced by type-specific logic
+    // This restores the 10:55 AM Success State by ensuring specifics take precedence.
     resolvedText = resolvedText
+        .replace(/{userName}|{Ambassador}|{parentName}|{Name}|{leadName}/gi, toTitleCase(user.fullName || user.visitorName || 'Recipient'))
+        .replace(/{studentName}/gi, toTitleCase(user.studentName || user.fullName || 'Student'))
+        .replace(/{campus}|{Campus}|{CAMPUS}/gi, user.assignedCampus || 'Global Campus')
+        .replace(/{mobile}|{Mobile}/gi, user.mobileNumber || user.visitorMobile || '')
+        .replace(/{referralCode}|{code}|{ReferralCode}/gi, referralCode || 'ACH-REF')
+        .replace(/{referralLink}|{ReferralLink}/gi, referralLink || baseUrl)
+        .replace(/{referrerLink}|{ReferrerLink}/gi, referrerLink || baseUrl)
+        .replace(/{ProgramLink}/gi, user.referrerCode ? `${baseUrl}/p/admission?r=${encryptReferralCode(user.referrerCode)}` : `${baseUrl}/p/admission`)
         .replace(/{role}|{Role}/gi, user.role || 'Ambassador')
         .replace(/{referralCount}/gi, (user.confirmedReferralCount || 0).toString())
         .replace(/{pendingReferrals}/gi, (user.pendingReferralCount || 0).toString())
 
-    return resolvedText
+    return resolvedText.trim()
 }
 
 export async function dispatchCampaignBatch(campaignId: number) {
@@ -263,6 +274,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     grade: r.gradeInterested || '',
                     leadStatus: r.leadStatus || '',
                     ambassadorName: r.user?.fullName || '',
+                    source: r.user?.fullName || '', // Map source for heuristic recovery consistency
                     academicYear: r.academicYear || '',
                     referrerCode: r.user?.referralCode || '',
                     referralCode: null, // Referrals don't have code themselves
@@ -276,6 +288,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     where: whereStudent,
                     orderBy: { studentId: 'asc' },
                     select: {
+                        fullName: true, // Actual student name
                         grade: true,
                         createdAt: true,
                         campus: { select: { campusName: true } },
@@ -289,6 +302,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                 users = students.map(s => ({
                     userId: 0,
                     fullName: s.parent.fullName || 'Parent',
+                    studentName: s.fullName || '',
                     email: s.parent.email,
                     mobileNumber: s.parent.mobileNumber,
                     assignedCampus: s.campus.campusName,
@@ -385,7 +399,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                         // If resolution failed, guess logical defaults based on index
                         if (!resolved || resolved === '-' || resolved === 'Recipient' || resolved === 'Friend') {
                             if (i === 1) resolved = user.fullName || user.visitorName || 'Friend'
-                            else if (i === 2) resolved = user.source || user.assignedCampus || 'Academic Institution'
+                            else if (i === 2) resolved = user.source || user.ambassadorName || user.assignedCampus || 'Academic Institution'
                             else if (i === 3) resolved = (await aliasTokens('{programLink}', user, audience.type)) || 'https://www.5starambassador.com'
                             else resolved = resolved || bodyMappedValue || '-'
                         }

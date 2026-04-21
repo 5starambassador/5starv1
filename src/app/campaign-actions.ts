@@ -834,6 +834,7 @@ export async function sendTestCampaignMessage(
                 grade: r.gradeInterested || '',
                 leadStatus: r.leadStatus || '',
                 ambassadorName: r.user?.fullName || '',
+                source: r.user?.fullName || '', // Map source for heuristic recovery consistency
                 academicYear: r.academicYear || '',
                 referrerCode: r.user?.referralCode || '',
                 referralCode: null,
@@ -851,6 +852,7 @@ export async function sendTestCampaignMessage(
             sampleUser = {
                 userId: 0,
                 fullName: s.parent?.fullName || 'Parent',
+                studentName: s.fullName || '', // Map actual student name
                 email: s.parent?.email,
                 mobileNumber: s.parent?.mobileNumber,
                 assignedCampus: s.campus?.campusName || targetCampus,
@@ -928,7 +930,7 @@ export async function sendTestCampaignMessage(
                         // This restores the 4:35 PM Success State by guessing logical defaults for missing mappings
                         if (!resolved || resolved === '-' || resolved === 'Recipient' || resolved === 'Friend') {
                             if (i === 1) resolved = sampleUser?.fullName || sampleUser?.visitorName || 'Friend'
-                            else if (i === 2) resolved = sampleUser?.source || sampleUser?.assignedCampus || targetCampus || 'Achariya'
+                            else if (i === 2) resolved = sampleUser?.source || sampleUser?.ambassadorName || sampleUser?.assignedCampus || targetCampus || 'Achariya'
                             else if (i === 3) resolved = (await aliasTokens('{programLink}', sampleUser, type)) || 'https://www.5starambassador.com'
                             else resolved = resolved || bodyMappedValue || '-'
                         }
