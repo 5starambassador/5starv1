@@ -2,7 +2,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { AccountStatus } from '@prisma/client'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Home, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, IndianRupee, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2, Zap, Lock, UserCog, Share2, Megaphone, Globe, Gift, CheckCircle, ExternalLink, MousePointerClick, LayoutDashboard, GraduationCap, GitFork, Calculator, History, UserCheck } from 'lucide-react'
+import { Home, List, BookOpen, Shield, LogOut, User, Building2, Users, Target, Settings, FileDown, IndianRupee, Database, GanttChartSquare, MessageSquare, ShieldCheck, Star, BarChart3, Trash2, Zap, Lock, UserCog, Share2, Megaphone, Globe, Gift, CheckCircle, ExternalLink, MousePointerClick, LayoutDashboard, GraduationCap, GitFork, Calculator, History, UserCheck, Trophy } from 'lucide-react'
 import { MobileMenu } from '@/components/MobileMenu'
 import { NotificationDropdown } from '@/components/NotificationDropdown'
 import { NotificationTicker } from '@/components/NotificationTicker'
@@ -83,7 +83,12 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
         if (permissions.adminManagement.access) navItems.push({ label: 'Admin Management', href: `${baseAdminPath}?view=admins`, icon: <UserCog /> })
         if (permissions.reports.access) navItems.push({ label: 'Reports', href: `${baseAdminPath}?view=reports`, icon: <FileDown /> })
+        
+        // Dedicated Leaderboard War Room
+        if (permissions.campusPerformance.access) navItems.push({ label: 'War Room', href: '/leaderboard', icon: <Trophy className="text-amber-500" /> })
+
         // Unified Referral Pipeline / Tracking Link
+
         if (permissions.referralTracking.access && !isAmbassadorRole) {
             const referralHref = isSuperAdmin ? '/superadmin/referrals' : (isCampusLevel ? '/campus/referrals' : `${baseAdminPath}?view=referrals`)
             const referralLabel = isCampusLevel ? 'Campus Leads' : 'Referral Pipeline'

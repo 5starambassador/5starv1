@@ -814,3 +814,114 @@ export async function getCampusConversionStats(academicYear?: string) {
         return { error: 'Failed to fetch conversion stats' }
     }
 }
+
+// --- Daily Leaderboard Stats (War Room) ---
+export async function getDailyLeaderboardStats() {
+    const user = await getCurrentUser()
+    if (!user) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const todayStart = new Date()
+        todayStart.setHours(0, 0, 0, 0)
+        const todayEnd = new Date()
+        todayEnd.setHours(23, 59, 59, 999)
+
+        const month = todayStart.getMonth() + 1
+        const year = todayStart.getFullYear()
+
+        // 1. Get all campuses and their targets
+        const campuses = await prisma.campus.findMany({
+            where: { isActive: true },
+            include: {
+                targets: {
+                    where: { month, year }
+                }
+            }
+        })
+
+        // 2. Get today's referrals
+        const referralsToday = await prisma.referralLead.findMany({
+            where: {
+                createdAt: { gte: todayStart, lte: todayEnd }
+            },
+            include: {
+                user: { select: { fullName: true, assignedCampus: true } }
+            }
+        })
+
+        // 3. Get Summer Camp 2026 referrals
+        const summerCampPrograms = await prisma.externalProgram.findMany({
+            where: { title: { contains: 'Summer Camp', mode: 'insensitive' } }
+        })
+
+        const summerCampLeads = await prisma.programLead.findMany({
+            where: {
+                programId: { in: summerCampPrograms.map(p => p.id) },
+                clickedAt: { gte: todayStart, lte: todayEnd }
+            }
+        })
+
+        // 4. Calculate branch stats
+        const branchStats = campuses.map(campus => {
+            const campusReferrals = referralsToday.filter(r => 
+                r.campusId === campus.id || 
+                (r.campus && r.campus.toLowerCase() === campus.campusName.toLowerCase())
+            )
+            const admissions = campusReferrals.filter(r => 
+                r.leadStatus === LeadStatus.Admitted || r.leadStatus === LeadStatus.Confirmed
+            ).length
+            const referrals = campusReferrals.length
+            const target = campus.targets[0]?.admissionTarget || 5
+
+            // Growth calculation (last 4 hours)
+            const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000)
+            const recentReferrals = campusReferrals.filter(r => r.createdAt >= fourHoursAgo).length
+
+            return {
+                id: campus.id,
+                name: campus.campusName,
+                referrals,
+                admissions,
+                conversion: referrals > 0 ? (admissions / referrals) * 100 : 0,
+                target,
+                recentReferrals
+            }
+        })
+
+        // Sort for leaderboard
+        const leaderboard = [...branchStats].sort((a, b) => b.referrals - a.referrals)
+
+        // 5. Star Performers Today
+        const contributorMap: Record<number, { name: string, branch: string, referrals: number }> = {}
+        referralsToday.forEach(r => {
+            const userId = r.userId
+            if (!contributorMap[userId]) {
+                contributorMap[userId] = {
+                    name: r.user.fullName,
+                    branch: r.user.assignedCampus || 'N/A',
+                    referrals: 0
+                }
+            }
+            contributorMap[userId].referrals++
+        })
+
+        const starPerformers = Object.values(contributorMap)
+            .sort((a, b) => b.referrals - a.referrals)
+            .slice(0, 10)
+
+        return {
+            success: true,
+            data: {
+                leaderboard,
+                starPerformers,
+                branchStats,
+                totalReferrals: referralsToday.length,
+                summerCampReferrals: summerCampLeads.length,
+                date: todayStart.toISOString()
+            }
+        }
+    } catch (error) {
+        console.error('getDailyLeaderboardStats Error:', error)
+        return { success: false, error: 'Failed to fetch leaderboard' }
+    }
+}

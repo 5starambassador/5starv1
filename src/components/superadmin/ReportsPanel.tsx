@@ -21,6 +21,8 @@ import {
 import { generatePDFReport } from '@/lib/pdf-export'
 import { emailReport } from '@/app/reporting-actions'
 import { DailyReferralDashboard } from '@/components/reports/DailyReferralDashboard'
+import { DailyLeaderboardWarRoom } from '@/components/campus/DailyLeaderboardWarRoom'
+
 import {
     generateReferralPerformanceReport,
     generatePendingLeadsReport,
@@ -403,6 +405,8 @@ export function ReportsPanel({
             </div>
 
             {showVisualSummary ? (
+
+
                 <DailyReferralDashboard 
                     globalDateRange={dateRange} 
                     globalCampus={selectedCampus} 

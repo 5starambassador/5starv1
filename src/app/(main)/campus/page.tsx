@@ -2,7 +2,7 @@ import { getCurrentUser } from '@/lib/auth-service'
 import { getCampusStats, getCampusStudents, getCampusReferrals, getCampusFinance, getCampusRecentActivity, getCampusTargets, getCampusAmbassadorStats, getCampusDeadLeads, getCampusConversionStats } from '@/app/actions/campus-dashboard-actions'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Users, GraduationCap, TrendingUp, Search, Filter, MoreHorizontal, MapPin, CheckCircle2, XCircle, Clock, UserPlus, AlertCircle, BarChart3, ArrowLeft, Activity, ArrowUpRight, ArrowDownRight, Target, Building2 } from 'lucide-react'
+import { Users, GraduationCap, TrendingUp, Search, Filter, MoreHorizontal, MapPin, CheckCircle2, XCircle, Clock, UserPlus, AlertCircle, BarChart3, ArrowLeft, Activity, ArrowUpRight, ArrowDownRight, Target, Building2, Trophy } from 'lucide-react'
 import { CampusReportsClient } from './campus-reports-client'
 import { DateRangeSelector } from './date-range-selector'
 import { CampusTargetModal } from './campus-target-modal'
@@ -14,6 +14,8 @@ import { CampusAnalyticsView } from '@/components/campus/CampusAnalyticsView'
 import { getAllProgramLeads } from '@/app/superadmin-actions'
 import { ProgramLeadsTable } from '@/components/superadmin/ProgramLeadsTable'
 import { AccessibleProgressBar } from '@/components/ui/AccessibleProgressBar'
+import { DailyLeaderboardWarRoom } from '@/components/campus/DailyLeaderboardWarRoom'
+
 
 export const dynamic = 'force-dynamic'
 
@@ -112,6 +114,8 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
                     <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-maroon to-primary-gold">Campus Reports</h1>
                     <p className="text-gray-500 mt-1">Export your campus data</p>
                 </div>
+
+
                 <CampusReportsClient
                     campusName={user.assignedCampus || 'All Campuses'}
                     students={students}
@@ -342,7 +346,19 @@ export default async function CampusDashboard({ searchParams }: PageProps) {
                         Quick Actions
                     </h2>
                     <div className="grid grid-cols-1 gap-4">
+                        <Link href="/leaderboard" className="group flex items-center justify-between p-5 bg-gradient-to-r from-gray-900 to-black text-white rounded-xl hover:shadow-lg active:scale-[0.98] transition-all duration-300">
+
+                            <div className="flex items-center gap-4">
+                                <div className="p-2.5 bg-white/20 rounded-lg backdrop-blur-sm border border-white/20 shadow-inner text-amber-400">
+                                    <Trophy size={20} strokeWidth={2.5} />
+                                </div>
+                                <span className="font-bold text-lg">Leaderboard War Room</span>
+                            </div>
+                            <MoreHorizontal size={24} className="opacity-60 group-hover:opacity-100 transition-opacity" />
+                        </Link>
+
                         <Link href="/campus/referrals" className="group flex items-center justify-between p-5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:shadow-lg active:scale-[0.98] transition-all duration-300">
+
                             <div className="flex items-center gap-4">
                                 <div className="p-2.5 bg-white/20 rounded-lg backdrop-blur-sm border border-white/20 shadow-inner">
                                     <UserPlus size={20} strokeWidth={2.5} />

@@ -41,6 +41,8 @@ const CSVUploader = dynamic(() => import('@/components/CSVUploader').then(m => m
 const WhatsAppConfigPanel = dynamic(() => import('@/components/superadmin/WhatsAppConfigPanel'), { ssr: false, loading: () => <div className="h-96 w-full animate-pulse bg-white rounded-3xl" /> })
 
 import { getWhatsAppAnalytics, WhatsAppAnalytics } from '@/app/automation-actions'
+import { DailyLeaderboardWarRoom } from '@/components/campus/DailyLeaderboardWarRoom'
+
 
 import { getSettlements, processSettlement, deleteSettlement } from '@/app/settlement-actions'
 import { getRolePermissions, updateRolePermissions, resetRolePermissions } from '@/app/permission-actions'
@@ -363,7 +365,10 @@ export default function SuperadminClient({ analytics, campusComparison = [], use
                             <StudentSourceFilter />
                             <AcademicYearFilter />
                         </div>
+
                         <AnalyticsDashboard
+
+
                             analyticsData={analyticsData}
                             trendData={trendData}
                             campusCompData={campusCompData}
