@@ -58,6 +58,10 @@ export async function dispatchCampaignBatch(campaignId: number) {
         whatsappSent: 0, whatsappFailed: 0
     }
 
+    // Initialize Log
+    let logId: number | null = null
+    const campaignRequestId = `camp_${campaignId}_${Date.now()}`
+
     if (isResuming && existingLog) {
         logId = existingLog.id
         stats.whatsappSent = existingLog.whatsappSent || 0
