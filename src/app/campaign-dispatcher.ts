@@ -4,16 +4,9 @@ import prisma from '@/lib/prisma'
 import { getFirebaseAdmin } from '@/lib/firebase-admin'
 import { EmailService } from '@/lib/email-service'
 import { logAction } from '@/lib/audit-logger'
-import { getAmbassadorQuery, getStudentQuery, getReferralQuery, getProgramLeadQuery } from '@/lib/campaign-utils'
+import { getAmbassadorQuery, getStudentQuery, getReferralQuery, getProgramLeadQuery, toTitleCase, resolveWhatsAppVariables, aliasTokens as centralAliasTokens } from '@/lib/campaign-utils'
 import { encryptReferralCode } from '@/lib/crypto'
-
-// Helper to ensure names are properly capitalized for 100% professional delivery
-const toTitleCase = (str: string) => {
-    if (!str) return ''
-    return str.toString().split(' ')
-        .map(w => w.charAt(0).toUpperCase() + w.substr(1).toLowerCase())
-        .join(' ')
-}
+import { whatsappService } from '@/lib/whatsapp-service'
 
 /**
  * Dispatches a campaign to a large audience using Batching.
@@ -26,82 +19,11 @@ const toTitleCase = (str: string) => {
  * Helper to Alias Tokens — audience-aware variable replacement
  * Exported for use in test dispatches and previews.
  */
+/**
+ * Legacy Export maintained for compatibility, now delegates to centralized engine
+ */
 export const aliasTokens = async (text: string, user: any, audienceType: string = 'AMBASSADORS') => {
-    if (!text) return ''
-    const type = audienceType || 'AMBASSADORS'
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.5starambassador.com'
-
-    // ✅ BARE-KEY RESILIENCE: If the UI sends "Name" instead of "{Name}", wrap it
-    // This fixes the "variable data not showing" issue in Campaigns.
-    let workingText = text
-    const bareKeys = ['Name', 'leadName', 'userName', 'studentName', 'source', 'ambassadorName', 'programLink', 'programName', 'campus', 'referralCode', 'referralLink', 'referrerLink', 'role', 'status', 'enquiryDate', 'academicYear']
-    if (!text.includes('{') && bareKeys.some(bk => text.toLowerCase() === bk.toLowerCase())) {
-        workingText = `{${text}}`
-    }
-
-    const referralCode = user.referralCode || user.referrerCode || ''
-    const referralLink = referralCode ? `${baseUrl}/r/${encryptReferralCode(referralCode)}` : ''
-    const referrerLink = user.referrerCode ? `${baseUrl}/r/${encryptReferralCode(user.referrerCode)}` : ''
-
-    // 1. Initial Tokens common to all (Rules move to FALLBACK at bottom for 100% priority safety)
-    let resolvedText = workingText
-
-    // Handle Dynamic Program Links (e.g. {ProgramLink:slug}) early so they are resolved for all types
-    if (resolvedText.includes('{ProgramLink:')) {
-        const programRegex = /{ProgramLink:([^}]+)}/gi
-        resolvedText = resolvedText.replace(programRegex, (match, slug) => {
-            const activeRefCode = user.referralCode || user.referrerCode || '' 
-            if (activeRefCode) {
-                return `${baseUrl}/offer/${slug}?ref=${activeRefCode}`
-            }
-            return `${baseUrl}/offer/${slug}`
-        })
-    }
-
-    if (type === 'STUDENTS') {
-        resolvedText = resolvedText
-            .replace(/{studentName}/gi, user.studentName || 'Student')
-            .replace(/{grade}|{Grade}/gi, user.grade || 'Grade')
-            .replace(/{admissionDate}/gi, user.admissionDate || 'Today')
-    } else if (type === 'REFERRALS') {
-        const programLink = user.referrerCode ? `${baseUrl}/p/admission?r=${encryptReferralCode(user.referrerCode)}` : `${baseUrl}/p/admission`
-        resolvedText = resolvedText
-            .replace(/{studentName}/gi, user.studentName || 'Student')
-            .replace(/{grade}|{Grade}/gi, user.grade || 'Grade')
-            .replace(/{leadStatus}|{status}/gi, user.leadStatus || 'New')
-            .replace(/{ambassadorName}|{referrerName}/gi, user.ambassadorName || 'Achariya')
-            .replace(/{academicYear}/gi, user.academicYear || '2025-2026')
-    } else if (type === 'PROGRAM_LEADS') {
-        const activeRefCode = user.referralCode || user.referrerCode || ''
-        const programLink = user.programSlug 
-            ? `${baseUrl}/offer/${user.programSlug}${activeRefCode ? `?ref=${activeRefCode}` : ''}` 
-            : `${baseUrl}/offer`
-            
-        resolvedText = resolvedText
-            .replace(/{studentName}/gi, user.studentName || user.visitorName || 'Student')
-            .replace(/{source}|{referrerName}/gi, user.source || 'Achariya Parent/Staff')
-            .replace(/{programName}/gi, user.programName || 'Program')
-            .replace(/{programLink}/gi, programLink)
-            .replace(/{status}|{leadStatus}/gi, user.leadStatus || 'New')
-            .replace(/{enquiryDate}/gi, user.enquiryDate || 'Recently')
-    }
-    
-    // 🔥 FALLBACK GLOBAL MAPPING — These apply only if not already replaced by type-specific logic
-    // This restores the 10:55 AM Success State by ensuring specifics take precedence.
-    resolvedText = resolvedText
-        .replace(/{userName}|{Ambassador}|{parentName}|{Name}|{leadName}/gi, toTitleCase(user.fullName || user.visitorName || 'Recipient'))
-        .replace(/{studentName}/gi, toTitleCase(user.studentName || user.fullName || 'Student'))
-        .replace(/{campus}|{Campus}|{CAMPUS}/gi, user.assignedCampus || 'Global Campus')
-        .replace(/{mobile}|{Mobile}/gi, user.mobileNumber || user.visitorMobile || '')
-        .replace(/{referralCode}|{code}|{ReferralCode}/gi, referralCode || 'ACH-REF')
-        .replace(/{referralLink}|{ReferralLink}/gi, referralLink || baseUrl)
-        .replace(/{referrerLink}|{ReferrerLink}/gi, referrerLink || baseUrl)
-        .replace(/{ProgramLink}/gi, user.referrerCode ? `${baseUrl}/p/admission?r=${encryptReferralCode(user.referrerCode)}` : `${baseUrl}/p/admission`)
-        .replace(/{role}|{Role}/gi, user.role || 'Ambassador')
-        .replace(/{referralCount}/gi, (user.confirmedReferralCount || 0).toString())
-        .replace(/{pendingReferrals}/gi, (user.pendingReferralCount || 0).toString())
-
-    return resolvedText.trim()
+    return centralAliasTokens(text, user, audienceType)
 }
 
 export async function dispatchCampaignBatch(campaignId: number) {
@@ -369,54 +291,30 @@ export async function dispatchCampaignBatch(campaignId: number) {
                     })
                     const requiredCount = waConfig?.requiredVariablesCount ?? 0
 
-                    const mappingKeys = Object.keys(mapping).filter(k => {
-                        const cleanKey = k.replace('button_', 'var_')
-                        return !isNaN(Number(cleanKey.replace(/\D/g, '')))
-                    })
+                    // 🚀 USE CENTRALIZED RESOLVER
+                    const { waVars, btnVars } = await resolveWhatsAppVariables(user, audience.type, mapping, requiredCount)
 
-                    const waVars: string[] = []
-                    const btnVars: string[] = []
-                    
-                    // Use requiredCount as primary bound, fallback to mapping max if 0
-                    const mappingMax = mappingKeys.length > 0 ? Math.max(...mappingKeys.map(k => Number(k.replace(/\D/g, '')))) : 0
-                    const varCount = requiredCount > 0 ? requiredCount : (mappingMax || 2)
-
-                    for (let i = 1; i <= varCount; i++) {
-                        const key = i.toString()
-                        const btnKey = `button_${i}`
-                        
-                        // Body Var: Support multiple key patterns
-                        const bodyMappedValue = mapping[key] || mapping[`var_${key}`] || mapping[`Variable ${key}`]
-                        let resolved = ''
-
-                        if (bodyMappedValue === 'STATIC') {
-                            resolved = (mapping[`static_${key}`] || mapping[`static_var_${key}`] || '').toString().replace(/[\r\n]+/g, ' ').trim() || 'Achariya'
-                        } else if (bodyMappedValue) {
-                            resolved = (await aliasTokens(bodyMappedValue, user, audience.type)).toString().replace(/[\r\n]+/g, ' ').trim()
-                        }
-
-                        // 🛡️ HEURISTIC RECOVERY (100% Safety Protocol)
-                        // If resolution failed, guess logical defaults based on index
-                        if (!resolved || resolved === '-' || resolved === 'Recipient' || resolved === 'Friend') {
-                            if (i === 1) resolved = user.fullName || user.visitorName || 'Friend'
-                            else if (i === 2) resolved = user.source || user.ambassadorName || user.assignedCampus || 'Academic Institution'
-                            else if (i === 3) resolved = (await aliasTokens('{programLink}', user, audience.type)) || 'https://www.5starambassador.com'
-                            else resolved = resolved || bodyMappedValue || '-'
-                        }
-
-                        waVars.push(resolved)
-
-                        // Handle Button Var
-                        const btnMappedValue = mapping[btnKey]
-                        if (btnMappedValue === 'STATIC') {
-                            btnVars.push((mapping[`static_${btnKey}`] || '').toString().trim())
-                        } else if (btnMappedValue) {
-                            btnVars.push((await aliasTokens(btnMappedValue, user, audience.type)).toString().trim())
+                    // 🛡️ INLINE SAFETY NET: Force correct picker resolution regardless of module cache
+                    const _dBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.5starambassador.com'
+                    for (let _di = 0; _di < waVars.length; _di++) {
+                        const _dToken = mapping[(_di + 1).toString()] || ''
+                        const _dHasPicker = _dToken.includes('{ProgramLink:') || _dToken.includes('{programLink:')
+                        const _dCorrectlyResolved = waVars[_di]?.includes('/offer/')
+                        if (_dHasPicker && !_dCorrectlyResolved) {
+                            const _dSlugMatch = _dToken.match(/\{[Pp]rogram[Ll]ink:([^}]+)\}/)
+                            if (_dSlugMatch?.[1]) {
+                                const _dSlug = _dSlugMatch[1].trim()
+                                const _dRefCode = user.referralCode || user.referrerCode || ''
+                                waVars[_di] = _dRefCode
+                                    ? `${_dBaseUrl}/offer/${_dSlug}?r=${encryptReferralCode(_dRefCode)}`
+                                    : `${_dBaseUrl}/offer/${_dSlug}`
+                                console.error(`[SAFETY_NET_DISPATCH] ${user.fullName}: "${_dSlug}" -> ${waVars[_di]}`)
+                            }
                         }
                     }
 
-                    if (mappingKeys.length === 0) {
-                        // BACKWARD COMPATIBILITY
+                    if (Object.keys(mapping).filter(k => /^\d+$/.test(k)).length === 0) {
+                        // BACKWARD COMPATIBILITY: no mapping defined, push generic fields
                         waVars.push((user.fullName || 'User').toString().trim())
                         waVars.push((user.assignedCampus || '').toString().trim())
                         waVars.push((user.grade || user.source || '').toString().trim())
@@ -424,7 +322,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
                         waVars.push((user.referralCode || '').toString().trim())
                     }
                     
-                    const fullText = await aliasTokens(campaign.templateBody, user, audience.type)
+                    const fullText = waVars.join(', ')
                     
                     whatsappRecipients.push({
                         mobile: cleanMobile,

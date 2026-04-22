@@ -5,11 +5,12 @@ import { revalidatePath } from 'next/cache'
 import { logAction } from '@/lib/audit-logger'
 import { getCurrentUser } from '@/lib/auth-service'
 import { hasPermission } from '@/lib/permission-service'
-import { getAmbassadorQuery, getStudentQuery, getReferralQuery, getProgramLeadQuery } from '@/lib/campaign-utils'
+import { getAmbassadorQuery, getStudentQuery, getReferralQuery, getProgramLeadQuery, toTitleCase, aliasTokens, resolveWhatsAppVariables } from '@/lib/campaign-utils'
 import { EmailService } from '@/lib/email-service'
 import { whatsappService } from '@/lib/whatsapp-service'
-import { UserRole } from '@prisma/client'
-import { aliasTokens } from './campaign-dispatcher'
+import { PrismaClient, LeadStatus } from '@prisma/client'
+import { encryptReferralCode } from '@/lib/crypto'
+// Safety Net active - v7
 
 // Helper to check campaign access via the permission matrix
 async function checkCampaignAccess() {
@@ -199,12 +200,15 @@ async function getFilteredUsers(audience: { type?: string, role: string, campus:
         const where = getProgramLeadQuery(audience as any)
         const leads = await prisma.programLead.findMany({
             where,
-            select: { visitorMobile: true, visitorName: true }
+            include: { program: true }
         })
         return leads.map(l => ({
             mobileNumber: l.visitorMobile,
             fullName: l.visitorName || 'Friend',
             role: 'Lead',
+            programName: l.program?.title || 'Program',
+            programSlug: l.program?.slug || '',
+            status: l.status,
             confirmedReferralCount: 0
         }))
     }
@@ -214,13 +218,15 @@ async function getFilteredUsers(audience: { type?: string, role: string, campus:
         const where = getReferralQuery(audience as any)
         const referrals = await prisma.referralLead.findMany({
             where,
-            select: { parentMobile: true, parentName: true, campus: true, leadStatus: true }
+            include: { user: true }
         })
         return referrals.map(r => ({
             mobileNumber: r.parentMobile,
             fullName: r.parentName || 'Parent',
+            studentName: r.studentName || 'Student',
             assignedCampus: r.campus || undefined,
             role: 'Referral',
+            referralCode: r.user?.referralCode || '',
             confirmedReferralCount: 0,
             leadStatus: r.leadStatus
         }))
@@ -795,71 +801,76 @@ export async function sendTestCampaignMessage(
             }
         } else if (type === 'REFERRALS') {
             const where = getReferralQuery(audience)
-            const r = await prisma.referralLead.findFirst({ 
-                where: {
-                    AND: [
-                        where,
-                        { campus: { not: null } },
-                        { campus: { not: '' } }
-                    ]
-                },
-                orderBy: { createdAt: 'desc' },
-                select: {
-                    parentName: true, parentMobile: true, campus: true,
-                    gradeInterested: true, leadStatus: true,
-                    studentName: true, academicYear: true,
-                    user: { select: { fullName: true, referralCode: true } }
-                }
-            }) || await prisma.referralLead.findFirst({ 
+            const rl = await prisma.referralLead.findFirst({ 
                 where,
                 orderBy: { createdAt: 'desc' },
-                select: {
-                    parentName: true, parentMobile: true, campus: true,
-                    gradeInterested: true, leadStatus: true,
-                    studentName: true, academicYear: true,
-                    user: { select: { fullName: true, referralCode: true } }
-                }
+                include: { user: true }
             })
-        // 🔥 TARGETED CAMPUS: If the campaign has a campus filter, prioritize it
-        const targetCampus = (audience as any).campus !== 'All' ? (audience as any).campus : 'Global Campus'
+            const rawAmbassadorName = rl?.user?.fullName || ''
+            // 🛡️ Data Guard: If name looks like a campus account, try to find a better label or use generic Ambassador
+            const ambassadorName = (rawAmbassadorName.toLowerCase().includes('abson') || rawAmbassadorName.toLowerCase().includes('campus'))
+                ? 'Achariya Ambassador'
+                : rawAmbassadorName
 
-        if (r) {
-            sampleUser = {
-                userId: 0,
-                fullName: r.parentName || 'Parent',
-                studentName: r.studentName || '',
-                email: '',
-                mobileNumber: r.parentMobile,
-                assignedCampus: r.campus || targetCampus,
-                grade: r.gradeInterested || '',
-                leadStatus: r.leadStatus || '',
-                ambassadorName: r.user?.fullName || '',
-                source: r.user?.fullName || '', // Map source for heuristic recovery consistency
-                academicYear: r.academicYear || '',
-                referrerCode: r.user?.referralCode || '',
-                referralCode: null,
-                role: 'Referral', confirmedReferralCount: 0, DeviceToken: []
+            if (rl) {
+                sampleUser = {
+                    userId: 0,
+                    fullName: rl.parentName || 'Parent',
+                    visitorName: rl.parentName || 'Parent',
+                    studentName: rl.studentName || 'Student',
+                    mobileNumber: rl.parentMobile || '',
+                    visitorMobile: rl.parentMobile || '',
+                    assignedCampus: rl.campus || targetCampus,
+                    role: 'Referral',
+                    ambassadorName: ambassadorName,
+                    referralCode: rl.user?.referralCode || '',
+                    referrerCode: rl.user?.referralCode || '',
+                    programSlug: '', // Picker will handle this
+                    confirmedReferralCount: 0, DeviceToken: []
+                }
             }
-        }
-    } else if (type === 'STUDENTS') {
-        const where = getStudentQuery(audience)
-        const s = await prisma.student.findFirst({ 
+        } else if (type === 'STUDENTS') {
+            const where = getStudentQuery(audience)
+            const s = await prisma.student.findFirst({ 
+                where,
+                orderBy: { studentId: 'desc' },
+                include: { campus: true, parent: true }
+            })
+            if (s) {
+                sampleUser = {
+                    userId: 0,
+                    fullName: s.parent?.fullName || 'Parent',
+                    studentName: s.fullName || '',
+                    email: s.parent?.email,
+                    mobileNumber: s.parent?.mobileNumber,
+                    assignedCampus: s.campus?.campusName || targetCampus,
+                    grade: s.grade || '',
+                    referralCode: s.parent?.referralCode || '',
+                    role: 'Parent', confirmedReferralCount: 0, DeviceToken: []
+                }
+            }
+    } else if (type === 'PROGRAM_LEADS') {
+        const where = getProgramLeadQuery(audience)
+        const pl = await prisma.programLead.findFirst({ 
             where,
-            orderBy: { studentId: 'desc' },
-            include: { campus: true, parent: true }
+            orderBy: { id: 'desc' },
+            include: { program: true }
         })
-        if (s) {
+        if (pl) {
             sampleUser = {
                 userId: 0,
-                fullName: s.parent?.fullName || 'Parent',
-                studentName: s.fullName || '', // Map actual student name
-                email: s.parent?.email,
-                mobileNumber: s.parent?.mobileNumber,
-                assignedCampus: s.campus?.campusName || targetCampus,
-                grade: s.grade || '',
-                referralCode: s.parent?.referralCode || '',
-                admissionDate: s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-IN') : '',
-                role: 'Parent', confirmedReferralCount: 0, DeviceToken: []
+                fullName: pl.visitorName || 'Lead',
+                visitorName: pl.visitorName || 'Lead',
+                mobileNumber: pl.visitorMobile || '',
+                visitorMobile: pl.visitorMobile || '',
+                assignedCampus: 'Global Campus',
+                studentName: pl.studentName || 'Student',
+                source: 'Ambassador',
+                programName: pl.program?.title || 'Program',
+                programSlug: pl.program?.slug || '',
+                status: pl.status || 'New',
+                referralCode: '',
+                role: 'Lead', confirmedReferralCount: 0, DeviceToken: []
             }
         }
     }
@@ -882,125 +893,136 @@ export async function sendTestCampaignMessage(
         }
     }
 
-            // WhatsApp Logic (Main priority) - Use override if provided
-            const isWhatsapp = (campaign as any).channels?.includes('WHATSAPP')
-            if (isWhatsapp) {
-                const mapping = overrideMapping || (campaign as any).waVariableMapping || {}
-                const templateName = overrideTemplateName || (campaign as any).waTemplateName || 'welcome_message'
-                
-                // Fetch template config to know exact variable requirements
-                const waConfig = await prisma.whatsAppConfig.findFirst({
-                    where: { templateName: templateName }
-                })
-                const requiredCount = waConfig?.requiredVariablesCount ?? 0
-
-                const mappingKeys = Object.keys(mapping).filter(k => {
-                    const cleanKey = k.replace('button_', 'var_')
-                    return !isNaN(Number(cleanKey.replace(/\D/g, '')))
-                })
-                
-                const waVars: string[] = []
-                const btnVars: string[] = []
-                
-                // Use requiredCount as primary loop bound, fallback to mapping maxVar if 0
-                const mappingMax = mappingKeys.length > 0 ? Math.max(...mappingKeys.map(k => Number(k.replace(/\D/g, '')))) : 0
-                const varCount = requiredCount > 0 ? requiredCount : mappingMax
-
-                if (varCount > 0) {
-                    for (let i = 1; i <= varCount; i++) {
-                        const key = i.toString()
-                        const btnKey = `button_${i}`
-                        
-                        // Body Var: Try multiple key variants ("1" or "var_1" or "Variable 1")
-                        const bodyMappedValue = mapping[key] || mapping[`var_${key}`] || mapping[`Variable ${key}`]
-
-                        let resolved = ''
-                        if (bodyMappedValue === 'STATIC') {
-                            resolved = (mapping[`static_${key}`] || mapping[`static_var_${key}`] || '').toString().replace(/[\r\n]+/g, ' ').trim() || 'Achariya'
-                        } else if (bodyMappedValue) {
-                            try {
-                                resolved = (await aliasTokens(bodyMappedValue, sampleUser, type)).toString().replace(/[\r\n]+/g, ' ').trim()
-                            } catch (err: any) {
-                                console.error('[Action_Safety] aliasTokens failed:', err.message)
-                                resolved = bodyMappedValue // Fallback to token key
-                            }
-                        }
-
-                        // 🛡️ HEURISTIC RECOVERY (100% Safety Protocol)
-                        // This restores the 4:35 PM Success State by guessing logical defaults for missing mappings
-                        if (!resolved || resolved === '-' || resolved === 'Recipient' || resolved === 'Friend') {
-                            if (i === 1) resolved = sampleUser?.fullName || sampleUser?.visitorName || 'Friend'
-                            else if (i === 2) resolved = sampleUser?.source || sampleUser?.ambassadorName || sampleUser?.assignedCampus || targetCampus || 'Achariya'
-                            else if (i === 3) resolved = (await aliasTokens('{programLink}', sampleUser, type)) || 'https://www.5starambassador.com'
-                            else resolved = resolved || bodyMappedValue || '-'
-                        }
-
-                        waVars.push(resolved)
-
-                        // Button Var
-                        const btnMappedValue = mapping[btnKey]
-                        if (btnMappedValue === 'STATIC') {
-                            btnVars.push((mapping[`static_${btnKey}`] || '').toString().trim())
-                        } else if (btnMappedValue) {
-                            btnVars.push((await aliasTokens(btnMappedValue, sampleUser, type)).toString().trim())
-                        }
-                    }
-                } else if (!mappingKeys.length) {
-                    // No mapping AND no config count — fallback to legacy 2-var logic
-                    waVars.push((sampleUser?.fullName || 'User').toString().trim())
-                    waVars.push(sampleUser?.assignedCampus || targetCampus || 'Global Campus')
-                }
-
-                // Final safety: ensure count exactly matches requiredCount if known
-                if (requiredCount > 0) {
-                    if (waVars.length > requiredCount) {
-                        waVars.splice(requiredCount)
-                    } else while (waVars.length < requiredCount) {
-                        waVars.push('')
-                    }
-                }
-                
-                console.log(`[WHATSAPP_TEST_DEBUG] Template: ${templateName}, Required: ${requiredCount}, Final waVars:`, waVars)
-                console.log(`[WHATSAPP_TEST_DEBUG] Button Vars:`, btnVars)
-
-            const cleanMobile = testMobile.replace(/\D/g, '')
-            const requestId = `test_${campaignId}_${Date.now()}`
-            const headerUrl = overrideHeaderUrl || (campaign as any).waHeaderUrl || null
+        // WhatsApp Logic (Main priority) - Use override if provided
+        const isWhatsapp = (campaign as any).channels?.includes('WHATSAPP')
+        if (isWhatsapp) {
+            // CRITICAL FIX: empty {} from the editing form is truthy but must NOT override the DB mapping
+            const hasOverrideKeys = overrideMapping && typeof overrideMapping === 'object' && Object.keys(overrideMapping).some(k => /^\d+$/.test(k))
+            const mapping = hasOverrideKeys ? overrideMapping : (campaign as any).waVariableMapping || {}
+            const templateName = overrideTemplateName || (campaign as any).waTemplateName || 'welcome_message'
             
-            // WhatsApp Archival Enrichment for Tests: Pull branding from config
-            let waTemplateBody = campaign.templateBody;
-            if (templateName) {
-                const waConfig = await prisma.whatsAppConfig.findFirst({
-                    where: { templateName: templateName }
-                }) as any;
-                if (waConfig?.templateBody) {
-                    waTemplateBody = waConfig.templateBody;
+            // Fetch template config to know exact variable requirements
+            const waConfig = await prisma.whatsAppConfig.findFirst({
+                where: { templateName: templateName }
+            })
+            const requiredCount = waConfig?.requiredVariablesCount ?? 0
+            console.log(`[STABILITY_V5_LIVE] RESOLVER START | Target: ${testMobile} | Campaign: ${campaignId}`)
+
+            // ====================================================================
+            // 🚀 INLINE VARIABLE BUILDER - Zero module dependency, 100% reliable
+            // For campaigns with picker tokens, build variables completely inline.
+            // This bypasses any module caching issues in resolveWhatsAppVariables.
+            // ====================================================================
+            const _baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.5starambassador.com'
+            const _refCode = sampleUser.referralCode || sampleUser.referrerCode || ''
+            const _mappingEntries = Object.entries(mapping).filter(([k]) => /^\d+$/.test(k)).sort(([a], [b]) => Number(a) - Number(b))
+            const _hasPickerInMapping = _mappingEntries.some(([, v]) => (v as string)?.includes('{ProgramLink:'))
+
+            let waVars: string[]
+            let btnVars: string[]
+
+            if (_hasPickerInMapping) {
+                // Build ALL variables inline - no shared module used
+                waVars = []
+                btnVars = []
+                for (const [, token] of _mappingEntries) {
+                    const t = (token as string) || ''
+                    const pickerMatch = t.match(/\{[Pp]rogram[Ll]ink:([^}]+)\}/)
+                    if (pickerMatch) {
+                        const slug = pickerMatch[1].trim()
+                        const link = _refCode
+                            ? `${_baseUrl}/offer/${slug}?r=${encryptReferralCode(_refCode)}`
+                            : `${_baseUrl}/offer/${slug}`
+                        waVars.push(link)
+                        console.error(`[INLINE_BUILDER] Picker "${slug}" -> ${link}`)
+                    } else if (t.includes('{Name}') || t.includes('{userName}') || t.includes('{parentName}') || t.includes('{leadName}')) {
+                        waVars.push(toTitleCase(sampleUser.fullName || sampleUser.visitorName || 'Friend'))
+                    } else if (t.includes('{ambassadorName}') || t.includes('{referrerName}')) {
+                        waVars.push(toTitleCase(sampleUser.ambassadorName || sampleUser.source || 'Achariya Ambassador'))
+                    } else if (t.includes('{Campus}') || t.includes('{campus}') || t.includes('{assignedCampus}')) {
+                        waVars.push(sampleUser.assignedCampus || targetCampus || 'Global Campus')
+                    } else if (t.includes('{studentName}')) {
+                        waVars.push(toTitleCase(sampleUser.studentName || 'Student'))
+                    } else {
+                        // For any other token, use the resolver (non-picker tokens are fine)
+                        const fallback = await resolveWhatsAppVariables(sampleUser, type, { '1': t }, 1)
+                        waVars.push(fallback.waVars[0] || '')
+                    }
                 }
+                console.error(`[INLINE_BUILDER] Final waVars: ${JSON.stringify(waVars)}`)
+            } else {
+                // No pickers — use the standard resolver path
+                const result = await resolveWhatsAppVariables(sampleUser, type, mapping, requiredCount)
+                waVars = result.waVars
+                btnVars = result.btnVars
+            }
+            // ====================================================================
+
+            console.log(`[STABILITY_V5_LIVE] RESOLVER END | waVars:`, waVars)
+
+            const mobiles = testMobile.split(/[,;|]/).map(m => m.trim().replace(/\D/g, '')).filter(m => m.length >= 10)
+            if (mobiles.length === 0) {
+                throw new Error('No valid mobile numbers provided')
             }
 
-            const fullText = await aliasTokens(waTemplateBody, sampleUser, type)
+            const headerUrl = overrideHeaderUrl || (campaign as any).waHeaderUrl || null
+            
+            // Build fullText for archival preview from RESOLVED waVars
+            // This ensures the log preview exactly matches what is actually delivered.
+            let waTemplateBody = campaign.templateBody;
+            if (templateName) {
+                const waConf = await prisma.whatsAppConfig.findFirst({
+                    where: { templateName: templateName }
+                }) as any;
+                if (waConf?.templateBody) {
+                    waTemplateBody = waConf.templateBody;
+                }
+            }
+            // Substitute {{1}}, {{2}}, {{3}} with the already-resolved waVars values
+            let fullText = waTemplateBody
+            waVars.forEach((v, idx) => {
+                fullText = fullText
+                    .replace(new RegExp(`\\{\\{${idx + 1}\\}\\}`, 'g'), v)
+                    .replace(new RegExp(`\\{${idx + 1}\\}`, 'g'), v)
+            })
+            console.log(`[STABILITY_V5_LIVE] fullText preview: ${fullText.slice(0, 100)}`)
+            let allSuccess = true
+            let lastError = ''
 
-            const res = await whatsappService.sendTemplateMessage(
-                cleanMobile,
-                templateName,
-                waVars,
-                'TEST',
-                requestId,
-                headerUrl,
-                btnVars.length > 0 ? btnVars : undefined,
-                fullText,
-                sampleUser.role || 'User',
-                sampleUser.assignedCampus || targetCampus || '-'
-            )
+            for (const mobile of mobiles) {
+                // AUTO-PREFIX: If 10 digits, add 91
+                const finalMobile = mobile.length === 10 ? `91${mobile}` : mobile
+                const requestId = `test_${campaignId}_${Date.now()}_${mobile}`
+                
+                const res = await whatsappService.sendTemplateMessage(
+                    finalMobile,
+                    templateName,
+                    waVars,
+                    'TEST',
+                    requestId,
+                    headerUrl,
+                    btnVars.length > 0 ? btnVars : undefined,
+                    fullText,
+                    sampleUser.role || 'User',
+                    sampleUser.assignedCampus || targetCampus || '-'
+                )
+                
+                if (!res.success) {
+                    allSuccess = false
+                    lastError = res.error || 'API Failed'
+                }
 
-            if (res.success) {
-                // ✅ EXPERT OPTIMIZATION: Non-blocking logAction to prevent UI hang
-                logAction('Test Campaign Dispatch', 'Marketing', `Sent test WhatsApp for campaign #${campaignId} (${campaign.name}) to ${testMobile}`, undefined).catch(err => {
+                // Small delay to prevent API flooding during multi-test
+                if (mobiles.length > 1) await new Promise(r => setTimeout(r, 300))
+            }
+
+            if (allSuccess) {
+                logAction('Test Campaign Dispatch', 'Marketing', `Sent test WhatsApp for campaign #${campaignId} (${campaign.name}) to ${mobiles.join(', ')}`, undefined).catch(err => {
                     console.error('[Action_Safety] Background logAction failed:', err.message)
                 })
                 return { success: true }
             } else {
-                throw new Error('WhatsApp API failed to send test message')
+                throw new Error(`WhatsApp API failed for one or more numbers: ${lastError}`)
             }
         }
 
