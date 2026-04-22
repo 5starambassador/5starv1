@@ -41,12 +41,15 @@ export async function GET(request: Request) {
             const { campaignId } = job.payload as any
 
             // Run the dispatcher
-            const result = await dispatchCampaignBatch(campaignId)
+            const result = (await dispatchCampaignBatch(campaignId)) as any
 
             if (result.success) {
+                // If the dispatcher signaled there's more work (batch limit reached),
+                // set back to PENDING so it can be picked up again.
+                // Otherwise mark as COMPLETED.
                 await prisma.job.update({
                     where: { id: job.id },
-                    data: { status: 'COMPLETED' }
+                    data: { status: result.hasMore ? 'PENDING' : 'COMPLETED' }
                 })
             } else {
                 await prisma.job.update({

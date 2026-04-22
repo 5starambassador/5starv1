@@ -36,11 +36,9 @@ export async function dispatchCampaignBatch(campaignId: number) {
     })
     if (!campaign) return { success: false, error: 'Campaign not found' }
 
-    // Check if already processing
-    if (campaign.logs.length > 0) {
-        console.warn(`[CampaignDispatcher] Campaign #${campaignId} is already PROCESSING. Skipping duplicate dispatch.`)
-        return { success: false, error: 'Campaign already in progress' }
-    }
+    // Check for existing processing log to RESUME
+    let existingLog = campaign.logs.find(l => l.status === 'PROCESSING')
+    let isResuming = !!existingLog
 
     // Parse Audience
     const audience = (campaign.targetAudience as any) || { role: 'All', campus: 'All', activityStatus: 'All' }
@@ -60,58 +58,68 @@ export async function dispatchCampaignBatch(campaignId: number) {
         whatsappSent: 0, whatsappFailed: 0
     }
 
-    // Initialize Log
-    let logId: number | null = null
-    const campaignRequestId = `camp_${campaignId}_${Date.now()}`
-
-    try {
-        const log = await prisma.campaignLog.create({
-            data: {
-                campaignId: campaignId,
-                status: 'PROCESSING',
-                recipientCount: 0,
-                sentCount: 0,
-                failedCount: 0,
-                runAt: new Date(),
-                refId: campaignRequestId
-            } as any
-        })
-        logId = log.id
-
-        // PRE-FLIGHT: Update Log with Total Match Count based on audience type
-        let totalToProcess = 0;
-        const type = audience.type || 'AMBASSADORS';
-
-        if (type === 'AMBASSADORS') {
-            const preCount = await getAmbassadorQuery(audience as any);
-            totalToProcess = await prisma.user.count({ where: preCount });
-        } else if (type === 'PROGRAM_LEADS') {
-            const leadWhere = getProgramLeadQuery(audience as any);
-            totalToProcess = await (prisma as any).programLead.count({ where: leadWhere });
-        } else if (type === 'REFERRALS') {
-            const where = getReferralQuery(audience as any);
-            totalToProcess = await prisma.referralLead.count({ where });
-        } else if (type === 'STUDENTS') {
-            const whereStudent = getStudentQuery(audience as any);
-            totalToProcess = await prisma.student.count({ where: whereStudent });
-        }
-
-        if (logId) {
-            await prisma.campaignLog.update({
-                where: { id: logId },
-                data: { recipientCount: totalToProcess } as any
+    if (isResuming && existingLog) {
+        logId = existingLog.id
+        stats.whatsappSent = existingLog.whatsappSent || 0
+        stats.whatsappFailed = existingLog.whatsappFailed || 0
+        stats.emailSent = existingLog.emailSent || 0
+        stats.emailFailed = existingLog.emailFailed || 0
+        stats.pushSent = existingLog.pushSent || 0
+        stats.pushFailed = existingLog.pushFailed || 0
+        stats.inAppSent = existingLog.inAppSent || 0
+        stats.total = existingLog.sentCount || 0
+        console.log(`[CampaignDispatcher] Resuming Campaign #${campaignId} from count ${existingLog.sentCount}`)
+    } else {
+        try {
+            const log = await prisma.campaignLog.create({
+                data: {
+                    campaignId: campaignId,
+                    status: 'PROCESSING',
+                    recipientCount: 0,
+                    sentCount: 0,
+                    failedCount: 0,
+                    runAt: new Date(),
+                    refId: campaignRequestId
+                } as any
             })
+            logId = log.id
+
+            // PRE-FLIGHT: Update Log with Total Match Count based on audience type
+            let totalToProcess = 0;
+            const type = audience.type || 'AMBASSADORS';
+
+            if (type === 'AMBASSADORS') {
+                const preCount = await getAmbassadorQuery(audience as any);
+                totalToProcess = await prisma.user.count({ where: preCount });
+            } else if (type === 'PROGRAM_LEADS') {
+                const leadWhere = getProgramLeadQuery(audience as any);
+                totalToProcess = await (prisma as any).programLead.count({ where: leadWhere });
+            } else if (type === 'REFERRALS') {
+                const where = getReferralQuery(audience as any);
+                totalToProcess = await prisma.referralLead.count({ where });
+            } else if (type === 'STUDENTS') {
+                const whereStudent = getStudentQuery(audience as any);
+                totalToProcess = await prisma.student.count({ where: whereStudent });
+            }
+
+            if (logId) {
+                await prisma.campaignLog.update({
+                    where: { id: logId },
+                    data: { recipientCount: totalToProcess } as any
+                })
+            }
+        } catch (e) {
+            console.error('Failed to create initial log', e)
         }
-    } catch (e) {
-        console.error('Failed to create initial log', e)
     }
 
     try {
-        let skip = 0
+        let skip = isResuming && existingLog ? existingLog.sentCount : 0
         let hasMore = true
-        let processedCount = 0
+        let processedInThisRun = 0
+        const MAX_BATCHES_PER_RUN = 3 // ~300 users to stay safe within 60s timeout
 
-        while (hasMore) {
+        while (hasMore && processedInThisRun < MAX_BATCHES_PER_RUN) {
             let users: any[] = []
             const waService = isWhatsapp ? (await import('@/lib/whatsapp-service')).whatsappService : null
 
@@ -402,10 +410,10 @@ export async function dispatchCampaignBatch(campaignId: number) {
             }
 
             // Update processed count & rate limit safety
-            processedCount += users.length
+            processedInThisRun++
 
             if (users.length === BATCH_SIZE) {
-                console.log(`[CampaignDispatcher] Batch complete. Cooling down for 0.5s... (Processed: ${processedCount})`)
+                console.log(`[CampaignDispatcher] Batch complete. Cooling down for 0.5s... (Processed this run: ${processedInThisRun})`)
                 await new Promise(resolve => setTimeout(resolve, 500))
             }
 
@@ -494,13 +502,15 @@ export async function dispatchCampaignBatch(campaignId: number) {
             await new Promise(r => setTimeout(r, 200))
         }
 
+        // Final check: Is there more work?
+        const stillHasMore = hasMore && processedInThisRun >= MAX_BATCHES_PER_RUN
+
         // Final Log Update
         if (logId) {
             await prisma.campaignLog.update({
                 where: { id: logId },
                 data: {
-                    status: 'COMPLETED',
-                    recipientCount: stats.total,
+                    status: stillHasMore ? 'PROCESSING' : 'COMPLETED',
                     sentCount: stats.emailSent + stats.pushSent + stats.inAppSent + stats.whatsappSent,
                     failedCount: stats.emailFailed + stats.pushFailed + stats.whatsappFailed,
                     emailSent: stats.emailSent, emailFailed: stats.emailFailed,
@@ -511,14 +521,16 @@ export async function dispatchCampaignBatch(campaignId: number) {
             })
         }
 
-        await prisma.campaign.update({
-            where: { id: campaignId },
-            data: { status: 'ACTIVE', lastRunAt: new Date() }
-        })
+        if (!stillHasMore) {
+            await prisma.campaign.update({
+                where: { id: campaignId },
+                data: { status: 'ACTIVE', lastRunAt: new Date() }
+            })
+            const totalSent = stats.emailSent + stats.pushSent + stats.inAppSent + stats.whatsappSent
+            await logAction('Run Campaign', 'Marketing', `Executed campaign: ${campaign.name}. Sent: ${totalSent}`, undefined)
+        }
 
-        const totalSent = stats.emailSent + stats.pushSent + stats.inAppSent + stats.whatsappSent
-        await logAction('Run Campaign', 'Marketing', `Executed campaign: ${campaign.name}. Sent: ${totalSent}`, undefined)
-        return { success: true, stats }
+        return { success: true, stats, hasMore: stillHasMore }
 
     } catch (error: any) {
         console.error('Batch Dispatch Error:', error)
