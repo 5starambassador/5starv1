@@ -104,7 +104,10 @@ export async function GET(request: Request) {
         })
 
         if (nextJob) {
-            let baseUrl = process.env.NEXT_PUBLIC_APP_URL
+            let baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL
+            if (!baseUrl && process.env.VERCEL_URL) {
+                baseUrl = `https://${process.env.VERCEL_URL}`
+            }
             if (!baseUrl && process.env.NODE_ENV === 'development') {
                 baseUrl = 'http://localhost:3001' // Default to our dev port
             } else if (!baseUrl) {
