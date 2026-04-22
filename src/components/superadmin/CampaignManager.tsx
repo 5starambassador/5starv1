@@ -829,10 +829,15 @@ export function CampaignManager() {
                                                                             <select
                                                                                 id={`wa-var-map-${v.variableKey}`}
                                                                                 value={form.waVariableMapping[v.variableKey]?.startsWith('{ProgramLink') ? '{ProgramLink}' : (form.waVariableMapping[v.variableKey] || '')}
-                                                                                onChange={e => setForm({ 
-                                                                                    ...form, 
-                                                                                    waVariableMapping: { ...form.waVariableMapping, [v.variableKey]: e.target.value } 
-                                                                                })}
+                                                                                onChange={e => {
+                                                                                    const val = e.target.value
+                                                                                    // 🛡️ AUTHORITATIVE INIT: If selecting Program Link, wrap it immediately to trigger the slug picker
+                                                                                    const finalVal = (val === 'ProgramLink' || val === 'programLink') ? '{ProgramLink}' : val
+                                                                                    setForm({ 
+                                                                                        ...form, 
+                                                                                        waVariableMapping: { ...form.waVariableMapping, [v.variableKey]: finalVal } 
+                                                                                    })
+                                                                                }}
                                                                                 className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-[11px] font-bold text-gray-700 focus:ring-2 focus:ring-green-100 transition-all outline-none"
                                                                             >
                                                                                 <option value="">Select Field...</option>
@@ -938,10 +943,17 @@ export function CampaignManager() {
                                                                         <select
                                                                             id="wa-btn-1-map"
                                                                             value={form.waVariableMapping['button_1']?.startsWith('{ProgramLink') ? '{ProgramLink}' : (form.waVariableMapping['button_1'] || '')}
-                                                                            onChange={e => setForm({ 
-                                                                                ...form, 
-                                                                                waVariableMapping: { ...form.waVariableMapping, ['button_1']: e.target.value } 
-                                                                            })}
+                                                                            onChange={e => {
+                                                                                const val = e.target.value
+                                                                                // 🛡️ PERSISTENCE FIX: If switching to ProgramLink, check if a slug already exists in current state
+                                                                                const currentMap = form.waVariableMapping['button_1'] || ''
+                                                                                const preservedValue = (val === '{ProgramLink}' && currentMap.includes(':')) ? currentMap : val
+                                                                                
+                                                                                setForm({ 
+                                                                                    ...form, 
+                                                                                    waVariableMapping: { ...form.waVariableMapping, ['button_1']: preservedValue } 
+                                                                                })
+                                                                            }}
                                                                             className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-[11px] font-bold text-gray-700 focus:ring-2 focus:ring-green-100 transition-all outline-none"
                                                                         >
                                                                             <option value="">No Button Variable...</option>
