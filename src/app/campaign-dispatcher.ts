@@ -121,7 +121,7 @@ export async function dispatchCampaignBatch(campaignId: number) {
         let skip = isResuming && existingLog ? (existingLog.sentCount + existingLog.failedCount) : 0
         let hasMore = true
         let processedInThisRun = 0
-        const MAX_BATCHES_PER_RUN = 3 // ~300 users to stay safe within 60s timeout
+        const MAX_BATCHES_PER_RUN = 1 // Process one batch at a time to be 100% safe from timeouts
 
         while (hasMore && processedInThisRun < MAX_BATCHES_PER_RUN) {
             let users: any[] = []
