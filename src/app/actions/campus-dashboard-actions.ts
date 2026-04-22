@@ -849,7 +849,15 @@ export async function getDailyLeaderboardStats() {
             }
         })
 
-        // 3. Get Summer Camp 2026 referrals
+        // 3. Get admissions done today (regardless of when they were created)
+        const admissionsToday = await prisma.referralLead.findMany({
+            where: {
+                confirmedDate: { gte: todayStart, lte: todayEnd }
+            },
+            select: { leadId: true, campus: true, campusId: true, leadStatus: true }
+        })
+
+        // 4. Get Summer Camp 2026 referrals
         const summerCampPrograms = await prisma.externalProgram.findMany({
             where: { title: { contains: 'Summer Camp', mode: 'insensitive' } }
         })
@@ -861,16 +869,21 @@ export async function getDailyLeaderboardStats() {
             }
         })
 
-        // 4. Calculate branch stats
+        // 5. Calculate branch stats
         const branchStats = campuses.map(campus => {
             const campusReferrals = referralsToday.filter(r => 
                 r.campusId === campus.id || 
                 (r.campus && r.campus.toLowerCase() === campus.campusName.toLowerCase())
             )
-            const admissions = campusReferrals.filter(r => 
-                r.leadStatus === LeadStatus.Admitted || r.leadStatus === LeadStatus.Confirmed
+            
+            const campusAdmissionsToday = admissionsToday.filter(r => 
+                r.campusId === campus.id || 
+                (r.campus && r.campus.toLowerCase() === campus.campusName.toLowerCase())
             ).length
+
             const referrals = campusReferrals.length
+            const admissions = campusAdmissionsToday // Use today's admissions regardless of creation date
+
             const target = campus.targets[0]?.admissionTarget || 5
 
             // Growth calculation (last 4 hours)
