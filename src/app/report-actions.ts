@@ -3,6 +3,8 @@
 import { getCurrentUser } from '@/lib/auth-service'
 import { hasPermission, getPermissionScope } from '@/lib/permission-service'
 import prisma from '@/lib/prisma'
+import { decrypt } from '@/lib/encryption'
+import { getSpecialBonusRate } from '@/lib/reward-constants'
 
 // Bypass stale Prisma types - Using string literals for statuses
 const _LeadStatus = {
@@ -1667,6 +1669,157 @@ export async function generateAmbassadorMasterRegistry(filters?: { campus?: stri
 
     } catch (error) {
         console.error('Ambassador Master Registry Error:', error)
+        return { success: false, error: 'Failed to generate report' }
+    }
+}
+
+// ===================== REPORT #17: REFERRAL STUDENT DETAILS =====================
+export async function generateReferralStudentDetailsReport(filters?: { startDate?: string, endDate?: string, campus?: string, academicYear?: string }) {
+    const admin = await getCurrentUser()
+    const canAccess = await hasPermission('reports')
+    if (!admin || !canAccess) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        const whereClause: any = {
+            leadStatus: { in: ['Confirmed', 'Admitted'] }
+        }
+
+        // Apply Date Filters
+        if (filters?.startDate || filters?.endDate) {
+            whereClause.createdAt = {}
+            if (filters.startDate) whereClause.createdAt.gte = new Date(filters.startDate)
+            if (filters.endDate) whereClause.createdAt.lte = new Date(filters.endDate)
+        }
+
+        // Apply Campus Filter & Scoping
+        const scope = await getPermissionScope('reports')
+        const isSuperAdmin = admin.role === 'Super Admin'
+
+        if (!isSuperAdmin && scope === 'campus' && admin.assignedCampus) {
+            whereClause.campus = admin.assignedCampus
+        } else if (filters?.campus && filters.campus !== 'All') {
+            whereClause.campus = filters.campus
+        }
+
+        if (filters?.academicYear && filters.academicYear !== 'All') {
+            whereClause.academicYear = filters.academicYear
+        }
+
+        const referrals = await prisma.referralLead.findMany({
+            where: whereClause,
+            include: {
+                user: true,
+                student: {
+                    include: {
+                        campus: true
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        })
+
+        const headers = [
+            'List',
+            'Academic Year',
+            'Student Name',
+            'ERP Number',
+            'Grade',
+            'Campus',
+            'Admission Fee Total',
+            'Admission Fee Paid',
+            'Donation Fee Total',
+            'Donation Fee Paid',
+            'School Fee Total',
+            'School Fee Paid',
+            'Ambassador Code',
+            'Ambassador Name',
+            'Ambassador Mobile',
+            'Role',
+            'Partner Campus',
+            'Bank Name',
+            'Account Number',
+            'IFSC Code',
+            'Admission Share',
+            'Donation Share',
+            'State Reward',
+            'Special Campus Share',
+            'Total Payment'
+        ]
+
+        const rows: string[] = [headers.join(',')]
+
+        referrals.forEach((ref: any) => {
+            const user = ref.user
+            const student = ref.student
+            const campusName = ref.campus || student?.campus?.campusName || 'N/A'
+            
+            const admFeeTotal = Number(ref.admissionFeeCollected) || 0
+            const donFeeTotal = Number(ref.donationFeeCollected) || 0
+            
+            const specialBonusRate = getSpecialBonusRate(campusName)
+            const hasSpecialBonus = specialBonusRate > 0
+            
+            const admShare = hasSpecialBonus ? 0 : Math.round(admFeeTotal * 0.8)
+            const donShare = hasSpecialBonus ? 0 : Math.round(donFeeTotal * 0.5)
+            const specialCampusShare = hasSpecialBonus ? specialBonusRate : 0
+            
+            let bankName = user.bankName || ''
+            let accNo = user.accountNumber || ''
+            let ifsc = user.ifscCode || ''
+
+            if (!bankName && user.bankAccountDetails) {
+                const decrypted = decrypt(user.bankAccountDetails)
+                if (decrypted) {
+                    const parts = decrypted.split(' - ')
+                    if (parts.length >= 2) {
+                        bankName = parts[0]
+                        accNo = parts[1]
+                    }
+                }
+            }
+
+            const totalPayment = admShare + donShare + specialCampusShare
+
+            const row = [
+                user.role === 'Staff' ? 'List B' : 'List C',
+                ref.academicYear || '2026-2027',
+                ref.studentName,
+                ref.admissionNumber || '',
+                ref.gradeInterested || '',
+                campusName,
+                admFeeTotal,
+                admFeeTotal,
+                donFeeTotal,
+                donFeeTotal,
+                '',
+                '',
+                user.referralCode || '',
+                user.fullName,
+                user.mobileNumber,
+                user.role,
+                user.assignedCampus || 'N/A',
+                bankName,
+                `'${accNo}`,
+                ifsc,
+                admShare,
+                donShare,
+                0,
+                specialCampusShare,
+                totalPayment
+            ]
+
+            rows.push(row.map(val => `"${val}"`).join(','))
+        })
+
+        return { 
+            success: true, 
+            csv: rows.join('\n'), 
+            filename: `referral-student-details-${new Date().toISOString().split('T')[0]}.csv` 
+        }
+    } catch (error) {
+        console.error('Referral Student Details Report Error:', error)
         return { success: false, error: 'Failed to generate report' }
     }
 }

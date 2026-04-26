@@ -41,7 +41,8 @@ import {
     generateMasterReferralReport,
     generateWhatsAppLogReport,
     generateAppReferralStatusReport,
-    generateAmbassadorMasterRegistry
+    generateAmbassadorMasterRegistry,
+    generateReferralStudentDetailsReport
 } from '@/app/report-actions'
 
 interface ReportsPanelProps {
@@ -316,6 +317,19 @@ export function ReportsPanel({
             text: 'text-green-700',
             border: 'border-green-200',
             action: generateWhatsAppLogReport,
+            canEmail: false
+        },
+        {
+            id: 'referral-student-details',
+            title: 'Referral Student Details',
+            count: 'Share breakdown Export',
+            desc: 'Complete report of Student admissions with Ambassador details and financial share calculations.',
+            icon: FileText,
+            color: 'from-blue-500 to-blue-600',
+            bg: 'bg-blue-50',
+            text: 'text-blue-700',
+            border: 'border-blue-200',
+            action: generateReferralStudentDetailsReport,
             canEmail: false
         }
     ]

@@ -40,6 +40,8 @@ export default function CampusesPageClient({
         location: '',
         grades: '',
         maxCapacity: 500,
+        contactEmail: '',
+        contactPhone: '',
         gradeFees: [] as Array<{ grade: string; annualFee: number }>
     })
     const [customGradeInput, setCustomGradeInput] = useState('')
@@ -213,6 +215,8 @@ export default function CampusesPageClient({
                         location: '',
                         grades: '',
                         maxCapacity: 500,
+                        contactEmail: '',
+                        contactPhone: '',
                         gradeFees: []
                     })
                     setShowCampusModal(true)
@@ -225,6 +229,8 @@ export default function CampusesPageClient({
                         location: campus.location,
                         grades: campus.grades || '9-12',
                         maxCapacity: campus.maxCapacity || 500,
+                        contactEmail: campus.contactEmail || '',
+                        contactPhone: campus.contactPhone || '',
                         gradeFees: campus.gradeFees || []
                     })
                     setShowCampusModal(true)
@@ -275,6 +281,28 @@ export default function CampusesPageClient({
                                             value={campusForm.location}
                                             onChange={(e) => setCampusForm({ ...campusForm, location: e.target.value })}
                                             placeholder="Puducherry"
+                                            style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '8px', fontSize: '14px' }}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Contact Email</label>
+                                        <input
+                                            type="email"
+                                            value={campusForm.contactEmail}
+                                            onChange={(e) => setCampusForm({ ...campusForm, contactEmail: e.target.value })}
+                                            placeholder="campus@achariya.org"
+                                            style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '8px', fontSize: '14px' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Contact Phone</label>
+                                        <input
+                                            type="text"
+                                            value={campusForm.contactPhone}
+                                            onChange={(e) => setCampusForm({ ...campusForm, contactPhone: e.target.value })}
+                                            placeholder="+91..."
                                             style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: '8px', fontSize: '14px' }}
                                         />
                                     </div>

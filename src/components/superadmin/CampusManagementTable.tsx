@@ -17,6 +17,8 @@ interface Campus {
     confirmed?: number
     conversionRate?: number
     isActive?: boolean
+    contactEmail?: string | null
+    contactPhone?: string | null
 }
 
 interface CampusManagementTableProps {
@@ -62,6 +64,15 @@ export function CampusManagementTable({ campuses, onEdit, onDelete, onAdd, onBul
                     <MapPin size={14} className="text-gray-400" />
                     <span>{campus.location}</span>
                 </div>
+            ),
+            filterable: true
+        },
+        {
+            header: 'Contact Email',
+            accessorKey: 'contactEmail',
+            sortable: true,
+            cell: (campus: Campus) => (
+                <span className="text-xs text-gray-500 font-medium">{campus.contactEmail || 'Not Set'}</span>
             ),
             filterable: true
         },
