@@ -1354,9 +1354,31 @@ export async function getAccruedPayoutLiabilities(
     pageSize: number = 20,
     mode?: 'A' | 'B'
 ) {
+    const admin = await getCurrentUser()
+    if (!admin) return { success: false, error: 'Unauthorized' }
+    return getAccruedPayoutLiabilitiesInternal(admin, yearFilter, search, adminCampusId, page, pageSize, mode)
+}
+
+/**
+ * INTERNAL CORE LOGIC: Fetches and calculates liabilities.
+ * Separated to allow system-level access (Cron/Reports) with 100% logic parity.
+ */
+export async function getAccruedPayoutLiabilitiesInternal(
+    admin: any | null, // null for system actions
+    yearFilter: string = 'All', 
+    search?: string, 
+    adminCampusId?: number,
+    page: number = 1,
+    pageSize: number = 20,
+    mode?: 'A' | 'B'
+) {
     try {
-        const admin = await getCurrentUser()
-        if (!admin) return { success: false, error: 'Unauthorized' }
+        // Determine effective scope (SuperAdmin vs Campus Head)
+        // If admin is null, we assume system scope (usually guided by adminCampusId if provided)
+        let effectiveAdminCampusId = adminCampusId || null
+        if (admin && admin.role.includes('Campus')) {
+            effectiveAdminCampusId = (admin as any).campusId
+        }
 
         // 0. Fetch campuses first for scope and name mapping
         const campuses = await prisma.campus.findMany({
@@ -1365,10 +1387,6 @@ export async function getAccruedPayoutLiabilities(
         
         const campusNameMap = new Map()
         campuses.forEach(c => campusNameMap.set(c.id, c.campusName))
-
-        // SENIOR EXPERT: In Finance, Campus Heads MUST see any ambassador who has a referral in their campus
-        // even if the ambassador themselves belongs to a different campus (e.g. Staff/Global).
-        const effectiveAdminCampusId = admin.role.includes('Campus') ? (admin as any).campusId : null
 
         const financeScopeFilter = effectiveAdminCampusId ? {
             OR: [
@@ -1816,6 +1834,8 @@ export async function getAccruedPayoutLiabilities(
                     
                     return {
                         id: r.leadId,
+                        leadId: r.leadId,
+                        academicYear: r.academicYear,
                         studentName: r.studentName,
                         admissionNumber: r.admissionNumber,
                         campusId: r.campusId || 0,
@@ -1824,6 +1844,7 @@ export async function getAccruedPayoutLiabilities(
                         grade: r.gradeInterested || 'Grade-1',
                         gradeInterested: r.gradeInterested || 'Grade-1', // Added for frontend compatibility
                         actualFee: Number(r.annualFee) || 0,
+                        annualFee: Number(r.annualFee) || 0, // Added for report-utils compatibility
                         campusGrade1Fee: Number(gFeeFromTable) || 0,  // Renamed in logic to use the specific grade fee
                         admissionFeeCollected: Number(r.admissionFeeCollected) || 0,
                         donationFeeCollected: Number(r.donationFeeCollected) || 0,
@@ -1831,6 +1852,7 @@ export async function getAccruedPayoutLiabilities(
                         createdAt: r.createdAt,
                         confirmedDate: r.confirmedDate,
                         studentCreatedAt: r.student?.createdAt,
+                        student: r.student, // Pass through for reports
                         // Fix (Senior Audit): Differentiate missing data by Group
                         feeDataMissing: (isGroupAEligible && !actualChildFee && !specialBonusRate) || 
                                        (!isGroupAEligible && !gFeeFromTable && !specialBonusRate)
@@ -1981,7 +2003,8 @@ export async function getAccruedPayoutLiabilities(
                     isAdmissionPending,
                     isDonationPending,
                     isSlabPending,
-                    isSpecialBonusPending
+                    isSpecialBonusPending,
+                    user: u // Pass parent user context back for report flattening
                 }
             })
 

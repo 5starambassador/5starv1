@@ -3,8 +3,8 @@
 import { getCurrentUser } from '@/lib/auth-service'
 import { hasPermission, getPermissionScope } from '@/lib/permission-service'
 import prisma from '@/lib/prisma'
-import { decrypt } from '@/lib/encryption'
-import { getSpecialBonusRate } from '@/lib/reward-constants'
+import { generateReferralStudentDetailsCSV } from '@/lib/report-utils'
+import { getAccruedPayoutLiabilitiesInternal } from '@/app/finance-actions'
 
 // Bypass stale Prisma types - Using string literals for statuses
 const _LeadStatus = {
@@ -1707,115 +1707,51 @@ export async function generateReferralStudentDetailsReport(filters?: { startDate
             whereClause.academicYear = filters.academicYear
         }
 
-        const referrals = await prisma.referralLead.findMany({
-            where: whereClause,
-            include: {
-                user: true,
-                student: {
-                    include: {
-                        campus: true
-                    }
-                }
-            },
-            orderBy: { createdAt: 'desc' }
-        })
+        // FIX (AUDIT): Instead of raw prisma fetch, use the enriched financial engine
+        let resolvedCampusId: number | undefined = undefined
+        if (whereClause.campus) {
+            const c = await prisma.campus.findFirst({ where: { campusName: whereClause.campus } })
+            if (c) resolvedCampusId = c.id
+        }
 
-        const headers = [
-            'List',
-            'Academic Year',
-            'Student Name',
-            'ERP Number',
-            'Grade',
-            'Campus',
-            'Admission Fee Total',
-            'Admission Fee Paid',
-            'Donation Fee Total',
-            'Donation Fee Paid',
-            'School Fee Total',
-            'School Fee Paid',
-            'Ambassador Code',
-            'Ambassador Name',
-            'Ambassador Mobile',
-            'Role',
-            'Partner Campus',
-            'Bank Name',
-            'Account Number',
-            'IFSC Code',
-            'Admission Share',
-            'Donation Share',
-            'State Reward',
-            'Special Campus Share',
-            'Total Payment'
-        ]
+        const financeRes = await getAccruedPayoutLiabilitiesInternal(
+            admin,
+            filters?.academicYear || 'All',
+            undefined, // search
+            resolvedCampusId,
+            1,
+            50000 // SAFETY: High limit to get all records for export
+        )
 
-        const rows: string[] = [headers.join(',')]
+        if (!financeRes.success || !financeRes.data) {
+            throw new Error(financeRes.error || 'Failed to fetch accurate financial data')
+        }
 
-        referrals.forEach((ref: any) => {
-            const user = ref.user
-            const student = ref.student
-            const campusName = ref.campus || student?.campus?.campusName || 'N/A'
-            
-            const admFeeTotal = Number(ref.admissionFeeCollected) || 0
-            const donFeeTotal = Number(ref.donationFeeCollected) || 0
-            
-            const specialBonusRate = getSpecialBonusRate(campusName)
-            const hasSpecialBonus = specialBonusRate > 0
-            
-            const admShare = hasSpecialBonus ? 0 : Math.round(admFeeTotal * 0.8)
-            const donShare = hasSpecialBonus ? 0 : Math.round(donFeeTotal * 0.5)
-            const specialCampusShare = hasSpecialBonus ? specialBonusRate : 0
-            
-            let bankName = user.bankName || ''
-            let accNo = user.accountNumber || ''
-            let ifsc = user.ifscCode || ''
+        // Flatten ambassadors -> referrals
+        const enrichedReferrals = financeRes.data.flatMap((amb: any) => amb.referrals)
 
-            if (!bankName && user.bankAccountDetails) {
-                const decrypted = decrypt(user.bankAccountDetails)
-                if (decrypted) {
-                    const parts = decrypted.split(' - ')
-                    if (parts.length >= 2) {
-                        bankName = parts[0]
-                        accNo = parts[1]
-                    }
-                }
+        // Apply secondary filtering (Date ranges)
+        const finalReferrals = enrichedReferrals.filter((ref: any) => {
+            const refDate = ref.confirmedDate ? new Date(ref.confirmedDate) : new Date(ref.createdAt)
+            
+            if (filters?.startDate) {
+                const start = new Date(filters.startDate)
+                if (refDate < start) return false
             }
-
-            const totalPayment = admShare + donShare + specialCampusShare
-
-            const row = [
-                user.role === 'Staff' ? 'List B' : 'List C',
-                ref.academicYear || '2026-2027',
-                ref.studentName,
-                ref.admissionNumber || '',
-                ref.gradeInterested || '',
-                campusName,
-                admFeeTotal,
-                admFeeTotal,
-                donFeeTotal,
-                donFeeTotal,
-                '',
-                '',
-                user.referralCode || '',
-                user.fullName,
-                user.mobileNumber,
-                user.role,
-                user.assignedCampus || 'N/A',
-                bankName,
-                `'${accNo}`,
-                ifsc,
-                admShare,
-                donShare,
-                0,
-                specialCampusShare,
-                totalPayment
-            ]
-
-            rows.push(row.map(val => `"${val}"`).join(','))
+            if (filters?.endDate) {
+                const end = new Date(filters.endDate)
+                // Set to end of day for inclusive filtering
+                end.setHours(23, 59, 59, 999)
+                if (refDate > end) return false
+            }
+            return true
         })
+
+        const csv = generateReferralStudentDetailsCSV(finalReferrals)
 
         return { 
             success: true, 
-            csv: rows.join('\n'), 
+            csv, 
             filename: `referral-student-details-${new Date().toISOString().split('T')[0]}.csv` 
         }
     } catch (error) {

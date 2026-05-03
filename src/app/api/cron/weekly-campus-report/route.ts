@@ -2,12 +2,15 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { EmailService } from '@/lib/email-service'
 import { whatsappService } from '@/lib/whatsapp-service'
-import { decrypt } from '@/lib/encryption'
-import { getSpecialBonusRate } from '@/lib/reward-constants'
+import { logAction } from '@/lib/audit-logger'
+import { generateReferralStudentDetailsCSV } from '@/lib/report-utils'
+import { getAccruedPayoutLiabilitiesInternal } from '@/app/finance-actions'
 
 /**
  * Campus Referral Report Cron Job
  * Runs every Day at 7:00 PM IST (via vercel.json schedule)
+ * 100% SAFETY: Always sends Daily Report to Campus + CC Director
+ * Every Friday: Also sends Weekly Summary to Campus + CC Director
  */
 export async function GET(request: Request) {
     const authHeader = request.headers.get('authorization')
@@ -24,215 +27,121 @@ export async function GET(request: Request) {
         const weeklyStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
         console.log(`🚀 Starting Referral Report Automation (Day: ${now.toLocaleDateString()})`)
-        console.log(`Mode: Daily Report (since ${dailyStart.toLocaleString()})${isFriday ? ' + Weekly Summary' : ''}`)
+        console.log(`Mode: Daily Report${isFriday ? ' + Weekly Summary' : ''}`)
         
         const campuses = await prisma.campus.findMany({
             where: { isActive: true }
         })
 
         const masterDailyReferrals: any[] = []
+        const DIRECTOR_EMAIL = 'director.la@achariya.org'
 
         for (const campus of campuses) {
-            // 1. Fetch DAILY confirmed referrals for this campus
-            const referrals = await prisma.referralLead.findMany({
-                where: {
-                    campus: campus.campusName,
-                    leadStatus: { in: ['Confirmed', 'Admitted'] },
-                    confirmedDate: { gte: dailyStart, lte: now }
-                },
-                include: {
-                    user: true,
-                    student: { include: { campus: true } }
-                },
-                orderBy: { confirmedDate: 'desc' }
-            })
+            const campusName = campus.campusName
+            const rawEmails = campus.contactEmail || ''
+            const campusEmails = rawEmails.split(',').map(e => e.trim()).filter(Boolean)
 
-            masterDailyReferrals.push(...referrals)
-
-            if (referrals.length === 0) {
-                console.log(`[${campus.campusName}] No new referrals today.`)
+            if (campusEmails.length === 0) {
+                console.log(`[${campusName}] Skipping - No contact email configured.`)
                 continue
             }
 
-            // 2. Generate CSV for Campus Head
-            const headers = [
-                'List', 'Academic Year', 'Student Name', 'ERP Number', 'Grade', 'Campus',
-                'Admission Fee Total', 'Admission Fee Paid', 'Donation Fee Total', 'Donation Fee Paid',
-                'Ambassador Code', 'Ambassador Name', 'Ambassador Mobile', 'Role',
-                'Bank Name', 'Account Number', 'IFSC Code',
-                'Admission Share', 'Donation Share', 'Special Campus Share', 'Total Payment'
-            ]
-            const rows = [headers.join(',')]
+            // 1. Fetch ALL enriched referrals for this campus using the high-fidelity financial engine
+            const financeRes = await getAccruedPayoutLiabilitiesInternal(
+                null, // System Action
+                'All', // Academic Year
+                undefined, // Search
+                campus.id,
+                1,
+                10000 // Get all referrals for this campus
+            )
 
-            referrals.forEach((ref: any) => {
-                const user = ref.user
-                const campusName = ref.campus || campus.campusName
-                const admFeeTotal = Number(ref.admissionFeeCollected) || 0
-                const donFeeTotal = Number(ref.donationFeeCollected) || 0
-                const specialBonusRate = getSpecialBonusRate(campusName)
-                const hasSpecialBonus = specialBonusRate > 0
-                const admShare = hasSpecialBonus ? 0 : Math.round(admFeeTotal * 0.8)
-                const donShare = hasSpecialBonus ? 0 : Math.round(donFeeTotal * 0.5)
-                const specialCampusShare = hasSpecialBonus ? specialBonusRate : 0
-                
-                let bankName = user.bankName || ''
-                let accNo = user.accountNumber || ''
-                let ifsc = user.ifscCode || ''
+            if (!financeRes.success || !financeRes.data) {
+                console.error(`[${campusName}] Failed to fetch enriched financials:`, financeRes.error)
+                continue
+            }
 
-                if (!bankName && user.bankAccountDetails) {
-                    const decrypted = decrypt(user.bankAccountDetails)
-                    if (decrypted) {
-                        const parts = decrypted.split(' - ')
-                        if (parts.length >= 2) {
-                            bankName = parts[0]
-                            accNo = parts[1]
-                        }
-                    }
-                }
+            const allCampusReferrals = financeRes.data.flatMap((amb: any) => amb.referrals)
 
-                const totalPayment = admShare + donShare + specialCampusShare
-                const row = [
-                    user.role === 'Staff' ? 'List B' : 'List C',
-                    ref.academicYear || '2026-2027',
-                    ref.studentName,
-                    ref.admissionNumber || '',
-                    ref.gradeInterested || '',
-                    campusName,
-                    admFeeTotal, admFeeTotal, donFeeTotal, donFeeTotal,
-                    user.referralCode || '',
-                    user.fullName,
-                    user.mobileNumber,
-                    user.role,
-                    bankName, `'${accNo}`, ifsc,
-                    admShare, donShare, specialCampusShare, totalPayment
-                ]
-                rows.push(row.map(val => `"${val}"`).join(','))
+            // 2. Filter for DAILY confirmed referrals
+            const dailyReferrals = allCampusReferrals.filter((ref: any) => {
+                const date = ref.confirmedDate ? new Date(ref.confirmedDate) : null
+                return date && date >= dailyStart && date <= now
             })
 
-            const csvContent = rows.join('\n')
-            const filename = `Daily_Report_${campus.campusName.replace(/\s+/g, '_')}_${now.toISOString().split('T')[0]}.csv`
-            const campusEmail = campus.contactEmail
+            masterDailyReferrals.push(...dailyReferrals)
 
-            if (campusEmail) {
+            // 2. DISPATCH DAILY REPORT (Always send, even if 0 leads)
+            const dailyCSV = generateReferralStudentDetailsCSV(dailyReferrals)
+            const dailyFilename = `Daily_Report_${campusName.replace(/\s+/g, '_')}_${now.toISOString().split('T')[0]}.csv`
+            
+            for (const email of campusEmails) {
                 await EmailService.sendEmailWithAttachment(
-                    campusEmail,
-                    `Daily Referral Report - ${campus.campusName} (${now.toLocaleDateString()})`,
+                    email,
+                    `Daily Referral Report - ${campusName} (${now.toLocaleDateString()})`,
                     `<p>Dear Campus Head,</p>
                      <p>Please find attached the daily report of students confirmed through the Ambassador Program for today.</p>
-                     <p><strong>Total Confirmed Today:</strong> ${referrals.length}</p>
+                     <p><strong>Total Confirmed Today:</strong> ${dailyReferrals.length}</p>
                      <p>Best regards,<br/>Achariya 5-Star Ambassador Team</p>`,
-                    { filename, content: csvContent },
-                    ['director.la@achariya.org']
+                    { filename: dailyFilename, content: dailyCSV },
+                    [DIRECTOR_EMAIL]
                 )
-                
-                if (campus.contactPhone) {
-                    await whatsappService.sendFreeTextMessage(
-                        campus.contactPhone,
-                        `📢 Daily Report Alert: ${referrals.length} new confirmed referrals for ${campus.campusName} today. Detailed CSV sent to ${campusEmail}.`,
-                        'SYSTEM'
+            }
+
+            await logAction('AUTOMATED_REPORT', 'SYSTEM', `Sent Daily Report to ${campusName} (Count: ${dailyReferrals.length})`, campus.id.toString())
+
+            if (dailyReferrals.length > 0 && campus.contactPhone) {
+                await whatsappService.sendFreeTextMessage(
+                    campus.contactPhone,
+                    `📢 Daily Report Alert: ${dailyReferrals.length} new confirmed referrals for ${campusName} today. Detailed CSV sent to email.`,
+                    'SYSTEM'
+                )
+            }
+
+            // 3. DISPATCH WEEKLY REPORT (Only on Fridays)
+            if (isFriday) {
+                // Filter for WEEKLY confirmed referrals from the already fetched enriched set
+                const weeklyReferrals = allCampusReferrals.filter((ref: any) => {
+                    const date = ref.confirmedDate ? new Date(ref.confirmedDate) : null
+                    return date && date >= weeklyStart && date <= now
+                })
+
+                const weeklyCSV = generateReferralStudentDetailsCSV(weeklyReferrals)
+                const weeklyFilename = `Weekly_Summary_${campusName.replace(/\s+/g, '_')}_${now.toISOString().split('T')[0]}.csv`
+
+                for (const email of campusEmails) {
+                    await EmailService.sendEmailWithAttachment(
+                        email,
+                        `WEEKLY Performance Summary - ${campusName}`,
+                        `<p>Dear Campus Head,</p>
+                         <p>Attached is the <strong>Weekly Summary</strong> of all referrals confirmed for your campus over the last 7 days.</p>
+                         <p><strong>Total Confirmed This Week:</strong> ${weeklyReferrals.length}</p>
+                         <p>Best regards,<br/>Achariya 5-Star Ambassador Team</p>`,
+                        { filename: weeklyFilename, content: weeklyCSV },
+                        [DIRECTOR_EMAIL]
                     )
                 }
-            }
-        }
-
-        // 3. Helper for Master CSV
-        const generateMasterCSV = (referrals: any[]) => {
-            const masterHeaders = [
-                'Campus', 'List', 'Academic Year', 'Student Name', 'ERP Number', 'Grade',
-                'Admission Fee Total', 'Admission Fee Paid', 'Donation Fee Total', 'Donation Fee Paid',
-                'Ambassador Code', 'Ambassador Name', 'Ambassador Mobile', 'Role',
-                'Bank Name', 'Account Number', 'IFSC Code',
-                'Admission Share', 'Donation Share', 'Special Campus Share', 'Total Payment'
-            ]
-            const masterRows = [masterHeaders.join(',')]
-            referrals.forEach((ref: any) => {
-                const user = ref.user
-                const campusName = ref.campus || 'N/A'
-                const admFeeTotal = Number(ref.admissionFeeCollected) || 0
-                const donFeeTotal = Number(ref.donationFeeCollected) || 0
-                const specialBonusRate = getSpecialBonusRate(campusName)
-                const admShare = specialBonusRate > 0 ? 0 : Math.round(admFeeTotal * 0.8)
-                const donShare = specialBonusRate > 0 ? 0 : Math.round(donFeeTotal * 0.5)
-                const specialCampusShare = specialBonusRate > 0 ? specialBonusRate : 0
                 
-                let bankName = user.bankName || ''
-                let accNo = user.accountNumber || ''
-                let ifsc = user.ifscCode || ''
-
-                if (!bankName && user.bankAccountDetails) {
-                    const decrypted = decrypt(user.bankAccountDetails)
-                    if (decrypted) {
-                        const parts = decrypted.split(' - ')
-                        if (parts.length >= 2) {
-                            bankName = parts[0]
-                            accNo = parts[1]
-                        }
-                    }
-                }
-
-                const totalPayment = admShare + donShare + specialCampusShare
-                const row = [
-                    campusName,
-                    user.role === 'Staff' ? 'List B' : 'List C',
-                    ref.academicYear || '2026-2027',
-                    ref.studentName,
-                    ref.admissionNumber || '',
-                    ref.gradeInterested || '',
-                    admFeeTotal, admFeeTotal, donFeeTotal, donFeeTotal,
-                    user.referralCode || '',
-                    user.fullName,
-                    user.mobileNumber,
-                    user.role,
-                    bankName, `'${accNo}`, ifsc,
-                    admShare, donShare, specialCampusShare, totalPayment
-                ]
-                masterRows.push(row.map(val => `"${val}"`).join(','))
-            })
-            return masterRows.join('\n')
+                await logAction('AUTOMATED_REPORT', 'SYSTEM', `Sent Weekly Report to ${campusName} (Count: ${weeklyReferrals.length})`, campus.id.toString())
+            }
         }
 
         // 4. DAILY Master Report (To Director)
         if (masterDailyReferrals.length > 0) {
-            const csvContent = generateMasterCSV(masterDailyReferrals)
-            const filename = `DAILY_Master_Report_${now.toISOString().split('T')[0]}.csv`
+            const masterCSV = generateReferralStudentDetailsCSV(masterDailyReferrals)
+            const masterFilename = `DAILY_Master_Report_${now.toISOString().split('T')[0]}.csv`
             await EmailService.sendEmailWithAttachment(
-                'director.la@achariya.org',
-                `DAILY Referral Report - All Campuses (${now.toLocaleDateString()})`,
+                DIRECTOR_EMAIL,
+                `DAILY Master Referral Report - All Campuses (${now.toLocaleDateString()})`,
                 `<p>Dear Director,</p>
-                 <p>Attached is the <strong>Daily Referral Report</strong> for all campuses.</p>
+                 <p>Attached is the <strong>Daily Master Report</strong> covering all referrals across all campuses for today.</p>
                  <p><strong>Total Confirmed Today:</strong> ${masterDailyReferrals.length}</p>
                  <p>Best regards,<br/>Achariya 5-Star Ambassador Team</p>`,
-                { filename, content: csvContent }
+                { filename: masterFilename, content: masterCSV }
             )
         }
 
-        // 5. WEEKLY Master Summary (To Director on Fridays)
-        if (isFriday) {
-            const weeklyReferrals = await prisma.referralLead.findMany({
-                where: {
-                    leadStatus: { in: ['Confirmed', 'Admitted'] },
-                    confirmedDate: { gte: weeklyStart, lte: now }
-                },
-                include: { user: true },
-                orderBy: [{ campus: 'asc' }, { confirmedDate: 'desc' }]
-            })
-
-            if (weeklyReferrals.length > 0) {
-                const csvContent = generateMasterCSV(weeklyReferrals)
-                const filename = `WEEKLY_Master_Summary_${now.toISOString().split('T')[0]}.csv`
-                await EmailService.sendEmailWithAttachment(
-                    'director.la@achariya.org',
-                    `WEEKLY Referral Summary - All Campuses`,
-                    `<p>Dear Director,</p>
-                     <p>Attached is the <strong>Weekly Summary</strong> of all referrals across all campuses.</p>
-                     <p><strong>Total Confirmed This Week:</strong> ${weeklyReferrals.length}</p>
-                     <p>Best regards,<br/>Achariya 5-Star Ambassador Team</p>`,
-                    { filename, content: csvContent }
-                )
-            }
-        }
-
-        return NextResponse.json({ success: true, message: 'Daily/Weekly reports processed' })
+        return NextResponse.json({ success: true, message: 'Daily/Weekly reports processed and shared.' })
     } catch (error: any) {
         console.error('Report Automation Error:', error)
         return NextResponse.json({ success: false, error: error.message }, { status: 500 })
