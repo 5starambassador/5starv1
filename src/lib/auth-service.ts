@@ -55,7 +55,7 @@ export const getCurrentUser = cache(async (options: { includeCount?: boolean } =
 
             if (!user.assignedCampus && user.campusId) {
                 const campus = await withRetry(() => prisma.campus.findUnique({
-                    where: { id: user.campusId },
+                    where: { id: user.campusId! },
                     select: { campusName: true }
                 }))
                 if (campus) {
