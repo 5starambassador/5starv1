@@ -26,7 +26,9 @@ export const REFERRAL_STUDENT_DETAILS_HEADERS = [
     'Donation Share',
     'Slab Reward',
     'Special Campus Share',
-    'Total Payment'
+    'Total Payment',
+    'Created At',
+    'Confirmed/Admitted At'
 ];
 
 export function generateReferralStudentDetailsCSV(referrals: any[]) {
@@ -96,7 +98,9 @@ export function generateReferralStudentDetailsCSV(referrals: any[]) {
             donShare,
             slabReward, // Slab Reward
             specialCampusShare,
-            totalPayment
+            totalPayment,
+            ref.createdAt ? new Date(ref.createdAt).toLocaleDateString() : 'N/A',
+            ref.confirmedDate ? new Date(ref.confirmedDate).toLocaleDateString() : (ref.leadStatus === 'Admitted' ? 'Admitted' : 'Pending')
         ];
 
         rows.push(row.map(val => `"${val}"`).join(','));

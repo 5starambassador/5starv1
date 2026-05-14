@@ -1,61 +1,54 @@
+
+import { aliasTokens, resolveWhatsAppVariables } from '../src/lib/campaign-utils';
 import { PrismaClient } from '@prisma/client';
+
 const prisma = new PrismaClient();
 
-async function auditCampaign34() {
-    console.log('--- AUDITING CAMPAIGN 34 ---');
+async function debugReferralResolution() {
+    console.log("--- 🕵️ DEEP RESOLUTION DIAGNOSTIC ---");
     
-    const campaign = await prisma.campaign.findUnique({
-        where: { id: 34 }
-    });
-
+    const campaignId = 36;
+    const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+    
     if (!campaign) {
-        console.log('Campaign 34 not found!');
+        console.error("Campaign 36 not found");
         return;
     }
 
-    console.log('Campaign Name:', campaign.name);
-    console.log('Audience Type:', (campaign as any).audienceType);
-    console.log('Template Name:', (campaign as any).waTemplateName);
-    console.log('Mapping:', JSON.stringify((campaign as any).waVariableMapping, null, 2));
+    const mapping = campaign.waVariableMapping as any;
+    console.log("Campaign 36 Mapping:", JSON.stringify(mapping, null, 2));
 
-    const templateName = (campaign as any).waTemplateName || 'summer_camp_followup_01';
-    const waConfig = await prisma.whatsAppConfig.findFirst({
-        where: { templateName: templateName }
-    });
+    // Simulate a Referral recipient
+    const mockReferral = {
+        fullName: "Tamil Selvi",
+        studentName: "Varsha",
+        mobileNumber: "919442266704",
+        assignedCampus: "Abson - Kalapet",
+        role: "Referral",
+        referralCode: "TEST-REF-001", // Simulated
+        referrerCode: "TEST-REF-001",
+        programSlug: "", // Explicitly empty to test fallback link
+    };
 
-    if (waConfig) {
-        console.log('WhatsApp Config Found:');
-        console.log(' - Required Vars:', waConfig.requiredVariablesCount);
-        console.log(' - Body template:', waConfig.templateBody);
+    console.log("\n1. Testing Variable 3 (Picker) directly via aliasTokens...");
+    const var3Mapping = mapping["3"];
+    const directResult = await aliasTokens(var3Mapping, mockReferral, "REFERRALS");
+    console.log(`Input: "${var3Mapping}" -> Result: "${directResult}"`);
+
+    console.log("\n2. Testing entire array via resolveWhatsAppVariables...");
+    const { waVars } = await resolveWhatsAppVariables(mockReferral, "REFERRALS", mapping, 3);
+    console.log("Final waVars:", JSON.log ? '' : waVars);
+    
+    if (waVars[2]?.includes('/p/admission')) {
+        console.error("\n❌ BUG DETECTED: Variable 3 resolved to Admission Link instead of WOW Summer Camp!");
+        
+        // Let's see if Pattern A regex in my head matches what's in the file
+        const pickerRegex = /{ProgramLink:([^}]+)}/gi;
+        const matches = var3Mapping.match(pickerRegex);
+        console.log(`Regex Match Check: ${matches ? 'YES' : 'NO'}`);
     } else {
-        console.log('WhatsApp Config NOT FOUND for template:', templateName);
+        console.log("\n✅ SUCCESS: Variable 3 resolved to Program Link.");
     }
-
-    console.log('\n--- VERIFYING ALIASTOKENS IMPORT ---');
-    // We'll check if we can resolve a sample token with the current logic
-    try {
-        const { aliasTokens } = await import('../src/app/campaign-dispatcher');
-        process.env.NEXT_PUBLIC_BASE_URL = 'https://www.5starambassador.com';
-        
-        const sampleUser = {
-            fullName: 'Audit User',
-            visitorName: 'Audit Visitor',
-            studentName: 'Audit Student',
-            referrerCode: 'AUDIT_REF',
-            programSlug: 'wow-summer-camp'
-        };
-
-        const resolved = await aliasTokens('{Name}', sampleUser, 'PROGRAM_LEADS');
-        console.log('TEST: Resolving {Name} for PROGRAM_LEADS:', resolved);
-        
-        const resolvedLink = await aliasTokens('{ProgramLink:wow-summer-camp}', sampleUser, 'PROGRAM_LEADS');
-        console.log('TEST: Resolving {ProgramLink} for PROGRAM_LEADS:', resolvedLink);
-        
-    } catch (e: any) {
-        console.error('Error during aliasTokens test:', e.message);
-    }
-
-    await prisma.$disconnect();
 }
 
-auditCampaign34();
+debugReferralResolution().catch(console.error).finally(() => prisma.$disconnect());

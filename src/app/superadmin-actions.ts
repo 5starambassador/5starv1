@@ -823,36 +823,59 @@ export async function getUsersForExport(options: {
     }
 
     try {
-        const users = await prisma.user.findMany({
-            where: whereClause,
-            orderBy: { createdAt: 'desc' }
+        // 1. Log the START of the export (Intent Audit)
+        await logAction('EXPORT_INITIATED', 'user',
+            `Administrator started export for ${options.campusFilter || 'All Campuses'}`,
+            null, null, { filters: options })
+
+        const processedUsers = await withRetry(async () => {
+            const users = await prisma.user.findMany({
+                where: whereClause,
+                orderBy: { createdAt: 'desc' }
+            })
+
+            // Fetch lightweight list to map IDs to Names
+            const campuses = await prisma.campus.findMany({ select: { id: true, campusName: true } })
+            const campusMap: { [key: number]: string } = {}
+            campuses.forEach(c => { campusMap[c.id] = c.campusName })
+
+            const mapped = users.map(u => ({
+                ...u,
+                // --- 100% SAFETY: Scrub System Secrets ---
+                password: '***PROTECTED***',
+                otp: null,
+                otpExpiry: null,
+                resetToken: null,
+                emailVerified: null,
+                
+                // Enhanced Mapping
+                assignedCampus: (u.campusId ? campusMap[u.campusId] : null) || u.assignedCampus,
+                role: u.role as string,
+                referralCode: u.referralCode || '',
+                referralCount: u.confirmedReferralCount,
+                studentFee: u.studentFee || 0
+            }))
+
+            // Ensure stable serialization for large payloads
+            return JSON.parse(JSON.stringify(mapped))
         })
 
-        // Fetch lightweight list to map IDs to Names
-        const campuses = await prisma.campus.findMany({ select: { id: true, campusName: true } })
-        const campusMap: { [key: number]: string } = {}
-        campuses.forEach(c => { campusMap[c.id] = c.campusName })
-
-        const processedUsers = users.map(u => ({
-            ...u,
-            assignedCampus: (u.campusId ? campusMap[u.campusId] : null) || u.assignedCampus,
-            role: u.role as string,
-            referralCode: u.referralCode || '',
-            referralCount: u.confirmedReferralCount,
-            studentFee: u.studentFee || 0,
-            password: '***PROTECTED***' // Password hash should still be hidden
-        }))
-
-        // Audit Logging for bulk export
-        await logAction('EXPORT', 'user',
-            `Exported full user list (${users.length} records, unmasked)`,
+        // 2. Log the SUCCESS of the export (Completion Audit)
+        await logAction('EXPORT_COMPLETED', 'user',
+            `Exported full user list (${processedUsers.length} records, system fields scrubbed)`,
             null, null, {
-            count: users.length,
-            filters: options
+            count: processedUsers.length,
+            filters: options,
+            safetyCheck: 'PASSED'
         })
 
         return processedUsers as User[]
     } catch (error: any) {
+        // 3. Log the FAILURE of the export (Error Audit)
+        await logAction('EXPORT_FAILED', 'user',
+            `Export failed: ${error.message || 'Unknown Error'}`,
+            null, null, { filters: options, error: error.message })
+            
         console.error('CRITICAL DATABASE ERROR [getUsersForExport]:', error)
         throw new Error('Failed to fetch data for export')
     }

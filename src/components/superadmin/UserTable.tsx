@@ -371,128 +371,149 @@ export function UserTable({
         setTimeout(async () => {
             try {
                 const selectedYear = searchParams.get('year')
-            const exportData = await getUsersForExport({
-                academicYear: selectedYear || 'All',
-                search: searchTerm,
-                status: statusFilterValue.join(','),
-                role: roleFilterValue.join(','),
-                source: sourceFilterValue.join(','),
-                campusFilter: campusFilterValue.join(','),
-                startDate: exportDateRange.from || undefined,
-                endDate: exportDateRange.to || undefined
-            })
-
-            const headers = []
-            if (selectedColumns.fullName) headers.push('Full Name')
-            if (selectedColumns.mobileNumber) headers.push('Mobile Number')
-            if (selectedColumns.role) headers.push('Role')
-            if (selectedColumns.email) headers.push('Email')
-            if (selectedColumns.campus) headers.push('Assigned Campus')
-            if (selectedColumns.empId) headers.push('EMP ID')
-            if (selectedColumns.grade) headers.push('Grade')
-            if (selectedColumns.isFiveStarMember) headers.push('Is 5-Star Member')
-            if (selectedColumns.benefitStatus) headers.push('Benefit Status')
-            if (selectedColumns.childInAchariya) headers.push('Child In Achariya')
-            if (selectedColumns.childName) headers.push('Child Name')
-            if (selectedColumns.childEprNo) headers.push('Child ERP No')
-            if (selectedColumns.aadharNo) headers.push('Aadhar No')
-            if (selectedColumns.address) headers.push('Address')
-            if (selectedColumns.bankAccountDetails) headers.push('Bank Account Details')
-            if (selectedColumns.accountNumber) headers.push('Account Number')
-            if (selectedColumns.bankName) headers.push('Bank Name')
-            if (selectedColumns.ifscCode) headers.push('IFSC Code')
-            if (selectedColumns.academicYear) headers.push('Academic Year')
-            if (selectedColumns.studentFee) headers.push('Student Fee')
-            if (selectedColumns.paymentAmount) headers.push('Payment Amount')
-            if (selectedColumns.paymentStatus) headers.push('Payment Status')
-            if (selectedColumns.transactionId) headers.push('Transaction ID')
-            if (selectedColumns.referralCode) headers.push('Referral Code')
-            if (selectedColumns.confirmedReferrals) headers.push('Confirmed Referrals')
-            if (selectedColumns.yearBenefit) headers.push('Year Benefit %')
-            if (selectedColumns.longTermBenefit) headers.push('Long Term Benefit %')
-            if (selectedColumns.joinedDate) headers.push('Joined Date')
-            if (selectedColumns.status) headers.push('Status')
-            if (selectedColumns.source) headers.push('Upload Source')
-            if (selectedColumns.password) headers.push('Password')
-
-            const csvRows = [headers.join(',')]
-
-            for (const user of exportData) {
-                const row = []
-                if (selectedColumns.fullName) row.push(`"${user.fullName || ''}"`)
-                if (selectedColumns.mobileNumber) row.push(`="${user.mobileNumber || ''}"`)
-                if (selectedColumns.role) row.push(`"${user.role || ''}"`)
-                if (selectedColumns.email) row.push(`"${user.email || ''}"`)
-                if (selectedColumns.campus) row.push(`"${user.assignedCampus || ''}"`)
-                if (selectedColumns.empId) row.push(`="${user.empId || ''}"`)
-                if (selectedColumns.grade) row.push(`"${user.grade || ''}"`)
-                if (selectedColumns.isFiveStarMember) row.push(user.isFiveStarMember ? 'Yes' : 'No')
-                if (selectedColumns.benefitStatus) row.push(`"${user.benefitStatus}"`)
-                if (selectedColumns.childInAchariya) row.push(user.childInAchariya ? 'Yes' : 'No')
-                if (selectedColumns.childName) row.push(`"${user.childName || ''}"`)
-                if (selectedColumns.childEprNo) row.push(`="${user.childEprNo || ''}"`)
-                if (selectedColumns.aadharNo) row.push(`="${user.aadharNo || ''}"`)
-                if (selectedColumns.address) row.push(`"${(user.address || '').replace(/"/g, '""')}"`)
-                if (selectedColumns.bankAccountDetails) row.push(`"${(user.bankAccountDetails || '').replace(/"/g, '""')}"`)
-                if (selectedColumns.accountNumber) {
-                    let acc = user.accountNumber
-                    if (!acc && user.bankAccountDetails) {
-                        const parts = user.bankAccountDetails.split('-')
-                        if (parts.length > 1) acc = parts[1]?.trim()
+                const totalRecords = pagination?.totalCount ?? users.length
+                
+                // --- SAFETY GUARD: Large Dataset Warning ---
+                if (totalRecords > 5000 && !exportDateRange.from && !exportDateRange.to && campusFilterValue.length === 0) {
+                    if (!confirm(`Warning: You are attempting to export ${totalRecords} records. This may take a moment or timeout in some browsers. Would you like to proceed anyway?\n\nTip: Use date or campus filters to reduce export size.`)) {
+                        setIsExporting(false)
+                        return
                     }
-                    row.push(`="${acc || ''}"`)
                 }
-                if (selectedColumns.bankName) {
-                    let bnk = user.bankName
-                    if (!bnk && user.bankAccountDetails) {
-                        bnk = user.bankAccountDetails.split('-')[0]?.trim()
-                    }
-                    row.push(`="${bnk || ''}"`)
-                }
-                if (selectedColumns.ifscCode) {
-                    let ifsc = user.ifscCode
-                    if (!ifsc && user.bankAccountDetails) {
-                        const match = user.bankAccountDetails.match(/\((.*?)\)/)
-                        if (match) ifsc = match[1]
-                    }
-                    row.push(`="${ifsc || ''}"`)
-                }
-                if (selectedColumns.academicYear) row.push(`="${user.academicYear || ''}"`)
-                if (selectedColumns.studentFee) row.push(user.studentFee || 0)
-                if (selectedColumns.paymentAmount) row.push(user.paymentAmount || 0)
-                if (selectedColumns.paymentStatus) row.push(`"${user.paymentStatus || ''}"`)
-                if (selectedColumns.transactionId) row.push(`="${user.transactionId || ''}"`)
-                if (selectedColumns.referralCode) row.push(`="${user.referralCode || ''}"`)
-                if (selectedColumns.confirmedReferrals) row.push(user.confirmedReferralCount || 0)
-                if (selectedColumns.yearBenefit) row.push(user.yearFeeBenefitPercent || 0)
-                if (selectedColumns.longTermBenefit) row.push(user.longTermBenefitPercent || 0)
-                if (selectedColumns.joinedDate) row.push(`"${new Date(user.createdAt).toLocaleDateString()}"`)
-                if (selectedColumns.status) row.push(`"${user.status}"`)
-                if (selectedColumns.source) {
-                    const source = (user as any).registrationSource || 'System'
-                    row.push(`"${source === 'Admin Created' ? 'Admin Created' : (source === 'Manual' ? 'Manual Import' : 'System/Organic')}"`)
-                }
-                if (selectedColumns.password) row.push(`"${user.password || ''}"`)
 
-                csvRows.push(row.join(','))
-            }
+                const exportData = await getUsersForExport({
+                    academicYear: selectedYear || 'All',
+                    search: searchTerm,
+                    status: statusFilterValue.join(','),
+                    role: roleFilterValue.join(','),
+                    source: sourceFilterValue.join(','),
+                    campusFilter: campusFilterValue.join(','),
+                    startDate: exportDateRange.from || undefined,
+                    endDate: exportDateRange.to || undefined
+                })
 
-            const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
-            const url = window.URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = `ambassadors_export_${new Date().toISOString().split('T')[0]}.csv`
-            a.click()
-            setShowExportModal(false)
-            toast.success(`Exported ${exportData.length} records successfully`)
-            } catch (error) {
+                if (!exportData || exportData.length === 0) {
+                    toast.error('No data found for the selected filters.')
+                    setIsExporting(false)
+                    return
+                }
+
+                const headers = []
+                if (selectedColumns.fullName) headers.push('Full Name')
+                if (selectedColumns.mobileNumber) headers.push('Mobile Number')
+                if (selectedColumns.role) headers.push('Role')
+                if (selectedColumns.email) headers.push('Email')
+                if (selectedColumns.campus) headers.push('Assigned Campus')
+                if (selectedColumns.empId) headers.push('EMP ID')
+                if (selectedColumns.grade) headers.push('Grade')
+                if (selectedColumns.isFiveStarMember) headers.push('Is 5-Star Member')
+                if (selectedColumns.benefitStatus) headers.push('Benefit Status')
+                if (selectedColumns.childInAchariya) headers.push('Child In Achariya')
+                if (selectedColumns.childName) headers.push('Child Name')
+                if (selectedColumns.childEprNo) headers.push('Child ERP No')
+                if (selectedColumns.aadharNo) headers.push('Aadhar No')
+                if (selectedColumns.address) headers.push('Address')
+                if (selectedColumns.bankAccountDetails) headers.push('Bank Account Details')
+                if (selectedColumns.accountNumber) headers.push('Account Number')
+                if (selectedColumns.bankName) headers.push('Bank Name')
+                if (selectedColumns.ifscCode) headers.push('IFSC Code')
+                if (selectedColumns.academicYear) headers.push('Academic Year')
+                if (selectedColumns.studentFee) headers.push('Student Fee')
+                if (selectedColumns.paymentAmount) headers.push('Payment Amount')
+                if (selectedColumns.paymentStatus) headers.push('Payment Status')
+                if (selectedColumns.transactionId) headers.push('Transaction ID')
+                if (selectedColumns.referralCode) headers.push('Referral Code')
+                if (selectedColumns.confirmedReferrals) headers.push('Confirmed Referrals')
+                if (selectedColumns.yearBenefit) headers.push('Year Benefit %')
+                if (selectedColumns.longTermBenefit) headers.push('Long Term Benefit %')
+                if (selectedColumns.joinedDate) headers.push('Joined Date')
+                if (selectedColumns.status) headers.push('Status')
+                if (selectedColumns.source) headers.push('Upload Source')
+                if (selectedColumns.password) headers.push('Password')
+
+                const csvRows = [headers.join(',')]
+
+                for (const user of exportData) {
+                    const row = []
+                    if (selectedColumns.fullName) row.push(`"${user.fullName || ''}"`)
+                    if (selectedColumns.mobileNumber) row.push(`="${user.mobileNumber || ''}"`)
+                    if (selectedColumns.role) row.push(`"${user.role || ''}"`)
+                    if (selectedColumns.email) row.push(`"${user.email || ''}"`)
+                    if (selectedColumns.campus) row.push(`"${user.assignedCampus || ''}"`)
+                    if (selectedColumns.empId) row.push(`="${user.empId || ''}"`)
+                    if (selectedColumns.grade) row.push(`"${user.grade || ''}"`)
+                    if (selectedColumns.isFiveStarMember) row.push(user.isFiveStarMember ? 'Yes' : 'No')
+                    if (selectedColumns.benefitStatus) row.push(`"${user.benefitStatus}"`)
+                    if (selectedColumns.childInAchariya) row.push(user.childInAchariya ? 'Yes' : 'No')
+                    if (selectedColumns.childName) row.push(`"${user.childName || ''}"`)
+                    if (selectedColumns.childEprNo) row.push(`="${user.childEprNo || ''}"`)
+                    if (selectedColumns.aadharNo) row.push(`="${user.aadharNo || ''}"`)
+                    if (selectedColumns.address) row.push(`"${(user.address || '').replace(/"/g, '""')}"`)
+                    if (selectedColumns.bankAccountDetails) row.push(`"${(user.bankAccountDetails || '').replace(/"/g, '""')}"`)
+                    if (selectedColumns.accountNumber) {
+                        let acc = user.accountNumber
+                        if (!acc && user.bankAccountDetails) {
+                            const parts = user.bankAccountDetails.split('-')
+                            if (parts.length > 1) acc = parts[1]?.trim()
+                        }
+                        row.push(`="${acc || ''}"`)
+                    }
+                    if (selectedColumns.bankName) {
+                        let bnk = user.bankName
+                        if (!bnk && user.bankAccountDetails) {
+                            bnk = user.bankAccountDetails.split('-')[0]?.trim()
+                        }
+                        row.push(`="${bnk || ''}"`)
+                    }
+                    if (selectedColumns.ifscCode) {
+                        let ifsc = user.ifscCode
+                        if (!ifsc && user.bankAccountDetails) {
+                            const match = user.bankAccountDetails.match(/\((.*?)\)/)
+                            if (match) ifsc = match[1]
+                        }
+                        row.push(`="${ifsc || ''}"`)
+                    }
+                    if (selectedColumns.academicYear) row.push(`="${user.academicYear || ''}"`)
+                    if (selectedColumns.studentFee) row.push(user.studentFee || 0)
+                    if (selectedColumns.paymentAmount) row.push(user.paymentAmount || 0)
+                    if (selectedColumns.paymentStatus) row.push(`"${user.paymentStatus || ''}"`)
+                    if (selectedColumns.transactionId) row.push(`="${user.transactionId || ''}"`)
+                    if (selectedColumns.referralCode) row.push(`="${user.referralCode || ''}"`)
+                    if (selectedColumns.confirmedReferrals) row.push(user.confirmedReferralCount || 0)
+                    if (selectedColumns.yearBenefit) row.push(user.yearFeeBenefitPercent || 0)
+                    if (selectedColumns.longTermBenefit) row.push(user.longTermBenefitPercent || 0)
+                    if (selectedColumns.joinedDate) row.push(`"${new Date(user.createdAt).toLocaleDateString()}"`)
+                    if (selectedColumns.status) row.push(`"${user.status}"`)
+                    if (selectedColumns.source) {
+                        const source = (user as any).registrationSource || 'System'
+                        row.push(`"${source === 'Admin Created' ? 'Admin Created' : (source === 'Manual' ? 'Manual Import' : 'System/Organic')}"`)
+                    }
+                    if (selectedColumns.password) row.push(`"${user.password || ''}"`)
+
+                    csvRows.push(row.join(','))
+                }
+
+                const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
+                const url = window.URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `ambassadors_export_${new Date().toISOString().split('T')[0]}.csv`
+                a.click()
+                setShowExportModal(false)
+                toast.success(`Exported ${exportData.length} records successfully`)
+            } catch (error: any) {
                 console.error('Export Error:', error)
-                toast.error('Failed to export data. Please try again.')
+                if (error?.message?.includes('body size limit')) {
+                    toast.error('The data volume is too large to export in one go. Please use filters.')
+                } else {
+                    toast.error('Failed to export data. Please try using a date filter or smaller campus selection.')
+                }
             } finally {
                 setIsExporting(false)
             }
         }, 100)
     }
+
 
     // Toggle Column Handler
     const toggleColumn = (key: keyof typeof selectedColumns) => {
@@ -814,7 +835,12 @@ export function UserTable({
                 >
                     <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 id="export-modal-title" className="text-lg font-bold text-gray-900">Export Data</h3>
+                            <div>
+                                <h3 id="export-modal-title" className="text-lg font-bold text-gray-900">Export Data</h3>
+                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mt-1">
+                                    Targeting {pagination?.totalCount ?? users.length} records
+                                </p>
+                            </div>
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setAllColumns(true)}

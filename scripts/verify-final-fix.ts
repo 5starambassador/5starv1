@@ -1,36 +1,39 @@
-import { whatsappService } from '../src/lib/whatsapp-service'
 
-async function verify() {
-    console.log('🚀 Starting Final WhatsApp API Verification...')
+import { resolveWhatsAppVariables } from '../src/lib/campaign-utils';
+
+async function testFinalFix() {
+    console.log("--- 🕵️ FINAL BUG-FIX VERIFICATION ---");
+
+    const mockReferral = {
+        fullName: "Tamil Selvi",
+        studentName: "Student", // Triggers 'fail' condition
+        referralCode: "REF-WOW-123",
+        referrerCode: "REF-WOW-123",
+        programSlug: "", // Generic slug is empty
+    };
+
+    const mapping = {
+        "1": "{Name}",
+        "2": "{Campus}",
+        "3": "{ProgramLink:wow-summer-camp}"
+    };
+
+    console.log("Simulating resolution for Referral with 'Student' as studentName (triggering recovery)...");
     
-    const testMobile = '9442266704'
-    const templateName = 'referral_followup_2'
-    const variables = ['Rajak', 'ABSM - THENGAITHITTU']
-    const headerUrl = 'https://5starambassador.com/assets/marketing/Referral followup02.jpeg' // Raw URL with spaces
+    // We expect Variable 3 to resolve to Summer Camp, even if recovery is triggered
+    const { waVars } = await resolveWhatsAppVariables(mockReferral, "REFERRALS", mapping, 3);
     
-    console.log(`📡 Sending test to ${testMobile}...`)
-    
-    try {
-        const result = await whatsappService.sendTemplateMessage(
-            testMobile,
-            templateName,
-            variables,
-            'TEST_VERIFY',
-            `VERIFY_${Date.now()}`,
-            headerUrl
-        )
-        
-        console.log('✅ MSG91 Response Result:', JSON.stringify(result, null, 2))
-        
-        if (result.success) {
-            console.log('\n🌟 SUCCESS! The payload structure is now accepted by MSG91.')
-            console.log('Check your phone for the message with the image header.')
-        } else {
-            console.error('\n❌ FAILED:', result.error)
-        }
-    } catch (error) {
-        console.error('\n💥 EXCEPTION:', error)
+    console.log("Variable 1:", waVars[0]);
+    console.log("Variable 2:", waVars[1]);
+    console.log("Variable 3 (Result):", waVars[2]);
+
+    if (waVars[2].includes('wow-summer-camp')) {
+        console.log("\n✅ SUCCESS: Recovery respected the specific picker selection!");
+    } else if (waVars[2].includes('admission')) {
+        console.error("\n❌ FAILURE: Still falling back to generic Admission link.");
+    } else {
+        console.error("\n❌ UNEXPECTED RESULT:", waVars[2]);
     }
 }
 
-verify().then(() => process.exit(0))
+testFinalFix().catch(console.error);

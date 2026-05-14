@@ -1,0 +1,155 @@
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: undefined
+Var 2 mapping: undefined
+Var 3 mapping: undefined
+Var 4 mapping: undefined
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: undefined
+Var 2 mapping: undefined
+Var 3 mapping: undefined
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: {Name}
+Var 1 resolved: "R Vijayan"
+Var 2 mapping: {source}
+Var 2 resolved: "J.Rajeswari"
+Var 3 mapping: {ProgramLink:wow-summer-camp}
+Var 3 resolved: "https://www.5starambassador.com/offer/wow-summer-camp?ref=ACH26-P00063"
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: {Name}
+Var 1 resolved: "R Vijayan"
+Var 2 mapping: {source}
+Var 2 resolved: "J.Rajeswari"
+Var 3 mapping: {ProgramLink:wow-summer-camp}
+Var 3 resolved: "https://www.5starambassador.com/offer/wow-summer-camp?ref=ACH26-P00063"
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: {Name}
+Var 1 resolved: "R Vijayan"
+Var 2 mapping: {source}
+Var 2 resolved: "J.Rajeswari"
+Var 3 mapping: {ProgramLink:wow-summer-camp}
+Var 3 resolved: "https://www.5starambassador.com/offer/wow-summer-camp?ref=ACH26-P00063"
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: {Name}
+Var 1 resolved: "R Vijayan"
+Var 2 mapping: {source}
+Var 2 resolved: "J.Rajeswari"
+Var 3 mapping: {ProgramLink:wow-summer-camp}
+Var 3 resolved: "https://www.5starambassador.com/offer/wow-summer-camp?ref=ACH26-P00063"
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: {Name}
+Var 1 resolved: "R Vijayan"
+Var 2 mapping: {source}
+Var 2 resolved: "J.Rajeswari"
+Var 3 mapping: {ProgramLink:wow-summer-camp}
+Var 3 resolved: "https://www.5starambassador.com/offer/wow-summer-camp?ref=ACH26-P00063"
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: {Name}
+Var 1 resolved: "R Vijayan"
+Var 2 mapping: {source}
+Var 2 resolved: "J.Rajeswari"
+Var 3 mapping: {ProgramLink:wow-summer-camp}
+Var 3 resolved: "https://www.5starambassador.com/offer/wow-summer-camp?ref=ACH26-P00063"
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: {Name}
+Var 1 resolved: "R Vijayan"
+Var 2 mapping: {source}
+Var 2 resolved: "J.Rajeswari"
+Var 3 mapping: {ProgramLink:wow-summer-camp}
+Var 3 resolved: "https://www.5starambassador.com/offer/wow-summer-camp?ref=ACH26-P00063"
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: {Name}
+Var 1 resolved: "Test"
+Var 2 mapping: {source}
+Var 2 resolved: "J.Rajeswari"
+Var 3 mapping: {ProgramLink:wow-summer-camp}
+Var 3 resolved: "https://www.5starambassador.com/offer/wow-summer-camp?ref=ACH26-P00063"
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: undefined
+Var 2 mapping: undefined
+Var 3 mapping: undefined
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: undefined
+Var 2 mapping: undefined
+Var 3 mapping: undefined
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: {Name}
+Var 1 resolved: "Test"
+Var 2 mapping: {source}
+Var 2 resolved: "J.Rajeswari"
+Var 3 mapping: {programLink}
+Var 3 resolved: "https://www.5starambassador.com/offer/wow-summer-camp?ref=ACH26-P00063"
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: undefined
+Var 2 mapping: undefined
+Var 3 mapping: undefined
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: undefined
+Var 2 mapping: undefined
+Var 3 mapping: undefined
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: undefined
+Var 2 mapping: undefined
+Var 3 mapping: undefined
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: undefined
+Var 2 mapping: undefined
+Var 3 mapping: undefined
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: undefined
+Var 2 mapping: undefined
+Var 3 mapping: undefined
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: undefined
+Var 2 mapping: undefined
+Var 3 mapping: undefined
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: {Name}
+Var 1 final: S.YOJITH
+Var 2 mapping: {source}
+Var 2 final: Hema Ambujam
+Var 3 mapping: {programLink}
+Var 3 final: https://www.5starambassador.com/offer/wow-summer-camp?ref=ACH26-S00896
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: undefined
+Var 1 final: S.YOJITH
+Var 2 mapping: undefined
+Var 2 final: Hema Ambujam
+Var 3 mapping: undefined
+Var 3 final: https://www.5starambassador.com/offer/wow-summer-camp?ref=ACH26-S00896
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: undefined
+Var 1 final: S. SARAVANAVEL 
+Var 2 mapping: undefined
+Var 2 final: Yamuna Velmurugan
+Var 3 mapping: undefined
+Var 3 final: https://www.5starambassador.com/offer/wow-summer-camp?ref=ACH26-S00255
+
+--- TEST CAMPAIGN 34 TYPE PROGRAM_LEADS ---
+Var 1 mapping: undefined
+Var 1 final: S. SARAVANAVEL 
+Var 2 mapping: undefined
+Var 2 final: Yamuna Velmurugan
+Var 3 mapping: undefined
+Var 3 final: https://www.5starambassador.com/offer/wow-summer-camp?ref=ACH26-S00255

@@ -236,13 +236,101 @@ export async function emailReport(reportId: string, criteria?: any) {
                 </table>
             `
         }
-        else if (['churn-risk', 'benefit-tiers', 'new-registrations', 'segment-comparison'].includes(reportId)) {
+        // ===================== ADVANCED EXPORT REPORTS (WITH ATTACHMENTS) =====================
+        else if (['integrity-audit', 'master-pipeline', 'master-referral', 'whatsapp-log', 'ambassador-registry', 'app-referral-status'].includes(reportId)) {
+            const reportActions = await import('@/app/report-actions')
+            let res: { success: boolean; csv?: string; filename?: string; error?: string } = { success: false }
+
+            // Map IDs to their respective generation functions
+            switch (reportId) {
+                case 'integrity-audit': res = await reportActions.generateSettlementIntegrityReport(criteria); break;
+                case 'master-pipeline': res = await reportActions.generateMasterPipelineExport(criteria); break;
+                case 'master-referral': res = await reportActions.generateMasterReferralReport(criteria); break;
+                case 'whatsapp-log': res = await reportActions.generateWhatsAppLogReport(criteria); break;
+                case 'ambassador-registry': res = await reportActions.generateAmbassadorMasterRegistry(criteria); break;
+                case 'app-referral-status': res = await reportActions.generateAppReferralStatusReport(criteria); break;
+            }
+
+            if (!res.success || !res.csv) {
+                return { success: false, error: res.error || 'Failed to generate report data' }
+            }
+
+            const reportName = reportId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+            subject = `${reportName} - ${new Date().toLocaleDateString()}`
+            title = reportName
+            htmlContent = `
+                <p>The <strong>${reportName}</strong> is attached to this email.</p>
+                <p>This export contains full historical data based on your selected filters.</p>
+                <br/>
+                <p><strong>Applied Context:</strong></p>
+                <ul>
+                    <li>Campus: ${criteria?.campus || 'All'}</li>
+                    <li>Academic Year: ${criteria?.academicYear || 'All'}</li>
+                    <li>Period: ${criteria?.startDate || 'Start'} to ${criteria?.endDate || 'Today'}</li>
+                </ul>
+            `
+
+            const recipientEmail = (user as any).email || 'principal@achariya.in'
+            const emailRes = await EmailService.sendEmailWithAttachment(
+                recipientEmail,
+                subject,
+                htmlContent,
+                { filename: res.filename || `${reportId}.csv`, content: res.csv }
+            )
+
+            if (!emailRes.success) {
+                console.error(`[EXPORT_REPORT] Email failed for ${reportId}:`, emailRes.error)
+                await logAction('EMAIL_FAILURE', 'reports', `Failed to email advanced report: ${reportId} to ${recipientEmail}`, reportId)
+                return { success: false, error: 'Email delivery failed. Please check your system email settings.' }
+            }
+
+            await logAction('EXPORT_REPORT', 'reports', `Emailed Advanced Report: ${reportId} to ${recipientEmail}`, reportId)
+            return { success: true, message: `Report sent to ${recipientEmail}` }
+        }
+        else if (reportId === 'referral-student-details') {
+            const { generateReferralStudentDetailsReport } = await import('@/app/report-actions')
+            const res = await generateReferralStudentDetailsReport(criteria)
+            if (!res.success || !res.csv) {
+                return { success: false, error: 'Failed to generate report data' }
+            }
+
+            subject = `Referral Student Details - ${new Date().toLocaleDateString()}`
+            title = 'Share Breakdown Export'
+            htmlContent = `
+                <p>The <strong>Referral Student Details</strong> report is attached to this email.</p>
+                <p>This report includes student admissions, ambassador details, and financial share calculations.</p>
+                <br/>
+                <p><strong>Filters Applied:</strong></p>
+                <ul>
+                    <li>Campus: ${criteria?.campus || 'All'}</li>
+                    <li>Academic Year: ${criteria?.academicYear || 'All'}</li>
+                    <li>Date Range: ${criteria?.startDate || 'All'} to ${criteria?.endDate || 'All'}</li>
+                </ul>
+            `
+            const recipientEmail = (user as any).email || 'principal@achariya.in'
+            const emailRes = await EmailService.sendEmailWithAttachment(
+                recipientEmail,
+                subject,
+                htmlContent,
+                { filename: res.filename || 'referral-student-details.csv', content: res.csv }
+            )
+
+            if (!emailRes.success) {
+                console.error(`[EXPORT_REPORT] Email failed for ${reportId}:`, emailRes.error)
+                await logAction('EMAIL_FAILURE', 'reports', `Failed to email report: ${reportId} to ${recipientEmail}`, reportId)
+                return { success: false, error: 'Email delivery failed. Please check system configuration.' }
+            }
+
+            await logAction('EXPORT_REPORT', 'reports', `Emailed report: ${reportId} to ${recipientEmail}`, reportId)
+            return { success: true, message: `Report sent to ${recipientEmail}` }
+        }
+        else if (['churn-risk', 'benefit-tiers', 'new-registrations', 'segment-comparison', 'ambassador-perf', 'top-performers', 'star-milestones', 'pipeline-lifecycle', 'campus-dist'].includes(reportId)) {
             subject = `Report Ready: ${reportId} - ${new Date().toLocaleDateString()}`
             title = 'Report Alert'
-            htmlContent = `<p>The <strong>${reportId.toUpperCase()}</strong> report is now available. Please download the CSV from your dashboard for the full filtered data.</p>`
+            htmlContent = `<p>The <strong>${reportId.toUpperCase().replace('-', ' ')}</strong> report is now available. Please download the CSV from your dashboard for the full filtered data.</p>`
         }
         else {
-            return { success: false, error: 'Report type not recognized or access denied' }
+            return { success: false, error: `Report type "${reportId}" not recognized or access denied` }
         }
 
         // 2. Send Email
@@ -254,8 +342,15 @@ export async function emailReport(reportId: string, criteria?: any) {
         // Dynamic email fallback logic
         const recipientEmail = (user as any).email || 'principal@achariya.in'
 
-        await EmailService.sendReportEmail(recipientEmail, subject, htmlContent, title)
-        await logAction('EXPORT_REPORT', 'reports', `Emailed report: ${reportId}`, reportId)
+        const emailRes = await EmailService.sendReportEmail(recipientEmail, subject, htmlContent, title)
+        
+        if (!emailRes.success) {
+            console.error(`[EXPORT_REPORT] Email failed for ${reportId}:`, emailRes.error)
+            await logAction('EMAIL_FAILURE', 'reports', `Failed to email report: ${reportId} to ${recipientEmail}`, reportId)
+            return { success: false, error: 'Email delivery failed. Please check system configuration.' }
+        }
+
+        await logAction('EXPORT_REPORT', 'reports', `Emailed report: ${reportId} to ${recipientEmail}`, reportId)
 
         return { success: true, message: `Report sent to ${recipientEmail}` }
 

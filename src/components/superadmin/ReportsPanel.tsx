@@ -278,7 +278,7 @@ export function ReportsPanel({
             text: 'text-pink-700',
             border: 'border-pink-200',
             action: generateSettlementIntegrityReport,
-            canEmail: false
+            canEmail: true
         },
         {
             id: 'master-pipeline',
@@ -291,7 +291,7 @@ export function ReportsPanel({
             text: 'text-gray-900',
             border: 'border-gray-200',
             action: generateMasterPipelineExport,
-            canEmail: false
+            canEmail: true
         },
         {
             id: 'master-referral',
@@ -304,7 +304,7 @@ export function ReportsPanel({
             text: 'text-blue-900',
             border: 'border-blue-200',
             action: generateMasterReferralReport,
-            canEmail: false
+            canEmail: true
         },
         {
             id: 'whatsapp-log',
@@ -317,7 +317,7 @@ export function ReportsPanel({
             text: 'text-green-700',
             border: 'border-green-200',
             action: generateWhatsAppLogReport,
-            canEmail: false
+            canEmail: true
         },
         {
             id: 'referral-student-details',
@@ -330,7 +330,7 @@ export function ReportsPanel({
             text: 'text-blue-700',
             border: 'border-blue-200',
             action: generateReferralStudentDetailsReport,
-            canEmail: false
+            canEmail: true
         }
     ]
 

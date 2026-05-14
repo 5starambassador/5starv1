@@ -11,7 +11,7 @@ export const EmailService = {
 
         try {
             const { data, error } = await resend.emails.send({
-                from: process.env.EMAIL_FROM || 'Achariya Ambassador <onboarding@resend.dev>',
+                from: process.env.EMAIL_FROM || 'Achariya Partners <onboarding@5starambassador.com>',
                 to: [to],
                 subject: 'Welcome to Achariya Ambassador Program! 🌟',
                 html: `
@@ -45,7 +45,7 @@ export const EmailService = {
 
         try {
             await resend.emails.send({
-                from: process.env.EMAIL_FROM ? `Achariya Leads <${process.env.EMAIL_FROM.split('<')[1] || process.env.EMAIL_FROM}` : 'Achariya Leads <leads@resend.dev>',
+                from: process.env.EMAIL_FROM ? `Achariya Partners <${process.env.EMAIL_FROM.split('<')[1] || process.env.EMAIL_FROM}` : 'Achariya Partners <leads@5starambassador.com>',
                 to: [to],
                 subject: 'New Lead Assigned 🎯',
                 html: `
@@ -70,7 +70,7 @@ export const EmailService = {
 
         try {
             await resend.emails.send({
-                from: process.env.EMAIL_FROM ? `Achariya Accounts <${process.env.EMAIL_FROM.split('<')[1] || process.env.EMAIL_FROM}` : 'Achariya Accounts <accounts@resend.dev>',
+                from: process.env.EMAIL_FROM ? `Achariya Partners <${process.env.EMAIL_FROM.split('<')[1] || process.env.EMAIL_FROM}` : 'Achariya Partners <accounts@5starambassador.com>',
                 to: [to],
                 subject: 'Payment Received ✅',
                 html: `
@@ -100,7 +100,7 @@ export const EmailService = {
             const title = isFromAdmin ? 'New Response from Support' : 'New Client Reply';
 
             await resend.emails.send({
-                from: process.env.EMAIL_FROM ? `Achariya Support <${process.env.EMAIL_FROM.split('<')[1] || process.env.EMAIL_FROM}` : 'Achariya Support <support@resend.dev>',
+                from: process.env.EMAIL_FROM ? `Achariya Partners <${process.env.EMAIL_FROM.split('<')[1] || process.env.EMAIL_FROM}` : 'Achariya Partners <support@5starambassador.com>',
                 to: [to],
                 subject: subject,
                 html: `
@@ -130,8 +130,9 @@ export const EmailService = {
         }
 
         try {
-            await resend.emails.send({
-                from: process.env.EMAIL_FROM ? `Achariya Reports <${process.env.EMAIL_FROM.split('<')[1] || process.env.EMAIL_FROM}` : 'Achariya Reports <reports@resend.dev>',
+            const from = process.env.EMAIL_FROM || 'Achariya Partners <reports@5starambassador.com>';
+            const { data, error } = await resend.emails.send({
+                from: from,
                 to: [to],
                 subject: subject,
                 html: `
@@ -149,7 +150,13 @@ export const EmailService = {
                     </div>
                 `
             });
-            return { success: true };
+
+            if (error) {
+                console.error(`[Resend Error] sendReportEmail to ${to}:`, error);
+                return { success: false, error };
+            }
+
+            return { success: true, data };
         } catch (error) {
             console.error('Send Report Error:', error);
             return { success: false, error };
@@ -164,7 +171,7 @@ export const EmailService = {
 
         try {
             const { data, error } = await resend.emails.send({
-                from: process.env.EMAIL_FROM || 'Achariya Ambassador <community@resend.dev>',
+                from: process.env.EMAIL_FROM || 'Achariya Partners <community@5starambassador.com>',
                 to: [to],
                 subject: 'We miss you at Achariya! 🚀',
                 html: `
@@ -193,7 +200,7 @@ export const EmailService = {
 
         try {
             const { data, error } = await resend.emails.send({
-                from: process.env.EMAIL_FROM || 'Achariya Marketing <marketing@resend.dev>',
+                from: process.env.EMAIL_FROM || 'Achariya Partners <marketing@5starambassador.com>',
                 to: [to],
                 subject: subject,
                 html: htmlBody
@@ -213,8 +220,16 @@ export const EmailService = {
         }
 
         try {
+            // Ensure content is a Buffer for Resend attachments
+            let finalContent = attachment.content;
+            if (typeof finalContent === 'string') {
+                // Add UTF-8 BOM to help Excel recognize the encoding correctly
+                finalContent = Buffer.from('\ufeff' + finalContent, 'utf-8');
+            }
+
+            const from = process.env.EMAIL_FROM || 'Achariya Partners <reports@5starambassador.com>';
             const { data, error } = await resend.emails.send({
-                from: process.env.EMAIL_FROM || 'Achariya Reports <reports@resend.dev>',
+                from: from,
                 to: [to],
                 cc: cc,
                 subject: subject,
@@ -222,13 +237,13 @@ export const EmailService = {
                 attachments: [
                     {
                         filename: attachment.filename,
-                        content: attachment.content
+                        content: finalContent
                     }
                 ]
             });
 
             if (error) {
-                console.error('Resend Error:', error);
+                console.error(`[Resend Error] sendEmailWithAttachment to ${to}:`, error);
                 return { success: false, error };
             }
 

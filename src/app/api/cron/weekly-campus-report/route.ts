@@ -46,7 +46,7 @@ export async function GET(request: Request) {
                 continue
             }
 
-            // 1. Fetch ALL enriched referrals for this campus using the high-fidelity financial engine
+            // 1. Fetch Confirmed Referrals (Financials)
             const financeRes = await getAccruedPayoutLiabilitiesInternal(
                 null, // System Action
                 'All', // Academic Year
@@ -63,32 +63,50 @@ export async function GET(request: Request) {
 
             const allCampusReferrals = financeRes.data.flatMap((amb: any) => amb.referrals)
 
-            // 2. Filter for DAILY confirmed referrals
+            // 2. Fetch NEW Leads today (to make report meaningful)
+            const newLeadsCount = await prisma.referralLead.count({
+                where: {
+                    campusId: campus.id,
+                    createdAt: { gte: dailyStart, lte: now }
+                }
+            })
+
+            // 3. Filter for DAILY activity (Confirmed or Admitted today)
             const dailyReferrals = allCampusReferrals.filter((ref: any) => {
-                const date = ref.confirmedDate ? new Date(ref.confirmedDate) : null
-                return date && date >= dailyStart && date <= now
+                const date = ref.confirmedDate ? new Date(ref.confirmedDate) : new Date(ref.createdAt)
+                const isRecent = date >= dailyStart && date <= now
+                const isSuccessStatus = ref.leadStatus === 'Confirmed' || ref.leadStatus === 'Admitted'
+                return isRecent && isSuccessStatus
             })
 
             masterDailyReferrals.push(...dailyReferrals)
 
-            // 2. DISPATCH DAILY REPORT (Always send, even if 0 leads)
+            // 4. DISPATCH DAILY REPORT
             const dailyCSV = generateReferralStudentDetailsCSV(dailyReferrals)
             const dailyFilename = `Daily_Report_${campusName.replace(/\s+/g, '_')}_${now.toISOString().split('T')[0]}.csv`
             
             for (const email of campusEmails) {
-                await EmailService.sendEmailWithAttachment(
+                const res = await EmailService.sendEmailWithAttachment(
                     email,
                     `Daily Referral Report - ${campusName} (${now.toLocaleDateString()})`,
                     `<p>Dear Campus Head,</p>
-                     <p>Please find attached the daily report of students confirmed through the Ambassador Program for today.</p>
-                     <p><strong>Total Confirmed Today:</strong> ${dailyReferrals.length}</p>
-                     <p>Best regards,<br/>Achariya 5-Star Ambassador Team</p>`,
+                     <p>Please find attached the daily report of students <strong>Confirmed/Admitted</strong> through the Ambassador Program today.</p>
+                     <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; margin: 20px 0;">
+                        <p style="margin: 5px 0;"><strong>New Leads Received Today:</strong> ${newLeadsCount}</p>
+                        <p style="margin: 5px 0;"><strong>Success Today (Confirmed/Admitted):</strong> ${dailyReferrals.length}</p>
+                     </div>
+                     <p>Best regards,<br/>Achariya Partners</p>`,
                     { filename: dailyFilename, content: dailyCSV },
                     [DIRECTOR_EMAIL]
                 )
+                
+                if (!res.success) {
+                    console.error(`[${campusName}] Failed to send daily email to ${email}:`, res.error)
+                    await logAction('EMAIL_FAILURE', 'SYSTEM', `Failed to send Daily Report to ${campusName} (${email})`, campus.id.toString())
+                }
             }
 
-            await logAction('AUTOMATED_REPORT', 'SYSTEM', `Sent Daily Report to ${campusName} (Count: ${dailyReferrals.length})`, campus.id.toString())
+            await logAction('AUTOMATED_REPORT', 'SYSTEM', `Daily Report processed for ${campusName} (Confirmed: ${dailyReferrals.length}, New: ${newLeadsCount})`, campus.id.toString())
 
             if (dailyReferrals.length > 0 && campus.contactPhone) {
                 await whatsappService.sendFreeTextMessage(
@@ -98,39 +116,45 @@ export async function GET(request: Request) {
                 )
             }
 
-            // 3. DISPATCH WEEKLY REPORT (Only on Fridays)
+            // 5. DISPATCH WEEKLY REPORT (Only on Fridays)
             if (isFriday) {
-                // Filter for WEEKLY confirmed referrals from the already fetched enriched set
                 const weeklyReferrals = allCampusReferrals.filter((ref: any) => {
-                    const date = ref.confirmedDate ? new Date(ref.confirmedDate) : null
-                    return date && date >= weeklyStart && date <= now
+                    const date = ref.confirmedDate ? new Date(ref.confirmedDate) : new Date(ref.createdAt)
+                    const isRecent = date >= weeklyStart && date <= now
+                    const isSuccessStatus = ref.leadStatus === 'Confirmed' || ref.leadStatus === 'Admitted'
+                    return isRecent && isSuccessStatus
                 })
 
                 const weeklyCSV = generateReferralStudentDetailsCSV(weeklyReferrals)
                 const weeklyFilename = `Weekly_Summary_${campusName.replace(/\s+/g, '_')}_${now.toISOString().split('T')[0]}.csv`
 
                 for (const email of campusEmails) {
-                    await EmailService.sendEmailWithAttachment(
+                    const res = await EmailService.sendEmailWithAttachment(
                         email,
                         `WEEKLY Performance Summary - ${campusName}`,
                         `<p>Dear Campus Head,</p>
-                         <p>Attached is the <strong>Weekly Summary</strong> of all referrals confirmed for your campus over the last 7 days.</p>
-                         <p><strong>Total Confirmed This Week:</strong> ${weeklyReferrals.length}</p>
-                         <p>Best regards,<br/>Achariya 5-Star Ambassador Team</p>`,
+                         <p>Attached is the <strong>Weekly Summary</strong> of all referrals <strong>Confirmed or Admitted</strong> for your campus over the last 7 days.</p>
+                         <p><strong>Total Success (Confirmed/Admitted):</strong> ${weeklyReferrals.length}</p>
+                         <p>Best regards,<br/>Achariya Partners</p>`,
                         { filename: weeklyFilename, content: weeklyCSV },
                         [DIRECTOR_EMAIL]
                     )
+                    
+                    if (!res.success) {
+                        console.error(`[${campusName}] Failed to send weekly email to ${email}:`, res.error)
+                        await logAction('EMAIL_FAILURE', 'SYSTEM', `Failed to send Weekly Report to ${campusName} (${email})`, campus.id.toString())
+                    }
                 }
                 
-                await logAction('AUTOMATED_REPORT', 'SYSTEM', `Sent Weekly Report to ${campusName} (Count: ${weeklyReferrals.length})`, campus.id.toString())
+                await logAction('AUTOMATED_REPORT', 'SYSTEM', `Weekly Report processed for ${campusName} (Count: ${weeklyReferrals.length})`, campus.id.toString())
             }
         }
 
-        // 4. DAILY Master Report (To Director)
+        // 6. DAILY Master Report (To Director)
         if (masterDailyReferrals.length > 0) {
             const masterCSV = generateReferralStudentDetailsCSV(masterDailyReferrals)
             const masterFilename = `DAILY_Master_Report_${now.toISOString().split('T')[0]}.csv`
-            await EmailService.sendEmailWithAttachment(
+            const res = await EmailService.sendEmailWithAttachment(
                 DIRECTOR_EMAIL,
                 `DAILY Master Referral Report - All Campuses (${now.toLocaleDateString()})`,
                 `<p>Dear Director,</p>
@@ -139,9 +163,14 @@ export async function GET(request: Request) {
                  <p>Best regards,<br/>Achariya 5-Star Ambassador Team</p>`,
                 { filename: masterFilename, content: masterCSV }
             )
+            
+            if (!res.success) {
+                console.error(`[SYSTEM] Failed to send Master Report to Director:`, res.error)
+                await logAction('EMAIL_FAILURE', 'SYSTEM', `Failed to send Master Report to Director`, 'MASTER')
+            }
         }
 
-        return NextResponse.json({ success: true, message: 'Daily/Weekly reports processed and shared.' })
+        return NextResponse.json({ success: true, message: 'Daily/Weekly reports processed.' })
     } catch (error: any) {
         console.error('Report Automation Error:', error)
         return NextResponse.json({ success: false, error: error.message }, { status: 500 })
