@@ -22,12 +22,13 @@ export async function getRolePermissions(role: string): Promise<{ success: boole
         return { success: false, error: 'Role is required' }
     }
     try {
+        const normalizedRole = role.replace(/_/g, ' ')
         const dbPerms = await prisma.rolePermissions.findUnique({
-            where: { role }
+            where: { role: normalizedRole }
         })
 
         // Fallback to default permissions from code
-        const defaultPerms = DEFAULT_ROLE_PERMISSIONS[role] || DEFAULT_ROLE_PERMISSIONS['Campus Admin']
+        const defaultPerms = DEFAULT_ROLE_PERMISSIONS[normalizedRole] || DEFAULT_ROLE_PERMISSIONS['Campus Admin']
 
         if (dbPerms) {
             return {
@@ -97,7 +98,8 @@ export async function getRolePermissions(role: string): Promise<{ success: boole
     } catch (error) {
         console.warn('getRolePermissions: Database unreachable. Falling back to code-based defaults.', (error as any).message)
         // EMERGENCY FALLBACK: Return defaults to prevent app-wide crash
-        const defaultPerms = DEFAULT_ROLE_PERMISSIONS[role]
+        const normalizedRole = role.replace(/_/g, ' ')
+        const defaultPerms = DEFAULT_ROLE_PERMISSIONS[normalizedRole] || DEFAULT_ROLE_PERMISSIONS['Campus Admin']
         return { success: true, permissions: defaultPerms, isDefault: true, isDegraded: true }
     }
 }

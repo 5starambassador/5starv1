@@ -125,12 +125,14 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
         prevDateFilter = { createdAt: { gte: prevStart, lt: start } };
     }
 
-    const yearLeadFilter = academicYear && academicYear !== 'All' ? { admittedYear: academicYear } : {};
+    const isAllYear = !academicYear || academicYear.toLowerCase() === 'all'
+
+    const yearLeadFilter = !isAllYear ? { admittedYear: academicYear } : {};
 
     // Activity-Anchored User Filter: Include users registered in the year OR with referrals in that year
     const yearActivityFilter: any = {
         referralCode: { not: null },
-        ...(academicYear && academicYear !== 'All' ? {
+        ...(!isAllYear ? {
             OR: [
                 { academicYear },
                 { referrals: { some: { admittedYear: academicYear } } }
@@ -142,6 +144,7 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
     const { filter: scopeFilterLeads } = await getScopeFilter('analytics', { campusNameField: 'campus' })
 
     if (!scopeFilterUsers || !scopeFilterLeads) {
+        await logAction('ANALYTICS_ERROR', 'SECURITY', 'Unauthorized scope filter access in getSystemAnalytics', null, user.userId)
         throw new Error('Unauthorized')
     }
 
@@ -170,6 +173,14 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
             prisma.campus.count({ where: { isActive: true } }),
             prisma.referralLead.count({ where: { leadStatus: { in: [LeadStatus.Confirmed, LeadStatus.Admitted] }, student: { is: null }, ...dateFilter, ...scopeFilterLeads, ...yearLeadFilter } })
         ])
+
+        // Diagnostic Log for production debugging
+        if (totalAmbassadors === 0 || totalLeads === 0) {
+            await logAction('ANALYTICS_DIAGNOSTIC', 'ANALYTICS', `Analytics loaded with 0 counts. Year: ${academicYear || 'None'}, Source: ${studentSource}`, null, user.userId, {
+                filters: { dateFilter, scopeFilterUsers, scopeFilterLeads, yearActivityFilter, yearLeadFilter, academicYear, isAllYear },
+                rawCounts: { totalAmbassadors, totalLeads, totalConfirmedRecords, totalActiveCampuses }
+            })
+        }
 
         // Use legacy count if it's higher (fallback for imported data missing detailed lead records)
         // CRITICAL: Only apply legacy fallback for 'All' views. For year-specific views, rely ONLY on records.
@@ -226,7 +237,7 @@ export async function getSystemAnalytics(timeRange: '7d' | '30d' | 'all' = 'all'
         }))
 
         const studentWhere: any = {
-            ...(academicYear && academicYear !== 'All' ? { academicYear } : {})
+            ...(!isAllYear ? { academicYear } : {})
         }
 
         if (studentSource === 'referral') {

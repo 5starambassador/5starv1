@@ -181,7 +181,6 @@ model SystemSettings {
   alumniWelcomeMessage  String?  @default("Welcome to the Alumni Ambassador Dashboard")
   allowManualPayments   Boolean  @default(true)
   activeOnlineGateway   String   @default("CASHFREE")
-  whatsappCommunityUrl  String?
 }
 
 model AcademicYear {

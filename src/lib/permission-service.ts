@@ -12,9 +12,12 @@ export const getMyPermissions = cache(async () => {
     if (!user) return null
 
     // Start with code defaults as the base (covers any newly added module keys)
-    const codeDefaults = DEFAULT_ROLE_PERMISSIONS[user.role] as RolePermissions | undefined
+    // Normalize role name: Prisma enums use underscores (Super_Admin), 
+    // but permissions logic uses spaces (Super Admin).
+    const normalizedRole = user.role.replace(/_/g, ' ')
+    const codeDefaults = DEFAULT_ROLE_PERMISSIONS[normalizedRole] as RolePermissions | undefined
 
-    const result = await getRolePermissions(user.role)
+    const result = await getRolePermissions(normalizedRole)
     if (result.success && result.permissions) {
         // Merge: code defaults fill in any keys missing from the DB record
         // DB values take precedence for keys that ARE present in the DB

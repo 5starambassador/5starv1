@@ -19,6 +19,7 @@ export async function backupDatabase() {
     try {
         const timestamp = new Date().toISOString()
 
+        // Defensive fetching: catch individual table errors to prevent one failure from breaking the whole backup
         const [
             users,
             students,
@@ -28,13 +29,13 @@ export async function backupDatabase() {
             feeStructures,
             settings
         ] = await Promise.all([
-            prisma.user.findMany(),
-            prisma.student.findMany(),
-            prisma.referralLead.findMany(),
-            prisma.admin.findMany(),
-            prisma.campus.findMany(),
-            prisma.gradeFee.findMany(), // Changed from prisma.feeStructure.findMany()
-            prisma.systemSettings.findFirst()
+            prisma.user.findMany().catch(e => { console.error('Backup: User table failed', e.message); return [] }),
+            prisma.student.findMany().catch(e => { console.error('Backup: Student table failed', e.message); return [] }),
+            prisma.referralLead.findMany().catch(e => { console.error('Backup: Lead table failed', e.message); return [] }),
+            prisma.admin.findMany().catch(e => { console.error('Backup: Admin table failed', e.message); return [] }),
+            prisma.campus.findMany().catch(e => { console.error('Backup: Campus table failed', e.message); return [] }),
+            prisma.gradeFee.findMany().catch(e => { console.error('Backup: GradeFee table failed', e.message); return [] }),
+            prisma.systemSettings.findFirst().catch(e => { console.error('Backup: SystemSettings failed', e.message); return null })
         ])
 
         const exporterName = 'adminName' in user ? user.adminName : user.fullName
@@ -42,7 +43,8 @@ export async function backupDatabase() {
             metadata: {
                 version: '1.0',
                 timestamp,
-                exportedBy: exporterName
+                exportedBy: exporterName,
+                partial: (!users.length || !settings) // Flag if major parts are missing
             },
             data: {
                 users,
@@ -55,19 +57,26 @@ export async function backupDatabase() {
             }
         }
 
+        const stats = {
+            users: users.length,
+            students: students.length,
+            leads: leads.length,
+            size: JSON.stringify(backupData).length
+        }
+
         await logAction(
             'EXPORT',
             'system',
             `DATABASE BACKUP created by ${exporterName}`,
             'ALL',
             null,
-            { size: JSON.stringify(backupData).length }
+            stats
         )
 
         return { success: true, data: backupData }
     } catch (error: any) {
-        console.error('Backup Error:', error)
-        return { success: false, error: 'Failed to create backup' }
+        console.error('Backup Error (Critical):', error)
+        return { success: false, error: 'Backup Engine Error: ' + (error.message || 'Unknown') }
     }
 }
 
