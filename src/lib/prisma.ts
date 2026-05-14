@@ -21,7 +21,7 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 /**
  * Utility to retry database operations with backoff to handle Neon cold-starts.
  */
-export async function withRetry<T>(fn: () => Promise<T>, retries = 2, delay = 1000): Promise<T> {
+export async function withRetry<T>(fn: () => Promise<T>, retries = 5, delay = 1000): Promise<T> {
     try {
         return await fn()
     } catch (error: any) {
@@ -33,9 +33,11 @@ export async function withRetry<T>(fn: () => Promise<T>, retries = 2, delay = 10
             error.code === 'P2024';
 
         if (retries > 0 && isTransient) {
-            console.warn(`Database transient error, retrying in ${delay}ms... (${retries} attempts left)`)
+            console.warn(`[PRISMA_RETRY] Database transient error (${error.code || 'NO_CODE'}). Retrying in ${delay}ms... (${retries} attempts left)`)
             await new Promise(resolve => setTimeout(resolve, delay))
-            return withRetry(fn, retries - 1, delay * 1.5)
+            // Exponential backoff with a bit of jitter
+            const nextDelay = delay * 2 + Math.random() * 200
+            return withRetry(fn, retries - 1, nextDelay)
         }
         throw error
     }

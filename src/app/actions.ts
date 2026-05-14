@@ -86,7 +86,7 @@ export async function sendOtp(mobileInput: string, forceOtp: boolean = false, fl
         let finalOtp: string
 
         // 1. Try to find existing valid OTP first (READ optimized)
-        const existingRecord = await prisma.otpVerification.findUnique({ where: { mobile } })
+        const existingRecord = await withRetry(() => prisma.otpVerification.findUnique({ where: { mobile } }))
 
         // Smart Sticky: Reuse if valid for at least 60 more seconds
         if (existingRecord && existingRecord.expiresAt > new Date(Date.now() + 60000)) {
@@ -98,11 +98,11 @@ export async function sendOtp(mobileInput: string, forceOtp: boolean = false, fl
             const expiresAt = new Date(Date.now() + 3 * 60 * 1000) // 3 Minutes
 
             // 3. Upsert (Atomic Update) - This handles the "Delete then Create" raciness implicitly
-            await prisma.otpVerification.upsert({
+            await withRetry(() => prisma.otpVerification.upsert({
                 where: { mobile },
                 update: { otp: finalOtp, expiresAt },
                 create: { mobile, otp: finalOtp, expiresAt }
-            })
+            }))
             console.log('[DEBUG] Generated New OTP:', finalOtp)
         }
 
@@ -111,7 +111,7 @@ export async function sendOtp(mobileInput: string, forceOtp: boolean = false, fl
 
         // Parallel/Alternative: WhatsApp (If enabled)
         try {
-            const settings = await prisma.notificationSettings.findFirst()
+            const settings = await withRetry(() => prisma.notificationSettings.findFirst())
             if (settings?.whatsappNotifications) {
                 // We use a generic OTP template name. User will need to ensure this exists in MSG91.
                 // Template: "Your Achariya OTP is {{1}}. Valid for 3 minutes."
@@ -139,6 +139,16 @@ export async function sendOtp(mobileInput: string, forceOtp: boolean = false, fl
 
     } catch (error: any) {
         console.error('sendOtp error:', error)
+        
+        // SENIOR EXPERT DIAGNOSTIC: Detect hostname typo in Vercel envs
+        if (error.message?.includes('ep-patient-art-v393a12a-pooler')) {
+            return { 
+                success: false, 
+                exists: false, 
+                error: 'Database Configuration Typo Detected. Please update Vercel DATABASE_URL hostname from v393a12a to a1v3932a.' 
+            }
+        }
+
         return { success: false, exists: false, error: `System error: ${error.message}` }
     }
 }
