@@ -1,6 +1,6 @@
 import 'server-only'
 import { getSession } from './session'
-import prisma from './prisma'
+import prisma, { withRetry } from './prisma'
 import { cache } from 'react'
 
 import { mapAdminRole, mapUserRole } from './enum-utils'
@@ -11,17 +11,17 @@ export const getCurrentUser = cache(async (options: { includeCount?: boolean } =
 
     try {
         if (session.userType === 'admin') {
-            const admin = await prisma.admin.findUnique({
+            const admin = await withRetry(() => prisma.admin.findUnique({
                 where: { adminId: Number(session.userId) }
-            })
+            }))
             if (admin) {
                 // Resolve campusId if assignedCampus is present (Critical for permission scoping)
                 let campusId = null
                 if (admin.assignedCampus) {
-                    const campus = await prisma.campus.findUnique({
+                    const campus = await withRetry(() => prisma.campus.findUnique({
                         where: { campusName: admin.assignedCampus },
                         select: { id: true, isActive: true }
-                    })
+                    }))
                     if (campus) {
                         // BLOCK LOGIN IF CAMPUS IS INACTIVE
                         if (!campus.isActive && String(admin.role) !== 'Super Admin') {
@@ -43,9 +43,9 @@ export const getCurrentUser = cache(async (options: { includeCount?: boolean } =
             }
         }
 
-        const user = await prisma.user.findUnique({
+        const user = await withRetry(() => prisma.user.findUnique({
             where: { userId: Number(session.userId) }
-        })
+        }))
 
         if (user) {
             let finalUser = {
@@ -54,10 +54,10 @@ export const getCurrentUser = cache(async (options: { includeCount?: boolean } =
             }
 
             if (!user.assignedCampus && user.campusId) {
-                const campus = await prisma.campus.findUnique({
+                const campus = await withRetry(() => prisma.campus.findUnique({
                     where: { id: user.campusId },
                     select: { campusName: true }
-                })
+                }))
                 if (campus) {
                     finalUser = { ...finalUser, assignedCampus: campus.campusName }
                 }
@@ -66,13 +66,13 @@ export const getCurrentUser = cache(async (options: { includeCount?: boolean } =
             let currentYearCount = 0
             if (options.includeCount) {
                 const currentYearStart = new Date(new Date().getFullYear(), 0, 1)
-                currentYearCount = await prisma.referralLead.count({
+                currentYearCount = await withRetry(() => prisma.referralLead.count({
                     where: {
                         userId: user.userId,
                         leadStatus: 'Confirmed',
                         confirmedDate: { gte: currentYearStart }
                     }
-                }).catch(() => 0) // Defensive count
+                })).catch(() => 0) // Defensive count
             }
 
             return { ...finalUser, currentYearCount }

@@ -1,7 +1,7 @@
 'use server'
 
 
-import prisma from '@/lib/prisma'
+import prisma, { withRetry } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { generateSmartReferralCode } from '@/lib/referral-service'
 import { syncUserStats } from './sync-actions'
@@ -45,15 +45,15 @@ export async function sendOtp(mobileInput: string, forceOtp: boolean = false, fl
 
     try {
         // Check User & Admin existence with resilience
-        const [user, admin] = await Promise.all([
+        const [user, admin] = await withRetry(() => Promise.all([
             prisma.user.findUnique({ where: { mobileNumber: mobile } }).catch(() => null),
             prisma.admin.findUnique({ where: { adminMobile: mobile } }).catch(() => null)
-        ])
+        ]))
 
         // Check Rate Limit (1 OTP every 30 seconds)
         const rateLimitKey = `otp:${mobile}`
         const now = new Date()
-        const rateLimit = await prisma.rateLimit.findUnique({ where: { key: rateLimitKey } })
+        const rateLimit = await withRetry(() => prisma.rateLimit.findUnique({ where: { key: rateLimitKey } }))
 
         if (rateLimit && rateLimit.resetAt > now) {
             const timeLeft = Math.ceil((rateLimit.resetAt.getTime() - now.getTime()) / 1000)
@@ -62,17 +62,17 @@ export async function sendOtp(mobileInput: string, forceOtp: boolean = false, fl
 
         // Set Rate Limit
         const resetAt = new Date(now.getTime() + 30 * 1000)
-        await prisma.rateLimit.upsert({
+        await withRetry(() => prisma.rateLimit.upsert({
             where: { key: rateLimitKey },
             update: { resetAt, count: { increment: 1 } },
             create: { key: rateLimitKey, resetAt, count: 1 }
-        })
+        }))
 
         const exists = !!user || !!admin
         const hasPassword = (!!user?.password) || (!!admin?.password)
 
         if (!exists) {
-            const settings = await prisma.systemSettings.findFirst()
+            const settings = await withRetry(() => prisma.systemSettings.findFirst())
             if (!settings?.allowNewRegistrations) {
                 return { success: false, exists: false, error: 'New registrations are currently disabled.' }
             }
@@ -262,9 +262,9 @@ export async function loginWithPassword(mobileInput: string, password: string) {
     const mobile = sanitizeMobile(mobileInput)
 
     // Check User
-    const user = await prisma.user.findUnique({
+    const user = await withRetry(() => prisma.user.findUnique({
         where: { mobileNumber: mobile }
-    })
+    }))
 
     if (user) {
         if (user.status === 'Deleted') {
@@ -274,7 +274,7 @@ export async function loginWithPassword(mobileInput: string, password: string) {
         if (user.password) {
             const isValid = await bcrypt.compare(password, user.password)
             if (isValid) {
-                const securitySettings = await prisma.securitySettings.findFirst() as any
+                const securitySettings = await withRetry(() => prisma.securitySettings.findFirst()) as any
                 const isSuperAdmin = mapUserRole(user.role) === 'Super Admin'
                 const is2faRequired = isSuperAdmin && securitySettings?.twoFactorAuthEnabled
 
@@ -289,15 +289,15 @@ export async function loginWithPassword(mobileInput: string, password: string) {
     }
 
     // Check Admin
-    const admin = await prisma.admin.findUnique({
+    const admin = await withRetry(() => prisma.admin.findUnique({
         where: { adminMobile: mobile }
-    })
+    }))
 
     if (admin) {
         if (admin.password) {
             const isValid = await bcrypt.compare(password, admin.password)
             if (isValid) {
-                const securitySettings = await prisma.securitySettings.findFirst() as any
+                const securitySettings = await withRetry(() => prisma.securitySettings.findFirst()) as any
                 const isAdminRole = mapAdminRole(admin.role) === 'Super Admin'
                 const is2faRequired = isAdminRole && securitySettings?.twoFactorAuthEnabled
 
@@ -323,9 +323,9 @@ export async function loginUser(mobile: string) {
 
 export async function getLoginRedirect(mobile: string) {
     // Check if admin
-    const admin = await prisma.admin.findUnique({
+    const admin = await withRetry(() => prisma.admin.findUnique({
         where: { adminMobile: mobile }
-    })
+    }))
 
     if (admin) {
         const adminRole = mapAdminRole(admin.role)
@@ -348,9 +348,9 @@ export async function getLoginRedirect(mobile: string) {
     }
 
     // Check for Regular User
-    const user = await prisma.user.findUnique({
+    const user = await withRetry(() => prisma.user.findUnique({
         where: { mobileNumber: mobile }
-    })
+    }))
 
     if (user && user.status === 'Pending') {
         return '/?step=payment'
