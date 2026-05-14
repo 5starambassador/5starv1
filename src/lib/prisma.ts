@@ -21,11 +21,12 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 /**
  * Utility to retry database operations with backoff to handle Neon cold-starts.
  */
-export async function withRetry<T>(fn: () => Promise<T>, retries = 5, delay = 1000): Promise<T> {
+export async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 300): Promise<T> {
     try {
         return await fn()
     } catch (error: any) {
-        // Handle both connection-reach error and pooling timeout
+        // Only retry on genuine connection failures - NOT slow queries
+        // P1001 = Can't reach server, P2024 = Connection pool timeout
         const isTransient =
             error.message?.includes('Can\'t reach database server') ||
             error.message?.includes('Timed out fetching a new connection') ||
@@ -33,11 +34,9 @@ export async function withRetry<T>(fn: () => Promise<T>, retries = 5, delay = 10
             error.code === 'P2024';
 
         if (retries > 0 && isTransient) {
-            console.warn(`[PRISMA_RETRY] Database transient error (${error.code || 'NO_CODE'}). Retrying in ${delay}ms... (${retries} attempts left)`)
+            console.warn(`[PRISMA_RETRY] Transient DB error (${error.code || 'NO_CODE'}). Retrying in ${delay}ms... (${retries} left)`)
             await new Promise(resolve => setTimeout(resolve, delay))
-            // Exponential backoff with a bit of jitter
-            const nextDelay = delay * 2 + Math.random() * 200
-            return withRetry(fn, retries - 1, nextDelay)
+            return withRetry(fn, retries - 1, delay * 2)
         }
         throw error
     }
