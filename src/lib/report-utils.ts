@@ -4,6 +4,7 @@ import { getSpecialBonusRate } from './reward-constants';
 export const REFERRAL_STUDENT_DETAILS_HEADERS = [
     'List',
     'Academic Year',
+    'Referral ID',
     'Student Name',
     'ERP Number',
     'Grade',
@@ -19,16 +20,16 @@ export const REFERRAL_STUDENT_DETAILS_HEADERS = [
     'Ambassador Mobile',
     'Role',
     'Partner Campus',
-    'Bank Name',
-    'Account Number',
-    'IFSC Code',
     'Admission Share',
     'Donation Share',
     'Slab Reward',
     'Special Campus Share',
     'Total Payment',
     'Created At',
-    'Confirmed/Admitted At'
+    'Confirmed/Admitted At',
+    'Bank Name',
+    'Account Number',
+    'IFSC Code'
 ];
 
 export function generateReferralStudentDetailsCSV(referrals: any[]) {
@@ -76,6 +77,7 @@ export function generateReferralStudentDetailsCSV(referrals: any[]) {
         const row = [
             user.role === 'Staff' ? 'List B' : 'List C',
             ref.academicYear || '2026-2027',
+            ref.leadId || 'N/A',
             ref.studentName || 'N/A',
             ref.admissionNumber || '',
             ref.gradeInterested || '',
@@ -91,16 +93,16 @@ export function generateReferralStudentDetailsCSV(referrals: any[]) {
             user.mobileNumber,
             user.role,
             user.assignedCampus || 'N/A',
-            bankName,
-            `'${accNo}`,
-            ifsc,
             admShare,
             donShare,
             slabReward, // Slab Reward
             specialCampusShare,
             totalPayment,
             ref.createdAt ? new Date(ref.createdAt).toLocaleDateString() : 'N/A',
-            ref.confirmedDate ? new Date(ref.confirmedDate).toLocaleDateString() : (ref.leadStatus === 'Admitted' ? 'Admitted' : 'Pending')
+            ref.confirmedDate ? new Date(ref.confirmedDate).toLocaleDateString() : (ref.leadStatus === 'Admitted' ? 'Admitted' : 'Pending'),
+            bankName,
+            `'${accNo}`,
+            ifsc
         ];
 
         rows.push(row.map(val => `"${val}"`).join(','));
