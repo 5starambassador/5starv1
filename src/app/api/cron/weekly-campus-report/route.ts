@@ -81,42 +81,48 @@ export async function GET(request: Request) {
 
             masterDailyReferrals.push(...dailyReferrals)
 
-            // 4. DISPATCH DAILY REPORT
-            const dailyCSV = generateReferralStudentDetailsCSV(dailyReferrals)
-            const dailyFilename = `Daily_Report_${campusName.replace(/\s+/g, '_')}_${now.toISOString().split('T')[0]}.csv`
-            
-            for (const email of campusEmails) {
-                const res = await EmailService.sendEmailWithAttachment(
-                    email,
-                    `Daily Referral Report - ${campusName} (${now.toLocaleDateString()})`,
-                    `<p>Dear Campus Head,</p>
-                     <p>Please find attached the daily report of students <strong>Confirmed/Admitted</strong> through the Ambassador Program today.</p>
-                     <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; margin: 20px 0;">
-                        <p style="margin: 5px 0;"><strong>New Leads Received Today:</strong> ${newLeadsCount}</p>
-                        <p style="margin: 5px 0;"><strong>Success Today (Confirmed/Admitted):</strong> ${dailyReferrals.length}</p>
-                     </div>
-                     <p>Best regards,<br/>Achariya Partners</p>`,
-                    { filename: dailyFilename, content: dailyCSV },
-                    [DIRECTOR_EMAIL]
-                )
+            // 4. DISPATCH DAILY REPORT (Only if there is activity)
+            if (newLeadsCount > 0 || dailyReferrals.length > 0) {
+                const dailyCSV = generateReferralStudentDetailsCSV(dailyReferrals)
+                const dailyFilename = `Daily_Report_${campusName.replace(/\s+/g, '_')}_${now.toISOString().split('T')[0]}.csv`
                 
-                if (!res.success) {
-                    console.error(`[${campusName}] Failed to send daily email to ${email}:`, res.error)
-                    await logAction('EMAIL_FAILURE', 'SYSTEM', `Failed to send Daily Report to ${campusName} (${email})`, campus.id.toString())
+                for (const email of campusEmails) {
+                    const res = await EmailService.sendEmailWithAttachment(
+                        email,
+                        `Daily Referral Report - ${campusName} (${now.toLocaleDateString()})`,
+                        `<p>Dear Campus Head,</p>
+                         <p>Please find attached the daily report of students <strong>Confirmed/Admitted</strong> through the Ambassador Program today.</p>
+                         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; margin: 20px 0;">
+                            <p style="margin: 5px 0;"><strong>New Leads Received Today:</strong> ${newLeadsCount}</p>
+                            <p style="margin: 5px 0;"><strong>Success Today (Confirmed/Admitted):</strong> ${dailyReferrals.length}</p>
+                         </div>
+                         <p>Best regards,<br/>APP TEAM</p>
+                         <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+                         <p style="font-size: 12px; color: #888; text-align: center; font-style: italic;">This is a system-generated email. Please do not reply directly to this message.</p>`,
+                        { filename: dailyFilename, content: dailyCSV },
+                        [DIRECTOR_EMAIL]
+                    )
+                    
+                    if (!res.success) {
+                        console.error(`[${campusName}] Failed to send daily email to ${email}:`, res.error)
+                        await logAction('EMAIL_FAILURE', 'SYSTEM', `Failed to send Daily Report to ${campusName} (${email})`, campus.id.toString())
+                    }
                 }
+
+                await logAction('AUTOMATED_REPORT', 'SYSTEM', `Daily Report processed for ${campusName} (Confirmed: ${dailyReferrals.length}, New: ${newLeadsCount})`, campus.id.toString())
+
+                if (dailyReferrals.length > 0 && campus.contactPhone) {
+                    await whatsappService.sendFreeTextMessage(
+                        campus.contactPhone,
+                        `📢 Daily Report Alert: ${dailyReferrals.length} new confirmed referrals for ${campusName} today. Detailed CSV sent to email.`,
+                        'SYSTEM'
+                    )
+                }
+            } else {
+                console.log(`[${campusName}] Skipped Daily Report - 0 Activity`)
             }
 
-            await logAction('AUTOMATED_REPORT', 'SYSTEM', `Daily Report processed for ${campusName} (Confirmed: ${dailyReferrals.length}, New: ${newLeadsCount})`, campus.id.toString())
-
-            if (dailyReferrals.length > 0 && campus.contactPhone) {
-                await whatsappService.sendFreeTextMessage(
-                    campus.contactPhone,
-                    `📢 Daily Report Alert: ${dailyReferrals.length} new confirmed referrals for ${campusName} today. Detailed CSV sent to email.`,
-                    'SYSTEM'
-                )
-            }
-
-            // 5. DISPATCH WEEKLY REPORT (Only on Fridays)
+            // 5. DISPATCH WEEKLY REPORT (Only on Fridays and if there is activity)
             if (isFriday) {
                 const weeklyReferrals = allCampusReferrals.filter((ref: any) => {
                     const date = ref.confirmedDate ? new Date(ref.confirmedDate) : new Date(ref.createdAt)
@@ -125,28 +131,34 @@ export async function GET(request: Request) {
                     return isRecent && isSuccessStatus
                 })
 
-                const weeklyCSV = generateReferralStudentDetailsCSV(weeklyReferrals)
-                const weeklyFilename = `Weekly_Summary_${campusName.replace(/\s+/g, '_')}_${now.toISOString().split('T')[0]}.csv`
+                if (weeklyReferrals.length > 0) {
+                    const weeklyCSV = generateReferralStudentDetailsCSV(weeklyReferrals)
+                    const weeklyFilename = `Weekly_Summary_${campusName.replace(/\s+/g, '_')}_${now.toISOString().split('T')[0]}.csv`
 
-                for (const email of campusEmails) {
-                    const res = await EmailService.sendEmailWithAttachment(
-                        email,
-                        `WEEKLY Performance Summary - ${campusName}`,
-                        `<p>Dear Campus Head,</p>
-                         <p>Attached is the <strong>Weekly Summary</strong> of all referrals <strong>Confirmed or Admitted</strong> for your campus over the last 7 days.</p>
-                         <p><strong>Total Success (Confirmed/Admitted):</strong> ${weeklyReferrals.length}</p>
-                         <p>Best regards,<br/>Achariya Partners</p>`,
-                        { filename: weeklyFilename, content: weeklyCSV },
-                        [DIRECTOR_EMAIL]
-                    )
-                    
-                    if (!res.success) {
-                        console.error(`[${campusName}] Failed to send weekly email to ${email}:`, res.error)
-                        await logAction('EMAIL_FAILURE', 'SYSTEM', `Failed to send Weekly Report to ${campusName} (${email})`, campus.id.toString())
+                    for (const email of campusEmails) {
+                        const res = await EmailService.sendEmailWithAttachment(
+                            email,
+                            `WEEKLY Performance Summary - ${campusName}`,
+                            `<p>Dear Campus Head,</p>
+                             <p>Attached is the <strong>Weekly Summary</strong> of all referrals <strong>Confirmed or Admitted</strong> for your campus over the last 7 days.</p>
+                             <p><strong>Total Success (Confirmed/Admitted):</strong> ${weeklyReferrals.length}</p>
+                             <p>Best regards,<br/>APP TEAM</p>
+                             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+                             <p style="font-size: 12px; color: #888; text-align: center; font-style: italic;">This is a system-generated email. Please do not reply directly to this message.</p>`,
+                            { filename: weeklyFilename, content: weeklyCSV },
+                            [DIRECTOR_EMAIL]
+                        )
+                        
+                        if (!res.success) {
+                            console.error(`[${campusName}] Failed to send weekly email to ${email}:`, res.error)
+                            await logAction('EMAIL_FAILURE', 'SYSTEM', `Failed to send Weekly Report to ${campusName} (${email})`, campus.id.toString())
+                        }
                     }
+                    
+                    await logAction('AUTOMATED_REPORT', 'SYSTEM', `Weekly Report processed for ${campusName} (Count: ${weeklyReferrals.length})`, campus.id.toString())
+                } else {
+                    console.log(`[${campusName}] Skipped Weekly Report - 0 Activity`)
                 }
-                
-                await logAction('AUTOMATED_REPORT', 'SYSTEM', `Weekly Report processed for ${campusName} (Count: ${weeklyReferrals.length})`, campus.id.toString())
             }
         }
 
@@ -160,7 +172,9 @@ export async function GET(request: Request) {
                 `<p>Dear Director,</p>
                  <p>Attached is the <strong>Daily Master Report</strong> covering all referrals across all campuses for today.</p>
                  <p><strong>Total Confirmed Today:</strong> ${masterDailyReferrals.length}</p>
-                 <p>Best regards,<br/>Achariya 5-Star Ambassador Team</p>`,
+                 <p>Best regards,<br/>APP TEAM</p>
+                 <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+                 <p style="font-size: 12px; color: #888; text-align: center; font-style: italic;">This is a system-generated email. Please do not reply directly to this message.</p>`,
                 { filename: masterFilename, content: masterCSV }
             )
             
