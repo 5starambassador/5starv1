@@ -1936,7 +1936,19 @@ export async function getCampusGrades(campusName: string) {
 
         if (!campus) return { success: false, error: 'Campus not found' }
 
-        // 2. Fetch unique grades from GradeFee
+        // 2. Special Campuses (AASC, ACET, ACCHM) should prioritize their explicitly defined 'grades' list
+        const isSpecialCampus = ['ACET', 'AASC', 'ACCHM'].includes(campus.campusName)
+        if (isSpecialCampus && campus.grades) {
+            try {
+                const parsed = JSON.parse(campus.grades)
+                if (Array.isArray(parsed)) return { success: true, grades: parsed }
+            } catch (e) {
+                const split = campus.grades.split(',').map(g => g.trim()).filter(Boolean)
+                if (split.length > 0) return { success: true, grades: split }
+            }
+        }
+
+        // 3. Fetch unique grades from GradeFee
         const gradeFees = await prisma.gradeFee.findMany({
             where: { campusId: campus.id },
             select: { grade: true },
