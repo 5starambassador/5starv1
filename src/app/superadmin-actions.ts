@@ -626,16 +626,17 @@ export async function getAllUsers(options: {
     role?: string,
     source?: string,
     campusFilter?: string,
+    referrals?: string,
     campuses?: { id: number; campusName: string }[]
 } = {}): Promise<User[] | { users: User[], pagination: any }> {
-    const { academicYear, page, pageSize, search, status, role, source, campusFilter, campuses: providedCampuses } = options
+    const { academicYear, page, pageSize, search, status, role, source, campusFilter, referrals, campuses: providedCampuses } = options
     const user = await getCurrentUser()
     if (!user) throw new Error('Unauthorized')
 
     const skip = page && pageSize ? (page - 1) * pageSize : undefined
     const take = pageSize
 
-    const whereClause = await buildUserWhereClause({ academicYear, search, status, role, source, campusFilter })
+    const whereClause = await buildUserWhereClause({ academicYear, search, status, role, source, campusFilter, referrals })
 
     try {
         const [users, total] = await Promise.all([
@@ -806,6 +807,7 @@ export async function getUsersForExport(options: {
     role?: string,
     source?: string,
     campusFilter?: string,
+    referrals?: string,
     startDate?: string,
     endDate?: string
 } = {}): Promise<User[]> {
@@ -901,9 +903,10 @@ async function buildUserWhereClause(options: {
     status?: string,
     role?: string,
     source?: string,
-    campusFilter?: string
+    campusFilter?: string,
+    referrals?: string
 }) {
-    const { academicYear, search, status, role, source, campusFilter } = options
+    const { academicYear, search, status, role, source, campusFilter, referrals } = options
     const { filter: scopeFilter } = await getScopeFilter('userManagement', { campusNameField: 'assignedCampus' })
 
     const yearFilter = academicYear && academicYear !== 'All' ? { academicYear } : {}
@@ -990,6 +993,34 @@ async function buildUserWhereClause(options: {
         }
     } else {
         andConditions.push({ status: { not: 'Deleted' } })
+    }
+
+    if (referrals) {
+        const counts = referrals.split(',').filter(Boolean)
+        if (counts.length > 0) {
+            const exactCounts: number[] = []
+            let hasFivePlus = false
+
+            counts.forEach(c => {
+                if (c === '5+') hasFivePlus = true
+                else {
+                    const num = parseInt(c, 10)
+                    if (!isNaN(num)) exactCounts.push(num)
+                }
+            })
+
+            const refConditions = []
+            if (exactCounts.length > 0) {
+                refConditions.push({ confirmedReferralCount: { in: exactCounts } })
+            }
+            if (hasFivePlus) {
+                refConditions.push({ confirmedReferralCount: { gte: 5 } })
+            }
+
+            if (refConditions.length > 0) {
+                andConditions.push({ OR: refConditions })
+            }
+        }
     }
 
     return {

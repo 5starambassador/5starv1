@@ -44,6 +44,8 @@ interface UserTableProps {
     onSourceFilterChange: (source: string[] | ((prev: string[]) => string[])) => void
     campusFilterValue: string[]
     onCampusFilterChange: (campus: string[] | ((prev: string[]) => string[])) => void
+    referralsFilterValue: string[]
+    onReferralsFilterChange: (referrals: string[] | ((prev: string[]) => string[])) => void
     onClearAllFilters: () => void
 }
 
@@ -72,6 +74,8 @@ export function UserTable({
     onSourceFilterChange,
     campusFilterValue,
     onCampusFilterChange,
+    referralsFilterValue,
+    onReferralsFilterChange,
     onClearAllFilters
 }: UserTableProps) {
     const [selectedUsers, setSelectedUsers] = useState<User[]>([])
@@ -85,7 +89,11 @@ export function UserTable({
     const [showCampusDropdown, setShowCampusDropdown] = useState(false)
     const campusDropdownRef = useRef<HTMLDivElement>(null)
 
+    const [showReferralsDropdown, setShowReferralsDropdown] = useState(false)
+    const referralsDropdownRef = useRef<HTMLDivElement>(null)
+
     useClickOutside(campusDropdownRef, () => setShowCampusDropdown(false))
+    useClickOutside(referralsDropdownRef, () => setShowReferralsDropdown(false))
 
     // Bulk Confirmation State
     const [bulkConfirmation, setBulkConfirmation] = useState<{ isOpen: boolean, action: 'activate' | 'suspend' | 'delete' | 'deactivate' | null }>({
@@ -740,8 +748,41 @@ export function UserTable({
                     )}
                 </div>
 
+                {/* Referrals Filter Dropdown */}
+                <div className="relative" ref={referralsDropdownRef}>
+                    <button
+                        onClick={() => setShowReferralsDropdown(!showReferralsDropdown)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${referralsFilterValue.length > 0 ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' : 'bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100'}`}
+                        suppressHydrationWarning
+                    >
+                        <Star size={12} />
+                        Referrals {referralsFilterValue.length > 0 && `(${referralsFilterValue.length})`}
+                        <ChevronDown size={12} className={`ml-1 transition-transform ${showReferralsDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showReferralsDropdown && (
+                        <div className="absolute top-full left-0 mt-2 w-32 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 z-50 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="max-h-60 overflow-y-auto space-y-1 custom-scrollbar">
+                                {['0', '1', '2', '3', '4', '5+'].map(val => (
+                                    <button
+                                        key={val}
+                                        onClick={() => {
+                                            onReferralsFilterChange(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val])
+                                        }}
+                                        className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-between ${referralsFilterValue.includes(val) ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                        suppressHydrationWarning
+                                    >
+                                        {val}
+                                        {referralsFilterValue.includes(val) && <CheckSquare size={12} />}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 {/* Clear All Filters */}
-                {(roleFilterValue.length > 0 || campusFilterValue.length > 0 || statusFilterValue.length > 0 || sourceFilterValue.length > 0) && (
+                {(roleFilterValue.length > 0 || campusFilterValue.length > 0 || statusFilterValue.length > 0 || sourceFilterValue.length > 0 || referralsFilterValue.length > 0) && (
                     <button
                         onClick={onClearAllFilters}
                         className="text-[10px] font-black uppercase text-red-500 hover:text-red-700 tracking-widest pl-2"

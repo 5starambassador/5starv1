@@ -78,6 +78,7 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
     const [roleFilter, setRoleFilter] = useState<string[]>([])
     const [sourceFilter, setSourceFilter] = useState<string[]>([])
     const [campusFilter, setCampusFilter] = useState<string[]>([])
+    const [referralsFilter, setReferralsFilter] = useState<string[]>([])
     const [userView, setUserView] = useState<'active' | 'archive'>('active')
 
     // Initial state from URL & Sync on navigation
@@ -110,6 +111,10 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
         const urlCampus = searchParams.get('campus')
         if (urlCampus) setCampusFilter(urlCampus.split(',').filter(Boolean))
         else setCampusFilter([])
+
+        const urlReferrals = searchParams.get('referrals')
+        if (urlReferrals) setReferralsFilter(urlReferrals.split(',').filter(Boolean))
+        else setReferralsFilter([])
     }, [searchParams])
 
     const handleStatusFilterChange = (status: string[] | ((prev: string[]) => string[])) => {
@@ -152,15 +157,27 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
         router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
     }
 
+    const handleReferralsFilterChange = (refs: string[] | ((prev: string[]) => string[])) => {
+        const newRefs = typeof refs === 'function' ? refs(referralsFilter) : refs
+        setReferralsFilter(newRefs)
+        const params = new URLSearchParams(window.location.search)
+        if (newRefs.length > 0) params.set('referrals', newRefs.join(','))
+        else params.delete('referrals')
+        params.set('page', '1')
+        router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
+    }
+
     const handleClearAllFilters = () => {
         setRoleFilter([])
         setSourceFilter([])
         setCampusFilter([])
+        setReferralsFilter([])
         setStatusFilter([])
         const params = new URLSearchParams(window.location.search)
         params.delete('role')
         params.delete('source')
         params.delete('campus')
+        params.delete('referrals')
         params.delete('status')
         params.set('page', '1')
         router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
@@ -379,6 +396,8 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
                 onSourceFilterChange={handleSourceFilterChange}
                 campusFilterValue={campusFilter}
                 onCampusFilterChange={handleCampusFilterChange}
+                referralsFilterValue={referralsFilter}
+                onReferralsFilterChange={handleReferralsFilterChange}
                 onClearAllFilters={handleClearAllFilters}
                 onAddUser={() => {
                     setEditingUser(null);

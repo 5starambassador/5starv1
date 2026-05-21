@@ -47,6 +47,7 @@ export default async function SuperAdminUsersPage({ searchParams }: PageProps) {
     const role = Array.isArray(params.role) ? params.role[0] : params.role
     const source = Array.isArray(params.source) ? params.source[0] : params.source
     const campusFilter = Array.isArray(params.campus) ? params.campus[0] : params.campus
+    const referrals = Array.isArray(params.referrals) ? params.referrals[0] : params.referrals
 
     // Parallel Fetching: Using lightweight getCampusNames and getAllUsers together
     const [campusesResponse, usersResponse] = await Promise.all([
@@ -59,7 +60,8 @@ export default async function SuperAdminUsersPage({ searchParams }: PageProps) {
             status: status as string,
             role: role as string,
             source: source as string,
-            campusFilter: campusFilter as string
+            campusFilter: campusFilter as string,
+            referrals: referrals as string
         })
     ])
     

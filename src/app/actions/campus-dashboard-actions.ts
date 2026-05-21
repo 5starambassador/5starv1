@@ -357,30 +357,34 @@ export async function getCampusUsers(query?: string) {
     if (access.error) return { error: access.error }
 
     // User model uses 'assignedCampus' string and 'campusId' Int.
-    const whereClause: any = access.isSuperAdmin
-        ? {}
-        : {
+    const andConditions: any[] = []
+
+    // 1. Campus restriction (for non-Super Admin)
+    if (!access.isSuperAdmin) {
+        andConditions.push({
             OR: [
                 { campusId: access.campusId },
                 { assignedCampus: { contains: access.campusName || '', mode: 'insensitive' as const } }
             ]
-        }
-
-    // Ensure we don't fetch users with no assigned campus if we are strictly looking for campus users,
-    // although for Super Admin it's fine.
-    // Also, usually we filter by Role or other criteria, but "User Management" implies all users in that campus.
-
-    if (query) {
-        whereClause.OR = [
-            { fullName: { contains: query, mode: 'insensitive' } },
-            { email: { contains: query, mode: 'insensitive' } },
-            { mobileNumber: { contains: query, mode: 'insensitive' } },
-            { referralCode: { contains: query, mode: 'insensitive' } },
-            { childEprNo: { contains: query, mode: 'insensitive' } },
-            { empId: { contains: query, mode: 'insensitive' } },
-            { childName: { contains: query, mode: 'insensitive' } }
-        ]
+        })
     }
+
+    // 2. Query search filters
+    if (query) {
+        andConditions.push({
+            OR: [
+                { fullName: { contains: query, mode: 'insensitive' } },
+                { email: { contains: query, mode: 'insensitive' } },
+                { mobileNumber: { contains: query, mode: 'insensitive' } },
+                { referralCode: { contains: query, mode: 'insensitive' } },
+                { childEprNo: { contains: query, mode: 'insensitive' } },
+                { empId: { contains: query, mode: 'insensitive' } },
+                { childName: { contains: query, mode: 'insensitive' } }
+            ]
+        })
+    }
+
+    const whereClause = andConditions.length > 0 ? { AND: andConditions } : {}
 
     try {
         const users = await prisma.user.findMany({

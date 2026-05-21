@@ -72,6 +72,8 @@ export function CampusUsersClient({ initialUsers, query }: CampusUsersClientProp
                 onSourceFilterChange={() => { }}
                 campusFilterValue={[]}
                 onCampusFilterChange={() => { }}
+                referralsFilterValue={[]}
+                onReferralsFilterChange={() => { }}
                 onClearAllFilters={() => {
                     const params = new URLSearchParams(window.location.search)
                     params.delete('q')
