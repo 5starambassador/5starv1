@@ -361,12 +361,19 @@ export async function getCampusUsers(query?: string) {
 
     // 1. Campus restriction (for non-Super Admin)
     if (!access.isSuperAdmin) {
-        andConditions.push({
-            OR: [
-                { campusId: access.campusId },
-                { assignedCampus: { contains: access.campusName || '', mode: 'insensitive' as const } }
-            ]
-        })
+        const campusName = access.campusName?.trim()
+        if (campusName) {
+            andConditions.push({
+                OR: [
+                    { campusId: access.campusId },
+                    { assignedCampus: { contains: campusName, mode: 'insensitive' as const } }
+                ]
+            })
+        } else {
+            andConditions.push({
+                campusId: access.campusId
+            })
+        }
     }
 
     // 2. Query search filters
