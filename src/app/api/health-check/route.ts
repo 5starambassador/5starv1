@@ -20,6 +20,11 @@ export async function GET() {
   const dbUrl = process.env.DATABASE_URL
   if (dbUrl) {
     result.database.configured = true
+    result.database.urlLength = dbUrl.length
+    result.database.urlStartsWith = dbUrl.substring(0, 15)
+    result.database.urlEndsWith = dbUrl.substring(Math.max(0, dbUrl.length - 15))
+    result.database.hasQuotes = dbUrl.startsWith('"') || dbUrl.startsWith("'") || dbUrl.endsWith('"') || dbUrl.endsWith("'")
+    result.database.charCodes = Array.from(dbUrl.substring(0, 10)).map(c => c.charCodeAt(0))
     try {
       // Parse hostname safely (masking credentials)
       const match = dbUrl.match(/@([^/:]+)/)
