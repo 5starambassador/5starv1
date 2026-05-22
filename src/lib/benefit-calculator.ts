@@ -6,6 +6,7 @@ export const DEBUG_LOGS: string[] = []
 export interface ReferralData {
     id: number
     studentName?: string
+    parentName?: string
     admissionNumber?: string
     campusId: number
     campusName?: string

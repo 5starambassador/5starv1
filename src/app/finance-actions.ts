@@ -1837,6 +1837,7 @@ export async function getAccruedPayoutLiabilitiesInternal(
                         leadId: r.leadId,
                         academicYear: r.academicYear,
                         studentName: r.studentName,
+                        parentName: r.parentName,
                         admissionNumber: r.admissionNumber,
                         campusId: r.campusId || 0,
                         campusName: campusName || undefined,
