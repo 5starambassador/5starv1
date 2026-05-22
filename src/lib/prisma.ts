@@ -1,5 +1,17 @@
 import { PrismaClient } from '@prisma/client'
 
+// Strip surrounding quotes from DATABASE_URL if they exist
+if (process.env.DATABASE_URL) {
+    let cleanUrl = process.env.DATABASE_URL.trim();
+    if (cleanUrl.startsWith('"') && cleanUrl.endsWith('"')) {
+        cleanUrl = cleanUrl.slice(1, -1);
+    }
+    if (cleanUrl.startsWith("'") && cleanUrl.endsWith("'")) {
+        cleanUrl = cleanUrl.slice(1, -1);
+    }
+    process.env.DATABASE_URL = cleanUrl.trim();
+}
+
 const prismaClientSingleton = () => {
     return new PrismaClient()
 }
