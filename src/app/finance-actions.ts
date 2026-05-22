@@ -1605,7 +1605,44 @@ export async function getAccruedPayoutLiabilitiesInternal(
         
         // 2. Fetch Detailed User Objects
         const [users, slabs, gradeFees, allCampuses] = await Promise.all([
-            prisma.user.findMany({ where: { userId: { in: uniqueUserIds } } }),
+            prisma.user.findMany({
+                where: { userId: { in: uniqueUserIds } },
+                select: {
+                    userId: true,
+                    fullName: true,
+                    mobileNumber: true,
+                    childInAchariya: true,
+                    childName: true,
+                    grade: true,
+                    campusId: true,
+                    bankAccountDetails: true,
+                    referralCode: true,
+                    confirmedReferralCount: true,
+                    yearFeeBenefitPercent: true,
+                    longTermBenefitPercent: true,
+                    isFiveStarMember: true,
+                    assignedCampus: true,
+                    studentFee: true,
+                    academicYear: true,
+                    createdAt: true,
+                    email: true,
+                    address: true,
+                    paymentAmount: true,
+                    paymentStatus: true,
+                    transactionId: true,
+                    aadharNo: true,
+                    childEprNo: true,
+                    empId: true,
+                    role: true,
+                    status: true,
+                    benefitStatus: true,
+                    childCampusId: true,
+                    accountNumber: true,
+                    bankName: true,
+                    ifscCode: true,
+                    registrationSource: true
+                }
+            }),
             prisma.benefitSlab.findMany({ orderBy: { referralCount: 'asc' } }),
             prisma.gradeFee.findMany({ where: { academicYear: yearFilter && yearFilter !== 'All' ? yearFilter : '2026-2027' } }),
             prisma.campus.findMany({ select: { id: true, campusName: true } })

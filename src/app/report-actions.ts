@@ -58,7 +58,22 @@ export async function generateReferralPerformanceReport(filters?: { startDate?: 
         // Get all users with their referral counts
         const users = await prisma.user.findMany({
             where: whereClause,
-            include: {
+            select: {
+                userId: true,
+                fullName: true,
+                role: true,
+                assignedCampus: true,
+                mobileNumber: true,
+                benefitStatus: true,
+                aadharNo: true,
+                address: true,
+                academicYear: true,
+                childEprNo: true,
+                yearFeeBenefitPercent: true,
+                longTermBenefitPercent: true,
+                status: true,
+                createdAt: true,
+                confirmedReferralCount: true,
                 referrals: {
                     select: {
                         leadStatus: true,
@@ -246,10 +261,24 @@ export async function generateInactiveUsersReport(filters?: { campus?: string, a
 
         const inactiveUsers = await prisma.user.findMany({
             where: whereClause,
-            include: {
+            select: {
+                userId: true,
+                fullName: true,
+                role: true,
+                assignedCampus: true,
+                mobileNumber: true,
+                aadharNo: true,
+                address: true,
+                academicYear: true,
+                confirmedReferralCount: true,
+                createdAt: true,
+                status: true,
                 referrals: {
                     orderBy: { createdAt: 'desc' },
-                    take: 1
+                    take: 1,
+                    select: {
+                        createdAt: true
+                    }
                 }
             },
             orderBy: { createdAt: 'desc' }
@@ -289,10 +318,14 @@ export async function generateTopPerformersReport(filters?: { campus?: string, a
 
         const topPerformers = await prisma.user.findMany({
             where: whereClause,
-            include: {
-                referrals: {
-                    where: { leadStatus: { in: [_LeadStatus.Confirmed, _LeadStatus.Admitted] } }
-                }
+            select: {
+                userId: true,
+                fullName: true,
+                role: true,
+                assignedCampus: true,
+                confirmedReferralCount: true,
+                yearFeeBenefitPercent: true,
+                longTermBenefitPercent: true
             },
             orderBy: { confirmedReferralCount: 'desc' },
             take: 50
@@ -440,6 +473,23 @@ export async function generateNewRegistrationsReport(filters?: { startDate?: str
 
         const newUsers = await prisma.user.findMany({
             where: whereClause,
+            select: {
+                userId: true,
+                createdAt: true,
+                fullName: true,
+                role: true,
+                assignedCampus: true,
+                mobileNumber: true,
+                aadharNo: true,
+                address: true,
+                academicYear: true,
+                confirmedReferralCount: true,
+                benefitStatus: true,
+                childEprNo: true,
+                status: true,
+                transactionId: true,
+                paymentAmount: true
+            },
             orderBy: { createdAt: 'desc' }
         })
 
@@ -483,7 +533,15 @@ export async function generateStaffVsParentReport(filters?: { campus?: string, a
         for (const role of roles) {
             const users = await prisma.user.findMany({
                 where: { ...baseWhere, role },
-                include: { referrals: true }
+                select: {
+                    userId: true,
+                    confirmedReferralCount: true,
+                    referrals: {
+                        select: {
+                            leadId: true
+                        }
+                    }
+                }
             })
 
             const totalAmbassadors = users.length
@@ -573,6 +631,13 @@ export async function generateStarMilestoneReport(filters?: { campus?: string, a
             where: {
                 ...whereClause,
                 confirmedReferralCount: { in: [0, 1, 2, 3, 4] }
+            },
+            select: {
+                userId: true,
+                fullName: true,
+                mobileNumber: true,
+                assignedCampus: true,
+                confirmedReferralCount: true
             },
             orderBy: { confirmedReferralCount: 'desc' }
         })
@@ -676,9 +741,16 @@ export async function generateFinancialROIData(filters?: { startDate?: string, e
 
         const users = await prisma.user.findMany({
             where: whereClause,
-            include: {
+            select: {
+                userId: true,
+                studentFee: true,
+                yearFeeBenefitPercent: true,
+                role: true,
                 referrals: {
-                    where: { leadStatus: _LeadStatus.Confirmed }
+                    where: { leadStatus: _LeadStatus.Confirmed },
+                    select: {
+                        annualFee: true
+                    }
                 }
             }
         })
@@ -808,7 +880,10 @@ export async function generateStarMilestonesData(filters?: { campus?: string, ac
 
         const users = await prisma.user.findMany({
             where: whereClause,
-            include: {
+            select: {
+                userId: true,
+                fullName: true,
+                assignedCampus: true,
                 _count: {
                     select: { referrals: { where: { leadStatus: _LeadStatus.Confirmed } } }
                 }
@@ -987,7 +1062,8 @@ export async function generateRetentionAnalyticsData(filters?: { campus?: string
                 ...campusWhere,
                 ...(filters?.academicYear && filters.academicYear !== 'All' && { academicYear: filters.academicYear })
             },
-            include: {
+            select: {
+                userId: true,
                 referrals: {
                     orderBy: { createdAt: 'desc' },
                     select: { createdAt: true }
@@ -1634,6 +1710,17 @@ export async function generateAmbassadorMasterRegistry(filters?: { campus?: stri
 
         const users = await prisma.user.findMany({
             where: whereClause,
+            select: {
+                userId: true,
+                fullName: true,
+                role: true,
+                assignedCampus: true,
+                mobileNumber: true,
+                createdAt: true,
+                status: true,
+                confirmedReferralCount: true,
+                academicYear: true
+            },
             orderBy: [
                 { assignedCampus: 'asc' },
                 { fullName: 'asc' }
