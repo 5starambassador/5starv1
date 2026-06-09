@@ -5,8 +5,9 @@ export const REFERRAL_STUDENT_DETAILS_HEADERS = [
     'List',
     'Academic Year',
     'Referral ID',
-    'Student Name',
     'Parent Name',
+    'Parent Mobile No.',
+    'Student Name',
     'ERP Number',
     'Grade',
     'Campus',
@@ -79,8 +80,9 @@ export function generateReferralStudentDetailsCSV(referrals: any[]) {
             user.role === 'Staff' ? 'List B' : 'List C',
             ref.academicYear || '2026-2027',
             ref.leadId || 'N/A',
-            ref.studentName || 'N/A',
             ref.parentName || 'N/A',
+            ref.parentMobile ? `="${ref.parentMobile}"` : '',
+            ref.studentName || 'N/A',
             ref.admissionNumber || '',
             ref.gradeInterested || '',
             campusName,
@@ -107,7 +109,10 @@ export function generateReferralStudentDetailsCSV(referrals: any[]) {
             ifsc
         ];
 
-        rows.push(row.map(val => `"${val}"`).join(','));
+        rows.push(row.map(val => {
+            if (typeof val === 'string' && val.startsWith('=')) return val;
+            return `"${val}"`;
+        }).join(','));
     });
 
     return rows.join('\n');
