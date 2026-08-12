@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertCircle, X, ShieldAlert, Info } from 'lucide-react'
-import { ReactNode, useEffect } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 interface ConfirmDialogProps {
     isOpen: boolean
@@ -25,6 +26,12 @@ export function ConfirmDialog({
     onCancel,
     isLoading = false
 }: ConfirmDialogProps) {
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
+
     // We handle conditional rendering via AnimatePresence below
 
     const variantConfig = {
@@ -73,7 +80,7 @@ export function ConfirmDialog({
         }
     }, [isOpen])
 
-    return (
+    const content = (
         <AnimatePresence>
             {isOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -152,4 +159,7 @@ export function ConfirmDialog({
             )}
         </AnimatePresence>
     )
+
+    if (!mounted) return null
+    return createPortal(content, document.body)
 }

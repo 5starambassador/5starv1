@@ -413,9 +413,17 @@ export function EarningsClient({ stats, user, activeYears, selectedYear }: Earni
                                             </div>
 
                                             <div>
-                                                <p className="text-sm font-black text-white tracking-tight uppercase leading-none mb-1.5">
-                                                    Settlement #{s.id}
-                                                </p>
+                                                <div className="mb-1.5">
+                                                    <p className="text-sm font-black text-white tracking-tight uppercase leading-none mb-1">
+                                                        Settlement #{s.id}
+                                                    </p>
+                                                    {s.referralLead && (
+                                                        <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest leading-none">
+                                                            {s.referralLead.studentName || s.referralLead.fullName} 
+                                                            {s.benefitType && <span className="opacity-70 ml-1">({s.benefitType.replace(/_/g, ' ')})</span>}
+                                                        </p>
+                                                    )}
+                                                </div>
                                                 <div className="flex items-center gap-1.5">
                                                     <Calendar size={11} className="text-white/20" />
                                                     <span className="text-[9px] text-white/30 font-bold uppercase tracking-[0.15em]" suppressHydrationWarning>

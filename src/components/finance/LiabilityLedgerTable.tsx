@@ -463,9 +463,17 @@ export function LiabilityLedgerTable({
                                                 <div className="flex justify-between items-start mb-2">
                                                     <div>
                                                         <div className="text-xs font-black text-gray-900 leading-tight">{ref.studentName || ref.fullName}</div>
-                                                        <div className="text-[10px] text-gray-500 font-medium">
+                                                        <div className="text-[10px] text-gray-500 font-medium mt-0.5">
                                                             {ref.gradeInterested} • {ref.campus}
-                                                            {ref.admissionNumber && <span className="ml-2 text-indigo-600 font-bold bg-indigo-50 px-1 rounded uppercase tracking-tighter">({ref.admissionNumber})</span>}
+                                                            {ref.admissionNumber ? (
+                                                                <span className="ml-2 text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                                                                    {ref.admissionNumber} <span className="text-indigo-400 font-normal opacity-50">|</span> REF: {ref.id}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="ml-2 text-gray-500 font-bold bg-gray-50 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                                                                    REF: {ref.id}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     <span className={`text-[9px] px-2 py-0.5 rounded-md font-black uppercase tracking-wider ${ref.payoutStatus === 'PAID' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :

@@ -669,7 +669,9 @@ export async function processBulkPayouts(payouts: {
     accountNumber?: string,
     ifscCode?: string,
     date?: string,
-    eprNo?: string // Universal Student ERP/ID
+    eprNo?: string, // Universal Student ERP/ID
+    settlementId?: number,
+    referralId?: number
 }[]) {
     const admin = await getCurrentUser()
     if (!admin || !await hasPermission('settlements')) return { success: false, error: 'Unauthorized' }
@@ -714,13 +716,14 @@ export async function processBulkPayouts(payouts: {
         for (let i = 0; i < payouts.length; i += chunkSize) {
             const chunk = payouts.slice(i, i + chunkSize)
             
-            // Collect lookup keys
             const mobiles = chunk.map(p => p.mobile.trim())
             const eprNos = chunk.map(p => p.eprNo?.trim()).filter(Boolean) as string[]
+            const referralIds = chunk.map(p => p.referralId).filter(Boolean) as number[]
+            const settlementIds = chunk.map(p => p.settlementId).filter(Boolean) as number[]
 
-            // Dual-Level Fetch:
-            // Fetch Users (by Mobile) AND ReferralLeads (by Referral admissionNumber)
-            const [users, leads] = await Promise.all([
+            // Tri-Level Fetch:
+            // Fetch Users (by Mobile), ReferralLeads (by Referral admissionNumber or leadId), AND Settlements directly
+            const [users, leads, directSettlements] = await Promise.all([
                 prisma.user.findMany({
                     where: { mobileNumber: { in: mobiles } },
                     include: {
@@ -730,7 +733,12 @@ export async function processBulkPayouts(payouts: {
                     }
                 }),
                 prisma.referralLead.findMany({
-                    where: { admissionNumber: { in: eprNos } },
+                    where: { 
+                        OR: [
+                            { admissionNumber: { in: eprNos } },
+                            { leadId: { in: referralIds } }
+                        ]
+                    },
                     include: {
                         user: {
                             include: {
@@ -740,11 +748,25 @@ export async function processBulkPayouts(payouts: {
                             }
                         }
                     }
+                }),
+                prisma.settlement.findMany({
+                    where: { id: { in: settlementIds }, status: 'Pending' },
+                    include: { 
+                        user: {
+                            include: {
+                                settlements: {
+                                    where: { status: 'Pending' }
+                                }
+                            }
+                        } 
+                    }
                 })
             ])
 
             const userMapByMobile = new Map(users.map(u => [u.mobileNumber, u]))
-            const leadMapByEpr = new Map(leads.map(l => [l.admissionNumber!, l]))
+            const leadMapByEpr = new Map(leads.filter(l => l.admissionNumber).map(l => [l.admissionNumber!, l]))
+            const leadMapById = new Map(leads.map(l => [l.leadId, l]))
+            const directSettlementMap = new Map(directSettlements.map(s => [s.id, s]))
 
             // 2. Process record-by-record for robustness
             for (const p of chunk) {
@@ -753,14 +775,15 @@ export async function processBulkPayouts(payouts: {
                 const pRemarks = (p.remarks || '').toLowerCase()
                 const isWaiver = pRemarks.includes('waiver')
 
-                // Simplified ID Strategy:
-                // 1. Check if ERP matches a Referral Student (Highest Precision)
-                const matchedLead = pEpr ? leadMapByEpr.get(pEpr) : null
+                // 0. Highest Precision: Direct Settlement ID match
+                const matchedDirectSettlement = p.settlementId ? directSettlementMap.get(p.settlementId) : null
+                // 1. Check if ERP or Referral ID matches a Referral Student (High Precision)
+                const matchedLead = (p.referralId ? leadMapById.get(p.referralId) : null) || (pEpr ? leadMapByEpr.get(pEpr) : null)
                 // 2. Fallback to Mobile match (Ambassador Account)
                 const matchedAmbByMobile = userMapByMobile.get(pMobile)
 
                 // The "Target" user for the financial record
-                const user = matchedLead?.user || matchedAmbByMobile
+                const user = matchedDirectSettlement?.user || matchedLead?.user || matchedAmbByMobile
 
                 if (!user) {
                     failureCount++
@@ -770,6 +793,11 @@ export async function processBulkPayouts(payouts: {
 
                 // Senior Expert Logic: Categorical Matching
                 const settlement = user.settlements.find((s: any) => {
+                    // 0. Highest Priority: Exact Settlement ID match
+                    if (p.settlementId) {
+                        return s.id === p.settlementId
+                    }
+
                     const sAmount = Number(s.amount)
                     const inputAmount = Number(p.amount)
                     if (sAmount !== inputAmount) return false
@@ -1155,7 +1183,8 @@ export async function syncPastRefunds(records: {
     date?: string,
     remarks?: string,
     amount?: number,
-    childEprNo?: string
+    childEprNo?: string,
+    referralId?: number
 }[]) {
     const admin = await getCurrentUser()
     if (!admin) return { success: false, error: 'Unauthorized' }
@@ -1257,14 +1286,16 @@ export async function syncPastRefunds(records: {
 
                     // High Precision Match: Look for pending first, then processed by type and amount
                     // We prioritize records that EXACTLY match the type and amount if possible
-                    // NEW: If Child EPR is provided, prioritize matching the specific referral
+                    // NEW: If Child EPR or Referral ID is provided, prioritize matching the specific referral
                     const targetErp = record.childEprNo?.trim().toUpperCase()
+                    const targetReferralId = record.referralId
 
                     const pendingMatch = user.settlements.find(s => {
                         if (s.status !== 'Pending' || Math.abs(s.amount - amount) >= 1) return false;
                         if (s.benefitType !== detectedType && s.benefitType && detectedType !== 'OTHER') return false;
+                        if (targetReferralId && s.referralLeadId === targetReferralId) return true;
                         if (targetErp && s.referralLead?.admissionNumber?.toUpperCase() === targetErp) return true;
-                        if (targetErp) return false; // Strict match mode
+                        if (targetReferralId || targetErp) return false; // Strict match mode
                         return true;
                     })
                     
@@ -1272,8 +1303,9 @@ export async function syncPastRefunds(records: {
                         if (s.status !== 'Processed' && s.bankReference !== utr) return false;
                         if (Math.abs(s.amount - amount) >= 1) return false;
                         if (s.benefitType !== detectedType && s.benefitType && detectedType !== 'OTHER') return false;
+                        if (targetReferralId && s.referralLeadId === targetReferralId) return true;
                         if (targetErp && s.referralLead?.admissionNumber?.toUpperCase() === targetErp) return true;
-                        if (targetErp) return false; // Strict match mode
+                        if (targetReferralId || targetErp) return false; // Strict match mode
                         return true;
                     })
 

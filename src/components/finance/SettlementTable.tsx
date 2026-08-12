@@ -70,7 +70,8 @@ export function SettlementTable({
         ifscCode?: string,
         date?: string,
         remarks?: string,
-        eprNo?: string
+        eprNo?: string,
+        settlementId?: number
     }[]>([])
     const [pastPayoutsToSync, setPastPayoutsToSync] = useState<{
         mobile: string,
@@ -81,7 +82,8 @@ export function SettlementTable({
         date?: string,
         remarks?: string,
         amount?: number,
-        eprNo?: string
+        eprNo?: string,
+        settlementId?: number
     }[]>([])
     const [syncMode, setSyncMode] = useState<'mobile'>('mobile')
     const [selectedIds, setSelectedIds] = useState<number[]>([])
@@ -96,15 +98,18 @@ export function SettlementTable({
         }
 
         const csvHeaders = [
+            'Settlement ID',
+            'Referral ID',
             'Beneficiary Name',
-            'Role',
             'Mobile',
+            'Admission No',
+            'Bank Transaction Ref',
+            'Amount',
+            'Date',
+            'Remarks',
             'Bank Name',
             'Account Number',
-            'IFSC Code',
-            'Amount',
-            'Request Date',
-            'Remarks'
+            'IFSC Code'
         ]
 
         // Senior Expert CSV Formatting Helper
@@ -135,17 +140,25 @@ export function SettlementTable({
             if (!bankName && s.user.bankAccountDetails && s.user.bankAccountDetails !== 'N/A') {
                 bankName = s.user.bankAccountDetails
             }
+            
+            // Extract Referral Data (if available)
+            const refLead = (s as any).referralLead;
+            const referralId = refLead?.leadId || (s as any).referralLeadId || 'N/A'
+            const admissionNo = refLead?.admissionNumber || 'N/A'
 
             return [
+                formatCSVField(s.id),
+                formatCSVField(referralId),
                 formatCSVField(s.user.fullName),
-                formatCSVField(s.user.role),
                 formatCSVField(s.user.mobileNumber, true), // Mobile as text
-                formatCSVField(bankName),
-                formatCSVField(accNo, true),     // Account as text
-                formatCSVField(ifsc),
+                formatCSVField(admissionNo),
+                formatCSVField(''), // Empty column for Bank Transaction Ref (UTR)
                 formatCSVField(s.amount),
                 formatCSVField(format(new Date(s.createdAt), 'dd-MM-yyyy')), // standard format for Indian banks
-                formatCSVField(s.remarks || 'Payout Batch')
+                formatCSVField(s.remarks || 'Payout Batch'),
+                formatCSVField(bankName),
+                formatCSVField(accNo, true),     // Account as text
+                formatCSVField(ifsc)
             ].join(',')
         })
 
@@ -196,11 +209,11 @@ export function SettlementTable({
     }
 
     const handleDownloadTemplate = () => {
-        const headers = ['Beneficiary Name', 'Mobile', 'Bank Transaction Ref', 'Amount', 'Date', 'Remarks', 'Bank Name', 'Account Number', 'IFSC Code']
+        const headers = ['Settlement ID', 'Referral ID', 'Beneficiary Name', 'Mobile', 'Admission No', 'Bank Transaction Ref', 'Amount', 'Date', 'Remarks', 'Bank Name', 'Account Number', 'IFSC Code']
         const sampleRows = [
-            ['Mivith Binu (Referral)', "'9876543210", 'UTR111', '8000', '19-01-2026', 'Admission fee share'],
-            ['Sridevi (Ambassador)', "'9790882774", 'ERP-WAIVER-001', '10500', '19-03-2026', 'Staff Waiver'],
-            ['John Doe', "'9876543210", 'UTR222', '5000', '19-01-2026', 'Donation fee Share'],
+            ['1024', '2495', 'Mivith Binu (Referral)', "'9876543210", '26SSV0436', 'UTR111', '8000', '19-01-2026', 'Admission fee share'],
+            ['1025', 'N/A', 'Sridevi (Ambassador)', "'9790882774", 'ASSV0076', 'ERP-WAIVER-001', '10500', '19-03-2026', 'Staff Waiver'],
+            ['1026', '3736', 'John Doe', "'9876543210", '26SSV0437', 'UTR222', '5000', '19-01-2026', 'Donation fee Share'],
         ]
         const csvContent = "\uFEFF" + headers.join(',') + "\n" + sampleRows.map(r => r.join(',')).join('\n')
 
@@ -277,8 +290,10 @@ export function SettlementTable({
 
                 const idxMobile = findIndex(['mobile', 'phone', 'contact'])
                 const idxEPR = findIndex(['erp', 'admission', 'student id', 'id no'])
+                const idxSettlementId = findIndex(['settlement id', 'settlement'])
+                const idxReferralId = findIndex(['referral id', 'lead id', 'ref id'])
                 const idxUTR = findIndex(['bank transaction ref', 'utr', 'bank ref', 'transaction id', 'ref no'])
-                const idxID = findIndex(['ref id', 'settlement id', 'id'])
+                const idxID = findIndex(['ref id', 'id']) // kept for generic ID fallback for UTR if needed
                 const idxAmount = findIndex(['amount', 'value', 'price'])
                 const idxDate = findIndex(['date', 'time', 'payout date'])
                 const idxBank = findIndex(['bank name', 'bank', 'beneficiary bank'])
@@ -289,9 +304,9 @@ export function SettlementTable({
                 // Final UTR Logic: Prioritize Bank Ref, then check generic Ref, then fallback
                 const finalUTRIdx = idxUTR !== -1 ? idxUTR : (idxID !== -1 ? idxID : -1)
 
-                // Minimum Requirement: We need EITHER Mobile or ERP to attempt a sync
-                if (idxMobile === -1 && idxEPR === -1) {
-                    toast.error("Could not find 'Mobile' or 'ERP No' column in CSV. Please ensure headers are present.")
+                // Minimum Requirement: We need EITHER Mobile or ERP or Settlement ID to attempt a sync
+                if (idxMobile === -1 && idxEPR === -1 && idxSettlementId === -1) {
+                    toast.error("Could not find 'Settlement ID', 'Mobile' or 'ERP No' column in CSV. Please ensure headers are present.")
                     setIsUploading(false)
                     return
                 }
@@ -302,10 +317,12 @@ export function SettlementTable({
 
                     const mobile = idxMobile !== -1 ? cleanVal(cols[idxMobile]) : ''
                     const eprNo = idxEPR !== -1 ? cleanVal(cols[idxEPR]) : ''
+                    const settlementId = idxSettlementId !== -1 ? parseInt(cleanVal(cols[idxSettlementId]).replace(/[^0-9]/g, '')) || undefined : undefined
+                    const referralId = idxReferralId !== -1 ? parseInt(cleanVal(cols[idxReferralId]).replace(/[^0-9]/g, '')) || undefined : undefined
                     const remarks = idxRemarks !== -1 ? cleanVal(cols[idxRemarks]) : ''
                     const isWaiver = remarks.toLowerCase().includes('waiver')
                     
-                    if (!mobile && !eprNo) continue
+                    if (!mobile && !eprNo && !settlementId && !referralId) continue
 
                     // Get UTR (Required for Sync, but we can fallback to Bulk-Sync date if missing)
                     let utr = finalUTRIdx !== -1 ? cleanVal(cols[finalUTRIdx]) : ''
@@ -325,7 +342,9 @@ export function SettlementTable({
                         ifscCode: idxIFSC !== -1 ? cleanVal(cols[idxIFSC]) : '',
                         date: idxDate !== -1 ? cleanVal(cols[idxDate]) : '',
                         amount: idxAmount !== -1 ? parseFloat(cleanVal(cols[idxAmount]).replace(/[^0-9.]/g, '')) || 0 : 0,
-                        remarks: idxRemarks !== -1 ? cleanVal(cols[idxRemarks]) : ''
+                        remarks: idxRemarks !== -1 ? cleanVal(cols[idxRemarks]) : '',
+                        settlementId,
+                        referralId
                     })
                 }
 
@@ -345,7 +364,9 @@ export function SettlementTable({
                         date: r.date,
                         remarks: r.remarks,
                         amount: r.amount,
-                        childEprNo: r.eprNo || undefined   // ← optional ERP for precise matching
+                        childEprNo: r.eprNo || undefined,   // ← optional ERP for precise matching
+                        referralId: r.referralId,
+                        settlementId: r.settlementId
                     })))
                     setShowBulkConfirm(true)
                 } else {
@@ -358,7 +379,9 @@ export function SettlementTable({
                         ifscCode: r.ifscCode,
                         date: r.date,
                         remarks: r.remarks,
-                        eprNo: r.eprNo
+                        eprNo: r.eprNo,
+                        referralId: r.referralId,
+                        settlementId: r.settlementId
                     }))
 
                     if (toProcess.length === 0) {
