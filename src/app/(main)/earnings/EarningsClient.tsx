@@ -24,6 +24,11 @@ interface Settlement {
     payoutDate?: string | Date | null
     bankReference?: string | null
     remarks?: string | null
+    benefitType?: string | null
+    referralLead?: {
+        studentName?: string | null
+        fullName?: string | null
+    } | null
 }
 
 interface EarningsStats {
