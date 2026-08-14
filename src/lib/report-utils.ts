@@ -27,6 +27,8 @@ export const REFERRAL_STUDENT_DETAILS_HEADERS = [
     'Slab Reward',
     'Special Campus Share',
     'Total Payment',
+    'Referral Number',
+    'Applied Percentage',
     'Created At',
     'Confirmed/Admitted At',
     'Bank Name',
@@ -102,6 +104,8 @@ export function generateReferralStudentDetailsCSV(referrals: any[]) {
             slabReward, // Slab Reward
             specialCampusShare,
             totalPayment,
+            ref.referralNumber !== undefined ? ref.referralNumber : 'N/A',
+            ref.slabPercent !== undefined ? `${ref.slabPercent}%` : 'N/A',
             ref.createdAt ? new Date(ref.createdAt).toLocaleDateString() : 'N/A',
             ref.confirmedDate ? new Date(ref.confirmedDate).toLocaleDateString() : (ref.leadStatus === 'Admitted' ? 'Admitted' : 'Pending'),
             bankName,

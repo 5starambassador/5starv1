@@ -2063,6 +2063,7 @@ export async function getAccruedPayoutLiabilitiesInternal(
 
                 return {
                     ...r,
+                    referralNumber: count,
                     slabPercent,
                     admShareValue,
                     donShareValue,
