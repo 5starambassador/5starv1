@@ -1939,6 +1939,11 @@ export async function getAccruedPayoutLiabilitiesInternal(
                                        (!isGroupAEligible && !gFeeFromTable && !specialBonusRate)
                     }
                 })
+                .sort((a: any, b: any) => {
+                    const dateA = a.confirmedDate ? new Date(a.confirmedDate).getTime() : new Date(a.createdAt).getTime()
+                    const dateB = b.confirmedDate ? new Date(b.confirmedDate).getTime() : new Date(b.createdAt).getTime()
+                    return dateA - dateB
+                })
 
             const calcResult = calculateTotalBenefit(currentReferrals, {
                 role: u.role as any,
@@ -1988,9 +1993,7 @@ export async function getAccruedPayoutLiabilitiesInternal(
             const payoutOutstanding = finalPayoutEarned - payoutSettled
             const waiverOutstanding = finalWaiverEarned - waiverSettled
 
-            const sortedRef = [...currentReferrals].sort((a: any, b: any) =>
-                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-            )
+            const sortedRef = currentReferrals
 
             let stdRunningCount = 0
             // ONE PASS FOR ENRICHMENT AND FIFO
