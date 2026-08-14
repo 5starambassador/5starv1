@@ -107,17 +107,20 @@ export function calculateTotalBenefit(
         const sorted = [...slabs].sort((a, b) => a.referralCount - b.referralCount)
 
         const getPercent = (count: number) => {
-            // For 5-Star (Long Term), strictly follow 5% per referral (1=5, 2=10, 3=15...)
-            if (isFiveStar) return Math.min(count, 5) * 5
-
-            // For Standard, use database slabs
-            const slab = sorted.find(s => s.referralCount === Math.min(count, 5)) || sorted[sorted.length - 1]
-            return slab?.yearFeeBenefitPercent || 0
+            const cappedCount = Math.min(count, 5)
+            const slab = sorted.find(s => s.referralCount === cappedCount) || sorted[sorted.length - 1]
+            const basePercent = slab?.yearFeeBenefitPercent || 0
+            
+            // If count exceeds 5, add 5% for each additional referral
+            if (count > 5) {
+                return basePercent + ((count - 5) * 5)
+            }
+            return basePercent
         }
 
         const tierPercent = getPercent(stdCount)
         finalTierPercent = tierPercent
-        const slabName = isFiveStar ? '5-Star Precision Slab (Linear)' : 'Standard Growth Slab'
+        const slabName = isFiveStar ? '5-Star Protocol + Growth Slab' : 'Standard Growth Slab'
 
         // B.1 WING A: Fee Discount TRACK (Parent, Staff with Child)
         const isGroupAWaiver = (user.role === 'Parent' || user.role === 'Staff') && !!user.childInAchariya
@@ -150,16 +153,11 @@ export function calculateTotalBenefit(
 
             standardReferrals.forEach((ref, index) => {
                 const count = index + 1
-                if (count > 5) return // Yield caps at 5 referrals per policy
-
+                
                 let slicePercent = 0
-                if (isFiveStar) {
-                    slicePercent = 5 // Flat 5% marginal shift
-                } else {
-                    const currentTotal = getPercent(count)
-                    const prevTotal = count === 1 ? 0 : getPercent(count - 1)
-                    slicePercent = currentTotal - prevTotal
-                }
+                const currentTotal = getPercent(count)
+                const prevTotal = count === 1 ? 0 : getPercent(count - 1)
+                slicePercent = currentTotal - prevTotal
 
                 const g1Fee = ref.campusGrade1Fee || 0  // 0 when fee not seeded; UI shows N/A
                 const amount = Math.round((g1Fee * slicePercent) / 100)

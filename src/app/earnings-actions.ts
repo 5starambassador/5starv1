@@ -153,17 +153,29 @@ export async function getMyEarningsStats(academicYear?: string): Promise<{
         // Format referrals for calculator
         const confirmedReferrals = referrals.filter((r: any) => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted')
 
+        // Need campus map to resolve HSC fallbacks
+        const campuses = await prisma.campus.findMany()
+        const campusMap = new Map()
+        campuses.forEach(c => campusMap.set(c.campusName, c.id))
+
         const currentFormatted = currentReferrals
             .filter((r: any) => r.leadStatus === 'Confirmed' || r.leadStatus === 'Admitted')
             .map((r: any) => {
-                const g1Fee = grade1FeeMap.get(r.campusId)
+                let fallbackCampusId = r.campusId
+                if (r.campus === 'SSV HSC- VILLIANUR' || r.campus === 'SSV HSC - VILLIANUR') {
+                    fallbackCampusId = campusMap.get('SSV - VILLIANUR') || r.campusId
+                } else if (r.campus === 'ASM HSC - VILLIANUR') {
+                    fallbackCampusId = campusMap.get('ASM - VILLIANUR') || r.campusId
+                }
+                
+                const g1Fee = grade1FeeMap.get(fallbackCampusId)
                 return {
                     id: r.leadId,
                     campusId: r.campusId || 0,
                     campusName: r.campus,
                     grade: r.gradeInterested,
                     actualFee: r.student?.annualFee || r.annualFee || 0,
-                    campusGrade1Fee: g1Fee,
+                    campusGrade1Fee: g1Fee || 0,
                     admissionFeeCollected: r.admissionFeeCollected || 0,
                     donationFeeCollected: r.donationFeeCollected || 0,
                     specialBonusRate: getSpecialBonusRate(r.campus)

@@ -1893,11 +1893,21 @@ export async function getAccruedPayoutLiabilitiesInternal(
                 })
                 .map((r: any) => {
                     const campusName = r.campus || (r.campusId ? campusNameMap.get(r.campusId) : null)
+                    let fallbackCampusId = r.campusId
+                    
+                    if (campusName === 'SSV HSC- VILLIANUR' || campusName === 'SSV HSC - VILLIANUR') {
+                        const ssvId = Array.from(campusNameMap.entries()).find(([_, name]) => name === 'SSV - VILLIANUR')?.[0]
+                        if (ssvId) fallbackCampusId = ssvId
+                    } else if (campusName === 'ASM HSC - VILLIANUR') {
+                        const asmId = Array.from(campusNameMap.entries()).find(([_, name]) => name === 'ASM - VILLIANUR')?.[0]
+                        if (asmId) fallbackCampusId = asmId
+                    }
+
                     const normGradeValue = normalizeGrade(r.gradeInterested || 'Grade-1')
                     const isMontOrPreMont = normGradeValue.includes('MONT') || normGradeValue.includes('PREMONT');
                     const gradeLookup = isMontOrPreMont ? normGradeValue : normalizeGrade('Grade-1');
                     
-                    const gradeKey = r.campusId + '-' + gradeLookup
+                    const gradeKey = fallbackCampusId + '-' + gradeLookup
                     const gFeeFromTable = gradeFeeMap.get(gradeKey) 
                     const specialBonusRate = getSpecialBonusRate(campusName)
                     
@@ -2007,16 +2017,16 @@ export async function getAccruedPayoutLiabilitiesInternal(
                 } else {
                     stdRunningCount++
                     const currentStdCount = stdRunningCount
-                    
-                    if (u.isFiveStarMember) {
-                        slabPercent = 5
-                    } else {
-                        const getSlabPercent = (c: number) => {
-                            const slab = slabs.find((s: any) => s.referralCount === Math.min(c, 5)) || slabs[slabs.length - 1]
-                            return slab?.yearFeeBenefitPercent || 0
+                    const getSlabPercent = (c: number) => {
+                        const cappedCount = Math.min(c, 5)
+                        const slab = slabs.find((s: any) => s.referralCount === cappedCount) || slabs[slabs.length - 1]
+                        const basePercent = slab?.yearFeeBenefitPercent || 0
+                        if (c > 5) {
+                            return basePercent + ((c - 5) * 5)
                         }
-                        slabPercent = Math.max(0, getSlabPercent(currentStdCount) - (currentStdCount === 1 ? 0 : getSlabPercent(currentStdCount - 1)))
+                        return basePercent
                     }
+                    slabPercent = Math.max(0, getSlabPercent(currentStdCount) - (currentStdCount === 1 ? 0 : getSlabPercent(currentStdCount - 1)))
                 }
 
                 const slabBase = isGroupAEligible ? (actualChildFee || 0) : (r.campusGrade1Fee || 0)
