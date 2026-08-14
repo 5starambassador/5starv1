@@ -475,6 +475,9 @@ export function LiabilityLedgerTable({
                                                                 </span>
                                                             )}
                                                         </div>
+                                                        <div className="text-[9px] text-gray-400 font-medium mt-1 tracking-wider uppercase">
+                                                            {ref.confirmedDate ? `Admitted: ${new Date(ref.confirmedDate).toLocaleDateString('en-GB')}` : ref.createdAt ? `Created: ${new Date(ref.createdAt).toLocaleDateString('en-GB')}` : ''}
+                                                        </div>
                                                     </div>
                                                     <span className={`text-[9px] px-2 py-0.5 rounded-md font-black uppercase tracking-wider ${ref.payoutStatus === 'PAID' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
                                                         ref.payoutStatus === 'PARTIAL' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
