@@ -1691,8 +1691,7 @@ export async function getAccruedPayoutLiabilitiesInternal(
                 where: {
                     userId: { in: userIds },
                     leadStatus: { in: ['Confirmed', 'Admitted'] },
-                    ...referralYearFilter,
-                    ...(effectiveAdminCampusId ? { campusId: effectiveAdminCampusId } : {})
+                    ...referralYearFilter
                 },
                 include: {
                     student: {
@@ -1995,10 +1994,9 @@ export async function getAccruedPayoutLiabilitiesInternal(
 
             const sortedRef = currentReferrals
 
-            let stdRunningCount = 0
+            const runningCountByYear: Record<string, number> = {}
             // ONE PASS FOR ENRICHMENT AND FIFO
             const enrichedReferrals = sortedRef.map((r: any, idx: number) => {
-                const count = idx + 1
                 const admFee = r.admissionFeeCollected || 0
                 const donFee = r.donationFeeCollected || 0
 
@@ -2015,11 +2013,18 @@ export async function getAccruedPayoutLiabilitiesInternal(
                 let slabPercent = 0
                 const hasSpecialBonus = (r.specialBonusRate || 0) > 0
                 
+                const ay = r.academicYear || '2026-2027'
+                if (!runningCountByYear[ay]) runningCountByYear[ay] = 0
+
+                let currentStdCount = runningCountByYear[ay] // Default if special bonus
+
                 if (hasSpecialBonus) {
                     slabPercent = 0
+                    // Still increment count? Usually special bonus referrals do NOT count towards slabs.
+                    // If they don't, we leave the count alone. Wait, the original code didn't increment it!
                 } else {
-                    stdRunningCount++
-                    const currentStdCount = stdRunningCount
+                    runningCountByYear[ay]++
+                    currentStdCount = runningCountByYear[ay]
                     const getSlabPercent = (c: number) => {
                         const cappedCount = Math.min(c, 5)
                         const slab = slabs.find((s: any) => s.referralCount === cappedCount) || slabs[slabs.length - 1]
@@ -2066,7 +2071,7 @@ export async function getAccruedPayoutLiabilitiesInternal(
 
                 return {
                     ...r,
-                    referralNumber: count,
+                    referralNumber: currentStdCount,
                     slabPercent,
                     admShareValue,
                     donShareValue,
@@ -2114,10 +2119,14 @@ export async function getAccruedPayoutLiabilitiesInternal(
 
             const isNew = latestReferralTime > (Date.now() - 48 * 60 * 60 * 1000)
 
+            const finalReferrals = effectiveAdminCampusId 
+                ? enrichedReferrals.filter((r: any) => r.campusId === effectiveAdminCampusId)
+                : enrichedReferrals
+
             if (isGroupAEligible) {
                 // Unified record for Group A (Staff/Parents)
                 // Only show if they have referrals in THIS specific year (prevents year bleed-through)
-                if (currentReferrals.length > 0) {
+                if (finalReferrals.length > 0) {
                     const totalOutstanding = totalAllEarnings - totalSettled
                     liabilities.push({
                         userId: u.userId,
@@ -2127,7 +2136,7 @@ export async function getAccruedPayoutLiabilitiesInternal(
                         mobileNumber: u.mobileNumber,
                         referralCode: u.referralCode || undefined,
                         role: u.role,
-                        confirmedReferralCount: currentReferrals.length,
+                        confirmedReferralCount: currentReferrals.length, // Keep global count
                         benefitPercent: (calcResult as any).tierPercent || 0,
                         campusName: (u as any).assignedCampus || 'N/A',
                         totalEarned: totalAllEarnings,
@@ -2140,7 +2149,7 @@ export async function getAccruedPayoutLiabilitiesInternal(
                         childCampus,
                         childFee: displayChildFee,
                         breakdown: calcResult.breakdown,
-                        referrals: enrichedReferrals,
+                        referrals: finalReferrals,
                         slabShare: slabRewards,
                         admissionShare: calcResult.admissionShare,
                         donationShare: calcResult.donationShare,
@@ -2161,7 +2170,7 @@ export async function getAccruedPayoutLiabilitiesInternal(
                         latestActivityDate: latestReferralTime
                     })
                 }
-            } else if (currentReferrals.length > 0) {
+            } else if (finalReferrals.length > 0) {
                 // Group B for others (Friends/Alumni/Others) - only if they have referrals this year
                 liabilities.push({
                     userId: u.userId,
@@ -2171,7 +2180,7 @@ export async function getAccruedPayoutLiabilitiesInternal(
                     mobileNumber: u.mobileNumber,
                     referralCode: u.referralCode || undefined,
                     role: u.role,
-                    confirmedReferralCount: currentReferrals.length,
+                    confirmedReferralCount: currentReferrals.length, // Keep global count
                     benefitPercent: (calcResult as any).tierPercent || 0,
                     campusName: (u as any).assignedCampus || 'N/A',
                     totalEarned: finalPayoutEarned,
@@ -2184,7 +2193,7 @@ export async function getAccruedPayoutLiabilitiesInternal(
                     childCampus: undefined,
                     childFee: undefined,
                     breakdown: calcResult.breakdown,
-                    referrals: enrichedReferrals,
+                    referrals: finalReferrals,
                     slabShare: slabRewards,
                     admissionShare: calcResult.admissionShare,
                     donationShare: calcResult.donationShare,
