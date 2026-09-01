@@ -8,6 +8,7 @@ import { ChevronDown, Calendar, IndianRupee, Settings } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GlassCard } from '@/components/ui/GlassCard'
 import Link from 'next/link'
+import { deduplicateSettlements } from '@/lib/settlement-utils'
 
 // Shared Logic for Filtering Settlements (Matches earnings-actions.ts)
 const filterSettlementsByYear = (settlements: any[], yearRecord: any, yearFilter: string, allYears: any[]) => {
@@ -239,8 +240,8 @@ export function DashboardClient({
         // We use the same segmented logic as finance-actions.ts to ensure cross-year settlements 
         // (like a Feb payment for an April referral) are correctly attributed.
         
-        // Use full settlements for matching, filtered by status
-        const validSettlements = settlements.filter((s: any) => s.status === 'Processed')
+        // Use full settlements for matching, with batch-aware duplicate UTR collapse
+        const validSettlements = deduplicateSettlements(settlements.filter((s: any) => s.status === 'Processed'))
         
         // Prepare pools from Settlements
         let runningAdm = 0

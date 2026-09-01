@@ -6,6 +6,8 @@ import { calculateTotalBenefit } from '@/lib/benefit-calculator'
 import { getMyReferrals } from './referral-actions'
 import { getBenefitSlabs } from './benefit-actions'
 
+import { deduplicateSettlements } from '@/lib/settlement-utils'
+
 export async function getMyEarningsStats(academicYear?: string): Promise<{
     success: true,
     data: {
@@ -109,8 +111,11 @@ export async function getMyEarningsStats(academicYear?: string): Promise<{
             return yearFilter === 'All Time' || yearOfAttribution === yearFilter
         })
 
+        // DEDUPLICATION: Batch-aware deduplication collapses duplicate Super Admin CSV upload batches
+        const deduplicatedSettlements = deduplicateSettlements(settlements)
+
         // MAP: Ensure payoutDate is prioritized and available as a safe ISO string for the client
-        const mappedSettlements = settlements.map((s: any) => {
+        const mappedSettlements = deduplicatedSettlements.map((s: any) => {
             const pDate = s.payoutDate || s.createdAt
             return {
                 ...s,
@@ -198,7 +203,7 @@ export async function getMyEarningsStats(academicYear?: string): Promise<{
 
         // Calculate Manual Adjustments
         // IMPORTANT: Refunds (registration fee returns) are NOT earnings — tracked separately.
-        const processedSettlements = settlements.filter(s => s.status === 'Processed')
+        const processedSettlements = deduplicatedSettlements.filter(s => s.status === 'Processed')
 
         // Helper to identify registration fee refunds
         const isRefundSettlement = (s: any) => {
@@ -227,7 +232,7 @@ export async function getMyEarningsStats(academicYear?: string): Promise<{
             .filter(s => !isRefundSettlement(s))
             .reduce((sum, s) => sum + s.amount, 0)
 
-        const pendingSettlement = settlements
+        const pendingSettlement = deduplicatedSettlements
             .filter(s => s.status === 'Pending')
             .reduce((sum, s) => sum + s.amount, 0)
 

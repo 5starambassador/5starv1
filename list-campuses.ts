@@ -4,11 +4,7 @@ const prisma = new PrismaClient()
 
 async function main() {
     const campuses = await prisma.campus.findMany({
-        select: {
-            id: true,
-            campusName: true,
-            campusCode: true
-        }
+        orderBy: { id: 'asc' }
     })
 
     console.log('--- Total Campuses ---')

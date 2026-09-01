@@ -20,6 +20,7 @@ import { getSpecialBonusRate } from '@/lib/reward-constants'
 import { normalizeGrade } from '@/lib/utils'
 import { syncUserStats } from "./sync-actions"
 import { format } from 'date-fns'
+import { deduplicateSettlements } from '@/lib/settlement-utils'
 // Removed redundant normalizeGrade import to avoid shadowing/mismatch with local helper
 
 // --- Registration Transactions ---
@@ -1300,19 +1301,19 @@ export async function syncPastRefunds(records: {
                     })
                     
                     const processedMatch = user.settlements.find(s => {
-                        if (s.status !== 'Processed' && s.bankReference !== utr) return false;
-                        if (Math.abs(s.amount - amount) >= 1) return false;
-                        if (s.benefitType !== detectedType && s.benefitType && detectedType !== 'OTHER') return false;
-                        if (targetReferralId && s.referralLeadId === targetReferralId) return true;
-                        if (targetErp && s.referralLead?.admissionNumber?.toUpperCase() === targetErp) return true;
-                        if (targetReferralId || targetErp) return false; // Strict match mode
-                        return true;
+                        if (s.status !== 'Processed') return false;
+                        if (utr && s.bankReference === utr && Math.abs(s.amount - amount) < 1) return true;
+                        if (targetReferralId && s.referralLeadId === targetReferralId && Math.abs(s.amount - amount) < 1) return true;
+                        if (targetErp && s.referralLead?.admissionNumber?.toUpperCase() === targetErp && Math.abs(s.amount - amount) < 1) return true;
+                        return false;
                     })
 
                     // Fallback: Just look for ANY pending if amount is 25 (legacy support)
                     const legacyMatch = (amount === 25 && !pendingMatch && !targetErp) ? user.settlements.find(s => s.status === 'Pending' && s.amount === 25) : null
 
                     const targetSettlement = pendingMatch || legacyMatch || processedMatch
+
+                    let isDuplicateSkipped = false
 
                     await prisma.$transaction(async (tx) => {
                         if (targetSettlement) {
@@ -1327,6 +1328,22 @@ export async function syncPastRefunds(records: {
                                 }
                             })
                         } else {
+                            // Idempotency guard: Verify no processed settlement already exists with this exact UTR & amount
+                            if (utr) {
+                                const existingDup = await tx.settlement.findFirst({
+                                    where: {
+                                        userId: user.userId,
+                                        bankReference: utr,
+                                        amount: amount,
+                                        status: 'Processed'
+                                    }
+                                })
+                                if (existingDup) {
+                                    isDuplicateSkipped = true
+                                    return
+                                }
+                            }
+
                             // Create new processed record if no match found
                             await tx.settlement.create({
                                 data: {
@@ -1342,7 +1359,10 @@ export async function syncPastRefunds(records: {
                         }
                     })
 
-                    if (targetSettlement && targetSettlement.status === 'Processed') {
+                    if (isDuplicateSkipped) {
+                        results.alreadyRefunded++
+                        results.results.push({ mobile, amount, transactionId: utr, status: 'Success', message: `Already Processed (Duplicate upload skipped)` })
+                    } else if (targetSettlement && targetSettlement.status === 'Processed') {
                         results.alreadyRefunded++
                         results.results.push({ mobile, amount, transactionId: utr, status: 'Success', message: `Updated: ${remarks || 'Paid'}` })
                     } else {
@@ -1780,7 +1800,7 @@ export async function getAccruedPayoutLiabilitiesInternal(
         }
 
         gradeFees.forEach(gf => {
-            const fee = gf.annualFee_otp || gf.annualFee_wotp || 0
+            const fee = gf.annualFee_wotp || gf.annualFee_otp || 0
             if (fee > 0) {
                 const key = gf.campusId + '-' + normalizeGrade(gf.grade)
                 gradeFeeMap.set(key, fee)
@@ -1951,15 +1971,16 @@ export async function getAccruedPayoutLiabilitiesInternal(
                 isFiveStarLastYear: u.isFiveStarMember
             }, slabs as any)
 
-            // FIX (Audit P0-#2): Split settled amounts by settlement type
+            // FIX (Audit P0-#2 & Deduplication): Split settled amounts by settlement type with UTR batch deduplication
             // Cash payouts (Admission + Donation) must NOT reduce the waiver balance and vice versa.
             const userSettlements = settlementMap.get(u.userId) || []
-            const validSettlements = userSettlements.filter((s: any) => {
+            const nonRefundSettlements = userSettlements.filter((s: any) => {
                 if (s.status !== 'Processed') return false
                 const remarks = (s.remarks || '').toLowerCase()
                 const isRefund = remarks.includes('registration') || remarks.includes('refund') || s.amount === 25
                 return !isRefund
             })
+            const validSettlements = deduplicateSettlements(nonRefundSettlements)
 
             // 4. PREPARE TYPE-AWARE FIFO POOLS (Unlinked Settlements)
             const genericSettlements = validSettlements.filter((s: any) => !s.referralLeadId)
