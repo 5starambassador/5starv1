@@ -128,7 +128,7 @@ export function calculateTotalBenefit(
         if (isGroupAWaiver) {
             const amount = Math.round((safeStudentFee * tierPercent) / 100)
             slabShare += amount
-            breakdown.push(`⚡ FEE WAIVER: ${tierPercent}% Slab Reward (₹${amount.toLocaleString('en-IN')})`)
+            breakdown.push(`⚡ FEE WAIVER: ${tierPercent}% Slab Reward = ₹${amount.toLocaleString('en-IN')}`)
 
             // App Enrollment Bonus (Dynamic targeting from global governance)
             // Note: 5% Bonus is NOT for long term
@@ -149,8 +149,6 @@ export function calculateTotalBenefit(
 
         // B.2 WING B: Cash Payout TRACK (Alumni, Others, Staff without Child)
         else {
-            breakdown.push(`💧 PAYOUT GROUP B: Current Year Yield`)
-
             standardReferrals.forEach((ref, index) => {
                 const count = index + 1
                 
@@ -162,7 +160,7 @@ export function calculateTotalBenefit(
                 const g1Fee = ref.campusGrade1Fee || 0  // 0 when fee not seeded; UI shows N/A
                 const amount = Math.round((g1Fee * slicePercent) / 100)
                 slabShare += amount
-                breakdown.push(`🔥 REF-${count}: ${slicePercent}% Slab Reward (₹${amount.toLocaleString('en-IN')})`)
+                breakdown.push(`🔥 REF-${count}: ${slicePercent}% Slab Reward = ₹${amount.toLocaleString('en-IN')}`)
             })
         }
     }

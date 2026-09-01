@@ -61,15 +61,30 @@ interface EarningsClientProps {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Safely parses a breakdown string like "WAIVER GROUP A = ₹12,000"
+ * Safely parses a breakdown string like "WAIVER GROUP A = ₹12,000" or "REF-1: 5% Slab (₹3,150)"
  * into a label/amount pair.
  */
 function parseBreakdownItem(item: string): { label: string; amount: string } {
     const eqIdx = item.indexOf('=')
-    if (eqIdx === -1) return { label: item.trim(), amount: '—' }
+    if (eqIdx !== -1) {
+        return {
+            label: item.slice(0, eqIdx).trim(),
+            amount: item.slice(eqIdx + 1).trim() || '—',
+        }
+    }
+
+    // Fallback: Check if an amount in parentheses like "(₹3,150)" exists in the string
+    const match = item.match(/\((₹[0-9,]+)\)/)
+    if (match) {
+        return {
+            label: item.replace(/\s*\((₹[0-9,]+)\)/, '').trim(),
+            amount: match[1]
+        }
+    }
+
     return {
-        label: item.slice(0, eqIdx).trim(),
-        amount: item.slice(eqIdx + 1).trim() || '—',
+        label: item.trim(),
+        amount: '—',
     }
 }
 
@@ -360,7 +375,9 @@ export function EarningsClient({ stats, user, activeYears, selectedYear }: Earni
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {stats.breakdown.map((item, idx) => {
+                            {stats.breakdown
+                                .filter(item => !item.startsWith('💧') && !item.includes('PAYOUT GROUP B') && !item.includes('WAIVER GROUP A'))
+                                .map((item, idx) => {
                                 const { label, amount } = parseBreakdownItem(item)
                                 return (
                                     <div
