@@ -99,7 +99,7 @@ export function NotificationTicker({ userName, referralCode }: { userName?: stri
     if (!current) return null // Final safety guard
 
     return (
-        <div className="w-full fixed top-16 left-0 right-0 xl:sticky xl:top-0 z-[110]">
+        <div className="w-full fixed top-[calc(4rem+env(safe-area-inset-top,0px))] left-0 right-0 xl:sticky xl:top-0 z-[110]">
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
