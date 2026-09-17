@@ -184,8 +184,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             {/* Main Content Wrapper */}
             <div className="flex-1 flex flex-col w-full min-w-0 items-center relative">
 
-                {/* Mobile Topbar with Safe-Area Inset */}
-                <div className={`mobile-topbar xl:hidden fixed top-0 left-0 right-0 pt-[env(safe-area-inset-top,0px)] h-[calc(4rem+env(safe-area-inset-top,0px))] border-b z-[120] flex items-center justify-between px-4 backdrop-blur-xl shadow-lg ${isDarkTheme ? 'bg-[#0f172a]/95 border-white/10 text-white' : 'bg-white/95 border-gray-100 text-gray-900'}`}>
+                {/* Mobile Topbar with Safe-Area Inset & Android Status Bar spacing */}
+                <div className={`mobile-topbar xl:hidden fixed top-0 left-0 right-0 pt-[max(28px,env(safe-area-inset-top,28px))] h-[calc(4rem+max(28px,env(safe-area-inset-top,28px)))] border-b z-[120] flex items-center justify-between px-4 backdrop-blur-xl shadow-lg ${isDarkTheme ? 'bg-[#0f172a]/95 border-white/10 text-white' : 'bg-white/95 border-gray-100 text-gray-900'}`}>
                     <div className="flex items-center gap-3">
                         <MobileSidebarWrapper>
                             <MobileMenu
@@ -209,12 +209,13 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                     </div>
                 </div>
 
-                <div className={`flex-1 w-full ${isAmbassadorRole ? 'max-w-[1400px]' : 'max-w-[1800px]'} flex flex-col pt-[calc(4rem+env(safe-area-inset-top,0px))] xl:pt-0`}>
+                <div className={`flex-1 w-full ${isAmbassadorRole ? 'max-w-[1400px]' : 'max-w-[1800px]'} flex flex-col pt-[calc(4rem+max(28px,env(safe-area-inset-top,28px)))] xl:pt-0`}>
                     {isAmbassadorRole && (
                         <NotificationTicker userName={user.fullName} referralCode={(user as any).referralCode || ''} />
                     )}
 
                     <main className={`flex-1 w-full px-4 py-4 ${isAmbassadorRole ? 'xl:px-8 xl:py-8' : 'xl:px-4 xl:py-5'} ${isAmbassadorRole ? 'pt-14' : 'pt-4'} xl:pt-5 pb-24 xl:pb-6 relative z-10`}>
+
                         <header className="hidden xl:flex justify-end mb-4 absolute top-4 right-8 z-20">
                             <div className="bg-white/80 backdrop-blur-md p-1.5 rounded-full shadow-sm border border-white/50">
                                 <NotificationDropdown userName={user.fullName} referralCode={(user as any).referralCode || ''} />

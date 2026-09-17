@@ -2,10 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
-import { PushNotifications } from '@capacitor/push-notifications'
-import { getMessaging, getToken, onMessage } from 'firebase/messaging'
+import { getMessaging, getToken } from 'firebase/messaging'
 import { registerDevice } from '@/app/notification-actions'
-// import { initializeApp } from 'firebase/app' // We assume app is init elsewhere or we init here
 
 // Firebase Config (Public safe) - User needs to fill this or we fetch from env
 const firebaseConfig = {
@@ -38,31 +36,8 @@ export function useFcmToken() {
     useEffect(() => {
         async function init() {
             if (Capacitor.isNativePlatform()) {
-                // NATIVE (Android/iOS)
-                const permStatus = await PushNotifications.checkPermissions()
-
-                let currentPerm = permStatus.receive
-                if (permStatus.receive === 'prompt') {
-                    const req = await PushNotifications.requestPermissions()
-                    currentPerm = req.receive
-                    setPermission(req.receive)
-                } else {
-                    setPermission(permStatus.receive)
-                }
-
-                if (currentPerm === 'granted') {
-                    await PushNotifications.register()
-
-                    PushNotifications.addListener('registration', async (t) => {
-                        console.log('Push Registration Token:', t.value)
-                        setToken(t.value)
-                        await registerDevice(t.value, Capacitor.getPlatform().toUpperCase() as any)
-                    })
-
-                    PushNotifications.addListener('registrationError', (error) => {
-                        console.error('Error on registration:', error)
-                    })
-                }
+                // Native push notifications will be registered via native bridge when configured
+                console.log('Running on native platform:', Capacitor.getPlatform())
             } else {
                 // WEB
                 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
@@ -94,3 +69,4 @@ export function useFcmToken() {
 
     return { token, permission }
 }
+
