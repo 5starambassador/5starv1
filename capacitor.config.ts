@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'in.achariya.ambassador',
-  appName: '5-Star Ambassador',
+  appName: 'Achariya Partnership Program (APP)',
   webDir: 'public',
   server: {
     url: 'https://www.5starambassador.com', // Production Vercel URL
