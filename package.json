@@ -1,7 +1,7 @@
 {
-  "name": "achariya-ambassador",
+  "name": "achariya-partner",
   "version": "0.1.0",
-  "description": "Achariya Ambassador Portal",
+  "description": "Achariya Partner Portal",
   "private": true,
   "scripts": {
     "postinstall": "prisma generate",
