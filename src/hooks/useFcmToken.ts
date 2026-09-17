@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
+import { PushNotifications } from '@capacitor/push-notifications'
 import { getMessaging, getToken } from 'firebase/messaging'
 import { registerDevice } from '@/app/notification-actions'
 
@@ -36,8 +37,40 @@ export function useFcmToken() {
     useEffect(() => {
         async function init() {
             if (Capacitor.isNativePlatform()) {
-                // Native push notifications will be registered via native bridge when configured
-                console.log('Running on native platform:', Capacitor.getPlatform())
+                try {
+                    // Check and request push notifications permission
+                    const permStatus = await PushNotifications.checkPermissions()
+                    let currentPerm = permStatus.receive
+
+                    if (permStatus.receive === 'prompt') {
+                        const req = await PushNotifications.requestPermissions()
+                        currentPerm = req.receive
+                        setPermission(req.receive)
+                    } else {
+                        setPermission(permStatus.receive)
+                    }
+
+                    if (currentPerm === 'granted') {
+                        // Register with Apple / Google to receive push via APNS/FCM
+                        await PushNotifications.register()
+
+                        await PushNotifications.addListener('registration', async (t) => {
+                            console.log('Native Push Registration Token:', t.value)
+                            setToken(t.value)
+                            await registerDevice(t.value, Capacitor.getPlatform().toUpperCase() as any)
+                        })
+
+                        await PushNotifications.addListener('registrationError', (error) => {
+                            console.error('Error on Native Push registration:', error)
+                        })
+
+                        await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+                            console.log('Push notification received:', notification)
+                        })
+                    }
+                } catch (e) {
+                    console.error('Error initializing native push notifications:', e)
+                }
             } else {
                 // WEB
                 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
@@ -69,4 +102,5 @@ export function useFcmToken() {
 
     return { token, permission }
 }
+
 
