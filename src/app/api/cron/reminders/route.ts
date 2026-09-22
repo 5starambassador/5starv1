@@ -1,6 +1,5 @@
 
 import { NextResponse } from 'next/server'
-import { reminderService } from '@/lib/reminder-service'
 import { automationEngine } from '@/lib/automation-engine'
 
 // This route should be called by a cron job (e.g. Vercel Cron)
@@ -12,14 +11,12 @@ export async function GET(request: Request) {
             return new NextResponse('Unauthorized', { status: 401 })
         }
 
-        // Run both legacy hardcoded reminders AND new dynamic Smart Rules in parallel
-        const legacyResult = await reminderService.runAll()
+        // Run dynamic Smart Rules Engine exclusively so UI rule activation/deactivation is 100% respected
         const smartEngineResult = await automationEngine.runCronRules()
 
         return NextResponse.json({
             success: true,
             summary: {
-                legacySystem: legacyResult,
                 smartSystem: smartEngineResult
             }
         })
