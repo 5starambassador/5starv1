@@ -150,12 +150,49 @@ class WhatsAppService {
 
         try {
             const sanitizedMobile = this.sanitizeMobile(mobile)
-            // ✅ SENIOR EXPERT FIX: Using the DASHBOARD-PROVEN number from MSG91
             const integratedNumber = MSG91_WHATSAPP_NUMBER 
-            // Using Proven Bulk endpoint for everything as Single endpoint is restricted/stricter
             const url = `${MSG91_API_URL}/whatsapp/whatsapp-outbound-message/bulk/`
             const trackingRef = refId || `AUT_${Date.now()}_${Math.random().toString(36).substring(7)}`
             const sanitizedTemplateName = templateName.trim().replace(/\s+/g, '_')
+
+            // Build MSG91 Official to_and_components payload
+            const components: any = {}
+
+            if (headerUrl && headerUrl.trim() !== '') {
+                let cleanUrl = headerUrl.trim().replace(/\s+/g, '%20')
+                if (cleanUrl.includes('ReferralFollowup02.jpeg')) {
+                    cleanUrl = cleanUrl.replace('ReferralFollowup02.jpeg', 'Referral%20followup02.jpeg')
+                }
+                const isVideo = cleanUrl.match(/\.(mp4|mov|3gp|m4v|avi)$/i)
+                const isDocument = cleanUrl.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt)$/i)
+                const mediaType = isVideo ? "video" : isDocument ? "document" : "image"
+                components.header_1 = {
+                    type: mediaType,
+                    value: cleanUrl
+                }
+            }
+
+            if (variables && variables.length > 0) {
+                variables.forEach((v, idx) => {
+                    const textVal = (v || '').toString().replace(/[\r\n]+/g, ' ').trim()
+                    components[`body_var_${idx + 1}`] = {
+                        type: "text",
+                        value: textVal === '' ? " " : textVal,
+                        parameter_name: `var_${idx + 1}`
+                    }
+                })
+            }
+
+            if (buttonVariables && buttonVariables.length > 0) {
+                buttonVariables.forEach((btnVal, idx) => {
+                    if (btnVal) {
+                        components[`button_${idx + 1}`] = {
+                            type: "text",
+                            value: btnVal
+                        }
+                    }
+                })
+            }
 
             const payload: any = {
                 integrated_number: integratedNumber,
@@ -163,26 +200,28 @@ class WhatsAppService {
                 payload: {
                     messaging_product: "whatsapp",
                     type: "template",
-                    to: this.sanitizeMobile(mobile),
                     template: {
                         name: sanitizedTemplateName,
-                        namespace: MSG91_WHATSAPP_NAMESPACE,
                         language: {
                             policy: "deterministic",
                             code: "en"
                         },
-                        components: this.prepareComponents(sanitizedTemplateName, variables, headerUrl, buttonVariables)
+                        namespace: MSG91_WHATSAPP_NAMESPACE,
+                        to_and_components: [
+                            {
+                                to: [sanitizedMobile],
+                                components: components
+                            }
+                        ]
                     }
                 }
             }
 
             const activeAuthKey = this.getAuthKey()
-            console.log(`[WhatsApp] Sending message to ${sanitizedMobile} via SUCCESS-PROVEN Individual API`)
-            console.log(`[WHATSAPP_AUTH_DEBUG] Using Auth Key ending in: ${activeAuthKey.slice(-4)}`)
-
+            console.log(`[WhatsApp] Sending message to ${sanitizedMobile} via MSG91 to_and_components Bulk Protocol`)
             console.log(`[WhatsApp] RAW_PAYLOAD:`, JSON.stringify(payload, null, 2))
 
-            const response = await fetch(url.replace('/bulk/', '/'), {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -201,8 +240,8 @@ class WhatsAppService {
                 apiResponse: data 
             }
 
-            if (response.ok && (data.status === 'success' || data.message === 'Task Scheduled Successfully')) {
-                const messageId = (data.message_id || data.request_id || '').toString()
+            if (response.ok && (data.status === 'success' || data.hasError === false || data.message === 'Task Scheduled Successfully')) {
+                const messageId = (data.request_id || data.message_id || data.data?.message_uuid || data.data || '').toString()
                 const metadata = { 
                     ...diagnosticMetadata,
                     messageId
@@ -211,14 +250,13 @@ class WhatsAppService {
                 await this.logMessage(mobile, templateName, finalContent, type, 'SENT', messageId, undefined, trackingRef, metadata, headerUrl, userRole, campus)
                 return { success: true, messageId }
             } else {
-                const errorMsg = data.message || JSON.stringify(data) || 'WhatsApp API Error'
+                const errorMsg = data.message || (data.errors ? JSON.stringify(data.errors) : JSON.stringify(data)) || 'WhatsApp API Error'
                 const finalContent = fullRenderedText || variables.join(', ')
                 await this.logMessage(mobile, templateName, finalContent, type, 'FAILED', undefined, errorMsg, trackingRef, diagnosticMetadata, headerUrl, userRole, campus)
                 console.error('WhatsApp API Error detailed:', JSON.stringify(data, null, 2))
                 return { success: false, error: errorMsg }
             }
         } catch (error: any) {
-            // Use refId from params or generate a fallback for the error log if trackingRef wasn't reached
             const errRef = refId || `ERR_${Date.now()}`
             const finalContent = fullRenderedText || variables.join(', ')
             await this.logMessage(mobile, templateName, finalContent, type, 'FAILED', undefined, error.message, errRef, undefined, headerUrl, userRole, campus)
