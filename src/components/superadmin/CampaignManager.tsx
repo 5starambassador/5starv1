@@ -121,20 +121,26 @@ export function CampaignManager() {
 
         setIsSendingTest(true)
         try {
+            const targetMapping = form.waVariableMapping && Object.keys(form.waVariableMapping).length > 0 
+                ? form.waVariableMapping 
+                : previewCampaign.waVariableMapping
+            const targetTemplateName = form.waTemplateName || previewCampaign.waTemplateName
+            const targetHeaderUrl = form.waHeaderUrl || previewCampaign.waHeaderUrl
+
             const res = await sendTestCampaignMessage(
                 previewCampaign.id, 
                 testMobile,
-                form.waVariableMapping,
-                form.waTemplateName,
-                form.waHeaderUrl
+                targetMapping,
+                targetTemplateName,
+                targetHeaderUrl
             )
             if (res.success) {
                 toast.success('Test message dispatched!')
             } else {
                 toast.error(res.error || 'Failed to send test')
             }
-        } catch (error) {
-            toast.error('An error occurred during test dispatch')
+        } catch (error: any) {
+            toast.error(error.message || 'An error occurred during test dispatch')
         } finally {
             setIsSendingTest(false)
         }
@@ -328,6 +334,16 @@ export function CampaignManager() {
 
     const openPreview = (c: any) => {
         setPreviewCampaign(c)
+        setForm({
+            name: c.name,
+            subject: c.subject,
+            templateBody: c.templateBody,
+            targetAudience: c.targetAudience || { type: 'AMBASSADORS', role: 'All', campus: 'All', activityStatus: 'All', accountHealth: 'Active', referralMilestone: 'All', leadFunnelStatus: 'All', missingInfo: 'None', programId: 'All' },
+            channels: c.channels || ['EMAIL'],
+            waTemplateName: c.waTemplateName || '',
+            waVariableMapping: c.waVariableMapping || {},
+            waHeaderUrl: c.waHeaderUrl || ''
+        })
         setShowPreviewModal(true)
     }
 
@@ -1354,6 +1370,19 @@ export function CampaignManager() {
                                                 <h4 className="text-[10px] font-black text-blue-900 uppercase tracking-widest">Real-World Test Dispatch</h4>
                                             </div>
                                             
+                                            {previewCampaign.channels?.includes('WHATSAPP') && (
+                                                <div className="space-y-1">
+                                                    <label className="text-[9px] font-black text-blue-900 uppercase tracking-wider block">WhatsApp Header Media URL</label>
+                                                    <input 
+                                                        type="text"
+                                                        placeholder="https://... image / video URL (Required for media templates)"
+                                                        value={form.waHeaderUrl}
+                                                        onChange={e => setForm({ ...form, waHeaderUrl: e.target.value })}
+                                                        className="w-full bg-white border border-blue-100 rounded-xl px-4 py-2 text-xs font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-100 placeholder:text-gray-300 transition-all font-mono"
+                                                    />
+                                                </div>
+                                            )}
+
                                             <div className="flex gap-2">
                                                 <div className="relative flex-1">
                                                     <input 
