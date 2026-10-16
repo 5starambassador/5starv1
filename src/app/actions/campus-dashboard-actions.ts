@@ -352,8 +352,19 @@ export async function getCampusRecentActivity(academicYear?: string) {
 }
 
 // --- Users ---
-export async function getCampusUsers(options: { query?: string; page?: number; pageSize?: number } | string = {}) {
-    const { query, page, pageSize } = typeof options === 'string' ? { query: options, page: undefined, pageSize: undefined } : options
+export async function getCampusUsers(options: { 
+    query?: string; 
+    page?: number; 
+    pageSize?: number;
+    status?: string;
+    role?: string;
+    source?: string;
+    campusFilter?: string;
+    referrals?: string;
+    academicYear?: string;
+} | string = {}) {
+    const opts = typeof options === 'string' ? { query: options } : options
+    const { query, page, pageSize, status, role, source, campusFilter, referrals, academicYear } = opts
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
@@ -375,6 +386,11 @@ export async function getCampusUsers(options: { query?: string; page?: number; p
                 campusId: access.campusId
             })
         }
+    } else if (campusFilter) {
+        const campuses = campusFilter.split(',').filter(Boolean)
+        if (campuses.length > 0) {
+            andConditions.push({ assignedCampus: { in: campuses } })
+        }
     }
 
     // 2. Query search filters
@@ -392,6 +408,80 @@ export async function getCampusUsers(options: { query?: string; page?: number; p
                 { students: { some: { admissionNumber: { contains: query, mode: 'insensitive' } } } }
             ]
         })
+    }
+
+    // 3. Role filter
+    if (role) {
+        const roles = role.split(',').filter(Boolean)
+        if (roles.length > 0) {
+            andConditions.push({ role: { in: roles } })
+        }
+    }
+
+    // 4. Source filter
+    if (source) {
+        const sources = source.split(',').filter(Boolean)
+        if (sources.length > 0) {
+            const orConditions = []
+            if (sources.includes('manual')) {
+                orConditions.push({ registrationSource: { in: ['Manual', 'Admin Created', 'Manual_Import'] } })
+            }
+            if (sources.includes('system')) {
+                orConditions.push({
+                    OR: [
+                        { registrationSource: 'System' },
+                        { registrationSource: null }
+                    ]
+                })
+            }
+            if (orConditions.length > 0) {
+                andConditions.push({ OR: orConditions })
+            }
+        }
+    }
+
+    // 5. Status filter
+    if (status) {
+        const statuses = status.split(',').filter(Boolean)
+        if (statuses.length > 0) {
+            andConditions.push({ status: { in: statuses } })
+        }
+    } else {
+        andConditions.push({ status: { not: 'Deleted' } })
+    }
+
+    // 6. Referrals count filter
+    if (referrals) {
+        const counts = referrals.split(',').filter(Boolean)
+        if (counts.length > 0) {
+            const exactCounts: number[] = []
+            let hasFivePlus = false
+
+            counts.forEach(c => {
+                if (c === '5+') hasFivePlus = true
+                else {
+                    const num = parseInt(c, 10)
+                    if (!isNaN(num)) exactCounts.push(num)
+                }
+            })
+
+            const refConditions = []
+            if (exactCounts.length > 0) {
+                refConditions.push({ confirmedReferralCount: { in: exactCounts } })
+            }
+            if (hasFivePlus) {
+                refConditions.push({ confirmedReferralCount: { gte: 5 } })
+            }
+
+            if (refConditions.length > 0) {
+                andConditions.push({ OR: refConditions })
+            }
+        }
+    }
+
+    // 7. Academic year filter
+    if (academicYear && academicYear !== 'All') {
+        andConditions.push({ academicYear })
     }
 
     const whereClause = andConditions.length > 0 ? { AND: andConditions } : {}

@@ -48,6 +48,7 @@ interface UserTableProps {
     referralsFilterValue: string[]
     onReferralsFilterChange: (referrals: string[] | ((prev: string[]) => string[])) => void
     onClearAllFilters: () => void
+    showCampusFilter?: boolean
 }
 
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -78,7 +79,8 @@ export function UserTable({
     onCampusFilterChange,
     referralsFilterValue,
     onReferralsFilterChange,
-    onClearAllFilters
+    onClearAllFilters,
+    showCampusFilter = true
 }: UserTableProps) {
     const [selectedUsers, setSelectedUsers] = useState<User[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
@@ -697,66 +699,68 @@ export function UserTable({
                 </div>
 
                 {/* Campus Filter Dropdown */}
-                <div className="relative" ref={campusDropdownRef}>
-                    {showCampusDropdown ? (
-                        <button
-                            onClick={() => setShowCampusDropdown(false)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${campusFilterValue.length > 0 ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' : 'bg-indigo-600 text-white border-indigo-600'}`}
-                            aria-expanded="true"
-                            aria-haspopup="true"
-                            aria-label="Filter by Campus"
-                            suppressHydrationWarning
-                        >
-                            <Building size={12} />
-                            Filter Campus {campusFilterValue.length > 0 && `(${campusFilterValue.length})`}
-                            <ChevronDown size={12} className="ml-1 transition-transform rotate-180" />
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => setShowCampusDropdown(true)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${campusFilterValue.length > 0 ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' : 'bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100'}`}
-                            aria-expanded="false"
-                            aria-haspopup="true"
-                            aria-label="Filter by Campus"
-                            suppressHydrationWarning
-                        >
-                            <Building size={12} />
-                            Filter Campus {campusFilterValue.length > 0 && `(${campusFilterValue.length})`}
-                            <ChevronDown size={12} className="ml-1 transition-transform" />
-                        </button>
-                    )}
+                {showCampusFilter && (
+                    <div className="relative" ref={campusDropdownRef}>
+                        {showCampusDropdown ? (
+                            <button
+                                onClick={() => setShowCampusDropdown(false)}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${campusFilterValue.length > 0 ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' : 'bg-indigo-600 text-white border-indigo-600'}`}
+                                aria-expanded="true"
+                                aria-haspopup="true"
+                                aria-label="Filter by Campus"
+                                suppressHydrationWarning
+                            >
+                                <Building size={12} />
+                                Filter Campus {campusFilterValue.length > 0 && `(${campusFilterValue.length})`}
+                                <ChevronDown size={12} className="ml-1 transition-transform rotate-180" />
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setShowCampusDropdown(true)}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${campusFilterValue.length > 0 ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' : 'bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100'}`}
+                                aria-expanded="false"
+                                aria-haspopup="true"
+                                aria-label="Filter by Campus"
+                                suppressHydrationWarning
+                            >
+                                <Building size={12} />
+                                Filter Campus {campusFilterValue.length > 0 && `(${campusFilterValue.length})`}
+                                <ChevronDown size={12} className="ml-1 transition-transform" />
+                            </button>
+                        )}
 
 
-                    {showCampusDropdown && (
-                        <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 z-50 animate-in fade-in zoom-in-95 duration-200">
-                            <div className="max-h-60 overflow-y-auto space-y-1 custom-scrollbar">
-                                <button
-                                    onClick={() => {
-                                        onCampusFilterChange(prev => prev.includes('Global') ? prev.filter(c => c !== 'Global') : [...prev, 'Global'])
-                                    }}
-                                    className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-between ${campusFilterValue.includes('Global') ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
-                                    suppressHydrationWarning
-                                >
-                                    Global / Unknown
-                                    {campusFilterValue.includes('Global') && <CheckSquare size={12} />}
-                                </button>
-                                {campuses.map(c => (
+                        {showCampusDropdown && (
+                            <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 z-50 animate-in fade-in zoom-in-95 duration-200">
+                                <div className="max-h-60 overflow-y-auto space-y-1 custom-scrollbar">
                                     <button
-                                        key={c.id}
                                         onClick={() => {
-                                            onCampusFilterChange(prev => prev.includes(c.campusName) ? prev.filter(cn => cn !== c.campusName) : [...prev, c.campusName])
+                                            onCampusFilterChange(prev => prev.includes('Global') ? prev.filter(c => c !== 'Global') : [...prev, 'Global'])
                                         }}
-                                        className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-between ${campusFilterValue.includes(c.campusName) ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                        className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-between ${campusFilterValue.includes('Global') ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
                                         suppressHydrationWarning
                                     >
-                                        {c.campusName}
-                                        {campusFilterValue.includes(c.campusName) && <CheckSquare size={12} />}
+                                        Global / Unknown
+                                        {campusFilterValue.includes('Global') && <CheckSquare size={12} />}
                                     </button>
-                                ))}
+                                    {campuses.map(c => (
+                                        <button
+                                            key={c.id}
+                                            onClick={() => {
+                                                onCampusFilterChange(prev => prev.includes(c.campusName) ? prev.filter(cn => cn !== c.campusName) : [...prev, c.campusName])
+                                            }}
+                                            className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-between ${campusFilterValue.includes(c.campusName) ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                            suppressHydrationWarning
+                                        >
+                                            {c.campusName}
+                                            {campusFilterValue.includes(c.campusName) && <CheckSquare size={12} />}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Referrals Filter Dropdown */}
                 <div className="relative" ref={referralsDropdownRef}>
