@@ -71,6 +71,13 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
         router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
     }
 
+    const handlePageSizeChange = (newPageSize: number) => {
+        const params = new URLSearchParams(window.location.search)
+        params.set('pageSize', newPageSize.toString())
+        params.set('page', '1')
+        router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
+    }
+
     // Reset Password State
     const [resetTarget, setResetTarget] = useState<{ id: number, name: string, type: 'user' | 'admin' } | null>(null)
     const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
@@ -388,6 +395,7 @@ export default function UsersPageClient({ users, pagination, campuses, currentUs
                 searchTerm={searchQuery}
                 onSearchChange={handleSearchChange}
                 onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
                 statusFilterValue={statusFilter}
                 onStatusFilterChange={handleStatusFilterChange}
                 roleFilterValue={roleFilter}

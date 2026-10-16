@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { UserTable } from '@/components/superadmin/UserTable'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -9,34 +9,58 @@ import debounce from 'lodash/debounce'
 interface CampusUsersClientProps {
     initialUsers: any[]
     query: string
+    pagination?: {
+        page: number
+        pageSize: number
+        totalCount: number
+        totalPages: number
+    } | null
 }
 
-export function CampusUsersClient({ initialUsers, query }: CampusUsersClientProps) {
-    const [users, setUsers] = useState(initialUsers)
+export function CampusUsersClient({ initialUsers, query, pagination }: CampusUsersClientProps) {
     const router = useRouter()
+    // Instant local state ensures 0ms typing delay
+    const [searchTerm, setSearchTerm] = useState(query || '')
+
+    // Keep local search term synchronized if the URL query changes
+    useEffect(() => {
+        setSearchTerm(query || '')
+    }, [query])
 
     const debouncedSearch = useCallback(
         debounce((term: string) => {
             const params = new URLSearchParams(window.location.search)
-            if (term) {
-                params.set('q', term)
+            if (term.trim()) {
+                params.set('q', term.trim())
             } else {
                 params.delete('q')
             }
+            params.set('page', '1') // Reset to page 1 on new search
             router.replace(`?${params.toString()}`)
         }, 500),
         [router]
     )
 
     const handleSearch = (term: string) => {
-        // Implement debounced search or just route update
+        setSearchTerm(term) // Instant local state update: typing is 100% fluid!
         debouncedSearch(term)
+    }
+
+    const handlePageChange = (page: number) => {
+        const params = new URLSearchParams(window.location.search)
+        params.set('page', page.toString())
+        router.replace(`?${params.toString()}`)
+    }
+
+    const handlePageSizeChange = (newPageSize: number) => {
+        const params = new URLSearchParams(window.location.search)
+        params.set('pageSize', newPageSize.toString())
+        params.set('page', '1') // Reset to page 1 on pageSize change
+        router.replace(`?${params.toString()}`)
     }
 
     // Basic handlers (restricted for Campus Admins if needed)
     const handleAddUser = () => {
-        // Redirect to a create user page or open modal
-        // ideally reusing existing modals but for now just a toast if not fully implemented for campus
         toast.info("Create User feature for Campus Admin coming soon")
     }
 
@@ -49,21 +73,22 @@ export function CampusUsersClient({ initialUsers, query }: CampusUsersClientProp
     }
 
     const handleToggleStatus = (userId: number, currentStatus: string) => {
-        // Allow status toggle or restrict? assuming allow for now
         toast.info("Status toggle requested")
     }
 
     return (
         <div>
             <UserTable
-                users={users}
-                searchTerm={query}
+                users={initialUsers}
+                pagination={pagination}
+                searchTerm={searchTerm}
                 onSearchChange={handleSearch}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
                 onAddUser={handleAddUser}
                 onBulkAdd={handleBulkAdd}
                 onDelete={handleDelete}
                 onToggleStatus={handleToggleStatus}
-                // New required props for server-side filtering compatibility
                 statusFilterValue={[]}
                 onStatusFilterChange={() => { }}
                 roleFilterValue={[]}
@@ -77,6 +102,7 @@ export function CampusUsersClient({ initialUsers, query }: CampusUsersClientProp
                 onClearAllFilters={() => {
                     const params = new URLSearchParams(window.location.search)
                     params.delete('q')
+                    params.delete('page')
                     router.replace(`?${params.toString()}`)
                 }}
             />

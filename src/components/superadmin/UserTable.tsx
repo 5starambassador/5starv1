@@ -1,4 +1,4 @@
-import { RefreshCw, UserPlus, Download, CheckCircle, XCircle, Calendar, CreditCard, Smartphone, Hash, Building, Trash2, Key, Shield, Star, ArrowRight, ChevronDown, CheckSquare, Filter } from 'lucide-react'
+import { RefreshCw, UserPlus, Download, CheckCircle, XCircle, Calendar, CreditCard, Smartphone, Hash, Building, Trash2, Key, Shield, Star, ArrowRight, ChevronDown, CheckSquare, Filter, GraduationCap } from 'lucide-react'
 import { AcademicYearFilter } from '@/components/AcademicYearFilter'
 import Image from 'next/image'
 
@@ -27,6 +27,7 @@ interface UserTableProps {
     searchTerm: string
     onSearchChange: (value: string) => void
     onPageChange?: (page: number) => void
+    onPageSizeChange?: (pageSize: number) => void
     onAddUser: () => void
     onBulkAdd: () => void
     onDelete: (userId: number, name: string) => void
@@ -61,6 +62,7 @@ export function UserTable({
     searchTerm,
     onSearchChange,
     onPageChange,
+    onPageSizeChange,
     onViewReferrals,
     onResetPassword,
     onEdit,
@@ -209,7 +211,7 @@ export function UserTable({
                 <div className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-1.5">
                         <Building size={10} className="text-gray-400" />
-                        <span className={`text-[11px] font-bold truncate max-w-[100px] ${(!user.assignedCampus || user.assignedCampus === 'Global') ? 'text-gray-400 font-normal italic' : 'text-gray-600'}`}>
+                        <span className={`text-[11px] font-bold truncate max-w-[110px] ${(!user.assignedCampus || user.assignedCampus === 'Global') ? 'text-gray-400 font-normal italic' : 'text-gray-600'}`}>
                             {user.assignedCampus && user.assignedCampus !== 'Global' ? user.assignedCampus : 'Unassigned'}
                         </span>
                     </div>
@@ -217,6 +219,14 @@ export function UserTable({
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider pl-4">
                             Grade: {user.grade}
                         </span>
+                    )}
+                    {user.childName && user.childName !== 'N/A' && (
+                        <div className="flex items-center gap-1 pl-4 mt-0.5" title={`Linked Student: ${user.childName}`}>
+                            <GraduationCap size={11} className="text-indigo-600 shrink-0" />
+                            <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-tight truncate max-w-[130px]">
+                                {user.childName}
+                            </span>
+                        </div>
                     )}
                 </div>
             ),
@@ -855,8 +865,10 @@ export function UserTable({
                         searchKey={['fullName', 'referralCode', 'mobileNumber', 'childEprNo', 'empId', 'childName']}
                         searchValue={searchTerm}
                         onSearchChange={onSearchChange}
-                        searchPlaceholder="Search ambassadors by name, code or mobile..."
-                        pageSize={10}
+                        searchPlaceholder="Search by parent, student, code, mobile, or EPR..."
+                        pageSize={pagination?.pageSize || 10}
+                        pageSizeOptions={[10, 20, 50, 100]}
+                        onPageSizeChange={onPageSizeChange}
                         enableMultiSelection={true}
                         onSelectionChange={(selected: User[]) => setSelectedUsers(selected)}
                         uniqueKey="userId"

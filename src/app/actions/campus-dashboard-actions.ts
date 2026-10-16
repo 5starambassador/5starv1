@@ -352,7 +352,8 @@ export async function getCampusRecentActivity(academicYear?: string) {
 }
 
 // --- Users ---
-export async function getCampusUsers(query?: string) {
+export async function getCampusUsers(options: { query?: string; page?: number; pageSize?: number } | string = {}) {
+    const { query, page, pageSize } = typeof options === 'string' ? { query: options, page: undefined, pageSize: undefined } : options
     const access = await verifyCampusAccess()
     if (access.error) return { error: access.error }
 
@@ -386,19 +387,99 @@ export async function getCampusUsers(query?: string) {
                 { referralCode: { contains: query, mode: 'insensitive' } },
                 { childEprNo: { contains: query, mode: 'insensitive' } },
                 { empId: { contains: query, mode: 'insensitive' } },
-                { childName: { contains: query, mode: 'insensitive' } }
+                { childName: { contains: query, mode: 'insensitive' } },
+                { students: { some: { fullName: { contains: query, mode: 'insensitive' } } } },
+                { students: { some: { admissionNumber: { contains: query, mode: 'insensitive' } } } }
             ]
         })
     }
 
     const whereClause = andConditions.length > 0 ? { AND: andConditions } : {}
 
+    const skip = page && pageSize ? (page - 1) * pageSize : undefined
+    const take = pageSize
+
     try {
-        const users = await prisma.user.findMany({
-            where: whereClause,
-            orderBy: { createdAt: 'desc' }
+        const [users, total] = await Promise.all([
+            prisma.user.findMany({
+                where: whereClause,
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take
+            }),
+            prisma.user.count({ where: whereClause })
+        ])
+
+        // Smart Shadowing for Child Name and Grade if missing
+        const relevantMobileNumbers = users.map(u => u.mobileNumber).filter((m): m is string => !!m)
+        const relevantEprNumbers = users.map(u => u.childEprNo).filter((e): e is string => !!e)
+
+        const [erpMatches, dbMatches] = await Promise.all([
+            (prisma as any).erpStudentData.findMany({
+                where: {
+                    OR: [
+                        { admissionNumber: { in: relevantEprNumbers } },
+                        { parentMobile: { in: relevantMobileNumbers } }
+                    ]
+                }
+            }),
+            prisma.student.findMany({
+                where: {
+                    OR: [
+                        { admissionNumber: { in: relevantEprNumbers } },
+                        { parent: { mobileNumber: { in: relevantMobileNumbers } } }
+                    ]
+                },
+                include: { 
+                    parent: { select: { mobileNumber: true } },
+                    campus: { select: { campusName: true } } 
+                }
+            })
+        ])
+
+        const matchMap: { [key: string]: { studentName: string, campus: string, grade: string } } = {}
+        erpMatches.forEach((m: any) => {
+            const data = { studentName: m.fullName, campus: m.campusName, grade: m.grade }
+            if (m.admissionNumber) matchMap[m.admissionNumber] = data
+            if (m.parentMobile) matchMap[m.parentMobile] = data
         })
-        return { success: true, data: users }
+        dbMatches.forEach((m: any) => {
+            const data = { studentName: m.fullName, campus: m.campus?.campusName || 'Unknown', grade: m.grade }
+            if (m.admissionNumber) matchMap[m.admissionNumber] = data
+            if (m.parent?.mobileNumber) matchMap[m.parent.mobileNumber] = data
+        })
+
+        const processedUsers = users.map(u => {
+            const match = (u.childEprNo && matchMap[u.childEprNo]) || 
+                         (u.mobileNumber && matchMap[u.mobileNumber])
+            
+            const rawCampus = u.assignedCampus
+            const finalCampus = (!rawCampus || rawCampus === 'Global') && match ? match.campus : (rawCampus || 'Unassigned')
+            const finalGrade = (!u.grade) && match ? match.grade : (u.grade || 'No Grade')
+            const finalStudentName = (!u.childName || u.childName === 'N/A') && match ? match.studentName : u.childName
+
+            return {
+                ...u,
+                childName: finalStudentName,
+                assignedCampus: finalCampus,
+                grade: finalGrade,
+                role: u.role as string,
+                referralCode: u.referralCode || '',
+                referralCount: u.confirmedReferralCount,
+                studentFee: u.studentFee || 0
+            }
+        })
+
+        return { 
+            success: true, 
+            data: processedUsers,
+            pagination: pageSize ? {
+                page: page || 1,
+                pageSize,
+                totalCount: total,
+                totalPages: Math.ceil(total / pageSize)
+            } : null
+        }
     } catch (error) {
         console.error('getCampusUsers Error:', error)
         return { error: 'Failed to fetch users' }

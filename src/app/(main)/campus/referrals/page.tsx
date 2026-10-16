@@ -18,7 +18,7 @@ export default async function CampusReferrals({ searchParams }: PageProps) {
     const getString = (val: string | string[] | undefined) => Array.isArray(val) ? val[0] : val || undefined
 
     const page = Number(getString(params.page)) || 1
-    const limit = Number(getString(params.limit)) || 50
+    const limit = Number(getString(params.limit)) || 10
     const search = getString(params.search)
     const status = getString(params.status)
     const role = getString(params.role)

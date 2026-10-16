@@ -28,7 +28,7 @@ export default async function SuperAdminReferralsPage({ searchParams }: PageProp
     }
 
     const page = parseInt(Array.isArray(params.page) ? params.page[0] : params.page || '1')
-    const limit = parseInt(Array.isArray(params.limit) ? params.limit[0] : params.limit || '50')
+    const limit = parseInt(Array.isArray(params.limit) ? params.limit[0] : params.limit || '10')
 
     // Parse filters
     const filters = {

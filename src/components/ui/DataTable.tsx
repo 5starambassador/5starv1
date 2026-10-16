@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef, Fragment } from 'react'
-import { Search, ChevronLeft, ChevronRight, ArrowUpDown, Filter, X, Check, MinusSquare, CheckSquare, Square } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, ArrowUpDown, Filter, X, Check, MinusSquare, CheckSquare, Square, ChevronDown } from 'lucide-react'
 import { useClickOutside } from '@/hooks/use-click-outside'
 
 interface Column<T> {
@@ -19,6 +19,8 @@ interface DataTableProps<T> {
     searchPlaceholder?: string
     searchKey?: keyof T | (keyof T)[]
     pageSize?: number
+    pageSizeOptions?: number[]
+    onPageSizeChange?: (size: number) => void
     className?: string
     renderExpandedRow?: (row: T) => React.ReactNode
     searchValue?: string
@@ -41,6 +43,8 @@ export function DataTable<T>({
     searchPlaceholder = 'Search...',
     searchKey,
     pageSize = 10,
+    pageSizeOptions = [10, 20, 50, 100],
+    onPageSizeChange,
     className = '',
     renderExpandedRow,
     searchValue,
@@ -57,6 +61,12 @@ export function DataTable<T>({
     onRowClick
 }: DataTableProps<T>) {
     const [internalSearchTerm, setInternalSearchTerm] = useState('')
+    const [internalPageSize, setInternalPageSize] = useState(pageSize)
+    const activePageSize = manualPagination ? pageSize : internalPageSize
+
+    useEffect(() => {
+        setInternalPageSize(pageSize)
+    }, [pageSize])
 
     // Determine effective search term (controlled vs uncontrolled)
     const searchTerm = searchValue !== undefined ? searchValue : internalSearchTerm
@@ -185,11 +195,11 @@ export function DataTable<T>({
     }, [filteredData, sortConfig, columns])
 
     // Pagination
-    const computedTotalPages = Math.ceil(sortedData.length / pageSize)
+    const computedTotalPages = Math.ceil(sortedData.length / activePageSize)
     const totalPages = manualPagination ? (pageCount || 1) : computedTotalPages
 
     // If manual pagination, we assume 'data' is already the slice for the current page
-    const paginatedData = manualPagination ? sortedData : sortedData.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+    const paginatedData = manualPagination ? sortedData : sortedData.slice((currentPage - 1) * activePageSize, currentPage * activePageSize)
 
     const handleSort = (key: string) => {
         setSortConfig(current => ({
@@ -250,39 +260,57 @@ export function DataTable<T>({
         <div className={`space-y-6 ${className}`}>
             <div className="flex justify-between items-end gap-4">
                 {searchKey && (
-                    <div className="relative group w-full md:w-80">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-red transition-colors" size={16} />
-                        <input
-                            type="text"
-                            id="table-global-search"
-                            placeholder={searchPlaceholder}
-                            value={searchTerm}
-                            onChange={(e) => {
-                                const val = e.target.value
-                                if (searchValue === undefined) setInternalSearchTerm(val)
-                                onSearchChange?.(val)
-                                if (!manualPagination) setInternalPage(1)
-                            }}
-                            className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary-red/10 focus:border-primary-red"
-                            aria-label={searchPlaceholder || "Search table"}
-                            suppressHydrationWarning
-                        />
-                        {searchTerm && (
-                            <button
-                                onClick={() => {
-                                    if (searchValue === undefined) setInternalSearchTerm('')
-                                    onSearchChange?.('')
+                    <form 
+                        onSubmit={(e) => {
+                            e.preventDefault()
+                            onSearchChange?.(searchTerm)
+                        }}
+                        className="flex items-center gap-2 w-full md:w-auto"
+                    >
+                        <div className="relative group w-full md:w-80">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-red transition-colors" size={16} />
+                            <input
+                                type="text"
+                                id="table-global-search"
+                                placeholder={searchPlaceholder}
+                                value={searchTerm}
+                                onChange={(e) => {
+                                    const val = e.target.value
+                                    if (searchValue === undefined) setInternalSearchTerm(val)
+                                    onSearchChange?.(val)
                                     if (!manualPagination) setInternalPage(1)
                                 }}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 hover:bg-gray-200 rounded-full transition-all"
-                                title="Clear search"
-                                aria-label="Clear search"
+                                className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary-red/10 focus:border-primary-red"
+                                aria-label={searchPlaceholder || "Search table"}
                                 suppressHydrationWarning
-                            >
-                                <X size={14} />
-                            </button>
-                        )}
-                    </div>
+                            />
+                            {searchTerm && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (searchValue === undefined) setInternalSearchTerm('')
+                                        onSearchChange?.('')
+                                        if (!manualPagination) setInternalPage(1)
+                                    }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 hover:bg-gray-200 rounded-full transition-all"
+                                    title="Clear search"
+                                    aria-label="Clear search"
+                                    suppressHydrationWarning
+                                >
+                                    <X size={14} />
+                                </button>
+                            )}
+                        </div>
+                        <button
+                            type="submit"
+                            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-gray-900 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 shrink-0"
+                            title="Execute search"
+                            suppressHydrationWarning
+                        >
+                            <Search size={14} />
+                            <span>Search</span>
+                        </button>
+                    </form>
                 )}
             </div>
 
@@ -570,13 +598,48 @@ export function DataTable<T>({
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-between p-4 mt-6 bg-white/50 backdrop-blur-sm rounded-[24px] border border-gray-100 gap-4">
-                <p className="text-xs font-black text-gray-400 uppercase tracking-widest leading-none">
-                    SHOWING <span className="text-gray-900 mx-1">
-                        {(currentPage - 1) * pageSize + 1}
-                        {' '}TO{' '}
-                        {manualPagination ? Math.min(currentPage * pageSize, (rowCount || pageCount! * pageSize)) : Math.min(currentPage * pageSize, sortedData.length)}
-                    </span> OF <span className="text-gray-900 mx-1">{(manualPagination || (rowCount && rowCount > sortedData.length)) ? rowCount : sortedData.length}</span> RESULTS
-                </p>
+                <div className="flex flex-wrap items-center gap-4">
+                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest leading-none">
+                        SHOWING <span className="text-gray-900 mx-1">
+                            {(currentPage - 1) * activePageSize + 1}
+                            {' '}TO{' '}
+                            {manualPagination ? Math.min(currentPage * activePageSize, (rowCount || pageCount! * activePageSize)) : Math.min(currentPage * activePageSize, sortedData.length)}
+                        </span> OF <span className="text-gray-900 mx-1">{(manualPagination || (rowCount && rowCount > sortedData.length)) ? rowCount : sortedData.length}</span> RESULTS
+                    </p>
+
+                    {(onPageSizeChange || !manualPagination) && (
+                        <div className="flex items-center gap-2 sm:pl-3 sm:border-l sm:border-gray-200">
+                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                                Rows per page:
+                            </span>
+                            <div className="relative inline-flex items-center">
+                                <select
+                                    value={activePageSize}
+                                    onChange={(e) => {
+                                        const newSize = Number(e.target.value)
+                                        if (!manualPagination) {
+                                            setInternalPageSize(newSize)
+                                            setInternalPage(1)
+                                        }
+                                        onPageSizeChange?.(newSize)
+                                    }}
+                                    className="appearance-none bg-white border border-gray-200 text-gray-800 text-xs font-bold rounded-xl pl-3 pr-7 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 cursor-pointer shadow-sm transition-all hover:border-gray-300"
+                                    aria-label="Rows per page"
+                                    suppressHydrationWarning
+                                >
+                                    {(pageSizeOptions || [10, 20, 50, 100]).map((opt) => (
+                                        <option key={opt} value={opt}>
+                                            {opt}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="pointer-events-none absolute right-2 flex items-center text-gray-400">
+                                    <ChevronDown size={12} strokeWidth={2.5} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
 
                 <div className="flex items-center gap-3">
                         <button

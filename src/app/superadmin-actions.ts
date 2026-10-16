@@ -936,7 +936,9 @@ async function buildUserWhereClause(options: {
                 { referralCode: { contains: search, mode: 'insensitive' } },
                 { childEprNo: { contains: search, mode: 'insensitive' } },
                 { empId: { contains: search, mode: 'insensitive' } },
-                { childName: { contains: search, mode: 'insensitive' } }
+                { childName: { contains: search, mode: 'insensitive' } },
+                { students: { some: { fullName: { contains: search, mode: 'insensitive' } } } },
+                { students: { some: { admissionNumber: { contains: search, mode: 'insensitive' } } } }
             ]
         })
     }

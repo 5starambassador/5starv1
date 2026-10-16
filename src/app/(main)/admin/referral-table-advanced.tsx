@@ -264,15 +264,15 @@ export function ReferralManagementTable({
         })
     }
 
-    // Debounce Search
-    useEffect(() => {
-        const timeout = setTimeout(() => {
-            if (search !== (searchParams.get('search') || '')) {
-                updateParam('search', search)
-            }
-        }, 500)
-        return () => clearTimeout(timeout)
-    }, [search])
+    const handleSearchSubmit = (e?: React.FormEvent) => {
+        if (e) e.preventDefault()
+        updateParam('search', search)
+    }
+
+    const handleClearSearch = () => {
+        setSearch('')
+        updateParam('search', '')
+    }
 
     // Expanded Row State
 
@@ -393,6 +393,15 @@ export function ReferralManagementTable({
     function handlePageChange(newPage: number) {
         const params = new URLSearchParams(searchParams)
         params.set('page', newPage.toString())
+        startTransition(() => {
+            router.push(`${pathname}?${params.toString()}`)
+        })
+    }
+
+    function handlePageSizeChange(newLimit: number) {
+        const params = new URLSearchParams(searchParams)
+        params.set('limit', newLimit.toString())
+        params.set('page', '1')
         startTransition(() => {
             router.push(`${pathname}?${params.toString()}`)
         })
@@ -953,19 +962,45 @@ export function ReferralManagementTable({
 
             {/* Filters */}
             <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100 flex flex-wrap gap-4 mb-6">
-                <div className="flex-1 min-w-[200px] relative">
-                    <label htmlFor="referral-search" className="sr-only">Search referrals</label>
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                        id="referral-search"
-                        type="text"
-                        placeholder="Search parents, students, mobile..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        suppressHydrationWarning={true}
-                        className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all text-sm font-medium"
-                    />
-                </div>
+                <form
+                    onSubmit={handleSearchSubmit}
+                    className="flex-1 min-w-[280px] flex items-center gap-2"
+                >
+                    <div className="relative flex-1">
+                        <label htmlFor="referral-search" className="sr-only">Search referrals</label>
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <input
+                            id="referral-search"
+                            type="text"
+                            placeholder="Search parents, students, mobile..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            suppressHydrationWarning={true}
+                            className="w-full pl-10 pr-9 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all text-sm font-medium"
+                        />
+                        {search && (
+                            <button
+                                type="button"
+                                onClick={handleClearSearch}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 hover:bg-gray-100 rounded-full transition-all"
+                                title="Clear search"
+                                aria-label="Clear search"
+                                suppressHydrationWarning
+                            >
+                                <X size={14} />
+                            </button>
+                        )}
+                    </div>
+                    <button
+                        type="submit"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-900 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 shrink-0"
+                        title="Search"
+                        suppressHydrationWarning
+                    >
+                        <Search size={14} />
+                        <span>Search</span>
+                    </button>
+                </form>
 
                 {/* Dynamic Filters */}
                 <label htmlFor="role-filter-adv" className="sr-only">Filter by Role</label>
@@ -1080,6 +1115,9 @@ export function ReferralManagementTable({
                 rowCount={meta.total}
                 currentPage={meta.page}
                 onPageChange={handlePageChange}
+                pageSize={meta.limit || 10}
+                pageSizeOptions={[10, 20, 50, 100]}
+                onPageSizeChange={handlePageSizeChange}
                 enableMultiSelection={true}
                 onSelectionChange={(selected) => setSelectedIds(selected.map((r: any) => r.leadId))}
                 uniqueKey="leadId"

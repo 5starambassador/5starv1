@@ -28,7 +28,7 @@ import { decrypt } from '@/lib/encryption'
  */
 export async function getAllReferrals(
     page: number = 1,
-    limit: number = 50,
+    limit: number = 10,
     filters?: {
         status?: string
         role?: string
@@ -68,8 +68,8 @@ export async function getAllReferrals(
     }
 
     try {
-        // Run Count and Find in Parallel
-        const [total, referrals] = await Promise.all([
+        // Run Count, Find, and Status counts concurrently in parallel
+        const [total, referrals, totalPending, totalConfirmed] = await Promise.all([
             prisma.referralLead.count({ where }),
             prisma.referralLead.findMany({
                 where,
@@ -82,7 +82,6 @@ export async function getAllReferrals(
                             referralCode: true,
                             mobileNumber: true,
                             assignedCampus: true,
-                            // Only select safe fields to avoid serialization issues with passwords etc
                         }
                     },
                     student: true
@@ -90,12 +89,10 @@ export async function getAllReferrals(
                 orderBy,
                 skip: (page - 1) * limit,
                 take: limit
-            })
+            }),
+            prisma.referralLead.count({ where: { ...where, leadStatus: { in: ['New', 'Follow_up'] } } }),
+            prisma.referralLead.count({ where: { ...where, leadStatus: { in: ['Confirmed', 'Admitted'] } } })
         ])
-
-        if (referrals.length > 0) {
-            console.log('DEBUG: Sample Lead:', JSON.stringify(referrals[0].user, null, 2))
-        }
 
         return {
             success: true,
@@ -105,8 +102,8 @@ export async function getAllReferrals(
                 page,
                 limit,
                 totalPages: Math.ceil(total / limit),
-                totalPending: await prisma.referralLead.count({ where: { ...where, leadStatus: { in: ['New', 'Follow_up'] } } }),
-                totalConfirmed: await prisma.referralLead.count({ where: { ...where, leadStatus: { in: ['Confirmed', 'Admitted'] } } })
+                totalPending,
+                totalConfirmed
             },
             isReadOnly
         }
