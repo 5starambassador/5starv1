@@ -176,8 +176,8 @@ export async function middleware(request: NextRequest) {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com",
         "img-src 'self' data: https: blob:",
-        "frame-src 'self' capacitor: https://sdk.cashfree.com https://api.cashfree.com https://payments.cashfree.com https://payments.grayquest.com https://grayquest.com https://checkout.grayquest.com",
-        "connect-src 'self' capacitor: http://localhost:* https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments.grayquest.com https://grayquest.com https://checkout.grayquest.com",
+        "frame-src 'self' capacitor: https://sdk.cashfree.com https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com https://payments.grayquest.com https://grayquest.com https://checkout.grayquest.com",
+        "connect-src 'self' capacitor: http://localhost:* https://api.cashfree.com https://sandbox.cashfree.com https://payments.cashfree.com https://payments-test.cashfree.com https://payments.grayquest.com https://grayquest.com https://checkout.grayquest.com",
     ].join('; ')
     response.headers.set('Content-Security-Policy', csp)
 

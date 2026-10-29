@@ -6,7 +6,13 @@ const config: CapacitorConfig = {
   webDir: 'public',
   server: {
     url: 'https://www.5starambassador.com', // Production Vercel URL
-    cleartext: true
+    cleartext: true,
+    allowNavigation: [
+      '*.5starambassador.com',
+      '*.achariya.in',
+      '*.cashfree.com',
+      '*.grayquest.com'
+    ]
   },
   plugins: {
     Keyboard: {

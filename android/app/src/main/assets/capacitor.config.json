@@ -4,7 +4,13 @@
 	"webDir": "public",
 	"server": {
 		"url": "https://www.5starambassador.com",
-		"cleartext": true
+		"cleartext": true,
+		"allowNavigation": [
+			"*.5starambassador.com",
+			"*.achariya.in",
+			"*.cashfree.com",
+			"*.grayquest.com"
+		]
 	},
 	"plugins": {
 		"Keyboard": {

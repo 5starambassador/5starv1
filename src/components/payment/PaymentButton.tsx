@@ -96,10 +96,19 @@ export default function PaymentButton({ amount, onSuccess, userId }: PaymentButt
 
             // 3. Checkout
             if (data.payment_session_id) {
-                await cashfree.checkout({
+                const result = await cashfree.checkout({
                     paymentSessionId: data.payment_session_id,
-                    redirectTarget: "_self"
+                    redirectTarget: "_modal"
                 });
+
+                if (result?.error) {
+                    throw new Error(result.error.message || "Payment was cancelled or could not be completed");
+                }
+
+                if (result?.paymentDetails || result?.redirect) {
+                    window.location.href = `/api/payment/verify?order_id=${encodeURIComponent(data.order_id)}`;
+                    return;
+                }
             } else {
                 throw new Error("No payment session ID received");
             }
