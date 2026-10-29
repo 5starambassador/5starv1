@@ -94,9 +94,18 @@ export async function getAllReferrals(
             prisma.referralLead.count({ where: { ...where, leadStatus: { in: ['Confirmed', 'Admitted'] } } })
         ])
 
+        const normalizedReferrals = referrals.map(r => ({
+            ...r,
+            campus: r.campus?.trim().toUpperCase() === 'ABSM - MUTHIYALPET' ? 'ABSM -SVP' : r.campus,
+            user: r.user ? {
+                ...r.user,
+                assignedCampus: r.user.assignedCampus?.trim().toUpperCase() === 'ABSM - MUTHIYALPET' ? 'ABSM -SVP' : r.user.assignedCampus
+            } : r.user
+        }))
+
         return {
             success: true,
-            referrals,
+            referrals: normalizedReferrals,
             meta: {
                 total,
                 page,

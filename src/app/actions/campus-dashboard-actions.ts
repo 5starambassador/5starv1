@@ -27,10 +27,25 @@ async function verifyCampusAccess() {
         return { error: 'No Campus Assigned to your account' }
     }
 
-    // Resolve campusId from the string name
-    const campus = await prisma.campus.findUnique({
-        where: { campusName: user.assignedCampus }
+    const normalizedCampusName = user.assignedCampus.trim().toUpperCase() === 'ABSM - MUTHIYALPET'
+        ? 'ABSM -SVP'
+        : user.assignedCampus.trim()
+
+    // Resolve campusId from the string name (with safe fallback)
+    let campus = await prisma.campus.findUnique({
+        where: { campusName: normalizedCampusName }
     })
+
+    if (!campus) {
+        campus = await prisma.campus.findFirst({
+            where: {
+                OR: [
+                    { campusName: { equals: normalizedCampusName, mode: 'insensitive' } },
+                    ...(user.userId ? [{ campusHeadId: Number(user.userId) }] : [])
+                ]
+            }
+        })
+    }
 
     if (!campus) {
         return { error: `Assigned Campus '${user.assignedCampus}' not found in system` }
@@ -389,6 +404,9 @@ export async function getCampusUsers(options: {
     } else if (campusFilter) {
         const campuses = campusFilter.split(',').filter(Boolean)
         if (campuses.length > 0) {
+            if (campuses.includes('ABSM -SVP') && !campuses.includes('ABSM - MUTHIYALPET')) {
+                campuses.push('ABSM - MUTHIYALPET')
+            }
             andConditions.push({ assignedCampus: { in: campuses } })
         }
     }
@@ -543,7 +561,7 @@ export async function getCampusUsers(options: {
             const match = (u.childEprNo && matchMap[u.childEprNo]) || 
                          (u.mobileNumber && matchMap[u.mobileNumber])
             
-            const rawCampus = u.assignedCampus
+            const rawCampus = u.assignedCampus?.trim().toUpperCase() === 'ABSM - MUTHIYALPET' ? 'ABSM -SVP' : u.assignedCampus
             const finalCampus = (!rawCampus || rawCampus === 'Global') && match ? match.campus : (rawCampus || 'Unassigned')
             const finalGrade = (!u.grade) && match ? match.grade : (u.grade || 'No Grade')
             const finalStudentName = (!u.childName || u.childName === 'N/A') && match ? match.studentName : u.childName

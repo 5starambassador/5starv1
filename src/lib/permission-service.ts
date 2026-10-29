@@ -93,13 +93,19 @@ export async function getScopeFilter(
                 return { filter: null, isReadOnly: true } // No campus assigned
             }
 
+            const campusAliases = user.assignedCampus?.trim().toUpperCase() === 'ABSM -SVP'
+                ? ['ABSM -SVP', 'ABSM - MUTHIYALPET']
+                : user.assignedCampus ? [user.assignedCampus] : []
+
             // If we have both, and both fields are provided in options, use OR for robustness
             if (campusId && user.assignedCampus && campusNameField) {
                 return {
                     filter: {
                         OR: [
                             { [campusField]: campusId },
-                            { [campusNameField]: { contains: user.assignedCampus, mode: 'insensitive' } }
+                            ...campusAliases.map(alias => ({
+                                [campusNameField]: { contains: alias, mode: 'insensitive' }
+                            }))
                         ]
                     },
                     isReadOnly
@@ -108,6 +114,16 @@ export async function getScopeFilter(
 
             // Fallback to single field
             if (useCampusName && user.assignedCampus) {
+                if (campusAliases.length > 1) {
+                    return {
+                        filter: {
+                            OR: campusAliases.map(alias => ({
+                                [campusField]: { contains: alias, mode: 'insensitive' }
+                            }))
+                        },
+                        isReadOnly
+                    }
+                }
                 return {
                     filter: { [campusField]: { contains: user.assignedCampus, mode: 'insensitive' } },
                     isReadOnly

@@ -44,7 +44,11 @@ export function buildReferralWhereClause(
 
     // Campus Filter
     if (filters.campus && filters.campus !== 'All') {
-        where.campus = { in: filters.campus.split(',') }
+        const campuses = filters.campus.split(',')
+        if (campuses.includes('ABSM -SVP') && !campuses.includes('ABSM - MUTHIYALPET')) {
+            campuses.push('ABSM - MUTHIYALPET')
+        }
+        where.campus = { in: campuses }
     }
 
     if (filters.feeType && filters.feeType !== 'All') {
@@ -58,7 +62,7 @@ export function buildReferralWhereClause(
 
     // Search Filter (Multi-field)
     if (filters.search) {
-        where.OR = [
+        const searchOr = [
             { parentName: { contains: filters.search, mode: 'insensitive' } },
             { parentMobile: { contains: filters.search } },
             { studentName: { contains: filters.search, mode: 'insensitive' } },
@@ -66,6 +70,13 @@ export function buildReferralWhereClause(
             { user: { fullName: { contains: filters.search, mode: 'insensitive' } } },
             { user: { referralCode: { contains: filters.search, mode: 'insensitive' } } }
         ]
+        if (where.OR) {
+            const existingOr = where.OR
+            delete where.OR
+            where.AND = [...(where.AND || []), { OR: existingOr }, { OR: searchOr }]
+        } else {
+            where.OR = searchOr
+        }
     }
 
     // Date Range Filter

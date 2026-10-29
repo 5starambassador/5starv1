@@ -508,7 +508,10 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
         ]);
 
         const campusMap = new Map<string, CampusComparison>();
-        const getEntry = (campus: string) => {
+        const normalizeCampus = (c: string) =>
+            c.trim().toUpperCase() === 'ABSM - MUTHIYALPET' ? 'ABSM -SVP' : c;
+        const getEntry = (rawCampus: string) => {
+            const campus = normalizeCampus(rawCampus);
             if (!campusMap.has(campus)) {
                 campusMap.set(campus, {
                     campus,
@@ -532,11 +535,11 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
 
         allCampuses.forEach(c => getEntry(c.campusName));
 
-        totalLeadsData.forEach(item => { if (item.campus) getEntry(item.campus).totalLeads = item._count._all; });
-        confirmedData.forEach(item => { if (item.campus) getEntry(item.campus).confirmed = item._count._all; });
-        pendingData.forEach(item => { if (item.campus) getEntry(item.campus).pending = item._count._all; });
-        prevLeadsData.forEach(item => { if (item.campus) getEntry(item.campus).prevLeads = item._count._all; });
-        prevConfirmedData.forEach(item => { if (item.campus) getEntry(item.campus).prevConfirmed = item._count._all; });
+        totalLeadsData.forEach(item => { if (item.campus) getEntry(item.campus).totalLeads += item._count._all; });
+        confirmedData.forEach(item => { if (item.campus) getEntry(item.campus).confirmed += item._count._all; });
+        pendingData.forEach(item => { if (item.campus) getEntry(item.campus).pending += item._count._all; });
+        prevLeadsData.forEach(item => { if (item.campus) getEntry(item.campus).prevLeads = (getEntry(item.campus).prevLeads || 0) + item._count._all; });
+        prevConfirmedData.forEach(item => { if (item.campus) getEntry(item.campus).prevConfirmed = (getEntry(item.campus).prevConfirmed || 0) + item._count._all; });
 
         // Previously this counted users with leads. Switching to count all Staff/Parents as ambassadors 
         // to match top-level card logic and show "live" imported data correctly.
@@ -550,8 +553,9 @@ export async function getCampusComparison(timeRange: '7d' | '30d' | 'all' = 'all
         const roleStats = new Map<string, Map<string, number>>();
         roleDistributionData.forEach(item => {
             if (item.campus && item.user?.role) {
-                if (!roleStats.has(item.campus)) roleStats.set(item.campus, new Map());
-                const m = roleStats.get(item.campus)!;
+                const normCampus = normalizeCampus(item.campus);
+                if (!roleStats.has(normCampus)) roleStats.set(normCampus, new Map());
+                const m = roleStats.get(normCampus)!;
                 m.set(item.user.role, (m.get(item.user.role) || 0) + 1);
             }
         });
@@ -779,6 +783,7 @@ export async function getAllUsers(options: {
                 users: processedUsers as User[],
                 pagination: {
                     total,
+                    totalCount: total,
                     page,
                     pageSize: pageSize!,
                     totalPages: Math.ceil(total / pageSize!)
@@ -952,6 +957,9 @@ async function buildUserWhereClause(options: {
 
     if (campusFilter) {
         const campuses = campusFilter.split(',').filter(Boolean)
+        if (campuses.includes('ABSM -SVP') && !campuses.includes('ABSM - MUTHIYALPET')) {
+            campuses.push('ABSM - MUTHIYALPET')
+        }
         if (campuses.length > 0) {
             if (campuses.includes('Global')) {
                 const names = campuses.filter(c => c !== 'Global')

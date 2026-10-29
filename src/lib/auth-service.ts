@@ -17,23 +17,40 @@ export const getCurrentUser = cache(async (options: { includeCount?: boolean } =
             if (admin) {
                 // Resolve campusId if assignedCampus is present (Critical for permission scoping)
                 let campusId = null
-                if (admin.assignedCampus) {
-                    const campus = await withRetry(() => prisma.campus.findUnique({
-                        where: { campusName: admin.assignedCampus! },
-                        select: { id: true, isActive: true }
+                let resolvedCampusName = admin.assignedCampus
+                    ? (admin.assignedCampus.trim().toUpperCase() === 'ABSM - MUTHIYALPET' ? 'ABSM -SVP' : admin.assignedCampus.trim())
+                    : null
+
+                if (resolvedCampusName) {
+                    let campus = await withRetry(() => prisma.campus.findUnique({
+                        where: { campusName: resolvedCampusName! },
+                        select: { id: true, campusName: true, isActive: true }
                     }))
+                    if (!campus) {
+                        campus = await withRetry(() => prisma.campus.findFirst({
+                            where: {
+                                OR: [
+                                    { campusName: { equals: resolvedCampusName!, mode: 'insensitive' } },
+                                    { campusHeadId: admin.adminId }
+                                ]
+                            },
+                            select: { id: true, campusName: true, isActive: true }
+                        }))
+                    }
                     if (campus) {
                         // BLOCK LOGIN IF CAMPUS IS INACTIVE
                         if (!campus.isActive && String(admin.role) !== 'Super Admin') {
                             return null
                         }
                         campusId = campus.id
+                        resolvedCampusName = campus.campusName
                     }
                 }
 
                 // Map to User-like structure for compatibility
                 return {
                     ...admin,
+                    assignedCampus: resolvedCampusName,
                     userId: admin.adminId,
                     campusId,
                     fullName: admin.adminName,
